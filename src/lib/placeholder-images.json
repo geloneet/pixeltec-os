@@ -1,0 +1,100 @@
+{
+  "placeholderImages": [
+    {
+      "id": "hero-image",
+      "description": "Abstract digital art representing technology and innovation.",
+      "imageUrl": "https://images.unsplash.com/photo-1579548122080-c35fd6820ecb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw2fHxhYnN0cmFjdCUyMHRlY2hub2xvZ3l8ZW58MHx8fHwxNzYxNzE0MjUzfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "abstract technology"
+    },
+    {
+      "id": "testimonial-1",
+      "description": "Portrait of Ana García.",
+      "imageUrl": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHx3b21hbiUyMHBvcnRyYWl0fGVufDB8fHx8MTc2MTc2NzYwNnww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "woman portrait"
+    },
+    {
+      "id": "testimonial-2",
+      "description": "Portrait of Carlos Rodríguez.",
+      "imageUrl": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxtYW4lMjBwb3J0cmFpdHxlbnwwfHx8fDE3NjE3NjY5NjB8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "man portrait"
+    },
+    {
+      "id": "testimonial-3",
+      "description": "Portrait of Laura Fernández.",
+      "imageUrl": "https://images.unsplash.com/photo-1580489944761-15a19d654956?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxwb3J0cmFpdHxlbnwwfHx8fDE3NjE3NjcwMTB8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "person portrait"
+    },
+    {
+      "id": "testimonial-4",
+      "description": "Portrait of David Martinez.",
+      "imageUrl": "https://images.unsplash.com/photo-1560250097-0b93528c311a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxwb3J0cmFpdHxlbnwwfHx8fDE3NjE3NjcwMTB8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "man portrait"
+    },
+    {
+      "id": "miguel-robles-portrait",
+      "description": "Portrait of Miguel Robles, leader of PixelTEC.",
+      "imageUrl": "https://firebasestorage.googleapis.com/v0/b/studio-1487114664-78b63.firebasestorage.app/o/fotodeperfil.jpg?alt=media",
+      "imageHint": "man portrait"
+    },
+    {
+      "id": "about-primary",
+      "description": "Primary mockup image for the about section.",
+      "imageUrl": "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=2070&auto=format&fit=crop",
+      "imageHint": "modern laboratory"
+    },
+    {
+      "id": "about-secondary",
+      "description": "Secondary background image for the about section.",
+      "imageUrl": "https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=2070&auto=format&fit=crop",
+      "imageHint": "circuit board"
+    },
+    {
+      "id": "blog-genkit",
+      "description": "Abstract image representing artificial intelligence and generative models.",
+      "imageUrl": "https://images.unsplash.com/photo-1620712943543-bcc4688e7485?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxhcnRpZmljaWFsJTIwaW50ZWxsaWdlbmNlfGVufDB8fHx8MTc3MjA4ODY1OHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "artificial intelligence"
+    },
+    {
+      "id": "blog-figma-nextjs",
+      "description": "Image showing code and design elements, representing web development workflow.",
+      "imageUrl": "https://images.unsplash.com/photo-1457305237443-44c3d5a30b89?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHx3ZWIlMjBkZXZlbG9wbWVudHxlbnwwfHx8fDE3NzIwNjkxMTN8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "web development"
+    },
+    {
+      "id": "blog-consulting",
+      "description": "Professional setting representing business and technology consulting.",
+      "imageUrl": "https://images.unsplash.com/photo-1542744095-fcf48d80b0fd?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxidXNpbmVzcyUyMGNvbnN1bHRpbmd8ZW58MHx8fHwxNzcyMTQ5MDIxfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "business consulting"
+    },
+    {
+      "id": "blog-automation",
+      "description": "Image with code and gears, representing process automation.",
+      "imageUrl": "https://images.unsplash.com/photo-1759661881353-5b9cc55e1cf4?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxhdXRvbWF0aW9uJTIwY29kZXxlbnwwfHx8fDE3NzIxNDkwMjF8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "automation code"
+    },
+    {
+      "id": "blog-ai-agents",
+      "description": "Image representing AI agents for B2B support.",
+      "imageUrl": "https://images.unsplash.com/photo-1677442136019-21780ecad995?q=80&w=1000&auto=format&fit=crop",
+      "imageHint": "ai agent"
+    },
+    {
+      "id": "blog-saas-roi",
+      "description": "Image showing charts and graphs, representing ROI.",
+      "imageUrl": "https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=1000&auto=format&fit=crop",
+      "imageHint": "data charts"
+    },
+    {
+      "id": "blog-nextjs-perf",
+      "description": "Image with a screen of code, representing Next.js optimization.",
+      "imageUrl": "https://images.unsplash.com/photo-1555066931-4365d14bab8c?q=80&w=1000&auto=format&fit=crop",
+      "imageHint": "code screen"
+    },
+    {
+      "id": "blog-multi-tenant",
+      "description": "Abstract image of cloud architecture, representing multi-tenant systems.",
+      "imageUrl": "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?q=80&w=1000&auto=format&fit=crop",
+      "imageHint": "cloud architecture"
+    }
+  ]
+}

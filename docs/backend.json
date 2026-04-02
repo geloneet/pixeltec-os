@@ -1,0 +1,597 @@
+{
+  "entities": {
+    "user": {
+      "title": "User",
+      "description": "A user of the application",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "The user's unique ID"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "The user's email address"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "The user's display name"
+        },
+        "role": {
+          "type": "string",
+          "enum": [
+            "admin",
+            "editor",
+            "client"
+          ],
+          "description": "The user's role in the system"
+        },
+        "clientId": {
+          "type": "string",
+          "description": "If role is 'client', this is the ID of their company in the 'clients' collection."
+        }
+      },
+      "required": [
+        "uid",
+        "email",
+        "role"
+      ]
+    },
+    "client": {
+      "title": "Client",
+      "description": "A client of PixelTEC",
+      "type": "object",
+      "properties": {
+        "companyName": {
+          "type": "string",
+          "description": "The name of the client's company"
+        },
+        "contactName": {
+          "type": "string",
+          "description": "The name of the primary contact person"
+        },
+        "contactEmail": {
+          "type": "string",
+          "format": "email",
+          "description": "The email of the primary contact person"
+        },
+        "whatsapp": {
+          "type": "string",
+          "description": "Client's WhatsApp number"
+        },
+        "website": {
+          "type": "string",
+          "format": "uri",
+          "description": "Client's website URL"
+        },
+        "techStack": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "The technology stack used for the client's project"
+        },
+        "services": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "Página web",
+              "Marketing digital",
+              "Automatización",
+              "Soporte técnico"
+            ]
+          },
+          "description": "Services hired by the client"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "Lead",
+            "Activo",
+            "Inactivo"
+          ],
+          "description": "The current status of the client"
+        },
+        "clientValue": {
+          "type": "number",
+          "description": "Monetary value of the client contract"
+        },
+        "assignedTo": {
+          "type": "string",
+          "enum": [
+            "Miguel",
+            "Asistente"
+          ],
+          "description": "Team member responsible for the client"
+        },
+        "location": {
+          "type": "string",
+          "description": "Client's city/location"
+        },
+        "initialNotes": {
+          "type": "string",
+          "description": "Initial notes about the client"
+        },
+        "documents": {
+          "type": "array",
+          "description": "A vault for client-related documents like contracts, invoices, etc.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Name of the document"
+              },
+              "url": {
+                "type": "string",
+                "format": "uri",
+                "description": "URL to the document"
+              },
+              "category": {
+                "type": "string",
+                "enum": [
+                  "Contratos",
+                  "Facturas",
+                  "Propuestas",
+                  "Credenciales",
+                  "Manual del proyecto"
+                ],
+                "description": "Category of the document"
+              },
+              "uploadDate": {
+                "type": "string",
+                "format": "date-time",
+                "description": "Timestamp of when the document was uploaded"
+              }
+            },
+            "required": [
+              "name",
+              "url",
+              "category",
+              "uploadDate"
+            ]
+          }
+        }
+      },
+      "required": [
+        "companyName",
+        "contactName",
+        "contactEmail",
+        "status"
+      ]
+    },
+    "project": {
+      "title": "Project",
+      "description": "A project for a specific client",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the project"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["Web", "Automatización", "Marketing", "App"],
+          "description": "The type of project"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["Planeación", "En desarrollo", "En revisión", "Entregado", "Cancelado"],
+          "description": "The current status of the project"
+        },
+        "priority": {
+          "type": "string",
+          "enum": ["Baja", "Media", "Alta", "Urgente"],
+          "description": "The priority level of the project"
+        },
+        "startDate": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The start date of the project"
+        },
+        "estimatedDeliveryDate": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The estimated delivery date of the project"
+        },
+        "assignedTo": {
+          "type": "string",
+          "description": "The person or team responsible for the project"
+        },
+        "comments": {
+          "type": "string",
+          "description": "Additional comments or documents related to the project"
+        }
+      },
+      "required": ["name", "type", "status", "priority", "startDate"]
+    },
+    "task": {
+      "title": "Task",
+      "description": "A task associated with a client project",
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string",
+          "description": "The content of the task"
+        },
+        "completed": {
+          "type": "boolean",
+          "description": "Whether the task is completed"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the task was created"
+        },
+        "completedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the task was completed"
+        }
+      },
+      "required": ["text", "completed", "createdAt"]
+    },
+    "globalTask": {
+      "title": "Global Task",
+      "description": "A global task for the system-wide task manager",
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "The title or content of the task"
+        },
+        "responsible": {
+          "type": "string",
+          "description": "The name of the person responsible for the task"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "Pendiente",
+            "En proceso",
+            "Completada"
+          ],
+          "description": "The current status of the task"
+        },
+        "dueDate": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The due date for the task"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the task was created"
+        }
+      },
+      "required": [
+        "title",
+        "responsible",
+        "status",
+        "createdAt"
+      ]
+    },
+    "note": {
+      "title": "Note",
+      "description": "A note in the client's log",
+      "type": "object",
+      "properties": {
+        "content": {
+          "type": "string",
+          "description": "The content of the note"
+        },
+        "author": {
+          "type": "string",
+          "description": "The author of the note"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the note was created"
+        }
+      },
+      "required": ["content", "author", "createdAt"]
+    },
+    "lead": {
+      "title": "Lead",
+      "description": "A potential sales lead for PixelTEC",
+      "type": "object",
+      "properties": {
+        "companyName": {
+          "type": "string",
+          "description": "The name of the lead's company"
+        },
+        "contactName": {
+          "type": "string",
+          "description": "The name of the primary contact person"
+        },
+        "contactEmail": {
+          "type": "string",
+          "format": "email",
+          "description": "The email of the primary contact person"
+        },
+        "whatsapp": {
+          "type": "string",
+          "description": "The lead's phone number"
+        },
+        "interestedService": {
+          "type": "string",
+          "enum": [
+            "Página web",
+            "Marketing digital",
+            "Automatización",
+            "Soporte técnico",
+            "Consultoría",
+            "Otro"
+          ],
+          "description": "The service the lead is interested in"
+        },
+        "estimatedValue": {
+          "type": "number",
+          "description": "Estimated monetary value of the potential contract"
+        },
+        "closeProbability": {
+          "type": "number",
+          "description": "Probability of closing the deal, as a percentage (0-100)"
+        },
+        "stage": {
+          "type": "string",
+          "enum": [
+            "Lead nuevo",
+            "Contactado",
+            "Reunión agendada",
+            "Propuesta enviada",
+            "Negociación",
+            "Ganado",
+            "Perdido"
+          ],
+          "description": "The current stage of the lead in the sales pipeline"
+        },
+        "leadSource": {
+          "type": "string",
+          "enum": [
+            "Facebook",
+            "WhatsApp",
+            "Referido",
+            "Google",
+            "Página web"
+          ],
+          "description": "Where the lead came from"
+        },
+        "notes": {
+          "type": "string",
+          "description": "Initial notes or detected needs about the lead"
+        }
+      },
+      "required": [
+        "companyName",
+        "contactName",
+        "stage"
+      ]
+    },
+    "ticket": {
+      "title": "Ticket de Soporte",
+      "description": "Una solicitud de soporte técnico de un cliente.",
+      "type": "object",
+      "properties": {
+        "ticketId": {
+          "type": "string",
+          "description": "El identificador único del ticket (ej. #TKT-001)"
+        },
+        "cliente": {
+          "type": "string",
+          "description": "Nombre de la empresa o cliente que reporta."
+        },
+        "problema": {
+          "type": "string",
+          "description": "Descripción detallada del problema."
+        },
+        "solucionAplicada": {
+          "type": "string",
+          "description": "Descripción detallada de la solución que se implementó para resolver el ticket."
+        },
+        "categoría": {
+          "type": "string",
+          "enum": [
+            "Hosting",
+            "Página web",
+            "Correo",
+            "Automatización",
+            "Hardware",
+            "Otro"
+          ],
+          "description": "La categoría del problema."
+        },
+        "prioridad": {
+          "type": "string",
+          "enum": [
+            "Baja",
+            "Media",
+            "Alta"
+          ],
+          "description": "La urgencia del ticket."
+        },
+        "estado": {
+          "type": "string",
+          "enum": [
+            "Abierto",
+            "En proceso",
+            "Esperando cliente",
+            "Resuelto"
+          ],
+          "description": "El estado actual del ticket."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Fecha de creación del ticket."
+        },
+        "fechaCierre": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Fecha en que se resolvió el ticket."
+        }
+      },
+      "required": [
+        "ticketId",
+        "cliente",
+        "problema",
+        "categoría",
+        "prioridad",
+        "estado",
+        "createdAt"
+      ]
+    },
+    "finance": {
+      "title": "Finance Record",
+      "description": "A financial transaction or record.",
+      "type": "object",
+      "properties": {
+        "clientName": {
+          "type": "string",
+          "description": "Name of the client."
+        },
+        "projectName": {
+          "type": "string",
+          "description": "Name of the associated project."
+        },
+        "amount": {
+          "type": "number",
+          "description": "Transaction amount."
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "Mensual",
+            "Único"
+          ],
+          "description": "Type of transaction."
+        },
+        "date": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Date of the transaction."
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "Pagado",
+            "Pendiente"
+          ],
+          "description": "Status of the transaction."
+        },
+        "method": {
+          "type": "string",
+          "enum": [
+            "Transferencia",
+            "Efectivo",
+            "Stripe",
+            "MercadoPago"
+          ],
+          "description": "Payment method."
+        }
+      },
+      "required": [
+        "clientName",
+        "amount",
+        "type",
+        "date",
+        "status"
+      ]
+    },
+    "activity": {
+      "title": "Activity Log",
+      "description": "A log of recent activities in the system.",
+      "type": "object",
+      "properties": {
+        "message": {
+          "type": "string",
+          "description": "A description of the activity."
+        },
+        "type": {
+          "type": "string",
+          "enum": ["project", "sale", "support", "finance"],
+          "description": "The category of the activity."
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the activity occurred."
+        },
+        "link": {
+          "type": "string",
+          "format": "uri",
+          "description": "A link to the relevant resource."
+        }
+      },
+      "required": ["message", "type", "timestamp"]
+    }
+  },
+  "auth": {
+    "providers": ["email"]
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/user"
+      },
+      "description": "User profile information"
+    },
+    "/clients/{clientId}": {
+      "schema": {
+        "$ref": "#/entities/client"
+      },
+      "description": "Client information for the CRM"
+    },
+    "/clients/{clientId}/projects/{projectId}": {
+      "schema": {
+        "$ref": "#/entities/project"
+      },
+      "description": "Projects for a specific client"
+    },
+    "/clients/{clientId}/projects/{projectId}/tasks/{taskId}": {
+      "schema": {
+        "$ref": "#/entities/task"
+      },
+      "description": "Tasks for a specific project"
+    },
+    "/clients/{clientId}/projects/{projectId}/notes/{noteId}": {
+      "schema": {
+        "$ref": "#/entities/note"
+      },
+      "description": "Log notes for a specific project"
+    },
+    "/leads/{leadId}": {
+      "schema": {
+        "$ref": "#/entities/lead"
+      },
+      "description": "Sales pipeline leads"
+    },
+    "/tickets/{ticketId}": {
+      "schema": {
+        "$ref": "#/entities/ticket"
+      },
+      "description": "Tickets de soporte técnico"
+    },
+    "/finances/{financeId}": {
+      "schema": {
+        "$ref": "#/entities/finance"
+      },
+      "description": "Financial records and transactions."
+    },
+    "/activity/{activityId}": {
+      "schema": {
+        "$ref": "#/entities/activity"
+      },
+      "description": "System-wide activity logs."
+    },
+    "/tasks/{taskId}": {
+      "schema": {
+        "$ref": "#/entities/globalTask"
+      },
+      "description": "Global tasks for the main task manager"
+    }
+  }
+}

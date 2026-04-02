@@ -1,0 +1,55 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Users can only read/write their own document.
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // ── Clients ──────────────────────────────────────────────────────────────
+    // Authenticated admins can read/write everything.
+    // Portal (unauthenticated) can read the main client doc (slug lookup + dashboard)
+    // and update only the accessCode fields (code request / verification).
+    match /clients/{clientId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+      allow update: if request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(['accessCode', 'accessCodeExpiresAt', 'lastCodeRequestAt']);
+    }
+
+    // Updates subcollection — portal dashboard reads these publicly.
+    match /clients/{clientId}/updates/{updateId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // Projects subcollection — portal dashboard reads these publicly.
+    match /clients/{clientId}/projects/{projectId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // All other client subcollections (tasks, notes, etc.) — authenticated only.
+    match /clients/{clientId}/{path=**} {
+      allow read, write: if request.auth != null;
+    }
+
+    // ── Other dashboard collections ──────────────────────────────────────────
+    match /leads/{leadId} {
+      allow read, write: if request.auth != null;
+    }
+    match /tickets/{ticketId} {
+      allow read, write: if request.auth != null;
+    }
+    match /finances/{financeId} {
+      allow read, write: if request.auth != null;
+    }
+    match /activity/{activityId} {
+      allow read, write: if request.auth != null;
+    }
+    match /tasks/{taskId} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
