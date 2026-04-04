@@ -120,7 +120,7 @@ export default function LoginPage() {
         {/* Header */}
         <div className="mb-8 flex flex-col items-center text-center">
           <Image
-            src="https://firebasestorage.googleapis.com/v0/b/studio-1487114664-78b63.firebasestorage.app/o/ptlogo2.png?alt=media"
+            src={process.env.NEXT_PUBLIC_LOGO_URL!}
             alt="PixelTEC Logo"
             width={50}
             height={50}

@@ -43,8 +43,8 @@ const Sidebar = () => {
     <aside className="h-full flex-shrink-0 flex items-center p-4 transition-opacity duration-300">
         <div className="h-full w-20 bg-black/20 backdrop-blur-xl border border-white/5 rounded-[2rem] flex flex-col items-center justify-between py-6">
             <Link href="/">
-                <Image 
-                    src="https://firebasestorage.googleapis.com/v0/b/studio-1487114664-78b63.firebasestorage.app/o/ptlogo2.png?alt=media"
+                <Image
+                    src={process.env.NEXT_PUBLIC_LOGO_URL!}
                     alt="PixelTEC Logo"
                     width={40}
                     height={40}
@@ -95,8 +95,8 @@ const Header = () => {
             "flex items-center gap-3 transition-all duration-500",
             isPresentationMode ? "scale-110" : "scale-100"
         )}>
-             <Image 
-                src="https://firebasestorage.googleapis.com/v0/b/studio-1487114664-78b63.firebasestorage.app/o/ptlogo2.png?alt=media"
+             <Image
+                src={process.env.NEXT_PUBLIC_LOGO_URL!}
                 alt="PixelTEC Logo"
                 width={isPresentationMode ? 48 : 40}
                 height={isPresentationMode ? 48 : 40}
@@ -133,8 +133,8 @@ const Header = () => {
                     <div className="absolute top-2.5 right-3 h-2.5 w-2.5 rounded-full bg-lime-400 border-2 border-[#030303]" />
                 </button>
                 <div className="relative">
-                    <Image 
-                        src="https://firebasestorage.googleapis.com/v0/b/studio-1487114664-78b63.firebasestorage.app/o/fotodeperfil.jpg?alt=media"
+                    <Image
+                        src={process.env.NEXT_PUBLIC_PROFILE_PHOTO_URL!}
                         alt="User Avatar"
                         width={48}
                         height={48}

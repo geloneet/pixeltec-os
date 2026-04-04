@@ -62,11 +62,11 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
             <header className="sticky top-0 z-50 flex h-20 w-full shrink-0 items-center justify-between border-b border-white/10 bg-[#030303]/80 px-4 backdrop-blur-lg sm:px-6 lg:px-8">
                 {/* Left Side */}
                 <div className="flex items-center gap-4">
-                     <Image 
-                        src="https://firebasestorage.googleapis.com/v0/b/studio-1487114664-78b63.firebasestorage.app/o/ptlogo2.png?alt=media" 
-                        alt="PixelTEC Logo" 
-                        width={32} 
-                        height={32} 
+                     <Image
+                        src={process.env.NEXT_PUBLIC_LOGO_URL!}
+                        alt="PixelTEC Logo"
+                        width={32}
+                        height={32}
                     />
                     <span className="font-logo text-xl font-extrabold uppercase tracking-tight text-gray-100">
                         Pixel<span className="text-brand-blue">Tec</span>

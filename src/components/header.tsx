@@ -70,11 +70,11 @@ export default function Header() {
     >
         <div className="w-full h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
             <Link href="/" className="flex items-center gap-3">
-              <Image 
-                src="https://firebasestorage.googleapis.com/v0/b/studio-1487114664-78b63.firebasestorage.app/o/ptlogo2.png?alt=media" 
-                alt="PixelTEC Logo" 
-                width={40} 
-                height={40} 
+              <Image
+                src={process.env.NEXT_PUBLIC_LOGO_URL!}
+                alt="PixelTEC Logo"
+                width={40}
+                height={40}
                 className={cn(
                   "w-auto transition-all duration-300 ease-in-out",
                   isScrolled ? "h-8" : "h-10"
@@ -122,7 +122,7 @@ export default function Header() {
                     <div className="flex flex-col min-h-full w-full p-6">
                         <div className="flex-1 flex flex-col justify-center items-center">
                             <div className="flex items-center gap-3 mb-16">
-                                <Image src="https://firebasestorage.googleapis.com/v0/b/studio-1487114664-78b63.firebasestorage.app/o/ptlogo2.png?alt=media" alt="PixelTEC Logo" width={40} height={40} className="h-10 w-auto" />
+                                <Image src={process.env.NEXT_PUBLIC_LOGO_URL!} alt="PixelTEC Logo" width={40} height={40} className="h-10 w-auto" />
                                 <span className={cn(
                                     "font-logo text-4xl font-extrabold uppercase tracking-tighter translate-y-0.5"
                                 )}>

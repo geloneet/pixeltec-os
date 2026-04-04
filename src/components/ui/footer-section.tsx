@@ -59,7 +59,7 @@ export function Footer() {
 			<div className="grid w-full max-w-7xl gap-8 xl:grid-cols-3 xl:gap-8 mx-auto">
 				<AnimatedContainer className="space-y-4">
 					<div className="flex items-center gap-3">
-                        <Image src="https://firebasestorage.googleapis.com/v0/b/studio-1487114664-78b63.firebasestorage.app/o/ptlogo2.png?alt=media" alt="PixelTEC Logo" width={32} height={32} className="size-8" />
+                        <Image src={process.env.NEXT_PUBLIC_LOGO_URL!} alt="PixelTEC Logo" width={32} height={32} className="size-8" />
 						<span className="font-logo text-2xl font-extrabold uppercase tracking-tight text-gray-100">
 							Pixel<span className="text-brand-blue">Tec</span>
 						</span>
