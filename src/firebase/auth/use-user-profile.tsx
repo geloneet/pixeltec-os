@@ -9,7 +9,7 @@ interface UserProfile {
     uid: string;
     email?: string;
     displayName?: string;
-    role?: 'admin' | 'editor';
+    role?: 'admin' | 'editor' | 'client';
     [key: string]: any; // Allow other properties
 }
 

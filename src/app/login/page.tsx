@@ -19,6 +19,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
   const router = useRouter();
   const auth = useAuth();
@@ -26,9 +27,10 @@ export default function LoginPage() {
   const user = useUser();
   const { userProfile, loading: profileLoading } = useUserProfile();
 
-  // Redirect if user is already logged in and profile is loaded
+  // Redirect if user is already logged in and profile is loaded.
+  // Skip during active login to avoid racing with session cookie creation.
   useEffect(() => {
-    if (profileLoading) return; // Wait until we know the user's role
+    if (isLoading || isRedirecting || profileLoading) return;
 
     if (userProfile) {
         if (userProfile.role === 'admin' || userProfile.role === 'editor') {
@@ -37,7 +39,7 @@ export default function LoginPage() {
             router.push('/portal');
         }
     }
-  }, [userProfile, profileLoading, router]);
+  }, [userProfile, profileLoading, isLoading, isRedirecting, router]);
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -56,23 +58,31 @@ export default function LoginPage() {
 
         if (userDocSnap.exists()) {
             const userData = userDocSnap.data();
+            let redirectTo: string | null = null;
+
             if (userData.role === 'admin' || userData.role === 'editor') {
+                redirectTo = '/dashboard';
+            } else if (userData.role === 'client') {
+                redirectTo = '/portal';
+            }
+
+            if (redirectTo) {
                 // Set server-side session cookie before redirecting
                 const idToken = await user.getIdToken();
-                await fetch('/api/auth/session', {
+                const sessionRes = await fetch('/api/auth/session', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ idToken }),
                 });
-                router.push('/dashboard');
-            } else if (userData.role === 'client') {
-                const idToken = await user.getIdToken();
-                await fetch('/api/auth/session', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ idToken }),
-                });
-                router.push('/portal');
+
+                if (!sessionRes.ok) {
+                    await signOut(auth);
+                    setError('Error al crear la sesión. Por favor, intenta de nuevo.');
+                    return;
+                }
+
+                setIsRedirecting(true);
+                router.push(redirectTo);
             } else {
                 await signOut(auth);
                 setError('Tu rol no está definido. Contacta al administrador.');
