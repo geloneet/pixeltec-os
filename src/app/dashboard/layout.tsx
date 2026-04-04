@@ -18,7 +18,7 @@ import {
     ShieldCheck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { ReactNode } from 'react';
+import { ReactNode, useMemo } from 'react';
 import { useUserProfile } from '@/firebase/auth/use-user-profile';
 import { PresentationModeProvider, usePresentationMode } from '@/context/PresentationModeContext';
 
@@ -39,6 +39,15 @@ const menuItems = [
 const Sidebar = () => {
     const pathname = usePathname();
 
+    const items = useMemo(() => {
+        if (pathname.startsWith('/dashboard/clients/')) {
+            return menuItems.map(item =>
+                item.path === '/dashboard' ? { ...item, path: '/dashboard/overview' } : item
+            );
+        }
+        return menuItems;
+    }, [pathname]);
+
     return (
     <aside className="h-full flex-shrink-0 flex items-center p-4 transition-opacity duration-300">
         <div className="h-full w-20 bg-black/20 backdrop-blur-xl border border-white/5 rounded-[2rem] flex flex-col items-center justify-between py-6">
@@ -52,7 +61,7 @@ const Sidebar = () => {
                 />
             </Link>
             <nav className="flex flex-col items-center gap-4">
-                {menuItems.map((item) => (
+                {items.map((item) => (
                     <Link href={item.path} key={item.path}>
                         <SidebarItem 
                             icon={<item.icon />} 
@@ -187,16 +196,6 @@ function LayoutWithContext({ children }: { children: ReactNode }) {
 }
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
-  const pathname = usePathname();
-  
-  if (pathname.startsWith('/dashboard/clients/')) {
-    const clientsItem = menuItems.find(item => item.path === '/dashboard/clients');
-    if (clientsItem) {
-        const overviewItem = menuItems.find(item => item.path === '/dashboard');
-        if(overviewItem) overviewItem.path = '/dashboard/overview'; 
-    }
-  }
-
   return (
     <PresentationModeProvider>
       <LayoutWithContext>{children}</LayoutWithContext>
