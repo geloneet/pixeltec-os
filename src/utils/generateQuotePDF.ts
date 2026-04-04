@@ -143,7 +143,7 @@ export const generateQuotePDF = async (
             alternateRowStyles: {
                 fillColor: [248, 249, 250],
             },
-            didDrawPage: (data) => {
+            didDrawPage: (data: any) => {
                 // This function is called after the table is drawn on each page
                 // We draw the totals only on the last page
                 if (data.pageNumber === data.pageCount) {
