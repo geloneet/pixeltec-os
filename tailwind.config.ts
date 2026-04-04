@@ -17,11 +17,11 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ['Poppins', 'sans-serif'],
-        body: ['Poppins', 'sans-serif'],
-        headline: ['Poppins', 'sans-serif'],
-        roboto: ['Roboto', 'sans-serif'],
-        logo: ['League Spartan', 'sans-serif'],
+        sans: ['var(--font-poppins)', 'sans-serif'],
+        body: ['var(--font-poppins)', 'sans-serif'],
+        headline: ['var(--font-poppins)', 'sans-serif'],
+        roboto: ['var(--font-roboto)', 'sans-serif'],
+        logo: ['var(--font-league-spartan)', 'sans-serif'],
       },
       colors: {
         'brand-blue': '#2196F3',

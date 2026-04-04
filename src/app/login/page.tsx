@@ -57,8 +57,21 @@ export default function LoginPage() {
         if (userDocSnap.exists()) {
             const userData = userDocSnap.data();
             if (userData.role === 'admin' || userData.role === 'editor') {
+                // Set server-side session cookie before redirecting
+                const idToken = await user.getIdToken();
+                await fetch('/api/auth/session', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ idToken }),
+                });
                 router.push('/dashboard');
             } else if (userData.role === 'client') {
+                const idToken = await user.getIdToken();
+                await fetch('/api/auth/session', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ idToken }),
+                });
                 router.push('/portal');
             } else {
                 await signOut(auth);

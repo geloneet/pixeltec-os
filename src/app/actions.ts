@@ -183,7 +183,24 @@ export async function getGlobalAIInsights(input: GlobalStrategicInsightsInput): 
     }
 }
 
-// ─── Email Server Actions ──────────────────────────────────────────────────────
+// ─── AI Pipeline Server Actions ─────────────────────────��─────────────────────
+
+export type { PipelineContext } from '@/ai/types/agent-types';
+
+type PipelineInput = {
+  title: string;
+  description: string;
+  module: 'clients' | 'projects' | 'tasks' | 'pipeline' | 'finance' | 'support' | 'analytics' | 'auth' | 'global';
+  requestedBy: string;
+  priority?: 'critical' | 'high' | 'medium' | 'low';
+};
+
+export async function runFeaturePipelineAction(input: PipelineInput) {
+  const { runFeaturePipeline } = await import('@/ai/orchestrators/feature-pipeline');
+  return runFeaturePipeline(input);
+}
+
+// ─── Email Server Actions ─────────────────────��────────────────────────────────
 
 const welcomeEmailSchema = z.object({
   email:       z.string().email(),

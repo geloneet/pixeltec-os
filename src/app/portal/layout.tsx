@@ -28,6 +28,7 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
 
     const handleLogout = async () => {
         if (auth) {
+            await fetch('/api/auth/session', { method: 'DELETE' });
             await signOut(auth);
             router.push('/login');
         }

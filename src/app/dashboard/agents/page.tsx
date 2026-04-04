@@ -28,8 +28,7 @@ import {
   ChevronRight,
   Sparkles,
 } from 'lucide-react';
-import { runFeaturePipeline } from '@/ai/orchestrators/feature-pipeline';
-import type { PipelineContext } from '@/ai/types/agent-types';
+import { runFeaturePipelineAction, type PipelineContext } from '@/app/actions';
 
 // ─── Form Schema ──────────────────────────────────────────────────────────────
 
@@ -87,7 +86,7 @@ export default function AgentsDashboardPage() {
     }
 
     try {
-      const pipelineResult = await runFeaturePipeline(data);
+      const pipelineResult = await runFeaturePipelineAction(data);
       setResult(pipelineResult);
 
       // Mark stages based on result

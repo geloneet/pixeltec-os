@@ -2,6 +2,8 @@
  * Welcome email sent to a new client when they are added to PixelTEC OS.
  */
 
+import { escapeHtml } from './shared';
+
 export interface WelcomeEmailProps {
   clientName: string;
   companyName: string;
@@ -12,8 +14,10 @@ export interface WelcomeEmailProps {
 export function renderWelcomeEmail(props: WelcomeEmailProps): string {
   const { clientName, companyName, services, assignedTo } = props;
   const servicesHtml = services.length
-    ? services.map(s => `<li style="margin:4px 0;color:#374151;">${s}</li>`).join('')
+    ? services.map(s => `<li style="margin:4px 0;color:#374151;">${escapeHtml(s)}</li>`).join('')
     : '<li style="color:#9ca3af;">Sin servicios especificados</li>';
+
+  const year = new Date().getFullYear();
 
   return `<!DOCTYPE html>
 <html lang="es">
@@ -44,7 +48,7 @@ export function renderWelcomeEmail(props: WelcomeEmailProps): string {
           <tr>
             <td style="background:#ffffff;padding:40px;border-left:1px solid #e4e4e7;border-right:1px solid #e4e4e7;">
               <h1 style="margin:0 0 8px;font-size:26px;font-weight:700;color:#09090b;">
-                ¡Hola, ${clientName}! 👋
+                ¡Hola, ${escapeHtml(clientName)}!
               </h1>
               <p style="margin:0 0 24px;font-size:15px;color:#71717a;">
                 Nos da mucho gusto darte la bienvenida como cliente de PixelTEC.
@@ -54,7 +58,7 @@ export function renderWelcomeEmail(props: WelcomeEmailProps): string {
                 <p style="margin:0 0 4px;font-size:12px;font-weight:600;color:#71717a;text-transform:uppercase;letter-spacing:1px;">
                   Tu cuenta
                 </p>
-                <p style="margin:0;font-size:20px;font-weight:700;color:#09090b;">${companyName}</p>
+                <p style="margin:0;font-size:20px;font-weight:700;color:#09090b;">${escapeHtml(companyName)}</p>
               </div>
 
               <p style="margin:0 0 12px;font-size:14px;font-weight:600;color:#09090b;">
@@ -66,7 +70,7 @@ export function renderWelcomeEmail(props: WelcomeEmailProps): string {
 
               <div style="border-left:3px solid #06b6d4;padding-left:16px;margin-bottom:24px;">
                 <p style="margin:0;font-size:14px;color:#52525b;">
-                  Tu punto de contacto directo es <strong style="color:#09090b;">${assignedTo}</strong>.
+                  Tu punto de contacto directo es <strong style="color:#09090b;">${escapeHtml(assignedTo)}</strong>.
                   Cualquier duda o solicitud, no dudes en escribirnos.
                 </p>
               </div>
@@ -87,10 +91,10 @@ export function renderWelcomeEmail(props: WelcomeEmailProps): string {
           <tr>
             <td style="background:#f9f9f9;border:1px solid #e4e4e7;border-top:none;border-radius:0 0 16px 16px;padding:24px 40px;text-align:center;">
               <p style="margin:0;font-size:12px;color:#a1a1aa;">
-                © ${new Date().getFullYear()} PixelTEC · Guadalajara, México
+                &copy; ${year} PixelTEC &middot; Guadalajara, M&eacute;xico
               </p>
               <p style="margin:6px 0 0;font-size:12px;color:#a1a1aa;">
-                Este mensaje fue generado automáticamente por PixelTEC OS.
+                Este mensaje fue generado autom&aacute;ticamente por PixelTEC OS.
               </p>
             </td>
           </tr>

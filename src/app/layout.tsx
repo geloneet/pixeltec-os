@@ -3,6 +3,28 @@ import './globals.css';
 import { cn } from '@/lib/utils';
 import { Toaster } from '@/components/ui/toaster';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
+import { Poppins, Roboto, League_Spartan } from 'next/font/google';
+
+const poppins = Poppins({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700', '800', '900'],
+  variable: '--font-poppins',
+  display: 'swap',
+});
+
+const roboto = Roboto({
+  subsets: ['latin'],
+  weight: ['400', '500', '700'],
+  variable: '--font-roboto',
+  display: 'swap',
+});
+
+const leagueSpartan = League_Spartan({
+  subsets: ['latin'],
+  weight: ['800'],
+  variable: '--font-league-spartan',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: {
@@ -24,12 +46,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark scroll-smooth">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&family=Roboto:wght@400;500;700&family=League+Spartan:wght@800&display=swap" rel="stylesheet" />
-      </head>
+    <html lang="en" className={cn('dark scroll-smooth', poppins.variable, roboto.variable, leagueSpartan.variable)}>
       <body className={cn('font-body antialiased min-h-screen bg-background text-foreground')}>
         <FirebaseClientProvider>
           {children}
