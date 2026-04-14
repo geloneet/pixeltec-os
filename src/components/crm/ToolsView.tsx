@@ -15,7 +15,7 @@ export function ToolsView({ tools, onSelectTool, onAddTool }: ToolsViewProps) {
         <h2 className="text-[20px] font-semibold text-zinc-200">Herramientas</h2>
         <button
           onClick={onAddTool}
-          className="px-3 py-1.5 text-sm bg-[#6d5acd] text-white rounded-lg hover:bg-[#5a48b0]"
+          className="px-3 py-1.5 text-sm bg-[#0EA5E9] text-white rounded-lg hover:bg-[#0284C7] transition-all duration-150"
         >
           + Herramienta
         </button>
@@ -31,7 +31,7 @@ export function ToolsView({ tools, onSelectTool, onAddTool }: ToolsViewProps) {
             <button
               key={tool.id}
               onClick={() => onSelectTool(tool.id)}
-              className="flex items-center gap-3 bg-[#151518] border border-[#2a2a2f] rounded-[10px] px-4 py-4 text-left hover:border-[#3a3a3f] transition-colors"
+              className="flex items-center gap-3 bg-[#0F0F12] border border-zinc-800 rounded-[10px] px-4 py-4 text-left hover:border-zinc-700 transition-all duration-200"
             >
               <span
                 className="flex h-10 w-10 items-center justify-center rounded-full text-base flex-shrink-0"

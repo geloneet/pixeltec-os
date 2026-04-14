@@ -2,7 +2,7 @@
 
 import type { CRMClient } from "@/types/crm";
 
-const AVATAR_COLORS = ["#6d5acd", "#3b82f6", "#ef4444", "#f59e0b", "#10b981", "#ec4899", "#8b5cf6", "#06b6d4"];
+const AVATAR_COLORS = ["#0EA5E9", "#3b82f6", "#ef4444", "#f59e0b", "#10b981", "#ec4899", "#8b5cf6", "#06b6d4"];
 
 function avatarColor(name: string) {
   let h = 0;
@@ -30,18 +30,20 @@ export function ClientDetail({ client, setView, navigateToProject, setModal, del
     }
   };
 
+  const color = avatarColor(client.name);
+
   return (
     <div>
       {/* Breadcrumb */}
-      <button onClick={() => setView("clients")} className="text-[13px] text-zinc-500 hover:text-zinc-300 mb-4 block">
+      <button onClick={() => setView("clients")} className="text-[13px] text-zinc-500 hover:text-zinc-300 mb-4 block transition-colors duration-150">
         ← Clientes
       </button>
 
       {/* Header */}
       <div className="flex items-center gap-4 mb-6">
         <span
-          className="flex h-12 w-12 items-center justify-center rounded-full text-lg font-bold text-white"
-          style={{ backgroundColor: avatarColor(client.name) }}
+          className="flex h-12 w-12 items-center justify-center rounded-full text-lg font-bold text-white ring-1"
+          style={{ backgroundColor: color, boxShadow: `0 0 0 1px ${color}30` }}
         >
           {initials(client.name)}
         </span>
@@ -54,13 +56,13 @@ export function ClientDetail({ client, setView, navigateToProject, setModal, del
         <div className="flex gap-2">
           <button
             onClick={() => setModal({ type: "editClient", data: { id: client.id, name: client.name, phone: client.phone, location: client.location, notes: client.notes } })}
-            className="rounded-lg bg-[#1c1c20] px-3 py-1.5 text-[12px] text-zinc-400 hover:text-zinc-200"
+            className="rounded-lg bg-[#18181B] px-3 py-1.5 text-[12px] text-zinc-400 hover:text-zinc-200 transition-all duration-150"
           >
             Editar
           </button>
           <button
             onClick={handleDelete}
-            className="rounded-lg bg-[#1c1c20] px-3 py-1.5 text-[12px] text-zinc-400 hover:bg-red-500/10 hover:text-red-400"
+            className="rounded-lg bg-[#18181B] px-3 py-1.5 text-[12px] text-zinc-400 hover:bg-red-500/10 hover:text-red-400 transition-all duration-150"
           >
             Eliminar
           </button>
@@ -69,7 +71,7 @@ export function ClientDetail({ client, setView, navigateToProject, setModal, del
 
       {/* Notes */}
       {client.notes && (
-        <div className="bg-[#151518] border border-[#2a2a2f] rounded-[10px] p-4 mb-6">
+        <div className="bg-[#0F0F12] border border-zinc-800 rounded-[10px] p-4 mb-6">
           <p className="text-[11px] text-zinc-500 uppercase tracking-wider mb-2">Notas</p>
           <p className="text-[13px] text-zinc-300 whitespace-pre-wrap">{client.notes}</p>
         </div>
@@ -80,7 +82,7 @@ export function ClientDetail({ client, setView, navigateToProject, setModal, del
         <h3 className="text-[13px] font-medium text-zinc-400">Proyectos</h3>
         <button
           onClick={() => setModal({ type: "addProject" })}
-          className="text-[12px] text-[#6d5acd] hover:text-[#8b7ae8]"
+          className="text-[12px] text-[#0EA5E9] hover:text-[#38BDF8] transition-colors duration-150"
         >
           + Proyecto
         </button>
@@ -99,7 +101,7 @@ export function ClientDetail({ client, setView, navigateToProject, setModal, del
               <button
                 key={p.id}
                 onClick={() => navigateToProject(client.id, p.id)}
-                className="bg-[#151518] border border-[#2a2a2f] rounded-[10px] p-4 text-left hover:border-[#3a3a3f] transition-colors w-full"
+                className="bg-[#0F0F12] border border-zinc-800 rounded-[10px] p-4 text-left hover:border-zinc-700 hover:-translate-y-0.5 transition-all duration-200 w-full"
               >
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-[13px] font-medium text-zinc-200">{p.name}</p>
@@ -107,8 +109,8 @@ export function ClientDetail({ client, setView, navigateToProject, setModal, del
                 </div>
                 {total > 0 && (
                   <div className="flex items-center gap-2">
-                    <div className="flex-1 h-1.5 rounded-full bg-[#1c1c20]">
-                      <div className="h-full rounded-full bg-[#6d5acd]" style={{ width: `${pct}%` }} />
+                    <div className="flex-1 h-[3px] rounded-full bg-[#18181B]">
+                      <div className="h-full rounded-full bg-[#0EA5E9]" style={{ width: `${pct}%` }} />
                     </div>
                     <span className="text-[11px] text-zinc-500">{pct}%</span>
                   </div>

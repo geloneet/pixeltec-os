@@ -82,7 +82,7 @@ export function SearchView({ clients, tools, navigateToClient, navigateToProject
         value={query}
         onChange={e => setQuery(e.target.value)}
         placeholder="Buscar clientes, proyectos, tareas, llaves..."
-        className="w-full bg-[#1c1c20] border border-[#2a2a2f] rounded-lg px-4 py-3 text-sm text-zinc-200 focus:outline-none focus:border-[#6d5acd] mb-4"
+        className="w-full bg-[#18181B] border border-zinc-800 rounded-lg px-4 py-3 text-sm text-zinc-200 focus:outline-none focus:border-[#0EA5E9] mb-4 transition-colors duration-150"
       />
 
       {q && results.length === 0 && (
@@ -94,7 +94,7 @@ export function SearchView({ clients, tools, navigateToClient, navigateToProject
           <button
             key={`${r.type}-${r.cid}-${r.pid || ""}-${i}`}
             onClick={() => handleClick(r)}
-            className="flex w-full items-center gap-3 bg-[#151518] border border-[#2a2a2f] rounded-[10px] px-4 py-3 text-left hover:border-[#3a3a3f] transition-colors"
+            className="flex w-full items-center gap-3 bg-[#0F0F12] border border-zinc-800 rounded-[10px] px-4 py-3 text-left hover:border-zinc-700 transition-all duration-200"
           >
             <span className="text-[11px] text-zinc-600 uppercase w-16 flex-shrink-0">{r.type}</span>
             <div className="min-w-0 flex-1">
