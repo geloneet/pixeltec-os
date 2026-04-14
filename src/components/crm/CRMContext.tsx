@@ -3,7 +3,7 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback, type ReactNode } from "react";
 import { useUser, useFirestore } from "@/firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
-import type { CRMClient, CRMProject, CRMTask, CRMKey } from "@/types/crm";
+import type { CRMClient, CRMProject, CRMTask, CRMKey, Tool, KnowledgeTip } from "@/types/crm";
 
 function uid(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -11,6 +11,7 @@ function uid(): string {
 
 interface CRMContextValue {
   clients: CRMClient[];
+  tools: Tool[];
   streak: number;
   loading: boolean;
   userEmail: string;
@@ -28,6 +29,12 @@ interface CRMContextValue {
   deleteKey: (clientId: string, projectId: string, keyId: string) => void;
   saveQuickNote: (clientId: string, projectId: string, note: string) => void;
   incrementStreak: () => void;
+  addTool: (data: Pick<Tool, "name" | "icon" | "color">) => void;
+  updateTool: (toolId: string, data: Partial<Tool>) => void;
+  deleteTool: (toolId: string) => void;
+  addTip: (toolId: string, data: Pick<KnowledgeTip, "title" | "summary" | "content" | "tags">) => void;
+  updateTip: (toolId: string, tipId: string, data: Partial<KnowledgeTip>) => void;
+  deleteTip: (toolId: string, tipId: string) => void;
 }
 
 const CRMCtx = createContext<CRMContextValue | null>(null);
@@ -42,10 +49,11 @@ export function CRMProvider({ children }: { children: ReactNode }) {
   const user = useUser();
   const firestore = useFirestore();
   const [clients, setClients] = useState<CRMClient[]>([]);
+  const [tools, setTools] = useState<Tool[]>([]);
   const [streak, setStreak] = useState(0);
   const [loading, setLoading] = useState(true);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const dataRef = useRef<{ clients: CRMClient[]; streak: number }>({ clients: [], streak: 0 });
+  const dataRef = useRef<{ clients: CRMClient[]; tools: Tool[]; streak: number }>({ clients: [], tools: [], streak: 0 });
 
   const userEmail = user?.email || "";
   const userUid = user?.uid;
@@ -61,8 +69,9 @@ export function CRMProvider({ children }: { children: ReactNode }) {
           if (snap.exists()) {
             const d = snap.data();
             setClients(d.clients || []);
+            setTools(d.tools || []);
             setStreak(d.streak || 0);
-            dataRef.current = { clients: d.clients || [], streak: d.streak || 0 };
+            dataRef.current = { clients: d.clients || [], tools: d.tools || [], streak: d.streak || 0 };
           }
           setLoading(false);
         }
@@ -80,6 +89,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     saveTimer.current = setTimeout(() => {
       setDoc(doc(firestore, "crm_data", userUid), {
         clients: dataRef.current.clients,
+        tools: dataRef.current.tools,
         streak: dataRef.current.streak,
         lastActivity: new Date().toISOString(),
       });
@@ -215,14 +225,57 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     update(dataRef.current.clients, dataRef.current.streak);
   }, [update, bumpStreak]);
 
+  const updateTools = useCallback((newTools: Tool[]) => {
+    setTools(newTools);
+    dataRef.current.tools = newTools;
+    persist();
+  }, [persist]);
+
+  // CRUD: Tools
+  const addTool = useCallback((data: Pick<Tool, "name" | "icon" | "color">) => {
+    const t: Tool = { ...data, id: uid(), tips: [], createdAt: new Date().toISOString() };
+    updateTools([...dataRef.current.tools, t]);
+  }, [updateTools]);
+
+  const updateTool = useCallback((toolId: string, data: Partial<Tool>) => {
+    updateTools(dataRef.current.tools.map(t => t.id === toolId ? { ...t, ...data } : t));
+  }, [updateTools]);
+
+  const deleteTool = useCallback((toolId: string) => {
+    updateTools(dataRef.current.tools.filter(t => t.id !== toolId));
+  }, [updateTools]);
+
+  // CRUD: Tips
+  const addTip = useCallback((toolId: string, data: Pick<KnowledgeTip, "title" | "summary" | "content" | "tags">) => {
+    const now = new Date().toISOString();
+    const tip: KnowledgeTip = { ...data, id: uid(), createdAt: now, updatedAt: now };
+    updateTools(dataRef.current.tools.map(t =>
+      t.id === toolId ? { ...t, tips: [...t.tips, tip] } : t
+    ));
+  }, [updateTools]);
+
+  const updateTip = useCallback((toolId: string, tipId: string, data: Partial<KnowledgeTip>) => {
+    updateTools(dataRef.current.tools.map(t =>
+      t.id === toolId ? { ...t, tips: t.tips.map(tip => tip.id === tipId ? { ...tip, ...data, updatedAt: new Date().toISOString() } : tip) } : t
+    ));
+  }, [updateTools]);
+
+  const deleteTip = useCallback((toolId: string, tipId: string) => {
+    updateTools(dataRef.current.tools.map(t =>
+      t.id === toolId ? { ...t, tips: t.tips.filter(tip => tip.id !== tipId) } : t
+    ));
+  }, [updateTools]);
+
   return (
     <CRMCtx.Provider value={{
-      clients, streak, loading, userEmail,
+      clients, tools, streak, loading, userEmail,
       addClient, updateClient, deleteClient,
       addProject, updateProject, deleteProject,
       addTask, updateTask, deleteTask, cycleTaskStatus,
       addKey, deleteKey,
       saveQuickNote, incrementStreak,
+      addTool, updateTool, deleteTool,
+      addTip, updateTip, deleteTip,
     }}>
       {children}
     </CRMCtx.Provider>

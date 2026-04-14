@@ -1,23 +1,26 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import type { CRMClient } from "@/types/crm";
+import type { CRMClient, Tool } from "@/types/crm";
 
 interface SearchResult {
-  type: "client" | "project" | "task" | "key";
+  type: "client" | "project" | "task" | "key" | "tip";
   label: string;
   sub: string;
   cid: string;
   pid?: string;
+  toolId?: string;
 }
 
 interface SearchViewProps {
   clients: CRMClient[];
+  tools: Tool[];
   navigateToClient: (id: string) => void;
   navigateToProject: (cid: string, pid: string) => void;
+  navigateToTool: (toolId: string) => void;
 }
 
-export function SearchView({ clients, navigateToClient, navigateToProject }: SearchViewProps) {
+export function SearchView({ clients, tools, navigateToClient, navigateToProject, navigateToTool }: SearchViewProps) {
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -49,10 +52,22 @@ export function SearchView({ clients, navigateToClient, navigateToProject }: Sea
         });
       });
     });
+    tools.forEach(tool => {
+      if (tool.name.toLowerCase().includes(q)) {
+        results.push({ type: "tip", label: tool.name, sub: "Herramienta", cid: "", toolId: tool.id });
+      }
+      tool.tips.forEach(tip => {
+        if (tip.title.toLowerCase().includes(q) || tip.summary.toLowerCase().includes(q) || tip.content.toLowerCase().includes(q) || tip.tags.some(tag => tag.toLowerCase().includes(q))) {
+          results.push({ type: "tip", label: tip.title, sub: `${tool.name} · tip`, cid: "", toolId: tool.id });
+        }
+      });
+    });
   }
 
   const handleClick = (r: SearchResult) => {
-    if (r.type === "client") {
+    if (r.toolId) {
+      navigateToTool(r.toolId);
+    } else if (r.type === "client") {
       navigateToClient(r.cid);
     } else if (r.pid) {
       navigateToProject(r.cid, r.pid);

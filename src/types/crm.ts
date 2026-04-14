@@ -41,6 +41,25 @@ export interface CRMClient {
   createdAt: string;
 }
 
+export interface KnowledgeTip {
+  id: string;
+  title: string;
+  summary: string;
+  content: string;
+  tags: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Tool {
+  id: string;
+  name: string;
+  icon: string;
+  color: string;
+  tips: KnowledgeTip[];
+  createdAt: string;
+}
+
 export const PRIORITIES: Record<CRMTask["prio"], { label: string; color: string; order: number }> = {
   urgent_important: { label: "Urgente + Importante", color: "#ef4444", order: 1 },
   important: { label: "Importante", color: "#f59e0b", order: 2 },

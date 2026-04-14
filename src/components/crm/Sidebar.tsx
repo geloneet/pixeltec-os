@@ -26,7 +26,7 @@ function formatTime(s: number) {
 
 interface SidebarProps {
   view: string;
-  setView: (v: "today" | "clients" | "search") => void;
+  setView: (v: "today" | "clients" | "tools" | "search") => void;
   clients: CRMClient[];
   navigateToClient: (id: string) => void;
   setModal: (m: { type: string; data?: Record<string, string> } | null) => void;
@@ -49,9 +49,16 @@ export function Sidebar({ view, setView, clients, navigateToClient, setModal, st
     }
   };
 
-  const navItems = [
+  const toolsIcon = (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+    </svg>
+  );
+
+  const navItems: { key: string; label: string; icon: React.ReactNode; hint?: string }[] = [
     { key: "today", label: "Hoy", icon: "◆" },
     { key: "clients", label: "Clientes", icon: "◈" },
+    { key: "tools", label: "Herramientas", icon: toolsIcon },
     { key: "search", label: "Buscar", icon: "⌕", hint: "/" },
   ];
 
@@ -70,7 +77,7 @@ export function Sidebar({ view, setView, clients, navigateToClient, setModal, st
         {navItems.map(item => (
           <button
             key={item.key}
-            onClick={() => setView(item.key as "today" | "clients" | "search")}
+            onClick={() => setView(item.key as "today" | "clients" | "tools" | "search")}
             className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-[13px] transition-colors ${
               view === item.key ? "bg-[#6d5acd]/15 text-[#8b7ae8]" : "text-zinc-400 hover:bg-[#1c1c20] hover:text-zinc-200"
             }`}
