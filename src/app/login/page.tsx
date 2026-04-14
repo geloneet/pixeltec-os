@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Lock, Mail, LoaderCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -22,6 +22,8 @@ export default function LoginPage() {
   const [isRedirecting, setIsRedirecting] = useState(false);
 
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectParam = searchParams.get('redirect');
   const auth = useAuth();
   const firestore = useFirestore();
   const user = useUser();
@@ -33,13 +35,15 @@ export default function LoginPage() {
     if (isLoading || isRedirecting || profileLoading) return;
 
     if (userProfile) {
-        if (userProfile.role === 'admin' || userProfile.role === 'editor') {
+        if (redirectParam) {
+            router.push(redirectParam);
+        } else if (userProfile.role === 'admin' || userProfile.role === 'editor') {
             router.push('/dashboard');
         } else if (userProfile.role === 'client') {
             router.push('/portal');
         }
     }
-  }, [userProfile, profileLoading, isLoading, isRedirecting, router]);
+  }, [userProfile, profileLoading, isLoading, isRedirecting, router, redirectParam]);
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -60,7 +64,9 @@ export default function LoginPage() {
             const userData = userDocSnap.data();
             let redirectTo: string | null = null;
 
-            if (userData.role === 'admin' || userData.role === 'editor') {
+            if (redirectParam) {
+                redirectTo = redirectParam;
+            } else if (userData.role === 'admin' || userData.role === 'editor') {
                 redirectTo = '/dashboard';
             } else if (userData.role === 'client') {
                 redirectTo = '/portal';
