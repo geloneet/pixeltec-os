@@ -24,3 +24,4 @@ node_modules
 Dockerfile
 docker-compose*.yml
 .dockerignore
+nginx/ssl/

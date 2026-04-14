@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const SESSION_COOKIE_NAME = '__session';
 
-const PROTECTED_PATHS = ['/dashboard', '/portal'];
+const PROTECTED_PATHS = ['/dashboard', '/portal', '/crm'];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -27,5 +27,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/portal/:path*'],
+  matcher: ['/dashboard/:path*', '/portal/:path*', '/crm/:path*'],
 };

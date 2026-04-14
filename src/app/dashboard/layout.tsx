@@ -4,18 +4,9 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
     LayoutDashboard,
-    Users,
     Plus,
     Bell,
     Monitor,
-    BarChart3,
-    DollarSign,
-    LifeBuoy,
-    Banknote,
-    ListTodo,
-    BotMessageSquare,
-    Sprout,
-    ShieldCheck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ReactNode, useMemo } from 'react';
@@ -24,29 +15,13 @@ import { PresentationModeProvider, usePresentationMode } from '@/context/Present
 
 const menuItems = [
     { name: 'Overview', path: '/dashboard', icon: LayoutDashboard },
-    { name: 'Clientes', path: '/dashboard/clients', icon: Users },
-    { name: 'Tareas', path: '/dashboard/tasks', icon: ListTodo },
-    { name: 'Pipeline', path: '/dashboard/pipeline', icon: DollarSign },
-    { name: 'Finanzas', path: '/dashboard/finance', icon: Banknote },
-    { name: 'Analytics', path: '/dashboard/analytics', icon: BarChart3 },
-    { name: 'Soporte', path: '/dashboard/support', icon: LifeBuoy },
-    { name: 'AI Agents', path: '/dashboard/agents', icon: BotMessageSquare },
-    { name: 'Seed Data', path: '/dashboard/seed', icon: Sprout },
-    { name: 'Admin', path: '/dashboard/admin', icon: ShieldCheck },
 ];
 
 // Sidebar Component
 const Sidebar = () => {
     const pathname = usePathname();
 
-    const items = useMemo(() => {
-        if (pathname.startsWith('/dashboard/clients/')) {
-            return menuItems.map(item =>
-                item.path === '/dashboard' ? { ...item, path: '/dashboard/overview' } : item
-            );
-        }
-        return menuItems;
-    }, [pathname]);
+    const items = useMemo(() => menuItems, []);
 
     return (
     <aside className="h-full flex-shrink-0 flex items-center p-4 transition-opacity duration-300">
@@ -119,13 +94,6 @@ const Header = () => {
         <div className={cn("absolute left-1/2 -translate-x-1/2 transition-opacity duration-500", isPresentationMode ? "opacity-0 pointer-events-none" : "opacity-100")}>
             <div className="bg-white/5 rounded-full p-2 border border-white/10 backdrop-blur-md flex items-center gap-2">
                 <PillNavItem label="Overview" href="/dashboard" active={pathname === '/dashboard'} />
-                <PillNavItem label="Clientes" href="/dashboard/clients" active={pathname.startsWith('/dashboard/clients')} />
-                <PillNavItem label="Tareas" href="/dashboard/tasks" active={pathname.startsWith('/dashboard/tasks')} />
-                <PillNavItem label="Pipeline" href="/dashboard/pipeline" active={pathname.startsWith('/dashboard/pipeline')} />
-                <PillNavItem label="Finanzas" href="/dashboard/finance" active={pathname.startsWith('/dashboard/finance')} />
-                <PillNavItem label="Analytics" href="/dashboard/analytics" active={pathname.startsWith('/dashboard/analytics')} />
-                <PillNavItem label="Soporte" href="/dashboard/support" active={pathname.startsWith('/dashboard/support')} />
-                <PillNavItem label="AI Agents" href="/dashboard/agents" active={pathname.startsWith('/dashboard/agents')} />
             </div>
         </div>
         

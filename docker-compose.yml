@@ -1,7 +1,3 @@
-# ============================================
-# PixelTEC OS — Docker Compose (Production)
-# ============================================
-
 services:
   app:
     build:
@@ -16,8 +12,6 @@ services:
         - NEXT_PUBLIC_FIREBASE_APP_ID=${NEXT_PUBLIC_FIREBASE_APP_ID}
     container_name: pixeltec-os
     restart: unless-stopped
-    ports:
-      - "3000:3000"
     env_file:
       - .env.production
     networks:
@@ -39,7 +33,6 @@ services:
     networks:
       - pixeltec-network
 
-  # SSL certificate auto-renewal
   certbot:
     image: certbot/certbot
     container_name: pixeltec-certbot
