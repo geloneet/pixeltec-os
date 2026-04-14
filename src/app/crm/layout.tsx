@@ -10,8 +10,8 @@ export default function CRMLayout({ children }: { children: ReactNode }) {
 
   if (user === undefined) {
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-[#0c0c0e]">
-        <LoaderCircle className="h-10 w-10 animate-spin text-[#6d5acd]" />
+      <div className="flex h-screen w-full items-center justify-center bg-[#09090B]">
+        <LoaderCircle className="h-10 w-10 animate-spin text-[#0EA5E9]" />
       </div>
     );
   }

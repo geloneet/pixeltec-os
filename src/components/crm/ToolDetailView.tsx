@@ -51,11 +51,11 @@ export function ToolDetailView({ tool, onBack, onEditTool, onDeleteTool, onAddTi
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Buscar tips..."
-          className="flex-1 bg-[#1c1c20] border border-[#2a2a2f] rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-[#6d5acd]"
+          className="flex-1 bg-[#18181B] border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-[#0EA5E9] transition-colors duration-150"
         />
         <button
           onClick={onAddTip}
-          className="px-3 py-2 text-sm bg-[#6d5acd] text-white rounded-lg hover:bg-[#5a48b0] flex-shrink-0"
+          className="px-3 py-2 text-sm bg-[#0EA5E9] text-white rounded-lg hover:bg-[#0284C7] flex-shrink-0 transition-all duration-150"
         >
           + Tip
         </button>
@@ -73,7 +73,7 @@ export function ToolDetailView({ tool, onBack, onEditTool, onDeleteTool, onAddTi
             return (
               <div
                 key={tip.id}
-                className="bg-[#1c1c20] border border-[#2a2a2f] rounded-lg p-3 cursor-pointer"
+                className="bg-[#18181B] border border-zinc-800 rounded-lg p-3 cursor-pointer hover:border-zinc-700 transition-all duration-200"
                 onClick={() => setExpandedTip(isOpen ? null : tip.id)}
               >
                 <div className="flex items-start gap-2">
@@ -85,20 +85,20 @@ export function ToolDetailView({ tool, onBack, onEditTool, onDeleteTool, onAddTi
                     {!isOpen && tip.tags.length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-1.5">
                         {tip.tags.map(tag => (
-                          <span key={tag} className="bg-[#6d5acd]/10 text-[#8b7ae8] text-[10px] px-2 py-0.5 rounded-full">{tag}</span>
+                          <span key={tag} className="bg-[#0EA5E9]/10 text-[#0EA5E9] text-[10px] px-2 py-0.5 rounded-full">{tag}</span>
                         ))}
                       </div>
                     )}
                   </div>
                   {isOpen && (
                     <div className="flex gap-1 flex-shrink-0" onClick={e => e.stopPropagation()}>
-                      <button onClick={() => onEditTip(tip)} className="text-zinc-600 hover:text-zinc-300 p-1" title="Editar">
+                      <button onClick={() => onEditTip(tip)} className="text-zinc-600 hover:text-zinc-300 p-1 transition-colors duration-150" title="Editar">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                           <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                         </svg>
                       </button>
-                      <button onClick={() => onDeleteTip(tip.id)} className="text-zinc-600 hover:text-red-400 p-1" title="Eliminar">
+                      <button onClick={() => onDeleteTip(tip.id)} className="text-zinc-600 hover:text-red-400 p-1 transition-colors duration-150" title="Eliminar">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                         </svg>
@@ -112,7 +112,7 @@ export function ToolDetailView({ tool, onBack, onEditTool, onDeleteTool, onAddTi
                     {tip.tags.length > 0 && (
                       <div className="flex flex-wrap gap-1 mb-3">
                         {tip.tags.map(tag => (
-                          <span key={tag} className="bg-[#6d5acd]/10 text-[#8b7ae8] text-[10px] px-2 py-0.5 rounded-full">{tag}</span>
+                          <span key={tag} className="bg-[#0EA5E9]/10 text-[#0EA5E9] text-[10px] px-2 py-0.5 rounded-full">{tag}</span>
                         ))}
                       </div>
                     )}

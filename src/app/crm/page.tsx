@@ -164,7 +164,7 @@ export default function CRMPage() {
         break;
       case "addTool": {
         if (!val("name").trim()) return;
-        crm.addTool({ name: val("name"), icon: val("icon") || "⚙", color: val("color") || "#6d5acd" });
+        crm.addTool({ name: val("name"), icon: val("icon") || "⚙", color: val("color") || "#0EA5E9" });
         break;
       }
       case "editTool": {
@@ -191,7 +191,7 @@ export default function CRMPage() {
   const renderModal = () => {
     if (!modal) return null;
     const ref = (key: string) => (el: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null) => { formRefs.current[key] = el; };
-    const inputClass = "w-full bg-[#1c1c20] border border-[#2a2a2f] rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-[#6d5acd]";
+    const inputClass = "w-full bg-[#18181B] border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-[#0EA5E9] transition-colors duration-150";
     const labelClass = "block text-xs text-zinc-500 mb-1";
 
     let title = "";
@@ -274,7 +274,7 @@ export default function CRMPage() {
       case "addTool":
       case "editTool": {
         title = modal.type === "addTool" ? "Nueva herramienta" : "Editar herramienta";
-        const TOOL_COLORS = ["#6d5acd", "#14b8a6", "#f59e0b", "#ef4444", "#3b82f6", "#22c55e", "#ec4899", "#f97316"];
+        const TOOL_COLORS = ["#0EA5E9", "#14b8a6", "#f59e0b", "#ef4444", "#3b82f6", "#22c55e", "#ec4899", "#f97316"];
         const defaultColor = modal.data?.color || TOOL_COLORS[0];
         content = (
           <div className="space-y-3">
@@ -319,8 +319,8 @@ export default function CRMPage() {
       <Modal open onClose={() => setModal(null)} title={title} subtitle={subtitle}>
         {content}
         <div className="mt-4 flex justify-end gap-2">
-          <button onClick={() => setModal(null)} className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-200">Cancelar</button>
-          <button onClick={handleModalSubmit} className="px-4 py-2 text-sm bg-[#6d5acd] text-white rounded-lg hover:bg-[#5a48b0]">Guardar</button>
+          <button onClick={() => setModal(null)} className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-200 transition-colors duration-150">Cancelar</button>
+          <button onClick={handleModalSubmit} className="px-4 py-2 text-sm bg-[#0EA5E9] text-white rounded-lg hover:bg-[#0284C7] transition-all duration-150">Guardar</button>
         </div>
       </Modal>
     );
@@ -328,14 +328,14 @@ export default function CRMPage() {
 
   if (crm.loading) {
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-[#0c0c0e]">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#6d5acd] border-t-transparent" />
+      <div className="flex h-screen w-full items-center justify-center bg-[#09090B]">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#0EA5E9] border-t-transparent" />
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen bg-[#0c0c0e] text-zinc-200">
+    <div className="flex h-screen bg-[#09090B] text-zinc-200">
       <Sidebar
         view={view}
         setView={setView}

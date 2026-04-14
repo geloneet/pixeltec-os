@@ -2,7 +2,7 @@
 
 import type { CRMClient } from "@/types/crm";
 
-const AVATAR_COLORS = ["#6d5acd", "#3b82f6", "#ef4444", "#f59e0b", "#10b981", "#ec4899", "#8b5cf6", "#06b6d4"];
+const AVATAR_COLORS = ["#0EA5E9", "#3b82f6", "#ef4444", "#f59e0b", "#10b981", "#ec4899", "#8b5cf6", "#06b6d4"];
 
 function avatarColor(name: string) {
   let h = 0;
@@ -27,7 +27,7 @@ export function ClientsView({ clients, navigateToClient, setModal }: ClientsView
         <h2 className="text-[20px] font-semibold text-zinc-200">Clientes</h2>
         <button
           onClick={() => setModal({ type: "addClient" })}
-          className="rounded-lg bg-[#6d5acd] px-4 py-2 text-sm text-white hover:bg-[#5a48b0]"
+          className="rounded-lg bg-[#0EA5E9] px-4 py-2 text-sm text-white hover:bg-[#0284C7] transition-all duration-150"
         >
           + Cliente
         </button>
@@ -41,16 +41,17 @@ export function ClientsView({ clients, navigateToClient, setModal }: ClientsView
             const totalTasks = c.projects.reduce((s, p) => s + p.tasks.length, 0);
             const completedTasks = c.projects.reduce((s, p) => s + p.tasks.filter(t => t.status === "completado").length, 0);
             const pct = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+            const color = avatarColor(c.name);
 
             return (
               <button
                 key={c.id}
                 onClick={() => navigateToClient(c.id)}
-                className="flex items-center gap-4 bg-[#151518] border border-[#2a2a2f] rounded-[10px] p-4 text-left hover:border-[#3a3a3f] transition-colors w-full"
+                className="flex items-center gap-4 bg-[#0F0F12] border border-zinc-800 rounded-[10px] p-4 text-left hover:border-zinc-700 hover:-translate-y-0.5 transition-all duration-200 w-full"
               >
                 <span
-                  className="flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold text-white flex-shrink-0"
-                  style={{ backgroundColor: avatarColor(c.name) }}
+                  className="flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold text-white flex-shrink-0 ring-1"
+                  style={{ backgroundColor: color, boxShadow: `0 0 0 1px ${color}30` }}
                 >
                   {initials(c.name)}
                 </span>
@@ -66,8 +67,8 @@ export function ClientsView({ clients, navigateToClient, setModal }: ClientsView
                   <span>{totalTasks} tarea{totalTasks !== 1 ? "s" : ""}</span>
                   {totalTasks > 0 && (
                     <div className="flex items-center gap-2">
-                      <div className="h-1.5 w-16 rounded-full bg-[#1c1c20]">
-                        <div className="h-full rounded-full bg-[#6d5acd]" style={{ width: `${pct}%` }} />
+                      <div className="h-[3px] w-16 rounded-full bg-[#18181B]">
+                        <div className="h-full rounded-full bg-[#0EA5E9]" style={{ width: `${pct}%` }} />
                       </div>
                       <span>{pct}%</span>
                     </div>
