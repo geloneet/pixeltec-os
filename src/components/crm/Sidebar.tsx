@@ -26,7 +26,7 @@ function formatTime(s: number) {
 
 interface SidebarProps {
   view: string;
-  setView: (v: "today" | "clients" | "tools" | "search") => void;
+  setView: (v: "today" | "clients" | "tools" | "server" | "search") => void;
   clients: CRMClient[];
   navigateToClient: (id: string) => void;
   setModal: (m: { type: string; data?: Record<string, string> } | null) => void;
@@ -54,6 +54,12 @@ function NavIcon({ name }: { name: string }) {
       return (
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+        </svg>
+      );
+    case "server":
+      return (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/>
         </svg>
       );
     case "search":
@@ -84,6 +90,7 @@ export function Sidebar({ view, setView, clients, navigateToClient, setModal, st
     { key: "today", label: "Hoy" },
     { key: "clients", label: "Clientes" },
     { key: "tools", label: "Herramientas" },
+    { key: "server", label: "Servidor" },
     { key: "search", label: "Buscar", hint: "/" },
   ];
 
@@ -102,7 +109,7 @@ export function Sidebar({ view, setView, clients, navigateToClient, setModal, st
         {navItems.map(item => (
           <button
             key={item.key}
-            onClick={() => setView(item.key as "today" | "clients" | "tools" | "search")}
+            onClick={() => setView(item.key as "today" | "clients" | "tools" | "server" | "search")}
             className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] transition-colors duration-150 ${
               view === item.key
                 ? "border-l-2 border-[#0EA5E9] rounded-l-none bg-[#0EA5E9]/10 text-[#0EA5E9]"
