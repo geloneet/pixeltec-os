@@ -1,7 +1,7 @@
 "use client";
 
 import { PRIORITIES, STATUS_CONFIG } from "@/types/crm";
-import type { CRMClient, CRMTask } from "@/types/crm";
+import type { CRMClient, CRMTask, RecurringCharge } from "@/types/crm";
 
 interface TaskWithContext {
   task: CRMTask;
@@ -177,6 +177,53 @@ export function TodayView({ clients, navigateToClient, navigateToProject, setMod
 
       {/* Weekly Activity */}
       <WeeklyActivity clients={clients} />
+
+      {/* Upcoming charges */}
+      {(() => {
+        const upcoming: { charge: RecurringCharge; clientName: string; projectName: string; nextDate: Date; daysUntil: number }[] = [];
+        const now = new Date();
+        clients.forEach(c => c.projects.forEach(p => {
+          (p.charges || []).forEach(ch => {
+            if (!ch.active) return;
+            const start = new Date(ch.startDate);
+            const next = new Date(start);
+            if (ch.frequency === "monthly") {
+              while (next <= now) next.setMonth(next.getMonth() + 1);
+            } else {
+              while (next <= now) next.setFullYear(next.getFullYear() + 1);
+            }
+            const days = Math.ceil((next.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+            if (days <= 30) {
+              upcoming.push({ charge: ch, clientName: c.name, projectName: p.name, nextDate: next, daysUntil: days });
+            }
+          });
+        }));
+        upcoming.sort((a, b) => a.daysUntil - b.daysUntil);
+        const shown = upcoming.slice(0, 5);
+        if (shown.length === 0) return null;
+        return (
+          <div className="mb-6 bg-amber-500/8 border border-amber-500/20 rounded-[10px] p-4">
+            <p className="text-sm font-medium text-amber-400 mb-3">Cobros proximos (30 dias)</p>
+            <div className="space-y-2">
+              {shown.map(item => (
+                <div key={item.charge.id} className="flex items-center justify-between gap-3 bg-[#0F0F12] border border-zinc-800 rounded-lg px-3 py-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] text-zinc-200 truncate">{item.charge.concept}</p>
+                    <p className="text-[11px] text-zinc-500 truncate">{item.projectName} — {item.clientName}</p>
+                  </div>
+                  <span className="text-[12px] text-zinc-300 font-medium flex-shrink-0">${Number(item.charge.amount).toLocaleString("es-MX")}</span>
+                  <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium flex-shrink-0 ${item.charge.frequency === "monthly" ? "bg-amber-500/10 text-amber-400" : "bg-[#0EA5E9]/10 text-[#0EA5E9]"}`}>
+                    {item.charge.frequency === "monthly" ? "Mensual" : "Anual"}
+                  </span>
+                  <span className={`text-[11px] flex-shrink-0 ${item.daysUntil <= 0 ? "text-red-400" : item.daysUntil <= 7 ? "text-amber-400" : "text-zinc-500"}`}>
+                    {item.daysUntil <= 0 ? "Vencido" : `${item.daysUntil}d`}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Stopped alert */}
       {stopped.length > 0 && (

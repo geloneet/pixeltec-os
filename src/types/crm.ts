@@ -28,12 +28,14 @@ export interface CRMProject {
   prompt: string;
   quickNotes: string;
   tasks: CRMTask[];
+  charges: RecurringCharge[];
   createdAt: string;
 }
 
 export interface CRMClient {
   id: string;
   name: string;
+  email: string;
   phone: string;
   location: string;
   notes: string;
@@ -66,6 +68,22 @@ export const PRIORITIES: Record<CRMTask["prio"], { label: string; color: string;
   urgent: { label: "Urgente", color: "#3b82f6", order: 3 },
   low: { label: "Puede esperar", color: "#71717a", order: 4 },
 };
+
+export interface RecurringCharge {
+  id: string;
+  concept: string;
+  amount: string;
+  frequency: "monthly" | "annual";
+  startDate: string;
+  clientEmail: string;
+  active: boolean;
+  lastNotified?: string;
+  createdAt: string;
+}
+
+export interface ServerClientLink {
+  [projectId: string]: string; // projectId → clientId
+}
 
 export interface VPSProject {
   id: string;
