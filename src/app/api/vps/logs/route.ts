@@ -1,15 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { exec } from "child_process";
-import { promisify } from "util";
 
-const execAsync = promisify(exec);
-
-// Solo proyectos PM2 pueden ver logs — hardcoded por seguridad
-const LOG_COMMANDS: Record<string, string> = {
-  "viva-bot": "pm2 logs viva-bot --nostream --lines 10 2>&1 | tail -10",
-  "teleacceso": "pm2 logs teleacceso --nostream --lines 10 2>&1 | tail -10",
-  "webhook": "pm2 logs webhook --nostream --lines 10 2>&1 | tail -10",
-};
+const VPS_API = "http://host.docker.internal:3005";
+const SECRET = process.env.CRON_SECRET || "";
 
 export async function GET(req: NextRequest) {
   const sessionCookie = req.cookies.get("__session")?.value;
@@ -19,24 +11,17 @@ export async function GET(req: NextRequest) {
 
   const projectId = req.nextUrl.searchParams.get("project");
 
-  if (!projectId || !LOG_COMMANDS[projectId]) {
-    return NextResponse.json({ error: "Invalid project" }, { status: 400 });
-  }
-
   try {
-    const { stdout } = await execAsync(LOG_COMMANDS[projectId], {
-      timeout: 10000,
-    });
-
-    return NextResponse.json({
-      success: true,
-      projectId,
-      logs: stdout.trim() || "Sin logs recientes",
-    });
+    const res = await fetch(
+      `${VPS_API}/logs?secret=${SECRET}&project=${projectId}`,
+      { cache: "no-store" }
+    );
+    const data = await res.json();
+    return NextResponse.json(data, { status: res.status });
   } catch (error: any) {
-    return NextResponse.json({
-      success: false,
-      logs: error.message?.slice(-500) || "Error al obtener logs",
-    }, { status: 500 });
+    return NextResponse.json(
+      { error: "Logs failed: " + error.message },
+      { status: 500 }
+    );
   }
 }
