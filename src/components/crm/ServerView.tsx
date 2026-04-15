@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useCRM } from "./CRMContext";
 
 interface ServerInfo {
   diskTotal: string;
@@ -105,6 +106,10 @@ export function ServerView() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<Record<string, "deploy" | "restart" | null>>({});
   const [toast, setToast] = useState<Toast | null>(null);
+  const [logsModal, setLogsModal] = useState<{ open: boolean; projectName: string; logs: string; loading: boolean }>({ open: false, projectName: "", logs: "", loading: false });
+  const [linkDropdown, setLinkDropdown] = useState<string | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const { clients, serverLinks, linkProjectToClient, unlinkProject } = useCRM();
 
   const showToast = useCallback((message: string, type: "success" | "error") => {
     setToast({ message, type });
@@ -167,6 +172,37 @@ export function ServerView() {
       setActionLoading(prev => ({ ...prev, [projectId]: null }));
     }
   };
+
+  const fetchLogs = async (projectId: string, projectName: string) => {
+    setLogsModal({ open: true, projectName, logs: "", loading: true });
+    try {
+      const res = await fetch(`/api/vps/logs?project=${projectId}`);
+      const data = await res.json();
+      setLogsModal(prev => ({ ...prev, logs: data.logs || "Sin logs", loading: false }));
+    } catch {
+      setLogsModal(prev => ({ ...prev, logs: "Error al obtener logs", loading: false }));
+    }
+  };
+
+  useEffect(() => {
+    if (!logsModal.open) return;
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setLogsModal(prev => ({ ...prev, open: false }));
+    };
+    document.addEventListener("keydown", handleEsc);
+    return () => document.removeEventListener("keydown", handleEsc);
+  }, [logsModal.open]);
+
+  useEffect(() => {
+    if (!linkDropdown) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setLinkDropdown(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [linkDropdown]);
 
   const activeCount = projects.filter(p => {
     const s = p.status.toLowerCase();
@@ -293,6 +329,64 @@ export function ServerView() {
                       </span>
                     </div>
                     <p className="text-[13px] text-zinc-500 mb-2">{project.description}</p>
+                    <div className="flex items-center gap-4 text-[12px] text-zinc-600 mb-2">
+                      {(() => {
+                        const linkedClientId = serverLinks[project.id];
+                        const linkedClient = linkedClientId ? clients.find(c => c.id === linkedClientId) : null;
+                        if (linkedClient) {
+                          const initials = linkedClient.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+                          return (
+                            <span className="inline-flex items-center gap-1.5 bg-zinc-800/50 rounded-full pl-1 pr-2 py-0.5 text-[11px] text-zinc-300">
+                              <span className="flex items-center justify-center w-5 h-5 rounded-full bg-[#0EA5E9]/20 text-[#0EA5E9] text-[9px] font-bold flex-shrink-0">
+                                {initials}
+                              </span>
+                              {linkedClient.name}
+                              <button
+                                onClick={() => unlinkProject(project.id)}
+                                className="ml-0.5 text-zinc-500 hover:text-zinc-300 transition-colors"
+                              >
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                                </svg>
+                              </button>
+                            </span>
+                          );
+                        }
+                        return (
+                          <div className="relative" ref={linkDropdown === project.id ? dropdownRef : undefined}>
+                            <button
+                              onClick={() => setLinkDropdown(linkDropdown === project.id ? null : project.id)}
+                              className="text-[11px] text-zinc-600 hover:text-zinc-400 transition-colors cursor-pointer"
+                            >
+                              + Vincular cliente
+                            </button>
+                            {linkDropdown === project.id && (
+                              <div className="absolute top-full left-0 mt-1 z-40 bg-[#0F0F12] border border-zinc-800 rounded-lg shadow-lg p-2 w-[200px] max-h-[200px] overflow-y-auto">
+                                {clients.length === 0 ? (
+                                  <p className="text-[11px] text-zinc-500 px-2 py-1">Sin clientes registrados</p>
+                                ) : (
+                                  clients.map(client => {
+                                    const initials = client.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+                                    return (
+                                      <button
+                                        key={client.id}
+                                        onClick={() => { linkProjectToClient(project.id, client.id); setLinkDropdown(null); }}
+                                        className="flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-[12px] text-zinc-300 hover:bg-zinc-800 transition-colors text-left"
+                                      >
+                                        <span className="flex items-center justify-center w-5 h-5 rounded-full bg-[#0EA5E9]/20 text-[#0EA5E9] text-[9px] font-bold flex-shrink-0">
+                                          {initials}
+                                        </span>
+                                        {client.name}
+                                      </button>
+                                    );
+                                  })
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </div>
                     <div className="flex items-center gap-4 text-[12px] text-zinc-600">
                       <span className="font-mono text-[11px]">{project.path}</span>
                       <span>{project.size}</span>
@@ -311,6 +405,17 @@ export function ServerView() {
 
                   {!isManual && (
                     <div className="flex items-center gap-2 ml-4 flex-shrink-0">
+                      {project.type === "pm2" && (
+                        <button
+                          onClick={() => fetchLogs(project.id, project.name)}
+                          className="flex items-center gap-1.5 rounded-lg border border-zinc-700 px-3 py-1.5 text-[12px] text-zinc-300 hover:bg-zinc-800 hover:text-white transition-all duration-150"
+                        >
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>
+                          </svg>
+                          Logs
+                        </button>
+                      )}
                       <button
                         onClick={() => handleAction(project.id, "restart")}
                         disabled={!!isActioning}
@@ -350,6 +455,50 @@ export function ServerView() {
           })
         )}
       </div>
+
+      {/* Logs Modal */}
+      {logsModal.open && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-start justify-center pt-[60px]"
+          onClick={() => setLogsModal(prev => ({ ...prev, open: false }))}
+        >
+          <div
+            className="bg-[#0F0F12] border border-zinc-800 rounded-[14px] p-5 w-full max-w-[600px] max-h-[80vh] overflow-y-auto"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-4">
+              <span className="text-sm font-semibold text-white">Logs — {logsModal.projectName}</span>
+              <button
+                onClick={() => setLogsModal(prev => ({ ...prev, open: false }))}
+                className="text-zinc-500 hover:text-zinc-300 transition-colors"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+
+            {logsModal.loading ? (
+              <div className="flex justify-center py-8">
+                <Spinner />
+              </div>
+            ) : (
+              <pre className="bg-[#09090B] border border-zinc-800 rounded-lg p-4 font-mono text-[12px] text-zinc-300 leading-relaxed whitespace-pre-wrap overflow-x-auto max-h-[400px] overflow-y-auto">
+                {logsModal.logs}
+              </pre>
+            )}
+
+            <div className="flex justify-end mt-4">
+              <button
+                onClick={() => setLogsModal(prev => ({ ...prev, open: false }))}
+                className="rounded-lg border border-zinc-700 px-3 py-1.5 text-[12px] text-zinc-300 hover:bg-zinc-800 hover:text-white transition-all duration-150"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

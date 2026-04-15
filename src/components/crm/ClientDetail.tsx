@@ -55,7 +55,7 @@ export function ClientDetail({ client, setView, navigateToProject, setModal, del
         </div>
         <div className="flex gap-2">
           <button
-            onClick={() => setModal({ type: "editClient", data: { id: client.id, name: client.name, phone: client.phone, location: client.location, notes: client.notes } })}
+            onClick={() => setModal({ type: "editClient", data: { id: client.id, name: client.name, email: client.email || "", phone: client.phone, location: client.location, notes: client.notes } })}
             className="rounded-lg bg-[#18181B] px-3 py-1.5 text-[12px] text-zinc-400 hover:text-zinc-200 transition-all duration-150"
           >
             Editar

@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback } from "react";
 import { PRIORITIES, STATUS_CONFIG } from "@/types/crm";
-import type { CRMClient, CRMProject } from "@/types/crm";
+import type { CRMClient, CRMProject, RecurringCharge } from "@/types/crm";
 
 function formatTime(s: number) {
   const m = Math.floor(s / 60);
@@ -30,12 +30,31 @@ interface ProjectViewProps {
   pomoSessions: number;
   stopPomo: () => void;
   resetPomo: () => void;
+  deleteCharge: (cid: string, pid: string, chargeId: string) => void;
+  updateCharge: (cid: string, pid: string, chargeId: string, data: Partial<RecurringCharge>) => void;
+}
+
+function getNextChargeDate(startDate: string, frequency: string): Date {
+  const start = new Date(startDate);
+  const now = new Date();
+  const next = new Date(start);
+  if (frequency === "monthly") {
+    while (next <= now) next.setMonth(next.getMonth() + 1);
+  } else {
+    while (next <= now) next.setFullYear(next.getFullYear() + 1);
+  }
+  return next;
+}
+
+function formatDateES(d: Date): string {
+  return d.toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" });
 }
 
 const TABS = [
   { key: "tareas", label: "Tareas" },
   { key: "notas", label: "Notas" },
   { key: "info", label: "Info" },
+  { key: "cobros", label: "Cobros" },
   { key: "llaves", label: "Llaves" },
   { key: "readme", label: "README" },
   { key: "prompt", label: "Prompt IA" },
@@ -45,7 +64,7 @@ export function ProjectView({
   client, project, projectTab, setProjectTab, setView, setModal,
   cycleTaskStatus, deleteTask, deleteKey, deleteProject, saveQuickNote,
   startPomo, pomoRunning, pomoTaskRef, pomoSeconds, pomoMode, pomoSessions,
-  stopPomo, resetPomo,
+  stopPomo, resetPomo, deleteCharge, updateCharge,
 }: ProjectViewProps) {
   const [revealedKeys, setRevealedKeys] = useState<Set<string>>(new Set());
   const [noteValue, setNoteValue] = useState(project.quickNotes);
@@ -225,6 +244,80 @@ export function ProjectView({
               <p className="text-[13px] text-zinc-200 whitespace-pre-wrap">{item.value || "—"}</p>
             </div>
           ))}
+        </div>
+      )}
+
+      {projectTab === "cobros" && (
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <span className="text-[12px] text-zinc-500">{(project.charges || []).length} cobros recurrentes</span>
+            <button
+              onClick={() => setModal({ type: "addCharge", data: { clientEmail: client.email || "" } })}
+              className="text-[12px] text-[#0EA5E9] hover:text-[#38BDF8] transition-colors duration-150"
+            >
+              + Cobro
+            </button>
+          </div>
+          {(project.charges || []).length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <p className="text-zinc-500 text-sm mb-2">Sin cobros configurados</p>
+              <p className="text-zinc-600 text-[12px]">Agrega un cobro recurrente para este proyecto.</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {(project.charges || []).map(charge => {
+                const nextDate = getNextChargeDate(charge.startDate, charge.frequency);
+                const daysUntil = Math.ceil((nextDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                let dateColor = "text-zinc-400";
+                let dateLabel = `Próximo cobro: ${formatDateES(nextDate)}`;
+                if (daysUntil <= 0) {
+                  dateColor = "text-red-400";
+                  dateLabel = `Vencido: ${formatDateES(nextDate)}`;
+                } else if (daysUntil <= 30) {
+                  dateColor = "text-amber-400";
+                }
+                return (
+                  <div key={charge.id} className={`bg-[#0F0F12] border border-zinc-800 rounded-[10px] px-4 py-3 hover:border-zinc-700 transition-all duration-200 ${!charge.active ? "opacity-40" : ""}`}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-[13px] font-semibold text-zinc-200">{charge.concept}</span>
+                          <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium ${charge.frequency === "monthly" ? "bg-amber-500/10 text-amber-400" : "bg-[#0EA5E9]/10 text-[#0EA5E9]"}`}>
+                            {charge.frequency === "monthly" ? "Mensual" : "Anual"}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 text-[12px]">
+                          <span className="text-zinc-300 font-medium">${Number(charge.amount).toLocaleString("es-MX")} MXN</span>
+                          <span className="text-zinc-600">Inicio: {formatDateES(new Date(charge.startDate))}</span>
+                        </div>
+                        <p className={`text-[11px] mt-1 ${dateColor}`}>{dateLabel}</p>
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <button
+                          onClick={() => updateCharge(client.id, project.id, charge.id, { active: !charge.active })}
+                          className={`rounded-lg px-2 py-1 text-[11px] transition-all duration-150 ${charge.active ? "bg-green-500/10 text-green-400" : "bg-zinc-800 text-zinc-500"}`}
+                        >
+                          {charge.active ? "Activo" : "Inactivo"}
+                        </button>
+                        <button
+                          onClick={() => setModal({ type: "editCharge", data: { id: charge.id, concept: charge.concept, amount: charge.amount, frequency: charge.frequency, startDate: charge.startDate, clientEmail: charge.clientEmail } })}
+                          className="rounded-lg bg-[#18181B] px-2 py-1 text-[11px] text-zinc-400 hover:text-zinc-200 transition-all duration-150"
+                        >
+                          Editar
+                        </button>
+                        <button
+                          onClick={() => deleteCharge(client.id, project.id, charge.id)}
+                          className="text-[11px] text-zinc-600 hover:text-red-400 transition-colors duration-150"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 

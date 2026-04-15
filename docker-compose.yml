@@ -32,6 +32,7 @@ services:
       - app
     networks:
       - pixeltec-network
+      - web-network
 
   certbot:
     image: certbot/certbot
@@ -44,6 +45,8 @@ services:
 networks:
   pixeltec-network:
     driver: bridge
+  web-network:
+    external: true
 
 volumes:
   certbot-webroot:

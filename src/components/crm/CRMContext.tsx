@@ -3,7 +3,7 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback, type ReactNode } from "react";
 import { useUser, useFirestore } from "@/firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
-import type { CRMClient, CRMProject, CRMTask, CRMKey, Tool, KnowledgeTip } from "@/types/crm";
+import type { CRMClient, CRMProject, CRMTask, CRMKey, Tool, KnowledgeTip, ServerClientLink, RecurringCharge } from "@/types/crm";
 
 function uid(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -18,7 +18,7 @@ interface CRMContextValue {
   addClient: (data: Omit<CRMClient, "id" | "projects" | "createdAt">) => void;
   updateClient: (id: string, data: Partial<CRMClient>) => void;
   deleteClient: (id: string) => void;
-  addProject: (clientId: string, data: Omit<CRMProject, "id" | "keys" | "tasks" | "createdAt" | "guides" | "accounts" | "readme" | "prompt" | "quickNotes">) => void;
+  addProject: (clientId: string, data: Omit<CRMProject, "id" | "keys" | "tasks" | "charges" | "createdAt" | "guides" | "accounts" | "readme" | "prompt" | "quickNotes">) => void;
   updateProject: (clientId: string, projectId: string, data: Partial<CRMProject>) => void;
   deleteProject: (clientId: string, projectId: string) => void;
   addTask: (clientId: string, projectId: string, data: Pick<CRMTask, "name" | "desc" | "prio">) => void;
@@ -35,6 +35,12 @@ interface CRMContextValue {
   addTip: (toolId: string, data: Pick<KnowledgeTip, "title" | "summary" | "content" | "tags">) => void;
   updateTip: (toolId: string, tipId: string, data: Partial<KnowledgeTip>) => void;
   deleteTip: (toolId: string, tipId: string) => void;
+  serverLinks: ServerClientLink;
+  linkProjectToClient: (projectId: string, clientId: string) => void;
+  unlinkProject: (projectId: string) => void;
+  addCharge: (clientId: string, projectId: string, data: Partial<RecurringCharge>) => void;
+  updateCharge: (clientId: string, projectId: string, chargeId: string, data: Partial<RecurringCharge>) => void;
+  deleteCharge: (clientId: string, projectId: string, chargeId: string) => void;
 }
 
 const CRMCtx = createContext<CRMContextValue | null>(null);
@@ -51,9 +57,10 @@ export function CRMProvider({ children }: { children: ReactNode }) {
   const [clients, setClients] = useState<CRMClient[]>([]);
   const [tools, setTools] = useState<Tool[]>([]);
   const [streak, setStreak] = useState(0);
+  const [serverLinks, setServerLinks] = useState<ServerClientLink>({});
   const [loading, setLoading] = useState(true);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const dataRef = useRef<{ clients: CRMClient[]; tools: Tool[]; streak: number }>({ clients: [], tools: [], streak: 0 });
+  const dataRef = useRef<{ clients: CRMClient[]; tools: Tool[]; streak: number; serverLinks: ServerClientLink }>({ clients: [], tools: [], streak: 0, serverLinks: {} });
 
   const userEmail = user?.email || "";
   const userUid = user?.uid;
@@ -68,10 +75,16 @@ export function CRMProvider({ children }: { children: ReactNode }) {
         if (!cancelled) {
           if (snap.exists()) {
             const d = snap.data();
-            setClients(d.clients || []);
+            const loadedClients = (d.clients || []).map((c: any) => ({
+              ...c,
+              email: c.email || "",
+              projects: (c.projects || []).map((p: any) => ({ ...p, charges: p.charges || [] })),
+            }));
+            setClients(loadedClients);
             setTools(d.tools || []);
             setStreak(d.streak || 0);
-            dataRef.current = { clients: d.clients || [], tools: d.tools || [], streak: d.streak || 0 };
+            setServerLinks(d.serverLinks || {});
+            dataRef.current = { clients: loadedClients, tools: d.tools || [], streak: d.streak || 0, serverLinks: d.serverLinks || {} };
           }
           setLoading(false);
         }
@@ -91,6 +104,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
         clients: dataRef.current.clients,
         tools: dataRef.current.tools,
         streak: dataRef.current.streak,
+        serverLinks: dataRef.current.serverLinks,
         lastActivity: new Date().toISOString(),
       });
     }, 500);
@@ -130,8 +144,8 @@ export function CRMProvider({ children }: { children: ReactNode }) {
   }, [update]);
 
   // CRUD: Projects
-  const addProject = useCallback((clientId: string, data: Omit<CRMProject, "id" | "keys" | "tasks" | "createdAt" | "guides" | "accounts" | "readme" | "prompt" | "quickNotes">) => {
-    const p: CRMProject = { ...data, id: uid(), keys: [], tasks: [], guides: "", accounts: "", readme: "", prompt: "", quickNotes: "", createdAt: new Date().toISOString() };
+  const addProject = useCallback((clientId: string, data: Omit<CRMProject, "id" | "keys" | "tasks" | "charges" | "createdAt" | "guides" | "accounts" | "readme" | "prompt" | "quickNotes">) => {
+    const p: CRMProject = { ...data, id: uid(), keys: [], tasks: [], charges: [], guides: "", accounts: "", readme: "", prompt: "", quickNotes: "", createdAt: new Date().toISOString() };
     const next = dataRef.current.clients.map(c =>
       c.id === clientId ? { ...c, projects: [...c.projects, p] } : c
     );
@@ -266,6 +280,53 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     ));
   }, [updateTools]);
 
+  // CRUD: Charges
+  const addCharge = useCallback((clientId: string, projectId: string, data: Partial<RecurringCharge>) => {
+    const ch: RecurringCharge = {
+      id: uid(),
+      concept: data.concept || "",
+      amount: data.amount || "",
+      frequency: data.frequency || "monthly",
+      startDate: data.startDate || new Date().toISOString(),
+      clientEmail: data.clientEmail || "",
+      active: true,
+      createdAt: new Date().toISOString(),
+    };
+    const next = dataRef.current.clients.map(c =>
+      c.id === clientId ? { ...c, projects: c.projects.map(p => p.id === projectId ? { ...p, charges: [...(p.charges || []), ch] } : p) } : c
+    );
+    update(next);
+  }, [update]);
+
+  const updateCharge = useCallback((clientId: string, projectId: string, chargeId: string, data: Partial<RecurringCharge>) => {
+    const next = dataRef.current.clients.map(c =>
+      c.id === clientId ? { ...c, projects: c.projects.map(p => p.id === projectId ? { ...p, charges: (p.charges || []).map(ch => ch.id === chargeId ? { ...ch, ...data } : ch) } : p) } : c
+    );
+    update(next);
+  }, [update]);
+
+  const deleteCharge = useCallback((clientId: string, projectId: string, chargeId: string) => {
+    const next = dataRef.current.clients.map(c =>
+      c.id === clientId ? { ...c, projects: c.projects.map(p => p.id === projectId ? { ...p, charges: (p.charges || []).filter(ch => ch.id !== chargeId) } : p) } : c
+    );
+    update(next);
+  }, [update]);
+
+  const linkProjectToClient = useCallback((projectId: string, clientId: string) => {
+    const next = { ...dataRef.current.serverLinks, [projectId]: clientId };
+    setServerLinks(next);
+    dataRef.current.serverLinks = next;
+    persist();
+  }, [persist]);
+
+  const unlinkProject = useCallback((projectId: string) => {
+    const next = { ...dataRef.current.serverLinks };
+    delete next[projectId];
+    setServerLinks(next);
+    dataRef.current.serverLinks = next;
+    persist();
+  }, [persist]);
+
   return (
     <CRMCtx.Provider value={{
       clients, tools, streak, loading, userEmail,
@@ -276,6 +337,8 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       saveQuickNote, incrementStreak,
       addTool, updateTool, deleteTool,
       addTip, updateTip, deleteTip,
+      serverLinks, linkProjectToClient, unlinkProject,
+      addCharge, updateCharge, deleteCharge,
     }}>
       {children}
     </CRMCtx.Provider>

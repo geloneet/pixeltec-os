@@ -133,11 +133,11 @@ export default function CRMPage() {
     switch (modal.type) {
       case "addClient":
         if (!val("name").trim()) return;
-        crm.addClient({ name: val("name"), phone: val("phone"), location: val("location"), notes: val("notes") });
+        crm.addClient({ name: val("name"), email: val("email"), phone: val("phone"), location: val("location"), notes: val("notes") });
         break;
       case "editClient":
         if (!modal.data?.id) return;
-        crm.updateClient(modal.data.id, { name: val("name"), phone: val("phone"), location: val("location"), notes: val("notes") });
+        crm.updateClient(modal.data.id, { name: val("name"), email: val("email"), phone: val("phone"), location: val("location"), notes: val("notes") });
         break;
       case "addProject":
         if (!selectedClient || !val("name").trim()) return;
@@ -185,6 +185,28 @@ export default function CRMPage() {
         crm.updateTip(selectedTool, modal.data.id, { title: val("title"), summary: val("summary"), content: val("content"), tags: editTags });
         break;
       }
+      case "addCharge": {
+        if (!selectedClient || !selectedProject || !val("concept").trim() || !val("amount").trim()) return;
+        crm.addCharge(selectedClient, selectedProject, {
+          concept: val("concept"),
+          amount: val("amount"),
+          frequency: val("frequency") as "monthly" | "annual",
+          startDate: val("startDate"),
+          clientEmail: val("clientEmail"),
+        });
+        break;
+      }
+      case "editCharge": {
+        if (!selectedClient || !selectedProject || !modal.data?.id || !val("concept").trim()) return;
+        crm.updateCharge(selectedClient, selectedProject, modal.data.id, {
+          concept: val("concept"),
+          amount: val("amount"),
+          frequency: val("frequency") as "monthly" | "annual",
+          startDate: val("startDate"),
+          clientEmail: val("clientEmail"),
+        });
+        break;
+      }
     }
     setModal(null);
   };
@@ -207,6 +229,7 @@ export default function CRMPage() {
           <div className="space-y-3">
             <div><label className={labelClass}>Nombre *</label><input ref={ref("name")} className={inputClass} defaultValue={modal.data?.name || ""} autoFocus /></div>
             <div><label className={labelClass}>Teléfono</label><input ref={ref("phone")} className={inputClass} defaultValue={modal.data?.phone || ""} /></div>
+            <div><label className={labelClass}>Email</label><input ref={ref("email")} type="email" className={inputClass} placeholder="cliente@empresa.com" defaultValue={modal.data?.email || ""} /></div>
             <div><label className={labelClass}>Ubicación</label><input ref={ref("location")} className={inputClass} defaultValue={modal.data?.location || ""} /></div>
             <div><label className={labelClass}>Notas</label><textarea ref={ref("notes")} className={inputClass + " h-20 resize-none"} defaultValue={modal.data?.notes || ""} /></div>
           </div>
@@ -297,6 +320,26 @@ export default function CRMPage() {
                 ))}
               </div>
             </div>
+          </div>
+        );
+        break;
+      }
+      case "addCharge":
+      case "editCharge": {
+        title = modal.type === "addCharge" ? "Nuevo cobro recurrente" : "Editar cobro";
+        content = (
+          <div className="space-y-3">
+            <div><label className={labelClass}>Concepto *</label><input ref={ref("concept")} className={inputClass} placeholder="Hosting anual, Mantenimiento mensual, Dominio .mx" defaultValue={modal.data?.concept || ""} autoFocus /></div>
+            <div><label className={labelClass}>Monto (MXN) *</label><input ref={ref("amount")} type="number" className={inputClass} placeholder="15000" defaultValue={modal.data?.amount || ""} /></div>
+            <div>
+              <label className={labelClass}>Frecuencia *</label>
+              <select ref={ref("frequency")} className={inputClass} defaultValue={modal.data?.frequency || "annual"}>
+                <option value="monthly">Mensual</option>
+                <option value="annual">Anual</option>
+              </select>
+            </div>
+            <div><label className={labelClass}>Fecha de inicio *</label><input ref={ref("startDate")} type="date" className={inputClass} defaultValue={modal.data?.startDate || ""} /></div>
+            <div><label className={labelClass}>Email del cliente</label><input ref={ref("clientEmail")} type="email" className={inputClass} placeholder="cliente@empresa.com" defaultValue={modal.data?.clientEmail || ""} /></div>
           </div>
         );
         break;
@@ -396,6 +439,8 @@ export default function CRMPage() {
             pomoSessions={pomoSessions}
             stopPomo={stopPomo}
             resetPomo={resetPomo}
+            deleteCharge={crm.deleteCharge}
+            updateCharge={crm.updateCharge}
           />
         )}
         {view === "server" && <ServerView />}
