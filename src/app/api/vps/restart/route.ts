@@ -1,16 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { exec } from "child_process";
-import { promisify } from "util";
 
-const execAsync = promisify(exec);
-
-const RESTART_COMMANDS: Record<string, string> = {
-  "pixeltec-os": "cd /home/ubuntu/pixeltec-os && docker compose restart",
-  "pipas-tondoroque": "docker restart pipas-container",
-  "viva-bot": "pm2 restart viva-bot",
-  "teleacceso": "pm2 restart teleacceso",
-  "webhook": "pm2 restart webhook",
-};
+const VPS_API = "http://host.docker.internal:3005";
+const SECRET = process.env.CRON_SECRET || "";
 
 export async function POST(req: NextRequest) {
   const sessionCookie = req.cookies.get("__session")?.value;
@@ -19,20 +10,18 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { projectId } = await req.json();
-    if (!projectId || !RESTART_COMMANDS[projectId]) {
-      return NextResponse.json({ error: "Invalid project" }, { status: 400 });
-    }
-
-    const { stdout } = await execAsync(RESTART_COMMANDS[projectId], {
-      timeout: 30000,
+    const body = await req.json();
+    const res = await fetch(`${VPS_API}/restart?secret=${SECRET}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
     });
-
-    return NextResponse.json({ success: true, output: stdout.trim() });
+    const data = await res.json();
+    return NextResponse.json(data, { status: res.status });
   } catch (error: any) {
-    return NextResponse.json({
-      success: false,
-      error: error.message?.slice(-300),
-    }, { status: 500 });
+    return NextResponse.json(
+      { error: "Restart failed: " + error.message },
+      { status: 500 }
+    );
   }
 }

@@ -1,18 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { exec } from "child_process";
-import { promisify } from "util";
 
-const execAsync = promisify(exec);
-
-// DEPLOY COMMANDS — hardcoded por seguridad. NUNCA aceptar comandos del frontend.
-const DEPLOY_COMMANDS: Record<string, string> = {
-  "pixeltec-os": "cd /home/ubuntu/pixeltec-os && git pull origin main && docker compose down && docker compose build --no-cache && docker compose up -d",
-  "pipas-tondoroque": "bash /home/ubuntu/deploy-pipas.sh",
-  "viva-bot": "cd /opt/botsAR/VivaaerobusChk && git pull origin main 2>/dev/null; pm2 restart viva-bot",
-  "teleacceso": "cd /opt/botsAR/teleacceso && git pull origin main 2>/dev/null; pm2 restart teleacceso",
-  "webhook": "cd /home/ubuntu/webhook && pm2 restart webhook",
-  "botmailar": "echo 'Manual project - no auto deploy'",
-};
+const VPS_API = "http://host.docker.internal:3005";
+const SECRET = process.env.CRON_SECRET || "";
 
 export async function POST(req: NextRequest) {
   const sessionCookie = req.cookies.get("__session")?.value;
@@ -21,30 +10,18 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { projectId } = await req.json();
-
-    if (!projectId || !DEPLOY_COMMANDS[projectId]) {
-      return NextResponse.json({ error: "Invalid project" }, { status: 400 });
-    }
-
-    const command = DEPLOY_COMMANDS[projectId];
-
-    const { stdout, stderr } = await execAsync(command, {
-      timeout: 600000,
-      maxBuffer: 1024 * 1024 * 5,
+    const body = await req.json();
+    const res = await fetch(`${VPS_API}/deploy?secret=${SECRET}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
     });
-
-    return NextResponse.json({
-      success: true,
-      projectId,
-      output: stdout.slice(-2000),
-      errors: stderr.slice(-1000),
-    });
+    const data = await res.json();
+    return NextResponse.json(data, { status: res.status });
   } catch (error: any) {
-    console.error("Deploy error:", error);
-    return NextResponse.json({
-      success: false,
-      error: error.message?.slice(-500) || "Deploy failed",
-    }, { status: 500 });
+    return NextResponse.json(
+      { error: "Deploy failed: " + error.message },
+      { status: 500 }
+    );
   }
 }
