@@ -10,11 +10,12 @@ import { ProjectView } from "@/components/crm/ProjectView";
 import { SearchView } from "@/components/crm/SearchView";
 import { ToolsView } from "@/components/crm/ToolsView";
 import { ToolDetailView } from "@/components/crm/ToolDetailView";
+import { ServerView } from "@/components/crm/ServerView";
 import { Modal } from "@/components/crm/Modal";
 import { PRIORITIES } from "@/types/crm";
 import type { CRMTask } from "@/types/crm";
 
-type View = "today" | "clients" | "client" | "project" | "search" | "tools" | "tool";
+type View = "today" | "clients" | "client" | "project" | "search" | "tools" | "tool" | "server";
 type ModalType = { type: string; data?: Record<string, string> } | null;
 type PomoMode = "work" | "break";
 
@@ -397,6 +398,7 @@ export default function CRMPage() {
             resetPomo={resetPomo}
           />
         )}
+        {view === "server" && <ServerView />}
         {view === "search" && (
           <SearchView
             clients={crm.clients}

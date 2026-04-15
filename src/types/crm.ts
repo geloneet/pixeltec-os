@@ -67,6 +67,18 @@ export const PRIORITIES: Record<CRMTask["prio"], { label: string; color: string;
   low: { label: "Puede esperar", color: "#71717a", order: 4 },
 };
 
+export interface VPSProject {
+  id: string;
+  name: string;
+  path: string;
+  type: "docker-compose" | "docker" | "pm2" | "manual";
+  domain?: string;
+  deployCommand: string;
+  statusCommand: string;
+  description: string;
+  createdAt: string;
+}
+
 export const STATUS_CONFIG: Record<CRMTask["status"], { label: string; bg: string; text: string }> = {
   pendiente: { label: "Pendiente", bg: "bg-purple-500/12", text: "text-purple-400" },
   proceso: { label: "En proceso", bg: "bg-amber-500/12", text: "text-amber-400" },
