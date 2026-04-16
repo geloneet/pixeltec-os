@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const VPS_API = "http://host.docker.internal:3005";
+const VPS_API = "http://172.18.0.1:3005";
 const SECRET = process.env.CRON_SECRET || "";
 
 export async function POST(req: NextRequest) {
