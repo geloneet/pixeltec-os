@@ -3,25 +3,24 @@ import { NextRequest, NextResponse } from "next/server";
 const VPS_API = "http://172.18.0.1:3005";
 const SECRET = process.env.CRON_SECRET || "";
 
-export async function GET(req: NextRequest) {
+export async function POST(req: NextRequest) {
   const sessionCookie = req.cookies.get("__session")?.value;
   if (!sessionCookie) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const projectId = req.nextUrl.searchParams.get("project");
-  const lines = req.nextUrl.searchParams.get("lines") || "10";
-  const filter = req.nextUrl.searchParams.get("filter") || "";
-
   try {
-    let url = `${VPS_API}/logs?secret=${SECRET}&project=${projectId}&lines=${lines}`;
-    if (filter) url += `&filter=${encodeURIComponent(filter)}`;
-    const res = await fetch(url, { cache: "no-store" });
+    const body = await req.json();
+    const res = await fetch(`${VPS_API}/resume?secret=${SECRET}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
     const data = await res.json();
     return NextResponse.json(data, { status: res.status });
   } catch (error: any) {
     return NextResponse.json(
-      { error: "Logs failed: " + error.message },
+      { error: "Resume failed: " + error.message },
       { status: 500 }
     );
   }
