@@ -1,26 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
-
-const VPS_API = "http://172.18.0.1:3005";
-const SECRET = process.env.CRON_SECRET || "";
+import { deployVpsProject, requireSession } from "@/lib/vpsClient";
 
 export async function POST(req: NextRequest) {
-  const sessionCookie = req.cookies.get("__session")?.value;
-  if (!sessionCookie) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = requireSession(req.cookies.get("__session")?.value);
+  if (!session.ok) {
+    return NextResponse.json({ error: session.error }, { status: 401 });
   }
 
   try {
     const body = await req.json();
-    const res = await fetch(`${VPS_API}/deploy?secret=${SECRET}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    const data = await res.json();
-    return NextResponse.json(data, { status: res.status });
-  } catch (error: any) {
+    const { data, status } = await deployVpsProject(body.projectId);
+    return NextResponse.json(data, { status });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
     return NextResponse.json(
-      { error: "Deploy failed: " + error.message },
+      { error: "Deploy failed: " + message },
       { status: 500 }
     );
   }

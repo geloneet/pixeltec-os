@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-
-const VPS_API = "http://172.18.0.1:3005";
-const SECRET = process.env.CRON_SECRET || "";
+import { fetchVpsApi, requireSession } from "@/lib/vpsClient";
 
 export async function GET(req: NextRequest) {
-  const sessionCookie = req.cookies.get("__session")?.value;
-  if (!sessionCookie) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = requireSession(req.cookies.get("__session")?.value);
+  if (!session.ok) {
+    return NextResponse.json({ error: session.error }, { status: 401 });
   }
 
   const projectId = req.nextUrl.searchParams.get("project");
@@ -14,14 +12,18 @@ export async function GET(req: NextRequest) {
   const filter = req.nextUrl.searchParams.get("filter") || "";
 
   try {
-    let url = `${VPS_API}/logs?secret=${SECRET}&project=${projectId}&lines=${lines}`;
-    if (filter) url += `&filter=${encodeURIComponent(filter)}`;
-    const res = await fetch(url, { cache: "no-store" });
-    const data = await res.json();
-    return NextResponse.json(data, { status: res.status });
-  } catch (error: any) {
+    const { data, status } = await fetchVpsApi("/logs", {
+      query: {
+        project: projectId ?? undefined,
+        lines,
+        filter: filter || undefined,
+      },
+    });
+    return NextResponse.json(data, { status });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
     return NextResponse.json(
-      { error: "Logs failed: " + error.message },
+      { error: "Logs failed: " + message },
       { status: 500 }
     );
   }
