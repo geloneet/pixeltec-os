@@ -1,3 +1,17 @@
+# ==================================================================
+# PixelTEC OS (CRM) — docker-compose.yml
+# ==================================================================
+# Este compose gestiona SOLO la app Next.js del CRM.
+# Nginx y Certbot viven en pixeltec-infra/docker-compose.yml.
+#
+# Ambos composes se comunican por la red `web-network` (external).
+#
+# Operaciones:
+#   - Rebuild + deploy:  docker compose build --no-cache app && docker compose up -d app
+#   - Logs:              docker compose logs -f app
+#   - Restart:           docker compose restart app
+# ==================================================================
+
 services:
   app:
     build:
@@ -17,42 +31,8 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
-      - pixeltec-network
-
-  nginx:
-    image: nginx:alpine
-    container_name: pixeltec-nginx
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - /home/ubuntu/pixeltec-infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - /home/ubuntu/pixeltec-infra/nginx/conf.d:/etc/nginx/conf.d:ro
-      - /home/ubuntu/pixeltec-infra/nginx/snippets:/etc/nginx/snippets:ro
-      - ./nginx/ssl:/etc/nginx/ssl:ro
-      - certbot-webroot:/var/www/certbot:ro
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    depends_on:
-      - app
-    networks:
-      - pixeltec-network
       - web-network
 
-  certbot:
-    image: certbot/certbot
-    container_name: pixeltec-certbot
-    volumes:
-      - ./nginx/ssl:/etc/letsencrypt
-      - certbot-webroot:/var/www/certbot
-    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
-
 networks:
-  pixeltec-network:
-    driver: bridge
   web-network:
     external: true
-
-volumes:
-  certbot-webroot:
