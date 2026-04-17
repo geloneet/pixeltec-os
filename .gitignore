@@ -5,3 +5,6 @@ node_modules/
 pixeltec-source.tar.gz
 nginx/ssl/
 .env.production
+
+# Emergency backups created during ops work
+*.bak.*
