@@ -13,7 +13,7 @@ export default function VpsLayout({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (user === null) {
-      router.push("/login");
+      router.push("/login?redirect=/vps");
     }
   }, [user, router]);
 
