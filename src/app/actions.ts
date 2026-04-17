@@ -1,4 +1,5 @@
 'use server';
+import type { PortalActionResult, PipelineContext } from '@/lib/action-types';
 
 import { z } from 'zod';
 import { getContentEnhancementSuggestions as genAIFunction, ContentEnhancementInput, ContentEnhancementOutput } from '@/ai/flows/content-enhancement-suggestions';
@@ -185,7 +186,6 @@ export async function getGlobalAIInsights(input: GlobalStrategicInsightsInput): 
 
 // ─── AI Pipeline Server Actions ─────────────────────────��─────────────────────
 
-export type { PipelineContext } from '@/ai/types/agent-types';
 
 type PipelineInput = {
   title: string;
@@ -275,11 +275,6 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:9002';
 const CODE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 const RATE_LIMIT_MS = 60 * 1000;    // 60 seconds between requests
 
-export type PortalActionResult<T = undefined> = {
-  success: boolean;
-  data?: T;
-  error?: string;
-};
 
 /** Check if a client slug exists. Returns company name for display if found. */
 export async function checkPortalSlugAction(
