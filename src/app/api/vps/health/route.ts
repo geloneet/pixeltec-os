@@ -1,23 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-
-const VPS_API = "http://172.18.0.1:3005";
-const SECRET = process.env.CRON_SECRET || "";
+import { fetchVpsApi, requireSession } from "@/lib/vpsClient";
 
 export async function GET(req: NextRequest) {
-  const sessionCookie = req.cookies.get("__session")?.value;
-  if (!sessionCookie) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = requireSession(req.cookies.get("__session")?.value);
+  if (!session.ok) {
+    return NextResponse.json({ error: session.error }, { status: 401 });
   }
 
   try {
-    const res = await fetch(`${VPS_API}/health?secret=${SECRET}`, {
-      cache: "no-store",
-    });
-    const data = await res.json();
-    return NextResponse.json(data);
-  } catch (error: any) {
+    const { data, status } = await fetchVpsApi("/health");
+    return NextResponse.json(data, { status });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
     return NextResponse.json(
-      { error: "Health check failed: " + error.message },
+      { error: "Health check failed: " + message },
       { status: 500 }
     );
   }
