@@ -27,9 +27,13 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - /home/ubuntu/pixeltec-infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - /home/ubuntu/pixeltec-infra/nginx/conf.d:/etc/nginx/conf.d:ro
+      - /home/ubuntu/pixeltec-infra/nginx/snippets:/etc/nginx/snippets:ro
       - ./nginx/ssl:/etc/nginx/ssl:ro
       - certbot-webroot:/var/www/certbot:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       - app
     networks:
