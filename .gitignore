@@ -8,3 +8,7 @@ nginx/ssl/
 
 # Emergency backups created during ops work
 *.bak.*
+
+# TypeScript incremental build cache (artifact, no source)
+tsconfig.tsbuildinfo
+*.tsbuildinfo
