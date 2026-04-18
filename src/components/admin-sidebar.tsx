@@ -5,7 +5,9 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
+  CalendarDays,
   Users,
+  Wrench,
   Server,
   LogOut,
   type LucideIcon,
@@ -21,10 +23,17 @@ export interface AdminNavItem {
 }
 
 export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
-  { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
-  { href: "/crm", label: "CRM", icon: Users },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/hoy", label: "Hoy", icon: CalendarDays },
+  { href: "/clientes", label: "Clientes", icon: Users },
+  { href: "/herramientas", label: "Herramientas", icon: Wrench },
   { href: "/vps", label: "DevOps", icon: Server },
 ];
+
+function isActive(href: string, pathname: string) {
+  if (href === "/dashboard") return pathname === href;
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
 export function AdminSidebar() {
   const pathname = usePathname();
@@ -32,72 +41,59 @@ export function AdminSidebar() {
   const auth = useAuth();
 
   const handleLogout = async () => {
-    if (auth) {
-      await fetch("/api/auth/session", { method: "DELETE" });
-      await signOut(auth);
-      router.push("/login");
-    }
+    if (!auth) return;
+    await fetch("/api/auth/session", { method: "DELETE" });
+    await signOut(auth);
+    router.push("/login");
   };
 
   return (
-    <aside className="sticky top-0 flex h-screen w-20 shrink-0 flex-col items-center justify-between border-r border-zinc-800/60 bg-zinc-950/80 py-6 backdrop-blur-xl">
-      <Link
-        href="/"
-        className="transition-transform hover:scale-110"
-        aria-label="Inicio"
-      >
-        <Image
-          src={process.env.NEXT_PUBLIC_LOGO_URL!}
-          alt="PixelTEC"
-          width={36}
-          height={36}
-        />
-      </Link>
+    <aside className="h-full flex-shrink-0 flex items-center p-4 transition-opacity duration-300">
+      <div className="h-full w-20 bg-black/20 backdrop-blur-xl border border-white/5 rounded-[2rem] flex flex-col items-center justify-between py-6">
+        <Link href="/" aria-label="Inicio">
+          <Image
+            src={process.env.NEXT_PUBLIC_LOGO_URL!}
+            alt="PixelTEC"
+            width={40}
+            height={40}
+            className="hover:scale-110 transition-transform"
+          />
+        </Link>
 
-      <nav className="flex flex-col items-center gap-2">
-        {ADMIN_NAV_ITEMS.map((item) => {
-          const active =
-            item.href === "/dashboard"
-              ? pathname === item.href
-              : pathname.startsWith(item.href);
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="group relative"
-              aria-label={item.label}
-            >
-              <div
-                className={cn(
-                  "flex h-12 w-12 items-center justify-center rounded-2xl transition-all duration-300",
-                  active
-                    ? "bg-gradient-to-br from-zinc-800 to-zinc-900 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] ring-1 ring-zinc-700/80"
-                    : "text-zinc-500 hover:bg-zinc-900/60 hover:text-zinc-200"
-                )}
-              >
-                <Icon className="h-5 w-5" strokeWidth={1.75} />
-              </div>
-              <span
-                className="pointer-events-none absolute left-full top-1/2 ml-3 -translate-y-1/2 rounded-lg bg-zinc-900 px-3 py-1 text-xs font-medium text-zinc-100 opacity-0 ring-1 ring-zinc-800 transition-opacity duration-200 group-hover:opacity-100"
-                role="tooltip"
-              >
-                {item.label}
-              </span>
-            </Link>
-          );
-        })}
-      </nav>
+        <nav className="flex flex-col items-center gap-4">
+          {ADMIN_NAV_ITEMS.map((item) => {
+            const active = isActive(item.href, pathname);
+            const Icon = item.icon;
+            return (
+              <Link key={item.href} href={item.href} aria-label={item.label}>
+                <div
+                  className={cn(
+                    "relative w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 group",
+                    active
+                      ? "bg-cyan-950/40 text-cyan-400 shadow-[0_0_20px_rgba(0,240,255,0.2)]"
+                      : "bg-transparent text-zinc-600 hover:bg-white/5 hover:text-zinc-300"
+                  )}
+                >
+                  <Icon className="w-5 h-5" strokeWidth={1.75} />
+                  <span className="absolute left-full ml-4 px-3 py-1.5 text-xs font-semibold bg-zinc-800 border border-zinc-700 text-white rounded-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none translate-x-[-10px] group-hover:translate-x-0">
+                    {item.label}
+                  </span>
+                </div>
+              </Link>
+            );
+          })}
+        </nav>
 
-      <div className="flex flex-col items-center gap-3">
-        <div className="h-px w-10 bg-zinc-800" />
         <button
           type="button"
           onClick={handleLogout}
           aria-label="Cerrar sesión"
-          className="flex h-12 w-12 items-center justify-center rounded-2xl text-zinc-500 transition-colors hover:bg-red-500/10 hover:text-red-400"
+          className="relative w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 group text-zinc-600 hover:bg-red-500/10 hover:text-red-400"
         >
-          <LogOut className="h-5 w-5" strokeWidth={1.75} />
+          <LogOut className="w-5 h-5" strokeWidth={1.75} />
+          <span className="absolute left-full ml-4 px-3 py-1.5 text-xs font-semibold bg-zinc-800 border border-zinc-700 text-white rounded-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none translate-x-[-10px] group-hover:translate-x-0">
+            Cerrar sesión
+          </span>
         </button>
       </div>
     </aside>
