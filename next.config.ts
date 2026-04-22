@@ -2,8 +2,10 @@ import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
   output: 'standalone',
-  /* config options here */
-eslint: {
+  // grammy y ws NO deben ser bundleados por webpack — usan APIs de Node.js
+  // que se corrompen con el tree-shaking/minification del bundler.
+  serverExternalPackages: ['grammy', 'ws'],
+  eslint: {
     ignoreDuringBuilds: true,
   },
   async redirects() {
