@@ -10,6 +10,7 @@ const PROTECTED_PATHS = [
   '/herramientas',
   '/vps',
   '/portal',
+  '/crypto-intel',
 ];
 
 export function middleware(request: NextRequest) {
@@ -43,5 +44,6 @@ export const config = {
     '/herramientas/:path*',
     '/vps/:path*',
     '/portal/:path*',
+    '/crypto-intel/:path*',
   ],
 };

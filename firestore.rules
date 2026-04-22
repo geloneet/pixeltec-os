@@ -51,5 +51,19 @@ service cloud.firestore {
     match /tasks/{taskId} {
       allow read, write: if request.auth != null;
     }
+
+    // ═══════════════════════════════════════════════════════════════
+    // Crypto Intelligence — Admin SDK only
+    // Estas colecciones se escriben y leen exclusivamente desde el
+    // backend (Server Actions + cron endpoints + bot de Telegram) vía
+    // firebase-admin. El Cliente NO debe tener acceso directo.
+    // ═══════════════════════════════════════════════════════════════
+    match /alertRules/{docId}                   { allow read, write: if false; }
+    match /alerts/{docId}                       { allow read, write: if false; }
+    match /cryptoIntelLogs/{docId}              { allow read, write: if false; }
+    match /telegramUsers/{docId}                { allow read, write: if false; }
+    match /telegramSessions/{docId}             { allow read, write: if false; }
+    match /prices/{docId}                       { allow read, write: if false; }
+    match /priceSnapshots/{docId}/{path=**}     { allow read, write: if false; }
   }
 }
