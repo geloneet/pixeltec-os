@@ -1,0 +1,8 @@
+{
+  "enabledPlugins": {
+    "andrej-karpathy-skills@karpathy-skills": true,
+    "ui-ux-pro-max@ui-ux-pro-max-skill": true,
+    "document-skills@anthropic-agent-skills": true,
+    "example-skills@anthropic-agent-skills": true
+  }
+}

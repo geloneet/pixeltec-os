@@ -111,9 +111,15 @@ export function deployVpsProject(projectId: string) {
 }
 
 /** Valida la cookie de sesión del CRM antes de hablar al vps-api. */
-export function requireSession(
+export async function requireSession(
   sessionCookie: string | undefined
-): { ok: true } | { ok: false; error: string } {
+): Promise<{ ok: true; uid: string } | { ok: false; error: string }> {
   if (!sessionCookie) return { ok: false, error: "Unauthorized" };
-  return { ok: true };
+  try {
+    const { getAdminAuth } = await import("./firebase-admin");
+    const decoded = await getAdminAuth().verifySessionCookie(sessionCookie, true);
+    return { ok: true, uid: decoded.uid };
+  } catch {
+    return { ok: false, error: "Session expired or invalid" };
+  }
 }

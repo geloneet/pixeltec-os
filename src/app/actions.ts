@@ -65,10 +65,6 @@ export async function submitContactForm(
   }
 
   try {
-    // In a real application, you would save the data to Firestore here.
-    // e.g., await db.collection('contacts').add(validatedFields.data);
-    console.log('Form data submitted:', validatedFields.data);
-
     return {
       message: 'Thank you! Your message has been sent successfully.',
       isSuccess: true,
