@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckSquare, Rocket, Server, Users } from "lucide-react";
+import { Bitcoin, CheckSquare, Rocket, Server, Users } from "lucide-react";
 import {
   CommandDialog,
   CommandEmpty,
@@ -50,6 +50,9 @@ export function CmdKDialog() {
       results.vpsProjects.length >
     0;
 
+  const showModules =
+    !query || normalize("crypto intelligence").includes(normalize(query));
+
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
       <CommandInput
@@ -61,6 +64,21 @@ export function CmdKDialog() {
         <CommandEmpty>
           {query ? `Sin resultados para "${query}"` : "Empieza a escribir..."}
         </CommandEmpty>
+
+        {showModules && (
+          <CommandGroup heading="Módulos">
+            <CommandItem
+              value={normalize("crypto intelligence bitcoin")}
+              onSelect={() => handleSelect("/crypto-intel")}
+            >
+              <Bitcoin className="mr-3 h-4 w-4 text-amber-400" />
+              <div className="flex-1 min-w-0">
+                <div className="font-medium text-zinc-100">Crypto Intelligence</div>
+                <div className="text-xs text-zinc-500">Precios y alertas de mercado</div>
+              </div>
+            </CommandItem>
+          </CommandGroup>
+        )}
 
         {results.clients.length > 0 && (
           <CommandGroup heading="Clientes">

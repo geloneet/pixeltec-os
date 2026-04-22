@@ -9,6 +9,7 @@ import {
   Users,
   Wrench,
   Server,
+  Bitcoin,
   LogOut,
   type LucideIcon,
 } from "lucide-react";
@@ -28,6 +29,7 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
   { href: "/clientes", label: "Clientes", icon: Users },
   { href: "/herramientas", label: "Herramientas", icon: Wrench },
   { href: "/vps", label: "DevOps", icon: Server },
+  { href: "/crypto-intel", label: "Crypto", icon: Bitcoin },
 ];
 
 function isActive(href: string, pathname: string) {
