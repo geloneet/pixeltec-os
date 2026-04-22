@@ -3,6 +3,8 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback, type ReactNode } from "react";
 import { useUser, useFirestore } from "@/firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
+import { toast } from "sonner";
+import { clientSchema, projectSchema, taskSchema } from "@/lib/crm-schemas";
 import type { CRMClient, CRMProject, CRMTask, CRMKey, Tool, KnowledgeTip, ServerClientLink, RecurringCharge } from "@/types/crm";
 
 function uid(): string {
@@ -88,25 +90,45 @@ export function CRMProvider({ children }: { children: ReactNode }) {
           }
           setLoading(false);
         }
-      } catch {
-        if (!cancelled) setLoading(false);
+      } catch (error) {
+        console.error('Error loading CRM data:', error);
+        if (!cancelled) {
+          setLoading(false);
+          toast.error('Error al cargar datos del CRM', {
+            description: error instanceof Error ? error.message : 'Intenta recargar la página',
+          });
+        }
       }
     })();
     return () => { cancelled = true; };
   }, [userUid, firestore]);
 
+  // Cleanup save timer on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    };
+  }, []);
+
   // Debounced save
   const persist = useCallback(() => {
     if (!userUid || !firestore) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => {
-      setDoc(doc(firestore, "crm_data", userUid), {
-        clients: dataRef.current.clients,
-        tools: dataRef.current.tools,
-        streak: dataRef.current.streak,
-        serverLinks: dataRef.current.serverLinks,
-        lastActivity: new Date().toISOString(),
-      });
+    saveTimer.current = setTimeout(async () => {
+      try {
+        await setDoc(doc(firestore, "crm_data", userUid), {
+          clients: dataRef.current.clients,
+          tools: dataRef.current.tools,
+          streak: dataRef.current.streak,
+          serverLinks: dataRef.current.serverLinks,
+          lastActivity: new Date().toISOString(),
+        });
+      } catch (error) {
+        console.error('Error saving CRM data:', error);
+        toast.error('Error al guardar cambios', {
+          description: 'Los cambios no se guardaron. Intenta recargar la página.',
+        });
+      }
     }, 500);
   }, [userUid, firestore]);
 
@@ -128,6 +150,13 @@ export function CRMProvider({ children }: { children: ReactNode }) {
 
   // CRUD: Clients
   const addClient = useCallback((data: Omit<CRMClient, "id" | "projects" | "createdAt">) => {
+    const validation = clientSchema.safeParse(data);
+    if (!validation.success) {
+      toast.error('Datos inválidos', {
+        description: validation.error.errors[0]?.message || 'Revisa los campos',
+      });
+      return;
+    }
     const c: CRMClient = { ...data, id: uid(), projects: [], createdAt: new Date().toISOString() };
     const next = [...dataRef.current.clients, c];
     bumpStreak();
@@ -145,6 +174,13 @@ export function CRMProvider({ children }: { children: ReactNode }) {
 
   // CRUD: Projects
   const addProject = useCallback((clientId: string, data: Omit<CRMProject, "id" | "keys" | "tasks" | "charges" | "createdAt" | "guides" | "accounts" | "readme" | "prompt" | "quickNotes">) => {
+    const validation = projectSchema.safeParse(data);
+    if (!validation.success) {
+      toast.error('Datos inválidos', {
+        description: validation.error.errors[0]?.message || 'Revisa los campos',
+      });
+      return;
+    }
     const p: CRMProject = { ...data, id: uid(), keys: [], tasks: [], charges: [], guides: "", accounts: "", readme: "", prompt: "", quickNotes: "", createdAt: new Date().toISOString() };
     const next = dataRef.current.clients.map(c =>
       c.id === clientId ? { ...c, projects: [...c.projects, p] } : c
@@ -169,6 +205,13 @@ export function CRMProvider({ children }: { children: ReactNode }) {
 
   // CRUD: Tasks
   const addTask = useCallback((clientId: string, projectId: string, data: Pick<CRMTask, "name" | "desc" | "prio">) => {
+    const validation = taskSchema.safeParse(data);
+    if (!validation.success) {
+      toast.error('Datos inválidos', {
+        description: validation.error.errors[0]?.message || 'Revisa los campos',
+      });
+      return;
+    }
     const t: CRMTask = { ...data, id: uid(), status: "pendiente", createdAt: new Date().toISOString(), pomoSessions: 0 };
     const next = dataRef.current.clients.map(c =>
       c.id === clientId ? { ...c, projects: c.projects.map(p => p.id === projectId ? { ...p, tasks: [...p.tasks, t] } : p) } : c

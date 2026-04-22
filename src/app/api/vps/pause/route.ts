@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { fetchVpsApi, requireSession } from "@/lib/vpsClient";
 
 export async function POST(req: NextRequest) {
-  const session = requireSession(req.cookies.get("__session")?.value);
+  const session = await requireSession(req.cookies.get("__session")?.value);
   if (!session.ok) {
     return NextResponse.json({ error: session.error }, { status: 401 });
   }

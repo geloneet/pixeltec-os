@@ -59,6 +59,10 @@ export function searchAcrossCRM({
   clients: CRMClient[];
   vpsProjects: VpsProject[];
 }): CmdKResults {
+  if (query.trim().length === 1) {
+    return { clients: [], projects: [], tasks: [], vpsProjects: [] };
+  }
+
   const shouldFilter = query.trim().length > 0;
 
   const resultClients: CmdKClientResult[] = clients
