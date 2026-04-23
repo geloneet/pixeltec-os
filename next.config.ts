@@ -19,6 +19,7 @@ const nextConfig: NextConfig = {
       { source: '/nosotros', destination: '/about', permanent: true },
       { source: '/contacto', destination: '/contact', permanent: true },
       { source: '/servicios', destination: '/services', permanent: true },
+      { source: '/blog/de-excel-a-saas', destination: '/blog/de-excel-a-saas-roi', permanent: true },
     ];
   },
   images: {
