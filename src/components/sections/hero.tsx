@@ -21,7 +21,7 @@ export default function HeroSection() {
 
       <div className="container mx-auto px-4 md:px-6 relative z-20 flex flex-col items-center justify-center">
         <h1 
-          className="text-5xl md:text-7xl lg:text-8xl font-bold tracking-tighter text-gray-100 max-w-5xl opacity-0 animate-fade-in-up"
+          className="text-[clamp(2.25rem,8vw,6rem)] font-bold tracking-tighter text-gray-100 max-w-5xl opacity-0 animate-fade-in-up"
           style={{ animationDelay: '0.2s' }}
         >
           Arquitectura Digital que Escala con <span className="bg-gradient-to-r from-blue-400 to-cyan-400 text-transparent bg-clip-text">IA</span>
