@@ -1,7 +1,8 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Download, Lock, Server, Cloud } from "lucide-react";
+import { Clock, Lock, Server, Cloud } from "lucide-react";
+import { toast } from "sonner";
 import Header from "@/components/header";
 import { Footer } from "@/components/ui/footer-section";
 
@@ -76,11 +77,14 @@ export default function GuiasTransformacionPage() {
                   </p>
                 </div>
 
-                {/* Botón Inferior de Descarga */}
+                {/* Botón Inferior */}
                 <div className="relative z-10 mt-8">
-                  <button className="w-full flex items-center justify-center gap-2 bg-[#030303] border border-cyan-500/30 text-cyan-400 py-3 md:py-4 rounded-xl group-hover:bg-cyan-500 group-hover:text-[#030303] transition-all duration-300 font-bold">
-                    <Download className="w-5 h-5" />
-                    Descargar Guía
+                  <button
+                    onClick={() => toast.info("Disponible pronto — te avisamos cuando esté lista.")}
+                    className="w-full flex items-center justify-center gap-2 bg-[#030303] border border-white/10 text-zinc-500 py-3 md:py-4 rounded-xl cursor-not-allowed transition-all duration-300 font-bold"
+                  >
+                    <Clock className="w-5 h-5" />
+                    Próximamente
                   </button>
                 </div>
               </motion.div>
