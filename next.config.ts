@@ -16,6 +16,9 @@ const nextConfig: NextConfig = {
     return [
       { source: '/crm', destination: '/dashboard', permanent: true },
       { source: '/crm/:path*', destination: '/dashboard', permanent: true },
+      { source: '/nosotros', destination: '/about', permanent: true },
+      { source: '/contacto', destination: '/contact', permanent: true },
+      { source: '/servicios', destination: '/services', permanent: true },
     ];
   },
   images: {
