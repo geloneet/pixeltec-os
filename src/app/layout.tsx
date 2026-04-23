@@ -46,7 +46,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={cn('dark scroll-smooth', poppins.variable, roboto.variable, leagueSpartan.variable)}>
+    <html lang="es-MX" className={cn('dark scroll-smooth', poppins.variable, roboto.variable, leagueSpartan.variable)}>
       <body className={cn('font-body antialiased min-h-screen bg-background text-foreground')}>
         <FirebaseClientProvider>
           {children}
