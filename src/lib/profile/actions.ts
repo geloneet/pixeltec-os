@@ -12,11 +12,16 @@ import {
   type ActionResult,
 } from "./schemas";
 
-const BUCKET_NAME = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET!;
 const AVATAR_EXTS = ["jpg", "png", "webp"] as const;
 
+function getAvatarBucket() {
+  const name = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
+  if (!name) throw new Error("NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET env var is required");
+  return getAdminStorage().bucket(name);
+}
+
 async function deleteExistingAvatars(uid: string): Promise<void> {
-  const bucket = getAdminStorage().bucket(BUCKET_NAME);
+  const bucket = getAvatarBucket();
   await Promise.allSettled(
     AVATAR_EXTS.map((ext) => bucket.file(`users/${uid}/avatar.${ext}`).delete())
   );
@@ -43,7 +48,8 @@ export async function uploadAvatar(formData: FormData): Promise<ActionResult> {
     await deleteExistingAvatars(uid);
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    const bucket = getAdminStorage().bucket(BUCKET_NAME);
+    const bucket = getAvatarBucket();
+    const bucketName = bucket.name;
 
     await bucket.file(path).save(buffer, {
       contentType: file.type,
@@ -51,7 +57,7 @@ export async function uploadAvatar(formData: FormData): Promise<ActionResult> {
     });
     await bucket.file(path).makePublic();
 
-    const publicUrl = `https://storage.googleapis.com/${BUCKET_NAME}/${path}`;
+    const publicUrl = `https://storage.googleapis.com/${bucketName}/${path}`;
     await getAdminAuth().updateUser(uid, { photoURL: publicUrl });
 
     revalidatePath("/", "layout");
