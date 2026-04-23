@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useAuth, useUser } from "@/firebase";
@@ -35,6 +35,12 @@ export function AvatarUploader() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isPending, startTransition] = useTransition();
 
+  useEffect(() => {
+    return () => {
+      if (preview) URL.revokeObjectURL(preview);
+    };
+  }, [preview]);
+
   if (!user) return null;
 
   const initials = getInitials(user.displayName, user.email);
@@ -60,6 +66,7 @@ export function AvatarUploader() {
         URL.revokeObjectURL(img.src);
         return;
       }
+      if (preview) URL.revokeObjectURL(preview);
       setPreview(img.src);
       setSelectedFile(file);
     };
@@ -84,6 +91,7 @@ export function AvatarUploader() {
       if (auth?.currentUser) {
         await auth.currentUser.reload();
       }
+      if (preview) URL.revokeObjectURL(preview);
       setPreview(null);
       setSelectedFile(null);
       router.refresh();
