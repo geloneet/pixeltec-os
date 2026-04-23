@@ -25,6 +25,7 @@ import {
 import Header from '@/components/header';
 import { Footer } from '@/components/ui/footer-section';
 import { ShinyButton } from '@/components/ui/shiny-button';
+import { ServiceStructuredData } from '@/components/seo/structured-data';
 
 // Mock Data for Services
 const servicesData = [
@@ -186,6 +187,8 @@ export default function ServiceDetailPage() {
   }
 
   return (
+    <>
+    <ServiceStructuredData slug={service.slug} title={service.title} description={service.description} />
     <div className="min-h-screen bg-[#030303] text-white pt-32 sm:pt-40 pb-16 sm:pb-24">
       <Header />
       <main className="container mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
@@ -322,5 +325,6 @@ export default function ServiceDetailPage() {
       </main>
       <Footer />
     </div>
+    </>
   );
 }

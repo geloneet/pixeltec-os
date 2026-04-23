@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 import { Toaster } from '@/components/ui/toaster';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { Poppins, Roboto, League_Spartan } from 'next/font/google';
+import { OrganizationStructuredData } from '@/components/seo/structured-data';
 
 const poppins = Poppins({
   subsets: ['latin'],
@@ -71,6 +72,7 @@ export default function RootLayout({
   return (
     <html lang="es-MX" className={cn('dark scroll-smooth', poppins.variable, roboto.variable, leagueSpartan.variable)}>
       <body className={cn('font-body antialiased min-h-screen bg-background text-foreground')}>
+        <OrganizationStructuredData />
         <FirebaseClientProvider>
           {children}
           <Toaster />
