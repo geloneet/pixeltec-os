@@ -48,6 +48,7 @@ export function ProfileForm({ initialValues }: ProfileFormProps) {
         toast.error(result.error);
         return;
       }
+      form.reset(data);
       router.refresh();
       toast.success("Perfil actualizado");
     });
