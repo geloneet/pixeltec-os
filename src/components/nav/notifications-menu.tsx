@@ -154,20 +154,22 @@ export function NotificationsMenu() {
           </div>
         )}
 
-        {/* List or empty state */}
-        {!error && notifications.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-3 px-4 py-10 text-center">
-            <BellOff className="h-8 w-8 text-zinc-700" strokeWidth={1.5} />
-            <p className="text-sm text-zinc-500">No tienes notificaciones</p>
-          </div>
-        ) : (
-          <ScrollArea className="max-h-96">
-            <div className="p-2 flex flex-col gap-0.5">
-              {notifications.map((n) => (
-                <NotificationItem key={n.id} notification={n} onRead={handleRead} />
-              ))}
+        {/* List or empty state — never render when error is active */}
+        {!error && (
+          notifications.length === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-3 px-4 py-10 text-center">
+              <BellOff className="h-8 w-8 text-zinc-700" strokeWidth={1.5} />
+              <p className="text-sm text-zinc-500">No tienes notificaciones</p>
             </div>
-          </ScrollArea>
+          ) : (
+            <ScrollArea className="max-h-96">
+              <div className="p-2 flex flex-col gap-0.5">
+                {notifications.map((n) => (
+                  <NotificationItem key={n.id} notification={n} onRead={handleRead} />
+                ))}
+              </div>
+            </ScrollArea>
+          )
         )}
 
         {/* Footer */}
