@@ -3,7 +3,7 @@ import type {NextConfig} from 'next';
 const nextConfig: NextConfig = {
   output: 'standalone',
   // grammy, ws y firebase-admin NO deben ser bundleados por webpack.
-  serverExternalPackages: ['grammy', 'ws', 'firebase-admin'],
+  serverExternalPackages: ['grammy', 'ws', 'firebase-admin', '@anthropic-ai/sdk'],
   experimental: {
     // @ts-expect-error: nodeMiddleware es un flag de runtime válido en Next.js 15.2+
     // pero aún no está reflejado en los tipos de ExperimentalConfig.
