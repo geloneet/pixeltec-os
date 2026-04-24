@@ -69,6 +69,17 @@ service cloud.firestore {
       allow create, delete: if false;
     }
 
+    // ── Blog (Admin SDK only; public reads filtered by status) ────
+    match /blogBriefs/{briefId} {
+      allow read, write: if false;  // solo Admin SDK
+    }
+
+    match /blogPosts/{postId} {
+      allow read: if resource.data.status == 'published'
+                  && resource.data.seo.noindex == false;
+      allow write: if false;  // solo Admin SDK
+    }
+
     // ═══════════════════════════════════════════════════════════════
     // Crypto Intelligence — Admin SDK only
     // Estas colecciones se escriben y leen exclusivamente desde el
