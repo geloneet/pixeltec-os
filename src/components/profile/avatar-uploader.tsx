@@ -33,6 +33,7 @@ export function AvatarUploader() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -44,7 +45,7 @@ export function AvatarUploader() {
   if (!user) return null;
 
   const initials = getInitials(user.displayName, user.email);
-  const currentPhoto = preview ?? user.photoURL ?? null;
+  const currentPhoto = preview ?? uploadedUrl ?? user.photoURL ?? null;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -88,6 +89,7 @@ export function AvatarUploader() {
         toast.error(result.error);
         return;
       }
+      if (result.url) setUploadedUrl(result.url);
       if (auth?.currentUser) {
         await auth.currentUser.reload();
       }
@@ -113,6 +115,7 @@ export function AvatarUploader() {
         toast.error(result.error);
         return;
       }
+      setUploadedUrl(null);
       if (auth?.currentUser) {
         await auth.currentUser.reload();
       }

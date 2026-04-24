@@ -13,10 +13,10 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { deleteAlert } from "@/lib/crypto-intel/actions/alerts";
-import type { AlertRuleWithId } from "@/lib/crypto-intel/queries/alerts";
+import type { AlertRuleSerialized } from "@/lib/crypto-intel/queries/alerts";
 
 interface DeleteAlertDialogProps {
-  alert: AlertRuleWithId | null;
+  alert: AlertRuleSerialized | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onDeleted: (id: string) => void;

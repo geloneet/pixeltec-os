@@ -2,12 +2,11 @@
 
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import type { LogEntry, LogSource, LogLevel } from "@/lib/crypto-intel/logger";
-
-type LogEntryWithId = LogEntry & { id: string };
+import type { LogSource, LogLevel } from "@/lib/crypto-intel/logger";
+import type { LogEntrySerialized } from "@/lib/crypto-intel/queries/logs";
 
 interface LogsTileProps {
-  logs: LogEntryWithId[];
+  logs: LogEntrySerialized[];
 }
 
 const SOURCES: Array<{ value: LogSource | "all"; label: string }> = [
@@ -89,10 +88,9 @@ export function LogsTile({ logs }: LogsTileProps) {
   );
 }
 
-function formatTimestamp(ts: { toMillis?: () => number } | null | undefined): string {
+function formatTimestamp(ts: string | null | undefined): string {
   if (!ts) return "—";
-  const ms = ts.toMillis?.() ?? 0;
-  return new Date(ms).toLocaleString("es-MX", {
+  return new Date(ts).toLocaleString("es-MX", {
     dateStyle: "short",
     timeStyle: "short",
   });

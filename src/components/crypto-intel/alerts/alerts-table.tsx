@@ -26,29 +26,29 @@ import { AlertEditDrawer } from "./alert-edit-drawer";
 import { AlertHistoryDrawer } from "./alert-history-drawer";
 import { DeleteAlertDialog } from "./delete-alert-dialog";
 import { toggleAlert } from "@/lib/crypto-intel/actions/alerts";
-import type { AlertRuleWithId } from "@/lib/crypto-intel/queries/alerts";
+import type { AlertRuleSerialized } from "@/lib/crypto-intel/queries/alerts";
 import { WATCHLIST } from "@/lib/crypto-intel/watchlist";
 
 interface AlertsTableProps {
-  initialAlerts: AlertRuleWithId[];
+  initialAlerts: AlertRuleSerialized[];
 }
 
 type StatusFilter = "all" | "active" | "paused";
 type ChannelFilter = "all" | "telegram" | "dashboard";
 
 export function AlertsTable({ initialAlerts }: AlertsTableProps) {
-  const [alerts, setAlerts] = useState<AlertRuleWithId[]>(initialAlerts);
+  const [alerts, setAlerts] = useState<AlertRuleSerialized[]>(initialAlerts);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [channelFilter, setChannelFilter] = useState<ChannelFilter>("all");
   const [symbolFilter, setSymbolFilter] = useState<string>("all");
 
-  const [editAlert, setEditAlert] = useState<AlertRuleWithId | null>(null);
+  const [editAlert, setEditAlert] = useState<AlertRuleSerialized | null>(null);
   const [editOpen, setEditOpen] = useState(false);
 
-  const [historyAlert, setHistoryAlert] = useState<AlertRuleWithId | null>(null);
+  const [historyAlert, setHistoryAlert] = useState<AlertRuleSerialized | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
 
-  const [deleteTarget, setDeleteTarget] = useState<AlertRuleWithId | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<AlertRuleSerialized | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   const [togglingIds, setTogglingIds] = useState<Set<string>>(new Set());
@@ -63,7 +63,7 @@ export function AlertsTable({ initialAlerts }: AlertsTableProps) {
     });
   }, [alerts, statusFilter, channelFilter, symbolFilter]);
 
-  async function handleToggle(alert: AlertRuleWithId, newActive: boolean) {
+  async function handleToggle(alert: AlertRuleSerialized, newActive: boolean) {
     setTogglingIds((prev) => new Set(prev).add(alert.id));
     // Optimistic update
     setAlerts((prev) =>
@@ -98,17 +98,17 @@ export function AlertsTable({ initialAlerts }: AlertsTableProps) {
     setAlerts((prev) => prev.filter((a) => a.id !== id));
   }
 
-  function openEdit(alert: AlertRuleWithId) {
+  function openEdit(alert: AlertRuleSerialized) {
     setEditAlert(alert);
     setEditOpen(true);
   }
 
-  function openHistory(alert: AlertRuleWithId) {
+  function openHistory(alert: AlertRuleSerialized) {
     setHistoryAlert(alert);
     setHistoryOpen(true);
   }
 
-  function openDelete(alert: AlertRuleWithId) {
+  function openDelete(alert: AlertRuleSerialized) {
     setDeleteTarget(alert);
     setDeleteOpen(true);
   }
@@ -235,7 +235,7 @@ export function AlertsTable({ initialAlerts }: AlertsTableProps) {
                   </TableCell>
                   <TableCell className="font-mono text-xs text-zinc-500">
                     {alert.lastTriggeredAt
-                      ? formatRelative(alert.lastTriggeredAt.toMillis())
+                      ? formatRelative(new Date(alert.lastTriggeredAt).getTime())
                       : "Nunca"}
                   </TableCell>
                   <TableCell className="font-mono text-xs text-zinc-500">

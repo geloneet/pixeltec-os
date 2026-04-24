@@ -11,11 +11,11 @@ import {
 } from "@/components/ui/sheet";
 import { AlertForm } from "./alert-form";
 import { updateAlert } from "@/lib/crypto-intel/actions/alerts";
-import type { AlertRuleWithId } from "@/lib/crypto-intel/queries/alerts";
+import type { AlertRuleSerialized } from "@/lib/crypto-intel/queries/alerts";
 import type { CreateAlertInput } from "@/lib/crypto-intel/schemas/alert";
 
 interface AlertEditDrawerProps {
-  alert: AlertRuleWithId | null;
+  alert: AlertRuleSerialized | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }

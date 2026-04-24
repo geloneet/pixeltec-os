@@ -57,7 +57,7 @@ export async function uploadAvatar(formData: FormData): Promise<ActionResult> {
     });
     await bucket.file(path).makePublic();
 
-    const publicUrl = `https://storage.googleapis.com/${bucketName}/${path}`;
+    const publicUrl = `https://storage.googleapis.com/${bucketName}/${path}?v=${Date.now()}`;
     await getAdminAuth().updateUser(uid, { photoURL: publicUrl });
 
     revalidatePath("/", "layout");

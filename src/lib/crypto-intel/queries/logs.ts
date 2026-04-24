@@ -10,7 +10,9 @@ export interface LogFilter {
   limit?: number;
 }
 
-export async function listLogs(filter: LogFilter = {}): Promise<(LogEntry & { id: string })[]> {
+export type LogEntrySerialized = Omit<LogEntry, "timestamp"> & { id: string; timestamp: string };
+
+export async function listLogs(filter: LogFilter = {}): Promise<LogEntrySerialized[]> {
   const { source, level, limit = 100 } = filter;
 
   let query = db().collection(COLLECTION) as FirebaseFirestore.Query;
@@ -18,11 +20,14 @@ export async function listLogs(filter: LogFilter = {}): Promise<(LogEntry & { id
   if (level) query = query.where("level", "==", level);
 
   const snap = await query.orderBy("timestamp", "desc").limit(limit).get().catch(async () => {
-    // fallback without filter if composite index missing
     return db().collection(COLLECTION).orderBy("timestamp", "desc").limit(limit).get();
   });
 
-  return snap.docs.map(d => ({ id: d.id, ...(d.data() as LogEntry) }));
+  return snap.docs.map(d => {
+    const data = d.data() as LogEntry;
+    const { timestamp, ...rest } = data;
+    return { id: d.id, ...rest, timestamp: timestamp.toDate().toISOString() };
+  });
 }
 
 export async function getMetrics(): Promise<{
