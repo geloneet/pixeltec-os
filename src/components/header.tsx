@@ -14,6 +14,7 @@ const navLinks = [
     { label: 'Inicio', href: '/' },
     { label: 'Nosotros', href: '/about' },
     { label: 'Servicios', href: '/services' },
+    { label: 'Industrias', href: '/industrias' },
     { label: 'Blog', href: '/blog' },
     { label: 'Contacto', href: '/contact' },
 ];

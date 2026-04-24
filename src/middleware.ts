@@ -16,6 +16,7 @@ const PROTECTED_PATHS = [
   '/crypto-intel',
   '/perfil',
   '/notificaciones',
+  '/blog-admin',
 ];
 
 export async function middleware(request: NextRequest) {
@@ -70,5 +71,6 @@ export const config = {
     '/crypto-intel/:path*',
     '/perfil/:path*',
     '/notificaciones/:path*',
+    '/blog-admin/:path*',
   ],
 };

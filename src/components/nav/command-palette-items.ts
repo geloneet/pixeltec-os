@@ -5,6 +5,7 @@ import {
   Wrench,
   Server,
   Bitcoin,
+  FileText,
   type LucideIcon,
 } from "lucide-react";
 
@@ -51,6 +52,12 @@ export const PALETTE_NAV_ITEMS: PaletteNavItem[] = [
     label: "Crypto Intel",
     description: "Precios y alertas de mercado en tiempo real",
     icon: Bitcoin,
+  },
+  {
+    href: "/blog-admin",
+    label: "Blog Admin",
+    description: "Gestión de posts, borradores y pipeline de contenido",
+    icon: FileText,
   },
 ];
 
