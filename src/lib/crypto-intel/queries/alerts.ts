@@ -35,7 +35,8 @@ export async function listAlerts(includeDeleted = false): Promise<AlertRuleSeria
     query = query.where("deletedAt", "==", null);
   }
   const snap = await query.orderBy("createdAt", "desc").get().catch(async () => {
-    return db().collection(COL.alertRules).where("active", "!=", null).get();
+    // Fallback when composite index is not yet deployed — omit deletedAt filter
+    return db().collection(COL.alertRules).where("active", "==", true).orderBy("createdAt", "desc").get();
   });
 
   return snap.docs

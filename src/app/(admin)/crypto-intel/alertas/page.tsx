@@ -7,7 +7,12 @@ import { Plus } from "lucide-react";
 export const dynamic = "force-dynamic";
 
 export default async function AlertasPage() {
-  const alerts = await listAlerts();
+  let alerts: Awaited<ReturnType<typeof listAlerts>> = [];
+  try {
+    alerts = await listAlerts();
+  } catch (err) {
+    console.error("[crypto-intel/alertas] listAlerts failed:", err);
+  }
   const activeCount = alerts.filter((a) => a.active).length;
   const pausedCount = alerts.filter((a) => !a.active).length;
 

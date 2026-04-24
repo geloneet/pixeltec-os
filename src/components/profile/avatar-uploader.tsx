@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { updateCurrentUser } from "firebase/auth";
 import { useAuth, useUser } from "@/firebase";
 import { uploadAvatar, deleteAvatar } from "@/lib/profile/actions";
 import {
@@ -91,7 +92,11 @@ export function AvatarUploader() {
       }
       if (result.url) setUploadedUrl(result.url);
       if (auth?.currentUser) {
+        console.log("[AvatarUploader] photoURL before reload:", auth.currentUser.photoURL);
         await auth.currentUser.reload();
+        console.log("[AvatarUploader] photoURL after reload:", auth.currentUser.photoURL);
+        // Force onAuthStateChanged to re-emit so useUser() picks up the new photoURL
+        await updateCurrentUser(auth, auth.currentUser);
       }
       if (preview) URL.revokeObjectURL(preview);
       setPreview(null);
