@@ -60,7 +60,7 @@ export function DesktopSidebar() {
                 <TooltipContent
                   side="right"
                   sideOffset={12}
-                  className="bg-zinc-900 border border-white/10 text-zinc-100 text-sm px-3 py-1.5 rounded-lg shadow-xl"
+                  className="z-[60] bg-zinc-900 border border-white/10 text-zinc-100 text-sm px-3 py-1.5 rounded-lg shadow-xl"
                 >
                   {item.label}
                 </TooltipContent>
@@ -84,7 +84,7 @@ export function DesktopSidebar() {
             <TooltipContent
               side="right"
               sideOffset={12}
-              className="bg-zinc-900 border border-white/10 text-zinc-100 text-sm px-3 py-1.5 rounded-lg shadow-xl"
+              className="z-[60] bg-zinc-900 border border-white/10 text-zinc-100 text-sm px-3 py-1.5 rounded-lg shadow-xl"
             >
               Cerrar sesión
             </TooltipContent>
