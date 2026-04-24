@@ -29,10 +29,17 @@ async function deleteExistingAvatars(uid: string): Promise<void> {
 
 export async function uploadAvatar(formData: FormData): Promise<ActionResult> {
   const uid = await getSessionUid();
-  if (!uid) return { ok: false, error: "No autenticado" };
+  if (!uid) {
+    console.error("[profile/actions] uploadAvatar: getSessionUid() returned null — session cookie missing or invalid");
+    return { ok: false, error: "No autenticado" };
+  }
 
   const file = formData.get("file") as File | null;
-  if (!file) return { ok: false, error: "Sin archivo" };
+  if (!file) {
+    console.error("[profile/actions] uploadAvatar: no file in FormData");
+    return { ok: false, error: "Sin archivo" };
+  }
+  console.log("[profile/actions] uploadAvatar: uid=%s file=%s size=%d type=%s", uid, file.name, file.size, file.type);
 
   if (file.size > AVATAR_MAX_BYTES) {
     return { ok: false, error: "El archivo supera 2 MB" };
@@ -63,7 +70,8 @@ export async function uploadAvatar(formData: FormData): Promise<ActionResult> {
     revalidatePath("/", "layout");
     return { ok: true, url: publicUrl };
   } catch (err) {
-    console.error("[profile/actions]", { action: "uploadAvatar", uid, error: err });
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[profile/actions] uploadAvatar CATCH: uid=%s error=%s", uid, msg, err);
     return { ok: false, error: "Error al subir la imagen" };
   }
 }
