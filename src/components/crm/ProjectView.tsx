@@ -1,6 +1,16 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { PRIORITIES, STATUS_CONFIG } from "@/types/crm";
 import type { CRMClient, CRMProject, RecurringCharge } from "@/types/crm";
 
@@ -68,17 +78,16 @@ export function ProjectView({
 }: ProjectViewProps) {
   const [revealedKeys, setRevealedKeys] = useState<Set<string>>(new Set());
   const [noteValue, setNoteValue] = useState(project.quickNotes);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const noteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const total = project.tasks.length;
   const done = project.tasks.filter(t => t.status === "completado").length;
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
 
-  const handleDeleteProject = () => {
-    if (confirm("¿Eliminar este proyecto y todas sus tareas?")) {
-      deleteProject(client.id, project.id);
-      setView("client");
-    }
+  const handleDeleteConfirmed = () => {
+    deleteProject(client.id, project.id);
+    setView("client");
   };
 
   const handleNoteChange = useCallback((value: string) => {
@@ -93,6 +102,29 @@ export function ProjectView({
 
   return (
     <div>
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent className="border-zinc-800 bg-[#0F0F12] text-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white">¿Eliminar proyecto?</AlertDialogTitle>
+            <AlertDialogDescription className="text-zinc-400">
+              Se eliminará <span className="font-medium text-zinc-200">{project.name}</span> y todas
+              sus tareas. Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-zinc-700 bg-zinc-800/50 text-zinc-300 hover:bg-zinc-800">
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirmed}
+              className="bg-red-700 text-white hover:bg-red-600"
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Breadcrumb */}
       <button onClick={() => setView("client")} className="text-[13px] text-zinc-500 hover:text-zinc-300 mb-4 block transition-colors duration-150">
         ← {client.name}
@@ -109,7 +141,7 @@ export function ProjectView({
             Editar
           </button>
           <button
-            onClick={handleDeleteProject}
+            onClick={() => setDeleteOpen(true)}
             className="rounded-lg bg-[#18181B] px-3 py-1.5 text-[12px] text-zinc-400 hover:bg-red-500/10 hover:text-red-400 transition-all duration-150"
           >
             Eliminar

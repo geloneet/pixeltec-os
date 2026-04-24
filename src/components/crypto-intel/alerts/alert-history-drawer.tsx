@@ -9,10 +9,10 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
-import type { AlertRuleWithId, AlertEventWithId } from "@/lib/crypto-intel/queries/alerts";
+import type { AlertRuleSerialized, AlertEventWithId } from "@/lib/crypto-intel/queries/alerts";
 
 interface AlertHistoryDrawerProps {
-  alert: AlertRuleWithId | null;
+  alert: AlertRuleSerialized | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }

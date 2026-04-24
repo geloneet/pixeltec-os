@@ -1,5 +1,16 @@
 "use client";
 
+import { useState } from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import type { CRMClient } from "@/types/crm";
 
 const AVATAR_COLORS = ["#0EA5E9", "#3b82f6", "#ef4444", "#f59e0b", "#10b981", "#ec4899", "#8b5cf6", "#06b6d4"];
@@ -23,11 +34,11 @@ interface ClientDetailProps {
 }
 
 export function ClientDetail({ client, setView, navigateToProject, setModal, deleteClient }: ClientDetailProps) {
-  const handleDelete = () => {
-    if (confirm("¿Eliminar este cliente y todos sus proyectos?")) {
-      deleteClient(client.id);
-      setView("clients");
-    }
+  const [deleteOpen, setDeleteOpen] = useState(false);
+
+  const handleDeleteConfirmed = () => {
+    deleteClient(client.id);
+    setView("clients");
   };
 
   const color = avatarColor(client.name);
@@ -61,13 +72,36 @@ export function ClientDetail({ client, setView, navigateToProject, setModal, del
             Editar
           </button>
           <button
-            onClick={handleDelete}
+            onClick={() => setDeleteOpen(true)}
             className="rounded-lg bg-[#18181B] px-3 py-1.5 text-[12px] text-zinc-400 hover:bg-red-500/10 hover:text-red-400 transition-all duration-150"
           >
             Eliminar
           </button>
         </div>
       </div>
+
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent className="border-zinc-800 bg-[#0F0F12] text-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white">¿Eliminar cliente?</AlertDialogTitle>
+            <AlertDialogDescription className="text-zinc-400">
+              Se eliminará <span className="font-medium text-zinc-200">{client.name}</span> y todos
+              sus proyectos. Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-zinc-700 bg-zinc-800/50 text-zinc-300 hover:bg-zinc-800">
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirmed}
+              className="bg-red-700 text-white hover:bg-red-600"
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Notes */}
       {client.notes && (

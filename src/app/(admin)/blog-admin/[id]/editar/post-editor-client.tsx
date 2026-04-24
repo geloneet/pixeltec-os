@@ -35,6 +35,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
@@ -139,6 +149,7 @@ export function PostEditorClient({ post }: PostEditorClientProps) {
   const [isPending, startTransition] = useTransition();
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [postStatus, setCurrentStatus] = useState<BlogPostStatus>(post.status);
+  const [archiveOpen, setArchiveOpen] = useState(false);
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const form = useForm<BlogPostEditInput>({
@@ -256,11 +267,10 @@ export function PostEditorClient({ post }: PostEditorClientProps) {
   }
 
   function handleArchive() {
-    const confirmed = window.confirm(
-      "¿Seguro que quieres archivar este post? Esta acción lo retirará de la lista activa.",
-    );
-    if (!confirmed) return;
+    setArchiveOpen(true);
+  }
 
+  function executeArchive() {
     startTransition(async () => {
       const result = await archivePost(post.id);
       if (result.ok) {
@@ -273,7 +283,30 @@ export function PostEditorClient({ post }: PostEditorClientProps) {
   }
 
   return (
-    <Form {...form}>
+    <>
+      <AlertDialog open={archiveOpen} onOpenChange={setArchiveOpen}>
+        <AlertDialogContent className="bg-zinc-950 border border-white/10 text-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white">¿Archivar este post?</AlertDialogTitle>
+            <AlertDialogDescription className="text-zinc-400">
+              El post será retirado de la lista activa. Puedes restaurarlo más tarde cambiando su estado.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-white/10 bg-white/[0.04] text-zinc-300 hover:bg-white/[0.08]">
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={executeArchive}
+              className="bg-zinc-700 text-white hover:bg-zinc-600"
+            >
+              Archivar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Form {...form}>
       <form className="grid grid-cols-1 gap-6 pb-16 lg:grid-cols-3">
         {/* ── Main editor (2/3) ── */}
         <div className="space-y-5 lg:col-span-2">
@@ -615,5 +648,6 @@ export function PostEditorClient({ post }: PostEditorClientProps) {
         </div>
       </form>
     </Form>
+    </>
   );
 }

@@ -36,16 +36,16 @@ import { Badge } from "@/components/ui/badge";
 import { AddTelegramUserSchema } from "@/lib/crypto-intel/schemas/user";
 import type { AddTelegramUserInput } from "@/lib/crypto-intel/schemas/user";
 import { addAuthorizedUser, deauthorizeUser } from "@/lib/crypto-intel/actions/users";
-import type { TelegramUserWithId } from "@/lib/crypto-intel/queries/users";
+import type { TelegramUserSerialized } from "@/lib/crypto-intel/queries/users";
 
 interface UsersTileProps {
-  users: TelegramUserWithId[];
+  users: TelegramUserSerialized[];
 }
 
 export function UsersTile({ users: initialUsers }: UsersTileProps) {
   const [users, setUsers] = useState(initialUsers);
   const [addOpen, setAddOpen] = useState(false);
-  const [deauthTarget, setDeauthTarget] = useState<TelegramUserWithId | null>(null);
+  const [deauthTarget, setDeauthTarget] = useState<TelegramUserSerialized | null>(null);
   const [deauthOpen, setDeauthOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeauthing, setIsDeauthing] = useState(false);

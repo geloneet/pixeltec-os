@@ -1,6 +1,16 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useCRM } from "./CRMContext";
 
 interface ServerInfo {
@@ -121,6 +131,7 @@ export function ServerView() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<Record<string, string | null>>({});
   const [toast, setToast] = useState<Toast | null>(null);
+  const [pendingConfirm, setPendingConfirm] = useState<{ title: string; description: string; onConfirm: () => void } | null>(null);
   const [logsModal, setLogsModal] = useState<{ open: boolean; projectId: string; projectName: string; logs: string; loading: boolean; lines: number; filter: string }>({ open: false, projectId: "", projectName: "", logs: "", loading: false, lines: 10, filter: "" });
   const [addModal, setAddModal] = useState(false);
   const [addForm, setAddForm] = useState({ name: "", type: "pm2", path: "", domain: "", desc: "", pm2Name: "", containerName: "", deployCmd: "" });
@@ -160,13 +171,9 @@ export function ServerView() {
     fetchStatus();
   };
 
-  const handleAction = async (projectId: string, action: "deploy" | "restart") => {
+  const executeAction = useCallback(async (projectId: string, action: "deploy" | "restart") => {
     const project = projects.find(p => p.id === projectId);
     if (!project) return;
-
-    if (action === "deploy" && projectId === "pixeltec-os") {
-      if (!window.confirm("Este deploy reinicia el CRM. La pagina se recargara. Continuar?")) return;
-    }
 
     setActionLoading(prev => ({ ...prev, [projectId]: action }));
 
@@ -192,6 +199,18 @@ export function ServerView() {
     } finally {
       setActionLoading(prev => ({ ...prev, [projectId]: null }));
     }
+  }, [projects, showToast, fetchStatus]);
+
+  const handleAction = (projectId: string, action: "deploy" | "restart") => {
+    if (action === "deploy" && projectId === "pixeltec-os") {
+      setPendingConfirm({
+        title: "Deploy de pixeltec-os",
+        description: "Este deploy reinicia el CRM. La página se recargará automáticamente. ¿Continuar?",
+        onConfirm: () => executeAction(projectId, action),
+      });
+      return;
+    }
+    executeAction(projectId, action);
   };
 
   const handlePauseResume = async (projectId: string, isPaused: boolean) => {
@@ -219,8 +238,7 @@ export function ServerView() {
     }
   };
 
-  const handleDelete = async (project: ProjectInfo) => {
-    if (!window.confirm(`¿Eliminar ${project.name} del monitoreo? Los archivos no se borran.`)) return;
+  const executeDelete = useCallback(async (project: ProjectInfo) => {
     setActionLoading(prev => ({ ...prev, [project.id]: "delete" }));
     try {
       const res = await fetch("/api/vps/projects", {
@@ -240,6 +258,14 @@ export function ServerView() {
     } finally {
       setActionLoading(prev => ({ ...prev, [project.id]: null }));
     }
+  }, [showToast, fetchStatus]);
+
+  const handleDelete = (project: ProjectInfo) => {
+    setPendingConfirm({
+      title: `¿Eliminar ${project.name}?`,
+      description: "El proyecto será eliminado del monitoreo. Los archivos en el servidor no se borran.",
+      onConfirm: () => executeDelete(project),
+    });
   };
 
   const handleAddProject = async () => {
@@ -354,6 +380,28 @@ export function ServerView() {
 
   return (
     <div className="max-w-[900px]">
+      <AlertDialog open={!!pendingConfirm} onOpenChange={(open) => { if (!open) setPendingConfirm(null); }}>
+        <AlertDialogContent className="border-zinc-800 bg-[#0F0F12] text-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white">{pendingConfirm?.title}</AlertDialogTitle>
+            <AlertDialogDescription className="text-zinc-400">
+              {pendingConfirm?.description}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-zinc-700 bg-zinc-800/50 text-zinc-300 hover:bg-zinc-800">
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => { pendingConfirm?.onConfirm(); setPendingConfirm(null); }}
+              className="bg-red-700 text-white hover:bg-red-600"
+            >
+              Confirmar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Toast */}
       {toast && (
         <div className={`fixed top-4 right-4 z-50 rounded-lg px-4 py-3 text-sm font-medium shadow-lg transition-all duration-300 ${
