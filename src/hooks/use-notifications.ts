@@ -73,10 +73,14 @@ export function useNotifications(): UseNotificationsReturn {
   const markAsRead = useCallback(
     async (id: string) => {
       if (!db) return;
-      await updateDoc(doc(db, "notifications", id), {
-        read: true,
-        readAt: serverTimestamp(),
-      });
+      try {
+        await updateDoc(doc(db, "notifications", id), {
+          read: true,
+          readAt: serverTimestamp(),
+        });
+      } catch (err) {
+        console.error("[useNotifications] markAsRead error:", err);
+      }
     },
     [db]
   );
@@ -85,14 +89,18 @@ export function useNotifications(): UseNotificationsReturn {
     if (!db) return;
     const unread = notifications.filter((n) => !n.read);
     if (unread.length === 0) return;
-    const batch = writeBatch(db);
-    unread.forEach((n) => {
-      batch.update(doc(db, "notifications", n.id), {
-        read: true,
-        readAt: serverTimestamp(),
+    try {
+      const batch = writeBatch(db);
+      unread.forEach((n) => {
+        batch.update(doc(db, "notifications", n.id), {
+          read: true,
+          readAt: serverTimestamp(),
+        });
       });
-    });
-    await batch.commit();
+      await batch.commit();
+    } catch (err) {
+      console.error("[useNotifications] markAllAsRead error:", err);
+    }
   }, [db, notifications]);
 
   const unreadCount = notifications.filter((n) => !n.read).length;

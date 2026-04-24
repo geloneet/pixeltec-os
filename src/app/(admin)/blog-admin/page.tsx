@@ -2,7 +2,7 @@ import Link from "next/link";
 import { listAllPosts } from "@/lib/blog/queries/posts";
 import { listBriefs } from "@/lib/blog/actions/briefs";
 import { cn } from "@/lib/utils";
-import type { BlogPostStatus, BlogBriefStatus } from "@/lib/blog/types";
+import type { BlogPostStatus, BlogBriefStatus, BlogPostSerialized, BlogBriefSerialized } from "@/lib/blog/types";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -83,13 +83,21 @@ function BriefStatusBadge({ status }: { status: BlogBriefStatus }) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default async function BlogAdminPage() {
-  const [postsResult, briefsResult] = await Promise.all([
-    listAllPosts(),
-    listBriefs(),
-  ]);
+  let posts: BlogPostSerialized[] = [];
+  let briefs: BlogBriefSerialized[] = [];
+  let fetchError: string | null = null;
 
-  const posts = Array.isArray(postsResult) ? postsResult : [];
-  const briefs = Array.isArray(briefsResult) ? briefsResult : briefsResult?.data ?? [];
+  try {
+    const [postsResult, briefsResult] = await Promise.all([
+      listAllPosts(),
+      listBriefs(),
+    ]);
+    posts = postsResult;
+    briefs = briefsResult.ok ? (briefsResult.data ?? []) : [];
+  } catch (err) {
+    console.error("[blog-admin] data fetch error:", err);
+    fetchError = err instanceof Error ? err.message : "Error al cargar datos";
+  }
 
   const totalPosts = posts.length;
   const publishedCount = posts.filter((p) => p.status === "published").length;
@@ -112,6 +120,13 @@ export default async function BlogAdminPage() {
           + Nuevo brief
         </Link>
       </div>
+
+      {/* Firestore error banner */}
+      {fetchError && (
+        <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-400">
+          Error al cargar datos: {fetchError}. Reintenta en unos segundos.
+        </div>
+      )}
 
       {/* Stats row */}
       <div className="grid grid-cols-3 gap-4">
