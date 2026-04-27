@@ -5,6 +5,9 @@ import { blogPosts } from "@/lib/blog-data";
 import { BlogGrid, type BlogCardData } from "./blog-grid";
 import type { Metadata } from "next";
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export const metadata: Metadata = {
   title: "Blog · Insights y Tecnología",
   description: "Exploramos el futuro del desarrollo de software, la inteligencia artificial y la modernización empresarial.",
@@ -30,7 +33,8 @@ async function getFirestorePosts(): Promise<BlogCardData[]> {
       authorInitials: p.author.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase(),
       role: "PixelTEC Team",
     }));
-  } catch {
+  } catch (error) {
+    console.error('[blog/list] getFirestorePosts failed:', error);
     return [];
   }
 }

@@ -47,6 +47,20 @@ export async function getPublishedPosts(): Promise<BlogPostSerialized[]> {
   return snap.docs.map((doc) => serializePost(doc.id, doc.data()));
 }
 
+export async function getPublishedPostBySlug(slug: string): Promise<BlogPostSerialized | null> {
+  const snap = await db()
+    .collection('blogPosts')
+    .where('slug', '==', slug)
+    .where('status', '==', 'published')
+    .where('seo.noindex', '==', false)
+    .limit(1)
+    .get();
+
+  if (snap.empty) return null;
+  const doc = snap.docs[0];
+  return serializePost(doc.id, doc.data());
+}
+
 export async function getPostBySlug(slug: string): Promise<BlogPostSerialized | null> {
   const snap = await db()
     .collection('blogPosts')
