@@ -1,35 +1,56 @@
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import BlogPostClient from './blog-post-client';
-import { blogPosts, type Post } from '@/lib/blog-data';
+import { blogPosts } from '@/lib/blog-data';
 import { BlogPostingStructuredData } from '@/components/seo/structured-data';
+import BlogPostClient from './blog-post-client';
+import BlogPostFirestoreClient from './blog-post-firestore-client';
+import type { BlogPostSerialized } from '@/lib/blog/types';
 
-function getPostBySlug(slug: string): Post | undefined {
-  return blogPosts.find(p => p.slug === slug);
+export const dynamic = 'force-dynamic';
+
+async function getFirestorePost(slug: string): Promise<BlogPostSerialized | null> {
+  try {
+    const { getPublishedPostBySlug } = await import('@/lib/blog/queries/posts');
+    return await getPublishedPostBySlug(slug);
+  } catch (error) {
+    console.error('[blog/slug] getPublishedPostBySlug failed:', error);
+    return null;
+  }
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  const post = getPostBySlug(slug);
 
-  if (!post) {
+  const firestorePost = await getFirestorePost(slug);
+  if (firestorePost) {
     return {
-      title: 'Artículo no encontrado',
+      title: firestorePost.seo.metaTitle || firestorePost.title,
+      description: firestorePost.seo.metaDescription || firestorePost.excerpt,
+      robots: firestorePost.seo.noindex ? 'noindex' : undefined,
+      alternates: { canonical: `/blog/${firestorePost.slug}` },
+      openGraph: {
+        title: firestorePost.seo.metaTitle || firestorePost.title,
+        description: firestorePost.seo.metaDescription || firestorePost.excerpt,
+        images: firestorePost.coverImage
+          ? [{ url: firestorePost.coverImage, width: 1200, height: 630, alt: firestorePost.title }]
+          : [],
+      },
     };
   }
 
-  const description = post.excerpt;
+  const post = blogPosts.find((p) => p.slug === slug);
+  if (!post) return { title: 'Artículo no encontrado' };
 
   return {
     title: post.title,
-    description: description,
+    description: post.excerpt,
     openGraph: {
       title: post.title,
-      description: description,
+      description: post.excerpt,
       images: [
         {
-          url: PlaceHolderImages.find(img => img.id === post.imageId)?.imageUrl || '',
+          url: PlaceHolderImages.find((img) => img.id === post.imageId)?.imageUrl || '',
           width: 1200,
           height: 630,
           alt: post.title,
@@ -39,22 +60,30 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   };
 }
 
-export async function generateStaticParams() {
-  return blogPosts.map((post) => ({
-    slug: post.slug,
-  }));
-}
-
 export default async function BlogPostPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const post = getPostBySlug(slug);
 
-  if (!post) {
-    notFound();
+  const firestorePost = await getFirestorePost(slug);
+  if (firestorePost) {
+    return (
+      <>
+        <BlogPostingStructuredData
+          slug={firestorePost.slug}
+          title={firestorePost.title}
+          excerpt={firestorePost.excerpt}
+          datePublished={firestorePost.publishedAt ?? firestorePost.createdAt}
+          author={firestorePost.author.name}
+          imageUrl={firestorePost.coverImage ?? ''}
+        />
+        <BlogPostFirestoreClient post={firestorePost} />
+      </>
+    );
   }
 
-  const imageUrl = PlaceHolderImages.find(img => img.id === post.imageId)?.imageUrl ?? '';
+  const post = blogPosts.find((p) => p.slug === slug);
+  if (!post) notFound();
 
+  const imageUrl = PlaceHolderImages.find((img) => img.id === post.imageId)?.imageUrl ?? '';
   return (
     <>
       <BlogPostingStructuredData
