@@ -1,10 +1,13 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import Image from 'next/image';
 import type { BlogPostSerialized } from '@/lib/blog/types';
+
+const MarkdownRenderer = dynamic(() => import('@/components/blog/markdown-renderer'));
 
 export default function BlogPostFirestoreClient({ post }: { post: BlogPostSerialized }) {
   const coverImage = post.coverImage ?? 'https://placehold.co/1200x600/0a0a0a/ffffff?text=PIXELTEC';
@@ -64,11 +67,9 @@ export default function BlogPostFirestoreClient({ post }: { post: BlogPostSerial
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.2 }}
-          className="prose prose-invert prose-lg max-w-none space-y-6 text-base md:text-lg leading-relaxed text-zinc-300"
+          className="prose prose-invert prose-lg max-w-none text-zinc-300"
         >
-          {post.body.split('\n\n').map((paragraph, index) => (
-            <p key={index}>{paragraph}</p>
-          ))}
+          <MarkdownRenderer content={post.body} />
         </motion.article>
       </div>
     </main>
