@@ -12,9 +12,16 @@ export interface GeneratedPost {
   rawOutput: string;
 }
 
+function stripCodeFenceWrapper(raw: string): string {
+  const trimmed = raw.trim();
+  const match = trimmed.match(/^```(?:markdown|md)?\s*\n([\s\S]*)\n```\s*$/);
+  return match ? match[1] : trimmed;
+}
+
 function parseFrontMatter(raw: string): Record<string, unknown> {
+  const normalized = stripCodeFenceWrapper(raw).replace(/\r\n/g, '\n');
   const result: Record<string, unknown> = {};
-  const match = raw.match(/^---\n([\s\S]*?)\n---/);
+  const match = normalized.match(/^---\n([\s\S]*?)\n---/);
   if (!match) return result;
 
   for (const line of match[1].split('\n')) {
@@ -37,8 +44,8 @@ function parseFrontMatter(raw: string): Record<string, unknown> {
 }
 
 function extractBody(raw: string): string {
-  // Remove front-matter block, return remaining markdown
-  return raw.replace(/^---\n[\s\S]*?\n---\n?/, '').trim();
+  const normalized = stripCodeFenceWrapper(raw).replace(/\r\n/g, '\n');
+  return normalized.replace(/^---\n[\s\S]*?\n---\n?/, '').trim();
 }
 
 export async function generatePostFromBrief(brief: BlogBriefDoc): Promise<GeneratedPost> {

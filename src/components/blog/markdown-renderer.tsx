@@ -9,8 +9,15 @@ import 'highlight.js/styles/github-dark.css';
 import type { Components } from 'react-markdown';
 import MermaidDiagram from './mermaid-diagram';
 
-// The AI generator sometimes prepends a YAML frontmatter block (raw or code-fenced).
-// Strip it before rendering so it doesn't appear as a code block at the top of the post.
+// Removes an outer code fence that Claude sometimes adds when it copies the example format.
+// Idempotent: if no wrapper is present the original string is returned unchanged.
+function stripCodeFenceWrapper(content: string): string {
+  const trimmed = content.trim();
+  const match = trimmed.match(/^```(?:markdown|md)?\s*\n([\s\S]*)\n```\s*$/);
+  return match ? match[1] : trimmed;
+}
+
+// Strip YAML frontmatter that may remain after the code fence is removed.
 function stripFrontmatter(content: string): string {
   return content
     .replace(/^```(?:yaml|yml)?\s*\n---[\s\S]*?---\s*\n```\s*\n?/, '')
@@ -143,7 +150,7 @@ export default function MarkdownRenderer({ content }: { content: string }) {
       rehypePlugins={[rehypeRaw, [rehypeHighlight, { ignoreMissing: true }]]}
       components={components}
     >
-      {stripFrontmatter(content)}
+      {stripFrontmatter(stripCodeFenceWrapper(content))}
     </ReactMarkdown>
   );
 }

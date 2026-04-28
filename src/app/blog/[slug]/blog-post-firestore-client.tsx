@@ -71,6 +71,18 @@ export default function BlogPostFirestoreClient({ post }: { post: BlogPostSerial
         >
           <MarkdownRenderer content={post.body} />
         </motion.article>
+
+        <motion.footer
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.4 }}
+          className="mt-16 flex items-center justify-between border-t border-white/10 pt-8 text-sm text-zinc-500"
+        >
+          <span>
+            Por <span className="font-medium text-zinc-300">{post.author.name}</span>
+          </span>
+          <span>{dateStr}</span>
+        </motion.footer>
       </div>
     </main>
   );
