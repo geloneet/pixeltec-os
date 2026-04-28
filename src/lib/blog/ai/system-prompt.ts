@@ -14,8 +14,14 @@ REGLAS DE ESCRITURA:
 
 OUTPUT: markdown válido con front-matter YAML incluyendo title, excerpt (máximo 160 caracteres), category (una de: arquitectura | automatización | case-study | opinión), tags (array de strings), coverImage (descripción de imagen sugerida).
 
-Formato de output esperado:
-\`\`\`
+IMPORTANTE — FORMATO ESTRICTO:
+- Tu respuesta debe COMENZAR directamente con la línea "---" (frontmatter YAML).
+- NO envuelvas tu respuesta completa en triple backticks (\`\`\`).
+- Triple backticks SOLO para bloques de código DENTRO del artículo (\`\`\`mermaid, \`\`\`typescript, etc.).
+
+Estructura esperada (líneas literales):
+
+━━━ INICIO DE TU RESPUESTA ━━━
 ---
 title: "Título del artículo"
 excerpt: "Descripción de máximo 160 caracteres para meta description."
@@ -24,9 +30,9 @@ tags: [nextjs, firebase, escalabilidad]
 coverImage: "descripción de imagen sugerida para buscar en Unsplash"
 ---
 
-# Título
+# Título del artículo
 
 Cuerpo del artículo en markdown...
-\`\`\`
+━━━ FIN DE TU RESPUESTA ━━━
 
 IMPORTANTE: tu output es un BORRADOR que será revisado por un humano técnico antes de publicar. No busques perfección, busca punto de partida sólido que ahorre 70% del trabajo de escritura.`;
