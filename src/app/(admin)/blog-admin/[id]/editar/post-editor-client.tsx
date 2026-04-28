@@ -7,6 +7,7 @@ import {
   useRef,
   KeyboardEvent,
 } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -150,6 +151,7 @@ export function PostEditorClient({ post }: PostEditorClientProps) {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [postStatus, setCurrentStatus] = useState<BlogPostStatus>(post.status);
   const [archiveOpen, setArchiveOpen] = useState(false);
+  const [coverError, setCoverError] = useState(false);
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const form = useForm<BlogPostEditInput>({
@@ -169,8 +171,13 @@ export function PostEditorClient({ post }: PostEditorClientProps) {
   const watchedTitle = form.watch("title");
   const watchedExcerpt = form.watch("excerpt");
   const watchedBody = form.watch("body");
+  const watchedCoverImage = form.watch("coverImage");
   const watchedSeoMetaTitle = form.watch("seoMetaTitle") ?? "";
   const watchedSeoMetaDescription = form.watch("seoMetaDescription") ?? "";
+
+  useEffect(() => {
+    setCoverError(false);
+  }, [watchedCoverImage]);
 
   // Auto-save debounced on body/title/excerpt changes
   useEffect(() => {
@@ -328,6 +335,41 @@ export function PostEditorClient({ post }: PostEditorClientProps) {
               )}
             </span>
           </div>
+
+          {/* Cover Image */}
+          <FormField
+            control={form.control}
+            name="coverImage"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-zinc-300">Imagen de portada (URL)</FormLabel>
+                <FormControl>
+                  <Input
+                    {...field}
+                    value={field.value ?? ""}
+                    onChange={(e) => field.onChange(e.target.value || null)}
+                    className="bg-white/5 border-white/10 text-zinc-100 placeholder:text-zinc-600 focus:border-blue-500/50"
+                    placeholder="https://images.unsplash.com/…"
+                  />
+                </FormControl>
+                <FormMessage />
+                {watchedCoverImage && !coverError && (
+                  <div className="relative mt-2 h-40 w-full overflow-hidden rounded-lg border border-white/10">
+                    <Image
+                      src={watchedCoverImage}
+                      alt="Cover preview"
+                      fill
+                      className="object-cover"
+                      onError={() => setCoverError(true)}
+                    />
+                  </div>
+                )}
+                {watchedCoverImage && coverError && (
+                  <p className="mt-1 text-xs text-red-400">No se pudo cargar la imagen. Verifica la URL.</p>
+                )}
+              </FormItem>
+            )}
+          />
 
           {/* Title */}
           <FormField

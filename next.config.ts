@@ -65,6 +65,18 @@ const nextConfig: NextConfig = {
         hostname: 'storage.googleapis.com',
         pathname: '/studio-1487114664-78b63.firebasestorage.app/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'images.pexels.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'cdn.pixabay.com',
+        port: '',
+        pathname: '/**',
+      },
     ],
   },
 };
