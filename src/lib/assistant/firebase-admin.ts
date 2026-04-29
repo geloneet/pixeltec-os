@@ -11,4 +11,6 @@ export const COL = {
   assistantTemplates:     'assistantTemplates',
   assistantTasksArchive:  'assistantTasksArchive',
   assistantWeeklyReports: 'assistantWeeklyReports',
+  infraSilences:          'infraSilences',
+  infraCommandLog:        'infraCommandLog',
 } as const;

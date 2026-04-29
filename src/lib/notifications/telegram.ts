@@ -12,6 +12,7 @@ export async function sendTelegramMessage(opts: {
   chatId: string;
   text: string;
   parseMode?: 'MarkdownV2' | 'HTML';
+  replyMarkup?: object;
 }): Promise<TelegramSendResult> {
   const url = `${TELEGRAM_API}/bot${opts.token}/sendMessage`;
   const controller = new AbortController();
@@ -26,6 +27,7 @@ export async function sendTelegramMessage(opts: {
         text: opts.text,
         parse_mode: opts.parseMode ?? 'HTML',
         disable_web_page_preview: true,
+        ...(opts.replyMarkup ? { reply_markup: opts.replyMarkup } : {}),
       }),
       signal: controller.signal,
     });

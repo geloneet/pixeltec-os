@@ -45,6 +45,22 @@ export async function POST(req: NextRequest): Promise<NextResponse<AlertResponse
     );
   }
 
+  // Check silence (critical bypasses)
+  if (payload.severity !== 'critical') {
+    const { checkSilence } = await import('@/lib/notifications/silence');
+    const sil = await checkSilence();
+    if (sil.silenced) {
+      console.log(
+        `[notifications/alert] silenced source=${payload.source} severity=${payload.severity} ` +
+          `expiresAt=${sil.expiresAt?.toISOString()}`,
+      );
+      return NextResponse.json(
+        { ok: true, sent: false, reason: 'silenced' },
+        { status: 200 },
+      );
+    }
+  }
+
   const token = process.env.TELEGRAM_INFRA_BOT_TOKEN;
   const chatId = process.env.TELEGRAM_INFRA_CHAT_ID;
   if (!token || !chatId) {
@@ -55,8 +71,24 @@ export async function POST(req: NextRequest): Promise<NextResponse<AlertResponse
     );
   }
 
+  let replyMarkup: object | undefined;
+  if (payload.source === 'asistente-rollover' && payload.severity === 'info') {
+    replyMarkup = {
+      inline_keyboard: [[{ text: '📊 Ver detalle', callback_data: 'cmd:last_report' }]],
+    };
+  } else if (payload.severity === 'critical') {
+    replyMarkup = {
+      inline_keyboard: [
+        [
+          { text: '🔁 Re-correr', callback_data: 'rerun_rollover' },
+          { text: '🔇 Silenciar 24h', callback_data: 'silence:24h' },
+        ],
+      ],
+    };
+  }
+
   const text = formatAlert(payload);
-  const result = await sendTelegramMessage({ token, chatId, text });
+  const result = await sendTelegramMessage({ token, chatId, text, replyMarkup });
 
   console.log(
     `[notifications/alert] source=${payload.source} severity=${payload.severity} ` +
