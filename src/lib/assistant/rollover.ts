@@ -237,11 +237,46 @@ export async function performWeeklyRollover(opts: {
       await b.commit();
     }
 
+    const archivedCount  = tasks.length;
+    const generatedCount = instancesToCreate.length;
+
+    if (archivedCount > 0 || generatedCount > 0) {
+      try {
+        const cronSecret = process.env.CRON_SECRET;
+        if (cronSecret) {
+          const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://pixeltec.mx';
+          await fetch(`${baseUrl}/api/notifications/alert`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${cronSecret}`,
+            },
+            body: JSON.stringify({
+              source: 'asistente-rollover',
+              severity: 'info',
+              title: `Rollover semanal ${weekKey} → ${nextWeekKey}`,
+              message:
+                `Archivadas: ${archivedCount} tasks · Generadas: ${generatedCount} ` +
+                `· Skipped: ${skippedGenerationCount}`,
+              metadata: {
+                reportId,
+                weekKey,
+                nextWeekKey,
+                errorsCount: 0,
+              },
+            }),
+          });
+        }
+      } catch (err) {
+        console.warn('[rollover] notification failed (non-blocking):', err);
+      }
+    }
+
     return {
       ok:                    true,
       reportId,
-      archivedCount:         tasks.length,
-      generatedCount:        instancesToCreate.length,
+      archivedCount,
+      generatedCount,
       skippedGenerationCount,
       errors:                [],
     };
