@@ -13,6 +13,7 @@ export interface AssistantTaskDoc {
   durationMin: number;
   status:      AssistantTaskStatus;
   weekKey:     string;
+  templateId?: string | null;
   createdAt:   Timestamp;
   updatedAt:   Timestamp;
 }
@@ -27,6 +28,7 @@ export interface AssistantTaskSerialized {
   durationMin: number;
   status:      AssistantTaskStatus;
   weekKey:     string;
+  templateId?: string | null;
   createdAt:   string;
   updatedAt:   string;
 }
@@ -45,6 +47,53 @@ export function serializeTask(
     durationMin: doc.durationMin,
     status:      doc.status,
     weekKey:     doc.weekKey,
+    templateId:  doc.templateId ?? null,
+    createdAt:   doc.createdAt.toDate().toISOString(),
+    updatedAt:   doc.updatedAt.toDate().toISOString(),
+  };
+}
+
+export interface AssistantTemplateDoc {
+  uid:         string;
+  title:       string;
+  description: string | null;
+  category:    AssistantTaskCategory;
+  rrule:       string;
+  defaultTime: string;
+  durationMin: number;
+  active:      boolean;
+  createdAt:   Timestamp;
+  updatedAt:   Timestamp;
+}
+
+export interface AssistantTemplateSerialized {
+  id:          string;
+  uid:         string;
+  title:       string;
+  description: string | null;
+  category:    AssistantTaskCategory;
+  rrule:       string;
+  defaultTime: string;
+  durationMin: number;
+  active:      boolean;
+  createdAt:   string;
+  updatedAt:   string;
+}
+
+export function serializeTemplate(
+  doc: AssistantTemplateDoc,
+  id: string,
+): AssistantTemplateSerialized {
+  return {
+    id,
+    uid:         doc.uid,
+    title:       doc.title,
+    description: doc.description,
+    category:    doc.category,
+    rrule:       doc.rrule,
+    defaultTime: doc.defaultTime,
+    durationMin: doc.durationMin,
+    active:      doc.active,
     createdAt:   doc.createdAt.toDate().toISOString(),
     updatedAt:   doc.updatedAt.toDate().toISOString(),
   };

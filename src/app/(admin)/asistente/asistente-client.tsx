@@ -1,13 +1,8 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 import { formatInTimeZone } from '@/lib/assistant/week-helpers';
 import { getWeekDays } from '@/lib/assistant/week-helpers';
 import { computeWeekStats } from '@/lib/assistant/queries/stats';
@@ -83,25 +78,9 @@ export function AsistenteClient({ initialTasks, weekKey }: Props) {
           <p className="text-sm text-zinc-400">{weekHeader}</p>
         </div>
         <div className="flex items-center gap-2">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled
-                    className="opacity-50 cursor-not-allowed"
-                  >
-                    Templates
-                  </Button>
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Próximamente</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/asistente/templates">Templates</Link>
+          </Button>
           <Button size="sm" onClick={handleNewTask}>
             + Nueva actividad
           </Button>
