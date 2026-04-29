@@ -7,6 +7,7 @@ import {
   Server,
   Bitcoin,
   FileText,
+  History,
   type LucideIcon,
 } from "lucide-react";
 
@@ -35,6 +36,12 @@ export const PALETTE_NAV_ITEMS: PaletteNavItem[] = [
     label: "Asistente",
     description: "Planificador semanal con tareas, recurrencia y reportes",
     icon: CalendarRange,
+  },
+  {
+    href: "/asistente/historial",
+    label: "Historial — Asistente",
+    description: "Timeline de semanas archivadas con drill-down y KPIs",
+    icon: History,
   },
   {
     href: "/clientes",
