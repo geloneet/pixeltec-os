@@ -16,7 +16,11 @@ async function denied(ctx: Context, command: string): Promise<void> {
     username: ctx.from?.username,
     result:   'denied',
   });
-  await ctx.reply('🔒 Bot privado. Acceso denegado.');
+  try {
+    await ctx.reply('🔒 Bot privado. Acceso denegado.');
+  } catch {
+    // chat may not exist (e.g. during local testing with fake chatIds)
+  }
 }
 
 function getBot(): Bot {
