@@ -51,6 +51,23 @@
         { "fieldPath": "templateId", "order": "ASCENDING" },
         { "fieldPath": "startsAt", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "assistantWeeklyReports",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "uid", "order": "ASCENDING" },
+        { "fieldPath": "weekKey", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "assistantTasksArchive",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "uid", "order": "ASCENDING" },
+        { "fieldPath": "weekKey", "order": "ASCENDING" },
+        { "fieldPath": "startsAt", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

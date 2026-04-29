@@ -98,3 +98,67 @@ export function serializeTemplate(
     updatedAt:   doc.updatedAt.toDate().toISOString(),
   };
 }
+
+// ── Phase 3: Archive + Weekly Reports ─────────────────────────────────────
+
+export interface AssistantArchivedTaskDoc extends AssistantTaskDoc {
+  archivedAt: Timestamp;
+}
+
+export interface ReportTotals {
+  total:       number;
+  completed:   number;
+  cancelled:   number;
+  postponed:   number;
+  pending:     number;
+  inProgress:  number;
+}
+
+export interface AssistantWeeklyReportDoc {
+  uid:              string;
+  weekKey:          string;
+  weekStart:        Timestamp;
+  weekEnd:          Timestamp;
+  totals:           ReportTotals;
+  byCategory:       Record<AssistantTaskCategory, ReportTotals>;
+  generatedAt:      Timestamp;
+  generatedBy:      'cron' | 'manual';
+  telegramMessageId: number | null;
+  telegramSentAt:   Timestamp | null;
+  emailSentAt:      Timestamp | null;
+}
+
+export interface AssistantWeeklyReportSerialized {
+  id:               string;
+  uid:              string;
+  weekKey:          string;
+  weekStart:        string;
+  weekEnd:          string;
+  totals:           ReportTotals;
+  byCategory:       Record<AssistantTaskCategory, ReportTotals>;
+  generatedAt:      string;
+  generatedBy:      'cron' | 'manual';
+  telegramMessageId: number | null;
+  telegramSentAt:   string | null;
+  emailSentAt:      string | null;
+}
+
+export function serializeReport(
+  doc: AssistantWeeklyReportDoc,
+  id: string,
+): AssistantWeeklyReportSerialized {
+  return {
+    id,
+    uid:               doc.uid,
+    weekKey:           doc.weekKey,
+    weekStart:         doc.weekStart.toDate().toISOString(),
+    weekEnd:           doc.weekEnd.toDate().toISOString(),
+    totals:            doc.totals,
+    byCategory:        doc.byCategory,
+    generatedAt:       doc.generatedAt.toDate().toISOString(),
+    generatedBy:       doc.generatedBy,
+    telegramMessageId: doc.telegramMessageId,
+    telegramSentAt:    doc.telegramSentAt?.toDate().toISOString() ?? null,
+    emailSentAt:       doc.emailSentAt?.toDate().toISOString() ?? null,
+  };
+}

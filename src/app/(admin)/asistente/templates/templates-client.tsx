@@ -12,6 +12,7 @@ import {
   deleteTemplate,
 } from '@/lib/assistant/actions/templates';
 import { TemplateCard } from './_components/template-card';
+import { ForceRolloverButton } from './_components/force-rollover-button';
 
 interface Props {
   templates: AssistantTemplateSerialized[];
@@ -109,6 +110,22 @@ export function TemplatesClient({ templates }: Props) {
           ))}
         </div>
       )}
+
+      {/* Acciones avanzadas */}
+      <div className="flex flex-col gap-3">
+        <h2 className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
+          Acciones avanzadas
+        </h2>
+        <div className="rounded-xl bg-white/[0.03] border border-white/[0.05] p-4 flex items-start justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium text-zinc-200">Rollover manual</p>
+            <p className="text-xs text-zinc-500 mt-0.5">
+              Archiva la semana actual y genera la próxima desde templates activos. Idempotente.
+            </p>
+          </div>
+          <ForceRolloverButton />
+        </div>
+      </div>
     </div>
   );
 }
