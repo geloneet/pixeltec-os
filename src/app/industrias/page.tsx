@@ -1,16 +1,16 @@
 import type { Metadata } from "next";
+import { buildMetadata } from "@/lib/seo";
 import Link from "next/link";
 import { Truck, Stethoscope, Store, Package, CheckCircle } from "lucide-react";
 import Header from "@/components/header";
 import { Footer } from "@/components/ui/footer-section";
 import { ShinyButton } from "@/components/ui/shiny-button";
 
-export const metadata: Metadata = {
-  title: "Industrias · Especialistas por sector",
-  description:
-    "PIXELTEC construye software a medida para logística, clínicas, retail y SaaS. Conoce los problemas específicos que resolvemos en cada vertical.",
-  alternates: { canonical: "/industrias" },
-};
+export const metadata: Metadata = buildMetadata({
+  path: '/industrias',
+  title: 'Industrias · Especialistas por sector',
+  description: 'PIXELTEC construye software a medida para logística, clínicas, retail y SaaS. Conoce los problemas específicos que resolvemos en cada vertical.',
+});
 
 const industries = [
   {

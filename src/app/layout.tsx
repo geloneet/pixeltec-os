@@ -38,30 +38,6 @@ export const metadata: Metadata = {
   description: 'Transformamos procesos complejos en ecosistemas web y automatizaciones escalables para empresas que buscan rentabilidad y control absoluto.',
   keywords: ['automatización', 'desarrollo web', 'agencias', 'nextjs', 'firebase', 'consultoría tecnológica'],
   authors: [{ name: 'PixelTEC' }],
-  alternates: {
-    canonical: '/',
-  },
-  openGraph: {
-    type: 'website',
-    url: BASE_URL,
-    siteName: 'PixelTEC',
-    title: 'PixelTEC | Ecosistemas Digitales y Automatización',
-    description: 'Transformamos procesos complejos en ecosistemas web y automatizaciones escalables para empresas que buscan rentabilidad y control absoluto.',
-    images: [
-      {
-        url: '/og-image.png',
-        width: 1200,
-        height: 630,
-        alt: 'PixelTEC — Ecosistemas Digitales y Automatización',
-      },
-    ],
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'PixelTEC | Ecosistemas Digitales y Automatización',
-    description: 'Transformamos procesos complejos en ecosistemas web y automatizaciones escalables para empresas que buscan rentabilidad y control absoluto.',
-    images: ['/og-image.png'],
-  },
 };
 
 export default function RootLayout({

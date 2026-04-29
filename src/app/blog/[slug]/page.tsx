@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
+import { buildMetadata } from '@/lib/seo';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { blogPosts } from '@/lib/blog-data';
 import { BlogPostingStructuredData } from '@/components/seo/structured-data';
@@ -24,17 +25,26 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
   const firestorePost = await getFirestorePost(slug);
   if (firestorePost) {
+    const title = firestorePost.seo.metaTitle || firestorePost.title;
+    const description = firestorePost.seo.metaDescription || firestorePost.excerpt;
+    const base = buildMetadata({
+      path: `/blog/${firestorePost.slug}`,
+      title,
+      description,
+      ogImage: firestorePost.coverImage ?? undefined,
+    });
     return {
-      title: firestorePost.seo.metaTitle || firestorePost.title,
-      description: firestorePost.seo.metaDescription || firestorePost.excerpt,
+      ...base,
       robots: firestorePost.seo.noindex ? 'noindex' : undefined,
-      alternates: { canonical: `/blog/${firestorePost.slug}` },
+      authors: [{ name: firestorePost.author.name }],
       openGraph: {
-        title: firestorePost.seo.metaTitle || firestorePost.title,
-        description: firestorePost.seo.metaDescription || firestorePost.excerpt,
+        ...base.openGraph,
+        type: 'article',
+        publishedTime: firestorePost.publishedAt ?? firestorePost.createdAt,
+        authors: [firestorePost.author.name],
         images: firestorePost.coverImage
-          ? [{ url: firestorePost.coverImage, width: 1200, height: 630, alt: firestorePost.title }]
-          : [],
+          ? [{ url: firestorePost.coverImage, width: 1200, height: 630, alt: title }]
+          : base.openGraph?.images,
       },
     };
   }
@@ -42,20 +52,21 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const post = blogPosts.find((p) => p.slug === slug);
   if (!post) return { title: 'Artículo no encontrado' };
 
-  return {
+  const imageUrl = PlaceHolderImages.find((img) => img.id === post.imageId)?.imageUrl ?? '';
+  const base = buildMetadata({
+    path: `/blog/${post.slug}`,
     title: post.title,
     description: post.excerpt,
+    ogImage: imageUrl || undefined,
+  });
+  return {
+    ...base,
+    authors: [{ name: post.author }],
     openGraph: {
-      title: post.title,
-      description: post.excerpt,
-      images: [
-        {
-          url: PlaceHolderImages.find((img) => img.id === post.imageId)?.imageUrl || '',
-          width: 1200,
-          height: 630,
-          alt: post.title,
-        },
-      ],
+      ...base.openGraph,
+      type: 'article',
+      publishedTime: post.date,
+      authors: [post.author],
     },
   };
 }
