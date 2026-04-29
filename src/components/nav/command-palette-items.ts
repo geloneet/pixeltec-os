@@ -1,6 +1,7 @@
 import {
   LayoutDashboard,
   CalendarDays,
+  CalendarRange,
   Users,
   Wrench,
   Server,
@@ -28,6 +29,12 @@ export const PALETTE_NAV_ITEMS: PaletteNavItem[] = [
     label: "Hoy",
     description: "Tareas pendientes y agenda del día",
     icon: CalendarDays,
+  },
+  {
+    href: "/asistente",
+    label: "Asistente",
+    description: "Planificador semanal con tareas, recurrencia y reportes",
+    icon: CalendarRange,
   },
   {
     href: "/clientes",
