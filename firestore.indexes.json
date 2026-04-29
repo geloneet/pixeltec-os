@@ -61,6 +61,14 @@
       ]
     },
     {
+      "collectionGroup": "assistantWeeklyReports",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "uid", "order": "ASCENDING" },
+        { "fieldPath": "weekKey", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "assistantTasksArchive",
       "queryScope": "COLLECTION",
       "fields": [
