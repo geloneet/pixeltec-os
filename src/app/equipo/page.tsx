@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { buildMetadata } from "@/lib/seo";
 import Image from "next/image";
 import Link from "next/link";
 import { Github, Linkedin, Users, Wrench } from "lucide-react";
@@ -6,12 +7,11 @@ import Header from "@/components/header";
 import { Footer } from "@/components/ui/footer-section";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 
-export const metadata: Metadata = {
-  title: "Equipo · El equipo detrás de PIXELTEC",
-  description:
-    "Conoce al equipo de tecnólogos con experiencia resolviendo problemas reales de negocio detrás de PIXELTEC.",
-  alternates: { canonical: "/equipo" },
-};
+export const metadata: Metadata = buildMetadata({
+  path: '/equipo',
+  title: 'Equipo · El equipo detrás de PIXELTEC',
+  description: 'Conoce al equipo de tecnólogos con experiencia resolviendo problemas reales de negocio detrás de PIXELTEC.',
+});
 
 const miguelPhoto =
   PlaceHolderImages.find((img) => img.id === "miguel-robles-portrait")?.imageUrl ??
