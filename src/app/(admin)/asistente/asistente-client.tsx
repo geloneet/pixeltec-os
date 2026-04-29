@@ -7,17 +7,18 @@ import { formatInTimeZone } from '@/lib/assistant/week-helpers';
 import { getWeekDays } from '@/lib/assistant/week-helpers';
 import { computeWeekStats } from '@/lib/assistant/queries/stats';
 import { CATEGORIES, TIMEZONE } from '@/lib/assistant/constants';
-import type { AssistantTaskSerialized } from '@/lib/assistant/types';
+import type { AssistantTaskSerialized, AssistantWeeklyReportSerialized } from '@/lib/assistant/types';
 import { WeekGrid } from './_components/week-grid';
 import { StatsCards } from './_components/stats-cards';
 import { TodayCard } from './_components/today-card';
 import { CategoryDistribution } from './_components/category-distribution';
-import { ReportStatusCard } from './_components/report-status-card';
+import { LastWeekReportCard } from './_components/last-week-report-card';
 import { TaskFormDialog } from './_components/task-form-dialog';
 
 interface Props {
   initialTasks: AssistantTaskSerialized[];
   weekKey: string;
+  lastReport: AssistantWeeklyReportSerialized | null;
 }
 
 function formatWeekHeader(
@@ -30,7 +31,7 @@ function formatWeekHeader(
   return `Semana ${weekNum} · ${from} - ${to}`;
 }
 
-export function AsistenteClient({ initialTasks, weekKey }: Props) {
+export function AsistenteClient({ initialTasks, weekKey, lastReport }: Props) {
   const [tasks, setTasks]             = useState<AssistantTaskSerialized[]>(initialTasks);
   const [isFormOpen, setIsFormOpen]   = useState(false);
   const [editingTask, setEditingTask] = useState<AssistantTaskSerialized | undefined>();
@@ -121,7 +122,7 @@ export function AsistenteClient({ initialTasks, weekKey }: Props) {
       <div className="grid gap-4" style={{ gridTemplateColumns: '1.4fr 1fr 1fr' }}>
         <TodayCard tasks={stats.todayTasks} />
         <CategoryDistribution byCategory={stats.byCategory} total={stats.total} />
-        <ReportStatusCard />
+        <LastWeekReportCard lastReport={lastReport} />
       </div>
 
       <TaskFormDialog
