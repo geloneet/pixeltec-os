@@ -29,3 +29,19 @@ export const AssistantPostponeSchema = z.object({
   time: z.string().regex(/^\d{2}:\d{2}$/, 'Formato HH:mm'),
 });
 export type AssistantPostponeInput = z.infer<typeof AssistantPostponeSchema>;
+
+export const WEEKDAY_CODES = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'] as const;
+export type WeekdayCode = typeof WEEKDAY_CODES[number];
+
+export const AssistantTemplateCreateSchema = z.object({
+  title:       z.string().min(3, 'Mínimo 3 caracteres').max(120, 'Máximo 120 caracteres'),
+  description: z.string().max(500, 'Máximo 500 caracteres').nullable().optional(),
+  category:    z.enum(['trabajo', 'cliente', 'personal', 'salud', 'aprendizaje']),
+  weekdays:    z.array(z.enum(['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'])).min(1, 'Selecciona al menos un día'),
+  defaultTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Formato HH:mm'),
+  durationMin: z.number().int().min(15).max(480).default(60),
+});
+export type AssistantTemplateCreateInput = z.infer<typeof AssistantTemplateCreateSchema>;
+
+export const AssistantTemplateUpdateSchema = AssistantTemplateCreateSchema.partial();
+export type AssistantTemplateUpdateInput = z.infer<typeof AssistantTemplateUpdateSchema>;

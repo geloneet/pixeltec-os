@@ -7,5 +7,6 @@ export function db(): Firestore {
 }
 
 export const COL = {
-  assistantTasks: 'assistantTasks',
+  assistantTasks:      'assistantTasks',
+  assistantTemplates:  'assistantTemplates',
 } as const;
