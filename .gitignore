@@ -12,3 +12,4 @@ nginx/ssl/
 # TypeScript incremental build cache (artifact, no source)
 tsconfig.tsbuildinfo
 *.tsbuildinfo
+.worktrees/
