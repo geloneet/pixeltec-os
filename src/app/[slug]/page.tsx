@@ -3,8 +3,6 @@ import { getServerFirestore } from '@/lib/firebase-server';
 import { collection, query, where, getDocs, limit } from 'firebase/firestore';
 import PortalEntryClient from './portal-entry-client';
 
-export const dynamic = 'force-dynamic';
-
 async function resolvePortalSlug(slug: string): Promise<{ companyName: string } | null> {
   try {
     const db = getServerFirestore();
