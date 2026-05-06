@@ -20,9 +20,6 @@ const COLLECTIONS = {
   errors: 'whatsappErrors',
 } as const;
 
-// Re-export for backward compatibility — type is now canonical in @/types/whatsapp
-export type { WhatsAppWebhookContact };
-
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
@@ -53,6 +50,7 @@ function extractContent(message: WhatsAppMessage): unknown {
     case 'system':
       return message.system;
     default:
+      console.warn(`[WhatsApp Firestore] Unknown message type: ${(message as { type: string }).type}`);
       return null;
   }
 }
