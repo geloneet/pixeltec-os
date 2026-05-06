@@ -27,6 +27,9 @@ export async function GET(req: NextRequest) {
 
   if (hubMode === 'subscribe' && hubVerifyToken === verifyToken) {
     console.log('[WhatsApp Webhook] Verification successful');
+    if (!hubChallenge) {
+      return new Response('Bad Request', { status: 400 });
+    }
     return new Response(hubChallenge, { status: 200 });
   }
 
@@ -61,7 +64,8 @@ export async function POST(req: NextRequest) {
 
         if (value.messages) {
           for (const message of value.messages) {
-            const contact = value.contacts?.[0] ?? { wa_id: message.from, profile: undefined };
+            const contact = value.contacts?.find(c => c.wa_id === message.from)
+              ?? { wa_id: message.from, profile: undefined };
             console.log(`[WhatsApp Webhook] Message received from ${message.from} type: ${message.type}`);
             await saveIncomingMessage(
               message,
