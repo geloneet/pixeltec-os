@@ -14,6 +14,11 @@ import type {
   WhatsAppError,
 } from '@/types/whatsapp';
 
+const COLLECTIONS = {
+  messages: 'whatsappMessages',
+  errors: 'whatsappErrors',
+} as const;
+
 /**
  * Represents the contact object from the Meta webhook `contacts[]` array.
  * This differs from `WhatsAppContact` (which is for contact *cards* in messages).
@@ -43,6 +48,7 @@ function extractContent(message: WhatsAppMessage): unknown {
     case 'location':
       return { lat: message.location.latitude, lng: message.location.longitude, name: message.location.name };
     case 'contacts':
+      // Contact card messages store only the count; full contact data is in rawPayload
       return { count: message.contacts.length };
     case 'interactive':
       return message.interactive;
@@ -72,7 +78,7 @@ export async function saveIncomingMessage(
 ): Promise<string> {
   try {
     const db = getAdminFirestore();
-    const ref = db.collection('whatsappMessages').doc(message.id);
+    const ref = db.collection(COLLECTIONS.messages).doc(message.id);
 
     // Convert Unix timestamp string to ISO-8601
     const timestamp = new Date(parseInt(message.timestamp, 10) * 1000).toISOString();
@@ -87,7 +93,7 @@ export async function saveIncomingMessage(
       contactName: contact.profile?.name ?? null,
       contactWaId: contact.wa_id,
       displayPhoneNumber: metadata.displayPhoneNumber,
-      rawPayload: message as unknown as Record<string, unknown>,
+      rawPayload: JSON.parse(JSON.stringify(message)) as Record<string, unknown>,
       createdAt: FieldValue.serverTimestamp(),
       status: 'received',
     });
@@ -107,16 +113,15 @@ export async function saveIncomingMessage(
 export async function saveStatusUpdate(status: WhatsAppMessageStatus): Promise<void> {
   try {
     const db = getAdminFirestore();
-    const ref = db.collection('whatsappMessages').doc(status.id);
+    const ref = db.collection(COLLECTIONS.messages).doc(status.id);
 
-    await ref.update({
-      statusEvents: FieldValue.arrayUnion({
-        status: status.status,
-        timestamp: status.timestamp,
-        recipientId: status.recipient_id,
-      }),
-      latestStatus: status.status,
-    });
+    await ref.set(
+      {
+        statusEvents: FieldValue.arrayUnion({ status: status.status, timestamp: new Date(parseInt(status.timestamp, 10) * 1000).toISOString(), recipientId: status.recipient_id }),
+        latestStatus: status.status,
+      },
+      { merge: true }
+    );
 
     console.info(`[WhatsApp Firestore] Status update id=${status.id} status=${status.status}`);
   } catch (err) {
@@ -131,7 +136,7 @@ export async function saveStatusUpdate(status: WhatsAppMessageStatus): Promise<v
 export async function saveErrorEvent(error: WhatsAppError, context: string): Promise<void> {
   try {
     const db = getAdminFirestore();
-    await db.collection('whatsappErrors').add({
+    await db.collection(COLLECTIONS.errors).add({
       code: error.code,
       title: error.title,
       message: error.message ?? null,
