@@ -23,7 +23,7 @@ const PROTECTED_PATHS = [
 const KNOWN_ROUTES = new Set([
   'about', 'contact', 'services', 'blog', 'metodologia', 'equipo',
   'industrias', 'privacy-policy', 'aviso-de-privacidad', 'terminos-de-servicio',
-  'guias-transformacion', 'login', 'api',
+  'data-deletion', 'guias-transformacion', 'login', 'api',
   // Admin roots (also in PROTECTED_PATHS — handled first)
   'dashboard', 'hoy', 'clientes', 'proyectos', 'herramientas',
   'vps', 'portal', 'crypto-intel', 'perfil', 'notificaciones', 'blog-admin',
