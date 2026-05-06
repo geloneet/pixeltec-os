@@ -8,7 +8,7 @@
  * Reference: https://developers.facebook.com/docs/whatsapp/cloud-api/webhooks/components
  */
 export interface WhatsAppWebhookPayload {
-  object: string; // "whatsapp_business_account"
+  object: "whatsapp_business_account";
   entry: WhatsAppEntry[];
 }
 
@@ -27,7 +27,7 @@ export interface WhatsAppEntry {
  */
 export interface WhatsAppChange {
   value: WhatsAppValue;
-  field: string; // Usually "messages"
+  field: "messages";
 }
 
 /**
@@ -35,7 +35,7 @@ export interface WhatsAppChange {
  * Reference: https://developers.facebook.com/docs/whatsapp/cloud-api/webhooks/components#value-object
  */
 export interface WhatsAppValue {
-  messaging_product: string; // "whatsapp"
+  messaging_product: "whatsapp";
   metadata: {
     display_phone_number: string;
     phone_number_id: string;
@@ -74,6 +74,11 @@ interface WhatsAppMessageBase {
   context?: {
     from?: string;
     id?: string;
+    forwarded?: boolean;
+    referred_product?: {
+      catalog_id: string;
+      product_retailer_id: string;
+    };
   };
   errors?: Array<{
     code: number;
@@ -189,7 +194,7 @@ export interface WhatsAppContact {
   }>;
   birthday?: string;
   emails?: Array<{
-    email?: string;
+    email: string;
     type?: string;
   }>;
   name: {
@@ -211,44 +216,35 @@ export interface WhatsAppContact {
     wa_id?: string;
   }>;
   urls?: Array<{
-    url?: string;
+    url: string;
     type?: string;
   }>;
 }
 
 /**
- * Interactive message with buttons, lists, or product selections
+ * Interactive message — response from an interactive button or list component.
+ * The `interactive` field is a discriminated union over the two Cloud API webhook types:
+ * - `button_reply`: user tapped an interactive button
+ * - `list_reply`: user selected a row from an interactive list
+ *
+ * Note: `product_reply` and `product_list_reply` are on-premises API types and do NOT
+ * appear in Cloud API webhooks.
+ *
  * Reference: https://developers.facebook.com/docs/whatsapp/cloud-api/webhooks/payload-example#interactive-messages
  */
 export interface WhatsAppInteractiveMessage extends WhatsAppMessageBase {
   type: "interactive";
-  interactive: {
-    type: "button_reply" | "list_reply" | "product_reply" | "product_list_reply";
-    button_reply?: {
-      id: string;
-      title: string;
-    };
-    list_reply?: {
-      id: string;
-      title: string;
-      description: string;
-    };
-    product_reply?: {
-      product_sku: string;
-    };
-    product_list_reply?: {
-      product_list_info: {
-        product_list_sku: string;
-        product_items: Array<{
-          product_sku: string;
-        }>;
-      };
-    };
-  };
+  interactive:
+    | { type: "button_reply"; button_reply: { id: string; title: string } }
+    | { type: "list_reply"; list_reply: { id: string; title: string; description: string } };
 }
 
 /**
- * Button message with quick reply buttons
+ * Button message — legacy quick-reply response sent when a user taps a button in a
+ * template message. This is distinct from `WhatsAppInteractiveMessage` with
+ * `interactive.type: "button_reply"`, which covers responses to interactive button
+ * components (non-template).
+ *
  * Reference: https://developers.facebook.com/docs/whatsapp/cloud-api/webhooks/payload-example#button-messages
  */
 export interface WhatsAppButtonMessage extends WhatsAppMessageBase {
@@ -267,39 +263,42 @@ export interface WhatsAppReactionMessage extends WhatsAppMessageBase {
   type: "reaction";
   reaction: {
     message_id: string;
+    /** The emoji used as the reaction. Empty string `""` when the reaction is removed. */
     emoji: string;
   };
 }
 
 /**
- * System message for account events (e.g., customer changes number)
+ * System message for account events (e.g., customer changes number).
+ * The `system` field is a discriminated union; each variant includes only the data
+ * fields relevant to that event type.
+ *
  * Reference: https://developers.facebook.com/docs/whatsapp/cloud-api/webhooks/payload-example#system-messages
  */
 export interface WhatsAppSystemMessage extends WhatsAppMessageBase {
   type: "system";
-  system: {
-    type:
-      | "customer_changed_number"
-      | "customer_identity_changed"
-      | "customer_name_changed"
-      | "user_identity_acknowledged"
-      | "user_identity_not_acknowledged"
-      | "security_code_changed";
-    customer_changed_number?: {
-      new_wa_id: string;
-      old_wa_id: string;
-    };
-    customer_identity_changed?: {
-      acknowledged: boolean;
-      hash: string;
-    };
-    customer_name_changed?: {
-      new_name: string;
-    };
-    user_identity_acknowledged?: Record<string, never>;
-    user_identity_not_acknowledged?: Record<string, never>;
-    security_code_changed?: Record<string, never>;
-  };
+  system:
+    | {
+        type: "customer_changed_number";
+        customer_changed_number: {
+          change_desc: string;
+          new_wa_id: string;
+          old_wa_id: string;
+        };
+      }
+    | {
+        type: "customer_identity_changed";
+        customer_identity_changed: {
+          acknowledged: string;
+          creation_timestamp: string;
+          hash: string;
+        };
+      }
+    | {
+        type: "customer_name_changed";
+        customer_name_changed: string;
+      }
+    | { type: "user_identity_acknowledged" };
 }
 
 /**
@@ -311,6 +310,20 @@ export interface WhatsAppMessageStatus {
   status: "sent" | "delivered" | "read" | "failed";
   timestamp: string;
   recipient_id: string;
+  /** Conversation context. @see https://developers.facebook.com/docs/whatsapp/cloud-api/webhooks/components */
+  conversation?: {
+    id: string;
+    expiration_timestamp?: string;
+    origin: {
+      type: "authentication" | "marketing" | "utility" | "service" | "referral_conversion";
+    };
+  };
+  /** Pricing information for billing. @see https://developers.facebook.com/docs/whatsapp/pricing */
+  pricing?: {
+    billable: boolean;
+    pricing_model: string;
+    category: "authentication" | "marketing" | "utility" | "service" | "referral_conversion";
+  };
   errors?: Array<{
     code: number;
     title: string;
