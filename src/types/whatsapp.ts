@@ -40,9 +40,21 @@ export interface WhatsAppValue {
     display_phone_number: string;
     phone_number_id: string;
   };
+  contacts?: WhatsAppWebhookContact[];
   messages?: WhatsAppMessage[];
   statuses?: WhatsAppMessageStatus[];
   errors?: WhatsAppError[];
+}
+
+/**
+ * Contact entry from the Meta webhook `contacts[]` array.
+ * This is the sender profile attached to incoming messages, distinct from
+ * `WhatsAppContact` which represents contact cards shared inside messages.
+ * Reference: https://developers.facebook.com/docs/whatsapp/cloud-api/webhooks/components#contacts-object
+ */
+export interface WhatsAppWebhookContact {
+  profile?: { name?: string };
+  wa_id: string;
 }
 
 /**
