@@ -12,6 +12,7 @@ import type {
   WhatsAppMessage,
   WhatsAppMessageStatus,
   WhatsAppError,
+  WhatsAppWebhookContact,
 } from '@/types/whatsapp';
 
 const COLLECTIONS = {
@@ -19,15 +20,8 @@ const COLLECTIONS = {
   errors: 'whatsappErrors',
 } as const;
 
-/**
- * Represents the contact object from the Meta webhook `contacts[]` array.
- * This differs from `WhatsAppContact` (which is for contact *cards* in messages).
- * Meta sends: `{ profile: { name: string }, wa_id: string }`.
- */
-export interface WhatsAppWebhookContact {
-  profile?: { name?: string };
-  wa_id: string;
-}
+// Re-export for backward compatibility — type is now canonical in @/types/whatsapp
+export type { WhatsAppWebhookContact };
 
 // ---------------------------------------------------------------------------
 // Internal helpers
