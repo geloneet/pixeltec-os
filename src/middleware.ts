@@ -1,33 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminAuth, getAdminFirestore } from '@/lib/firebase-admin';
+import { PROTECTED_PATHS, KNOWN_ROUTES } from '@/lib/routes/admin-routes';
 
 export const runtime = 'nodejs';
 
 const SESSION_COOKIE_NAME = '__session';
-
-const PROTECTED_PATHS = [
-  '/dashboard',
-  '/hoy',
-  '/clientes',
-  '/proyectos',
-  '/herramientas',
-  '/vps',
-  '/portal',
-  '/crypto-intel',
-  '/perfil',
-  '/notificaciones',
-  '/blog-admin',
-];
-
-// Single-segment paths that are app routes, not portal slugs
-const KNOWN_ROUTES = new Set([
-  'about', 'contact', 'services', 'blog', 'metodologia', 'equipo',
-  'industrias', 'privacy-policy', 'aviso-de-privacidad', 'terminos-de-servicio',
-  'data-deletion', 'guias-transformacion', 'login', 'api',
-  // Admin roots (also in PROTECTED_PATHS — handled first)
-  'dashboard', 'hoy', 'clientes', 'proyectos', 'herramientas',
-  'vps', 'portal', 'crypto-intel', 'perfil', 'notificaciones', 'blog-admin',
-]);
 
 async function isValidPortalSlug(slug: string): Promise<boolean> {
   try {
@@ -75,6 +52,7 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // ── Admin session protection ──────────────────────────────────────────────
+  // PROTECTED_PATHS is derived from ADMIN_ROUTES in src/lib/routes/admin-routes.ts
   const isProtected = PROTECTED_PATHS.some(
     (p) => pathname === p || pathname.startsWith(`${p}/`)
   );
@@ -110,6 +88,7 @@ export async function middleware(request: NextRequest) {
   // ── Portal slug validation ────────────────────────────────────────────────
   // Only check single-segment paths that look like portal slugs (no dots, no
   // underscores, not a known app route).
+  // KNOWN_ROUTES is derived from ADMIN_ROUTES in src/lib/routes/admin-routes.ts
   const segments = pathname.split('/').filter(Boolean);
   if (segments.length === 1) {
     const slug = segments[0];
@@ -129,9 +108,15 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Admin paths (session protection)
+    // ── Admin routes ─────────────────────────────────────────────────────────
+    // Must mirror ADMIN_ROUTES in src/lib/routes/admin-routes.ts.
+    // Next.js requires a static literal array here — dynamic spreads are not
+    // evaluated at build time. When adding a route to ADMIN_ROUTES, add the
+    // corresponding '/<route>/:path*' pattern here too.
     '/dashboard/:path*',
     '/hoy/:path*',
+    '/asistente/:path*',
+    '/asistente',           // explicit root — belt-and-suspenders for :path* zero-segment edge
     '/clientes/:path*',
     '/proyectos/:path*',
     '/herramientas/:path*',
@@ -141,8 +126,7 @@ export const config = {
     '/perfil/:path*',
     '/notificaciones/:path*',
     '/blog-admin/:path*',
-    // Single-segment paths — portal slug validation
-    // Excludes _next internals and files with extensions via code checks above
+    // ── Single-segment paths — portal slug validation ─────────────────────
     '/:slug',
   ],
 };
