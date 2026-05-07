@@ -1,18 +1,23 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import Header from "@/components/header";
 import { Footer } from "@/components/ui/footer-section";
+
+export const metadata: Metadata = {
+  title: "Página no encontrada · PixelTEC",
+};
 
 export default function NotFound() {
   return (
     <>
       <Header />
-      <main className="min-h-screen bg-[#030303] text-white flex flex-col items-center justify-center px-4 text-center pt-24 pb-16">
+      <main className="min-h-screen bg-neutral-950 text-white flex flex-col items-center justify-center px-4 text-center pt-24 pb-16">
         <div
           aria-hidden
           className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_top,rgba(59,130,246,0.06),transparent_50%)]"
         />
 
-        <p className="text-xs font-bold tracking-[0.3em] uppercase text-sky-500 mb-4">
+        <p className="text-xs font-bold tracking-[0.3em] uppercase text-slate-500 mb-4">
           Error 404
         </p>
 
@@ -27,13 +32,14 @@ export default function NotFound() {
           Esta página no existe
         </h1>
         <p className="mt-3 text-sm text-zinc-500 max-w-sm">
-          La URL que buscas no existe o fue movida. Usa los accesos directos para retomar el camino.
+          La URL que buscas no existe o fue movida. Usa los accesos directos
+          para retomar el camino.
         </p>
 
         <div className="mt-10 flex flex-wrap gap-3 items-center justify-center">
           <Link
             href="/"
-            className="rounded-full h-12 px-7 bg-white text-[#030303] text-sm font-semibold transition-all duration-200 hover:bg-zinc-200 hover:-translate-y-0.5 flex items-center"
+            className="inline-flex items-center rounded-full h-12 px-7 border border-zinc-600 bg-zinc-900 text-zinc-100 text-sm font-semibold transition-all duration-200 hover:bg-zinc-800 hover:border-zinc-500 hover:-translate-y-0.5"
           >
             Volver al inicio
           </Link>
