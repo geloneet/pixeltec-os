@@ -32,6 +32,9 @@ const contactSchema = z.object({
   email: z.string().email('Please enter a valid email address.'),
   empresa: z.string().optional(),
   message: z.string().min(10, 'Message must be at least 10 characters.'),
+  consent: z.literal('on', {
+    errorMap: () => ({ message: 'Debes aceptar el Aviso de Privacidad para enviar el formulario.' }),
+  }),
 });
 
 type ContactFormState = {
@@ -41,6 +44,7 @@ type ContactFormState = {
     email?: string[];
     empresa?: string[];
     message?: string[];
+    consent?: string[];
   };
   isSuccess: boolean;
 };
@@ -54,25 +58,36 @@ export async function submitContactForm(
     email: formData.get('email'),
     empresa: formData.get('empresa'),
     message: formData.get('message'),
+    consent: formData.get('consent'),
   });
 
   if (!validatedFields.success) {
     return {
-      message: 'Please correct the errors below.',
+      message: 'Por favor corrige los errores indicados.',
       errors: validatedFields.error.flatten().fieldErrors,
       isSuccess: false,
     };
   }
 
   try {
+    const db = getServerFirestore();
+    await addDoc(collection(db, 'contactSubmissions'), {
+      name:             validatedFields.data.name,
+      email:            validatedFields.data.email,
+      empresa:          validatedFields.data.empresa ?? null,
+      message:          validatedFields.data.message,
+      consentVersion:   'v1-2026-05-07',
+      consentTimestamp: serverTimestamp(),
+      createdAt:        serverTimestamp(),
+    });
     return {
-      message: 'Thank you! Your message has been sent successfully.',
+      message: '¡Gracias! Tu mensaje ha sido enviado correctamente.',
       isSuccess: true,
     };
   } catch (error) {
-    console.error('Error submitting form:', error);
+    console.error('Error submitting contact form:', error);
     return {
-      message: 'An unexpected error occurred. Please try again later.',
+      message: 'Ocurrió un error inesperado. Por favor intenta de nuevo.',
       isSuccess: false,
     };
   }
