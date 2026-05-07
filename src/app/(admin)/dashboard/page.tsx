@@ -32,7 +32,7 @@ const MODULE_CARDS = [
   {
     title: "Proyectos",
     description: "Kanban de proyectos activos por cliente",
-    href: "/clientes",
+    href: "/clientes?view=proyectos",
     icon: Rocket,
     accent: "indigo" as const,
   },
@@ -44,7 +44,7 @@ const MODULE_CARDS = [
     accent: "violet" as const,
   },
   {
-    title: "DevOps",
+    title: "VPS / DevOps",
     description: "Infraestructura VPS, deploys y monitoreo",
     href: "/vps",
     icon: Server,
@@ -53,10 +53,10 @@ const MODULE_CARDS = [
   {
     title: "Cobros",
     description: "Facturas pendientes, pagos y revenue",
-    href: "/clientes",
     icon: DollarSign,
     accent: "amber" as const,
-    badge: "Pronto integrado",
+    badge: "Disponible próximamente",
+    disabled: true,
   },
 ];
 
