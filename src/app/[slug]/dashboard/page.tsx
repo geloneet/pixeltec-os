@@ -8,8 +8,12 @@ import {
   MessageSquare, ImageIcon, CalendarDays, ChevronRight, AlertCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { loadPortalSession, clearPortalSession, type PortalSession } from '@/lib/portal';
-import { getPortalDashboardAction } from '@/app/actions';
+import { loadPortalSession, clearLegacyPortalSession, type PortalSession } from '@/lib/portal';
+import {
+  getPortalDashboardAction,
+  migratePortalSessionAction,
+  clearPortalSessionAction,
+} from '@/app/actions';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -78,58 +82,76 @@ export default function PortalDashboard() {
   const router = useRouter();
   const slug   = (params.slug as string) ?? '';
 
-  const [session, setSession] = useState<PortalSession | null>(null);
-  const [loading, setLoading]  = useState(true);
+  const [session, setSession]       = useState<PortalSession | null>(null);
+  const [loading, setLoading]       = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError]           = useState('');
 
-  const [updates, setUpdates]   = useState<Update[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [updates, setUpdates]           = useState<Update[]>([]);
+  const [projects, setProjects]         = useState<Project[]>([]);
   const [taskProgress, setTaskProgress] = useState({ total: 0, completed: 0, percentage: 0 });
-  const [lastFetched, setLastFetched] = useState<Date | null>(null);
+  const [lastFetched, setLastFetched]   = useState<Date | null>(null);
 
-  // ── Session check ──────────────────────────────────────────────────────────
-  useEffect(() => {
-    const s = loadPortalSession(slug);
-    if (!s) {
-      router.replace(`/${slug}`);
-      return;
-    }
-    setSession(s);
-  }, [slug, router]);
-
-  // ── Fetch data ─────────────────────────────────────────────────────────────
+  // ── Fetch data from server (session comes from cookie, not client) ─────────
   const fetchData = useCallback(async (isRefresh = false) => {
-    if (!session) return;
     isRefresh ? setRefreshing(true) : setLoading(true);
     setError('');
 
-    const res = await getPortalDashboardAction(session.clientId);
+    const res = await getPortalDashboardAction(slug);
     if (res.success && res.data) {
-      setUpdates(res.data.updates);
-      setProjects(res.data.projects);
-      setTaskProgress(res.data.taskProgress);
+      const d = res.data;
+      setSession({
+        clientId:     d.clientId,
+        slug:         d.slug,
+        companyName:  d.companyName,
+        status:       d.status,
+        services:     d.services,
+        taskProgress: d.taskProgress,
+        validatedAt:  Date.now(),
+      });
+      setUpdates(d.updates);
+      setProjects(d.projects);
+      setTaskProgress(d.taskProgress);
       setLastFetched(new Date());
     } else {
+      const code = res.code;
+      if (!isRefresh && (code === 'no-session' || code === 'slug-mismatch' || code === 'expired')) {
+        router.replace(`/${slug}`);
+        return;
+      }
       setError(res.error ?? 'Error al cargar el portal.');
     }
     isRefresh ? setRefreshing(false) : setLoading(false);
-  }, [session]);
+  }, [slug, router]);
 
+  // ── Initialization: legacy migration path or cookie path ──────────────────
   useEffect(() => {
-    if (session) fetchData();
-  }, [session, fetchData]);
+    const legacySession = loadPortalSession(slug);
+    if (legacySession) {
+      // Show legacy data immediately while migrating to cookie in background
+      setSession(legacySession);
+      setTaskProgress(legacySession.taskProgress);
+      setLoading(false);
+      migratePortalSessionAction(slug, legacySession.clientId).then(result => {
+        if (result.success) {
+          clearLegacyPortalSession();
+          fetchData(true); // refresh with fresh server data after migration
+        } else {
+          router.replace(`/${slug}`);
+        }
+      });
+      return;
+    }
+    // No legacy session: use cookie path
+    fetchData(false);
+  }, [slug, router, fetchData]);
 
   // ── Sign out ───────────────────────────────────────────────────────────────
-  const handleSignOut = () => {
-    clearPortalSession();
+  const handleSignOut = async () => {
+    await clearPortalSessionAction();
+    clearLegacyPortalSession();
     router.push(`/${slug}`);
   };
-
-  // ── Guards ─────────────────────────────────────────────────────────────────
-  if (!session && typeof window !== 'undefined') {
-    return null; // redirect happening
-  }
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
