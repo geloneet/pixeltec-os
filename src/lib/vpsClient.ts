@@ -110,6 +110,81 @@ export function deployVpsProject(projectId: string) {
   });
 }
 
+// ── Types ────────────────────────────────────────────────────────────────────
+
+export interface VpsServerInfo {
+  diskTotal: string;
+  diskUsed: string;
+  diskFree: string;
+  diskPercent: string;
+  uptime: string;
+  memTotal: string;
+  memUsed: string;
+  memFree: string;
+}
+
+export interface VpsProject {
+  id: string;
+  name: string;
+  path: string;
+  type: string;
+  domain: string | null;
+  description: string;
+  status: string;
+  size: string;
+  active: boolean;
+  pm2Name: string | null;
+  containerName: string | null;
+}
+
+export interface VpsProjectPublic {
+  id: string;
+  name: string;
+  type: string;
+  domain: string | null;
+  description: string;
+  status: string;
+  size: string;
+  active: boolean;
+}
+
+export interface VpsStatusResponse {
+  server: VpsServerInfo;
+  projects: VpsProject[];
+}
+
+export interface VpsStatusPublicResponse {
+  server: VpsServerInfo;
+  projects: VpsProjectPublic[];
+}
+
+/** Elimina campos sensibles para sesiones no-admin.
+ *  Hoy isAdmin siempre es true — la función está lista para cuando llegue staff.
+ */
+export function sanitizeVpsPayload(
+  data: VpsStatusResponse,
+  isAdmin: boolean
+): VpsStatusResponse | VpsStatusPublicResponse {
+  if (isAdmin) return data;
+  return {
+    server: data.server,
+    projects: data.projects.map(
+      ({ id, name, type, domain, description, status, size, active }) => ({
+        id,
+        name,
+        type,
+        domain,
+        description,
+        status,
+        size,
+        active,
+      })
+    ),
+  };
+}
+
+// ── Auth ─────────────────────────────────────────────────────────────────────
+
 /** Valida la cookie de sesión del CRM antes de hablar al vps-api. */
 export async function requireSession(
   sessionCookie: string | undefined
