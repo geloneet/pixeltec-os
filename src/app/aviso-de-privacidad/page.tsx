@@ -62,7 +62,7 @@ export default function AvisoDePrivacidadPage() {
             Aviso de Privacidad
           </h1>
           <p className="mt-4 text-lg text-zinc-400">
-            Última actualización: Julio 2024
+            Última actualización: 7 de mayo de 2026
           </p>
         </div>
 
@@ -122,7 +122,12 @@ export default function AvisoDePrivacidadPage() {
             
             <section id="transferencia" className="space-y-4 mt-12 scroll-mt-32">
                 <h2 className="text-2xl font-bold text-white">4. Transferencia de Datos Personales</h2>
-                <p>PixelTEC no vende, cede ni transfiere sus datos personales a terceros con fines de lucro. Sus datos podrán ser compartidos con proveedores de servicios tecnológicos (tales como proveedores de cloud hosting como Vercel o AWS, y servicios de base de datos como Firebase) únicamente cuando sea estrictamente necesario para la implementación, operación y mantenimiento de las soluciones de software desarrolladas para usted.</p>
+                <p>PixelTEC no vende, cede ni transfiere sus datos personales a terceros con fines de lucro. Sus datos podrán ser compartidos con los siguientes proveedores de servicios tecnológicos, únicamente cuando sea estrictamente necesario para la operación y mantenimiento de los servicios, con base legal en el artículo 37 de la LFPDPPP:</p>
+                <ul className="list-disc pl-5">
+                  <li><strong className="text-white/80">OVH SAS</strong> (Francia) — hospedaje e infraestructura del servidor</li>
+                  <li><strong className="text-white/80">Google LLC / Firebase</strong> (Estados Unidos) — almacenamiento de datos y base de datos</li>
+                  <li><strong className="text-white/80">Resend, Inc.</strong> (Estados Unidos) — envío de correos electrónicos transaccionales</li>
+                </ul>
             </section>
 
             <section id="derechos-arco" className="space-y-4 mt-12 scroll-mt-32">
@@ -141,6 +146,13 @@ export default function AvisoDePrivacidadPage() {
                 <p>El presente aviso de privacidad puede sufrir modificaciones, cambios o actualizaciones derivadas de nuevos requerimientos legales o de nuestras propias necesidades. Nos comprometemos a mantenerlo informado sobre los cambios que pueda sufrir el presente aviso de privacidad, a través de nuestro sitio web.</p>
                 <p>Para contactar a PixelTEC en relación con este aviso, por favor diríjase a <Link href="/contact" className="text-cyan-400 hover:underline">nuestra página de contacto</Link>.</p>
             </section>
+            <div className="mt-12 rounded-lg border border-amber-500/30 bg-amber-500/5 p-6 space-y-2">
+              <p className="text-sm font-semibold text-amber-400">Aviso en actualización</p>
+              <p className="text-sm text-zinc-400">
+                Este aviso de privacidad se encuentra en proceso de actualización integral. Si requieres información específica sobre el tratamiento de tus datos, escribe a{' '}
+                <a href="mailto:hola@pixeltec.mx" className="text-cyan-400 hover:underline">hola@pixeltec.mx</a>.
+              </p>
+            </div>
           </article>
         </div>
       </motion.main>
