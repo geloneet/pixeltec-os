@@ -5,11 +5,15 @@ import { useParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Loader2, LogOut, RefreshCw, CheckCircle2, Clock, FolderKanban,
-  MessageSquare, ImageIcon, CalendarDays, ChevronRight, AlertCircle,
+  MessageSquare, ImageIcon, CalendarDays, AlertCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { loadPortalSession, clearPortalSession, type PortalSession } from '@/lib/portal';
-import { getPortalDashboardAction } from '@/app/actions';
+import { loadPortalSession, clearLegacyPortalSession, type PortalSession } from '@/lib/portal';
+import {
+  getPortalDashboardAction,
+  migratePortalSessionAction,
+  clearPortalSessionAction,
+} from '@/app/actions';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -78,58 +82,119 @@ export default function PortalDashboard() {
   const router = useRouter();
   const slug   = (params.slug as string) ?? '';
 
-  const [session, setSession] = useState<PortalSession | null>(null);
-  const [loading, setLoading]  = useState(true);
+  const [session, setSession]       = useState<PortalSession | null>(null);
+  const [loading, setLoading]       = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError]           = useState('');
 
-  const [updates, setUpdates]   = useState<Update[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [updates, setUpdates]           = useState<Update[]>([]);
+  const [projects, setProjects]         = useState<Project[]>([]);
   const [taskProgress, setTaskProgress] = useState({ total: 0, completed: 0, percentage: 0 });
-  const [lastFetched, setLastFetched] = useState<Date | null>(null);
+  const [lastFetched, setLastFetched]   = useState<Date | null>(null);
 
-  // ── Session check ──────────────────────────────────────────────────────────
-  useEffect(() => {
-    const s = loadPortalSession(slug);
-    if (!s) {
-      router.replace(`/${slug}`);
-      return;
-    }
-    setSession(s);
-  }, [slug, router]);
-
-  // ── Fetch data ─────────────────────────────────────────────────────────────
+  // ── Fetch data from server (session comes from cookie, not client) ─────────
   const fetchData = useCallback(async (isRefresh = false) => {
-    if (!session) return;
     isRefresh ? setRefreshing(true) : setLoading(true);
     setError('');
 
-    const res = await getPortalDashboardAction(session.clientId);
+    const res = await getPortalDashboardAction(slug);
     if (res.success && res.data) {
-      setUpdates(res.data.updates);
-      setProjects(res.data.projects);
-      setTaskProgress(res.data.taskProgress);
+      const d = res.data;
+      setSession({
+        clientId:     d.clientId,
+        slug:         d.slug,
+        companyName:  d.companyName,
+        status:       d.status,
+        services:     d.services,
+        taskProgress: d.taskProgress,
+        validatedAt:  Date.now(),
+      });
+      setUpdates(d.updates);
+      setProjects(d.projects);
+      setTaskProgress(d.taskProgress);
       setLastFetched(new Date());
     } else {
+      const code = res.code;
+      if (!isRefresh && (code === 'no-session' || code === 'slug-mismatch' || code === 'expired')) {
+        router.replace(`/${slug}`);
+        return;
+      }
       setError(res.error ?? 'Error al cargar el portal.');
     }
     isRefresh ? setRefreshing(false) : setLoading(false);
-  }, [session]);
+  }, [slug, router]);
 
+  // ── Initialization: cookie-first, then legacy migration ──────────────────
   useEffect(() => {
-    if (session) fetchData();
-  }, [session, fetchData]);
+    let cancelled = false;
+
+    async function init() {
+      // 1. Cookie-first: try server session before touching sessionStorage
+      setLoading(true);
+      const res = await getPortalDashboardAction(slug);
+      if (cancelled) return;
+
+      if (res.success && res.data) {
+        // Cookie valid: populate state and discard legacy silently if present
+        clearLegacyPortalSession();
+        const d = res.data;
+        setSession({ clientId: d.clientId, slug: d.slug, companyName: d.companyName, status: d.status, services: d.services, taskProgress: d.taskProgress, validatedAt: Date.now() });
+        setUpdates(d.updates);
+        setProjects(d.projects);
+        setTaskProgress(d.taskProgress);
+        setLastFetched(new Date());
+        setLoading(false);
+        return;
+      }
+
+      // 2. Distinguish auth error from transient network/server error
+      const isAuthError = res.code === 'no-session' || res.code === 'slug-mismatch' || res.code === 'expired';
+      if (!isAuthError) {
+        // Transient error: show it, do NOT attempt legacy migration
+        setError(res.error ?? 'Error al cargar el portal.');
+        setLoading(false);
+        return;
+      }
+
+      // 3. Auth error: check for legacy sessionStorage session
+      const legacy = loadPortalSession(slug);
+      if (!legacy) {
+        // No cookie, no legacy: redirect to OTP entry
+        router.replace(`/${slug}`);
+        return;
+      }
+
+      // Show legacy data immediately (avoids full-skeleton flash)
+      setSession(legacy);
+      setTaskProgress(legacy.taskProgress);
+      setLoading(false);
+
+      // Migrate legacy sessionStorage → httpOnly cookie
+      const migResult = await migratePortalSessionAction(slug, legacy.clientId);
+      if (cancelled) return;
+
+      if (!migResult.success) {
+        // Slug mismatch or client deleted: clear tampered session, force re-OTP
+        clearLegacyPortalSession();
+        router.replace(`/${slug}`);
+        return;
+      }
+
+      // Migration succeeded: clear legacy and load fresh data via cookie
+      clearLegacyPortalSession();
+      fetchData(true);
+    }
+
+    init();
+    return () => { cancelled = true; };
+  }, [slug, router, fetchData]);
 
   // ── Sign out ───────────────────────────────────────────────────────────────
-  const handleSignOut = () => {
-    clearPortalSession();
+  const handleSignOut = async () => {
+    await clearPortalSessionAction();
+    clearLegacyPortalSession();
     router.push(`/${slug}`);
   };
-
-  // ── Guards ─────────────────────────────────────────────────────────────────
-  if (!session && typeof window !== 'undefined') {
-    return null; // redirect happening
-  }
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (

@@ -20,10 +20,17 @@ import type { TaskAssignedEmailProps } from '@/emails/TaskAssignedEmail';
 import type { SupportTicketEmailProps } from '@/emails/SupportTicketEmail';
 import { renderClientAccessEmail } from '@/emails/ClientAccessEmail';
 import { renderProjectUpdateEmail } from '@/emails/ProjectUpdateEmail';
+import { headers } from 'next/headers';
 import { getServerFirestore } from '@/lib/firebase-server';
 import { generateAccessCode, generateSlug, type PortalSession } from '@/lib/portal';
 import {
-  doc, getDoc, getDocs, updateDoc, addDoc, collection,
+  createPortalSession,
+  clearPortalSession as clearPortalSessionCookie,
+} from '@/lib/portal/session-server';
+import { requirePortalSession, PortalAuthError } from '@/lib/portal/auth-guard';
+import { logSecurityEvent } from '@/lib/portal/security-log';
+import {
+  doc, getDoc, getDocs, setDoc, updateDoc, addDoc, collection,
   query, where, limit, orderBy, Timestamp, serverTimestamp,
 } from 'firebase/firestore';
 
@@ -268,8 +275,10 @@ export async function sendTestEmailAction(input: { to: string }): Promise<EmailR
 // ─── Portal Server Actions ─────────────────────────────────────────────────────
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:9002';
-const CODE_TTL_MS = 10 * 60 * 1000; // 10 minutes
-const RATE_LIMIT_MS = 60 * 1000;    // 60 seconds between requests
+const CODE_TTL_MS = 10 * 60 * 1000;    // 10 minutes per OTP
+const RATE_LIMIT_MS = 60 * 1000;        // 60 s between requests (per slug)
+const IP_MAX_REQUESTS = 10;             // max OTP requests per IP per hour
+const IP_WINDOW_MS = 60 * 60 * 1000;   // 1 hour window
 
 
 /** Check if a client slug exists. Returns company name for display if found. */
@@ -296,7 +305,33 @@ export async function requestPortalCodeAction(
 ): Promise<PortalActionResult<{ maskedEmail: string }>> {
   if (!slug?.trim()) return { success: false, error: 'Slug inválido.' };
   try {
+    // ── IP-based rate limit ────────────────────────────────────────────────
+    const headersList = await headers();
+    const rawIp = headersList.get('x-forwarded-for')?.split(',')[0].trim()
+               ?? headersList.get('x-real-ip')
+               ?? 'unknown';
+    const safeIp = rawIp.replace(/[^a-zA-Z0-9.\-]/g, '_').slice(0, 64);
+
     const db = getServerFirestore();
+    const ipRef = doc(db, 'portalRateLimit', safeIp);
+    const ipSnap = await getDoc(ipRef);
+    if (ipSnap.exists()) {
+      const ipData = ipSnap.data();
+      const windowStart = ipData.windowStartedAt?.toDate?.() as Date | undefined;
+      if (windowStart && Date.now() - windowStart.getTime() < IP_WINDOW_MS) {
+        if ((ipData.count ?? 0) >= IP_MAX_REQUESTS) {
+          await logSecurityEvent({ type: 'otp-rate-limit-ip', slug, reason: 'IP exceeded 10 req/hour' });
+          return { success: false, error: 'Demasiadas solicitudes. Inténtalo más tarde.' };
+        }
+        await updateDoc(ipRef, { count: (ipData.count ?? 0) + 1 });
+      } else {
+        await setDoc(ipRef, { count: 1, windowStartedAt: serverTimestamp() });
+      }
+    } else {
+      await setDoc(ipRef, { count: 1, windowStartedAt: serverTimestamp() });
+    }
+
+    // ── Slug lookup ────────────────────────────────────────────────────────
     const q = query(collection(db, 'clients'), where('slug', '==', slug.trim()), limit(1));
     const snap = await getDocs(q);
     if (snap.empty) return { success: false, error: 'Portal no encontrado.' };
@@ -304,7 +339,7 @@ export async function requestPortalCodeAction(
     const clientDoc = snap.docs[0];
     const data = clientDoc.data();
 
-    // Rate limit
+    // Per-slug rate limit
     const lastRequest = data.lastCodeRequestAt?.toDate?.() as Date | undefined;
     if (lastRequest && Date.now() - lastRequest.getTime() < RATE_LIMIT_MS) {
       const waitSec = Math.ceil((RATE_LIMIT_MS - (Date.now() - lastRequest.getTime())) / 1000);
@@ -364,11 +399,13 @@ export async function verifyPortalCodeAction(
     const data = clientDoc.data();
 
     if (!data.accessCode || data.accessCode !== trimmedCode) {
+      await logSecurityEvent({ type: 'otp-invalid-code', slug });
       return { success: false, error: 'Código incorrecto.' };
     }
 
     const expiresAt = data.accessCodeExpiresAt?.toDate?.() as Date | undefined;
     if (!expiresAt || expiresAt < new Date()) {
+      await logSecurityEvent({ type: 'otp-expired-code', slug });
       return { success: false, error: 'El código expiró. Solicita uno nuevo.' };
     }
 
@@ -377,6 +414,9 @@ export async function verifyPortalCodeAction(
       accessCode: null,
       accessCodeExpiresAt: null,
     });
+
+    // Issue server-side session cookie
+    await createPortalSession(clientDoc.id, slug);
 
     return {
       success: true,
@@ -395,18 +435,27 @@ export async function verifyPortalCodeAction(
   }
 }
 
-/** Fetch portal dashboard data (updates + projects) for an authenticated client. */
-export async function getPortalDashboardAction(clientId: string): Promise<
+/**
+ * Fetch portal dashboard data for an authenticated client.
+ * Receives the public slug — clientId is derived exclusively from the signed cookie.
+ */
+export async function getPortalDashboardAction(slug: string): Promise<
   PortalActionResult<{
-    updates:  { id: string; text: string; imageUrl?: string; createdAt: string; createdBy: string }[];
-    projects: { id: string; name: string; status: string }[];
+    clientId:     string;
+    slug:         string;
+    companyName:  string;
+    status:       string;
+    services:     string[];
+    updates:      { id: string; text: string; imageUrl?: string; createdAt: string; createdBy: string }[];
+    projects:     { id: string; name: string; status: string }[];
     taskProgress: { total: number; completed: number; percentage: number };
   }>
 > {
-  if (!clientId) return { success: false, error: 'Session inválida.' };
   try {
-    const db = getServerFirestore();
+    const session = await requirePortalSession(slug);
+    const { clientId } = session;
 
+    const db = getServerFirestore();
     const [clientSnap, updatesSnap, projectsSnap] = await Promise.all([
       getDoc(doc(db, 'clients', clientId)),
       getDocs(query(collection(db, 'clients', clientId, 'updates'), orderBy('createdAt', 'desc'), limit(20))),
@@ -437,12 +486,20 @@ export async function getPortalDashboardAction(clientId: string): Promise<
     return {
       success: true,
       data: {
+        clientId,
+        slug:         session.slug,
+        companyName:  clientData.companyName ?? '',
+        status:       clientData.status ?? 'Activo',
+        services:     clientData.services ?? [],
         updates,
         projects,
         taskProgress: clientData.taskProgress ?? { total: 0, completed: 0, percentage: 0 },
       },
     };
   } catch (err) {
+    if (err instanceof PortalAuthError) {
+      return { success: false, error: 'Sesión inválida o expirada.', code: err.reason };
+    }
     console.error('[portal] getDashboard error:', err);
     return { success: false, error: 'Error al cargar el portal.' };
   }
@@ -517,4 +574,47 @@ export async function sendUpdateEmailAction(
     console.error('[portal] sendUpdateEmail error:', err);
     return { success: false, error: String(err) };
   }
+}
+
+// ─── Migration & Session Management ───────────────────────────────────────────
+
+/**
+ * 7-day migration bridge: validates that the legacy sessionStorage clientId actually
+ * belongs to the claimed slug, then issues a __portal_session cookie.
+ * Called once per client during the migration window.
+ */
+export async function migratePortalSessionAction(
+  slug: string,
+  clientId: string,
+): Promise<PortalActionResult<null>> {
+  if (!slug?.trim() || !clientId?.trim()) {
+    return { success: false, error: 'Sesión inválida.' };
+  }
+  try {
+    const db = getServerFirestore();
+    const clientSnap = await getDoc(doc(db, 'clients', clientId.trim()));
+
+    // Unified rejection: don't reveal whether the clientId exists in Firestore
+    if (!clientSnap.exists() || clientSnap.data().slug !== slug.trim()) {
+      if (clientSnap.exists()) {
+        await logSecurityEvent({
+          type:         'migration-slug-mismatch',
+          slug:         slug.trim(),
+          resolvedSlug: clientSnap.data().slug ?? null,
+        });
+      }
+      return { success: false, error: 'Sesión inválida.' };
+    }
+
+    await createPortalSession(clientId.trim(), slug.trim());
+    return { success: true, data: null };
+  } catch (err) {
+    console.error('[portal] migrateSession error:', err);
+    return { success: false, error: 'Error al migrar la sesión.' };
+  }
+}
+
+/** Clears the __portal_session httpOnly cookie (called from client sign-out). */
+export async function clearPortalSessionAction(): Promise<void> {
+  await clearPortalSessionCookie();
 }
