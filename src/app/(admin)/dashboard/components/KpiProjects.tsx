@@ -22,7 +22,7 @@ export function KpiProjects() {
   }
 
   return (
-    <Link href="/clientes" className="block focus:outline-none">
+    <Link href="/clientes?view=proyectos" className="block focus:outline-none">
       <KpiCard
         icon={<Rocket className="w-5 h-5" />}
         iconColor="text-blue-400"

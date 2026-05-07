@@ -18,10 +18,11 @@ const ACCENT_MAP: Record<Accent, { icon: string; glow: string }> = {
 interface ModuleCardProps {
   title: string;
   description: string;
-  href: string;
+  href?: string;
   icon: LucideIcon;
   accent: Accent;
   badge?: string;
+  disabled?: boolean;
 }
 
 export function ModuleCard({
@@ -31,47 +32,64 @@ export function ModuleCard({
   icon: Icon,
   accent,
   badge,
+  disabled,
 }: ModuleCardProps) {
   const { icon: iconColor, glow } = ACCENT_MAP[accent];
 
+  const article = (
+    <article
+      className={cn(
+        "group relative overflow-hidden rounded-2xl p-6 h-full",
+        "bg-zinc-900/40 backdrop-blur-xl border border-zinc-800/50",
+        "transition-all duration-300",
+        "shadow-lg",
+        disabled
+          ? "opacity-60 cursor-not-allowed"
+          : [
+              "hover:border-zinc-700/70 hover:bg-zinc-900/60",
+              glow,
+            ],
+        "before:absolute before:inset-x-0 before:top-0 before:h-px",
+        "before:bg-gradient-to-r before:from-transparent before:via-zinc-600/50 before:to-transparent",
+      )}
+    >
+      <div className="flex items-start justify-between mb-4">
+        <span
+          className={cn(
+            "flex h-11 w-11 items-center justify-center rounded-xl",
+            "bg-zinc-900/60 border border-zinc-800/60",
+            !disabled && "transition-transform duration-300 group-hover:scale-110",
+            iconColor,
+          )}
+        >
+          <Icon className="w-5 h-5" strokeWidth={1.75} />
+        </span>
+        {badge && (
+          <span className="inline-flex items-center rounded-full border border-zinc-700/60 bg-zinc-800/40 px-2 py-0.5 text-[10px] font-roboto text-zinc-400">
+            {badge}
+          </span>
+        )}
+      </div>
+      <h3 className="font-headline text-lg font-semibold tracking-tight text-zinc-100">
+        {title}
+      </h3>
+      <p className="mt-1 font-roboto text-sm text-zinc-400 leading-relaxed">
+        {description}
+      </p>
+    </article>
+  );
+
+  if (disabled || !href) {
+    return (
+      <div title="Disponible próximamente" className="block">
+        {article}
+      </div>
+    );
+  }
+
   return (
     <Link href={href} className="block focus:outline-none">
-      <article
-        className={cn(
-          "group relative overflow-hidden rounded-2xl p-6 h-full",
-          "bg-zinc-900/40 backdrop-blur-xl border border-zinc-800/50",
-          "hover:border-zinc-700/70 hover:bg-zinc-900/60",
-          "transition-all duration-300",
-          "shadow-lg",
-          glow,
-          "before:absolute before:inset-x-0 before:top-0 before:h-px",
-          "before:bg-gradient-to-r before:from-transparent before:via-zinc-600/50 before:to-transparent",
-        )}
-      >
-        <div className="flex items-start justify-between mb-4">
-          <span
-            className={cn(
-              "flex h-11 w-11 items-center justify-center rounded-xl",
-              "bg-zinc-900/60 border border-zinc-800/60",
-              "transition-transform duration-300 group-hover:scale-110",
-              iconColor,
-            )}
-          >
-            <Icon className="w-5 h-5" strokeWidth={1.75} />
-          </span>
-          {badge && (
-            <span className="inline-flex items-center rounded-full border border-zinc-700/60 bg-zinc-800/40 px-2 py-0.5 text-[10px] font-roboto text-zinc-400">
-              {badge}
-            </span>
-          )}
-        </div>
-        <h3 className="font-headline text-lg font-semibold tracking-tight text-zinc-100">
-          {title}
-        </h3>
-        <p className="mt-1 font-roboto text-sm text-zinc-400 leading-relaxed">
-          {description}
-        </p>
-      </article>
+      {article}
     </Link>
   );
 }

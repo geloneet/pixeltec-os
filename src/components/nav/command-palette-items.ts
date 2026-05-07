@@ -1,7 +1,6 @@
 import {
   LayoutDashboard,
   CalendarDays,
-  CalendarRange,
   Users,
   Wrench,
   Server,
@@ -32,12 +31,6 @@ export const PALETTE_NAV_ITEMS: PaletteNavItem[] = [
     icon: CalendarDays,
   },
   {
-    href: "/asistente",
-    label: "Asistente",
-    description: "Planificador semanal con tareas, recurrencia y reportes",
-    icon: CalendarRange,
-  },
-  {
     href: "/asistente/historial",
     label: "Historial — Asistente",
     description: "Timeline de semanas archivadas con drill-down y KPIs",
@@ -57,7 +50,7 @@ export const PALETTE_NAV_ITEMS: PaletteNavItem[] = [
   },
   {
     href: "/vps",
-    label: "DevOps",
+    label: "VPS / DevOps",
     description: "Infraestructura VPS, deploys y monitoreo",
     icon: Server,
   },
