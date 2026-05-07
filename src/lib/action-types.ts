@@ -11,4 +11,6 @@ export type PortalActionResult<T = undefined> = {
   success: boolean;
   data?: T;
   error?: string;
+  /** Structured error code for programmatic handling (e.g. 'no-session', 'slug-mismatch'). */
+  code?: string;
 };
