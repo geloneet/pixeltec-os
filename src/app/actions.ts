@@ -584,15 +584,26 @@ export async function migratePortalSessionAction(
   clientId: string,
 ): Promise<PortalActionResult<null>> {
   if (!slug?.trim() || !clientId?.trim()) {
-    return { success: false, error: 'Datos inválidos.' };
+    return { success: false, error: 'Sesión inválida.' };
   }
   try {
     const db = getServerFirestore();
     const clientSnap = await getDoc(doc(db, 'clients', clientId.trim()));
-    if (!clientSnap.exists()) return { success: false, error: 'Cliente no encontrado.' };
-    if (clientSnap.data().slug !== slug.trim()) {
+
+    // Unified rejection: don't reveal whether the clientId exists in Firestore
+    if (!clientSnap.exists() || clientSnap.data().slug !== slug.trim()) {
+      // Audit log for slug↔clientId mismatches — detects tampering or brute-force
+      if (clientSnap.exists()) {
+        await addDoc(collection(db, 'portalSecurityEvents'), {
+          type:           'migration-slug-mismatch',
+          attemptedSlug:  slug.trim(),
+          resolvedSlug:   clientSnap.data().slug ?? null,
+          createdAt:      serverTimestamp(),
+        }).catch(() => {/* non-fatal */});
+      }
       return { success: false, error: 'Sesión inválida.' };
     }
+
     await createPortalSession(clientId.trim(), slug.trim());
     return { success: true, data: null };
   } catch (err) {
