@@ -124,26 +124,69 @@ export default function PortalDashboard() {
     isRefresh ? setRefreshing(false) : setLoading(false);
   }, [slug, router]);
 
-  // ── Initialization: legacy migration path or cookie path ──────────────────
+  // ── Initialization: cookie-first, then legacy migration ──────────────────
   useEffect(() => {
-    const legacySession = loadPortalSession(slug);
-    if (legacySession) {
-      // Show legacy data immediately while migrating to cookie in background
-      setSession(legacySession);
-      setTaskProgress(legacySession.taskProgress);
+    let cancelled = false;
+
+    async function init() {
+      // 1. Cookie-first: try server session before touching sessionStorage
+      setLoading(true);
+      const res = await getPortalDashboardAction(slug);
+      if (cancelled) return;
+
+      if (res.success && res.data) {
+        // Cookie valid: populate state and discard legacy silently if present
+        clearLegacyPortalSession();
+        const d = res.data;
+        setSession({ clientId: d.clientId, slug: d.slug, companyName: d.companyName, status: d.status, services: d.services, taskProgress: d.taskProgress, validatedAt: Date.now() });
+        setUpdates(d.updates);
+        setProjects(d.projects);
+        setTaskProgress(d.taskProgress);
+        setLastFetched(new Date());
+        setLoading(false);
+        return;
+      }
+
+      // 2. Distinguish auth error from transient network/server error
+      const isAuthError = res.code === 'no-session' || res.code === 'slug-mismatch' || res.code === 'expired';
+      if (!isAuthError) {
+        // Transient error: show it, do NOT attempt legacy migration
+        setError(res.error ?? 'Error al cargar el portal.');
+        setLoading(false);
+        return;
+      }
+
+      // 3. Auth error: check for legacy sessionStorage session
+      const legacy = loadPortalSession(slug);
+      if (!legacy) {
+        // No cookie, no legacy: redirect to OTP entry
+        router.replace(`/${slug}`);
+        return;
+      }
+
+      // Show legacy data immediately (avoids full-skeleton flash)
+      setSession(legacy);
+      setTaskProgress(legacy.taskProgress);
       setLoading(false);
-      migratePortalSessionAction(slug, legacySession.clientId).then(result => {
-        if (result.success) {
-          clearLegacyPortalSession();
-          fetchData(true); // refresh with fresh server data after migration
-        } else {
-          router.replace(`/${slug}`);
-        }
-      });
-      return;
+
+      // Migrate legacy sessionStorage → httpOnly cookie
+      const migResult = await migratePortalSessionAction(slug, legacy.clientId);
+      if (cancelled) return;
+
+      if (!migResult.success) {
+        // Slug mismatch or client deleted: clear tampered session, force re-OTP
+        clearLegacyPortalSession();
+        router.replace(`/${slug}`);
+        return;
+      }
+
+      // Migration succeeded: clear legacy and load fresh data via cookie
+      clearLegacyPortalSession();
+      fetchData(true);
     }
-    // No legacy session: use cookie path
-    fetchData(false);
+
+    init();
+    return () => { cancelled = true; };
   }, [slug, router, fetchData]);
 
   // ── Sign out ───────────────────────────────────────────────────────────────
