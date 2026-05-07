@@ -1,8 +1,10 @@
 "use client"
 
+import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { ShinyButton } from "@/components/ui/shiny-button"
 import { Input } from "@/components/ui/input"
+import { Checkbox } from "@/components/ui/checkbox"
 import { ArrowRight, LoaderCircle } from "lucide-react"
 import { useState } from "react"
 
@@ -26,11 +28,16 @@ export function NewsletterSection({
     status: "idle" as FormStatus,
     message: "",
   })
+  const [consent, setConsent] = useState(false)
 
   const isLoading = formState.status === "loading"
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!consent) {
+      setFormState((prev) => ({ ...prev, status: "error", message: "Debes aceptar el Aviso de Privacidad para suscribirte." }))
+      return
+    }
     if (!onSubscribe) {
       // Mock subscription if no handler is provided
       setFormState({ email: "", status: "success", message: "¡Gracias por suscribirte a PixelTEC!" })
@@ -103,7 +110,7 @@ export function NewsletterSection({
               <ShinyButton
                 type="submit"
                 className="group"
-                disabled={isLoading}
+                disabled={isLoading || !consent}
               >
                 {isLoading ? (
                   <LoaderCircle className="animate-spin h-5 w-5" />
@@ -117,6 +124,20 @@ export function NewsletterSection({
                   </>
                 )}
               </ShinyButton>
+            </div>
+            <div className="flex items-center gap-2 mt-3 pl-1">
+              <Checkbox
+                id="newsletter-consent"
+                checked={consent}
+                onCheckedChange={(checked) => setConsent(Boolean(checked))}
+                className="border-white/20 data-[state=checked]:bg-cyan-500 data-[state=checked]:border-cyan-500"
+              />
+              <label htmlFor="newsletter-consent" className="text-xs text-zinc-500 leading-relaxed cursor-pointer">
+                He leído y acepto el{" "}
+                <Link href="/aviso-de-privacidad" target="_blank" className="text-cyan-400 hover:underline">
+                  Aviso de Privacidad
+                </Link>
+              </label>
             </div>
             {formState.message && (
               <p
