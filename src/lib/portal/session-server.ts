@@ -3,17 +3,28 @@ import { cookies } from 'next/headers';
 const COOKIE_NAME = '__portal_session';
 const TTL_SECONDS = 7 * 24 * 60 * 60; // 7 días
 
+// ── Secret validation — runs on first module import (request time, not build time) ──
+const SECRET = process.env.PORTAL_SESSION_SECRET ?? '';
+
+if (!SECRET) {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(
+      'PORTAL_SESSION_SECRET is required in production. ' +
+      'Generate with: openssl rand -hex 32',
+    );
+  }
+  console.warn('PORTAL_SESSION_SECRET not set — portal sessions will not work');
+}
+
+if (SECRET && SECRET.length < 32) {
+  throw new Error('PORTAL_SESSION_SECRET must be at least 32 characters');
+}
+
 interface PortalSessionPayload {
   clientId: string;
   slug: string;
   iat: number;
   exp: number;
-}
-
-function getSecret(): string {
-  const s = process.env.PORTAL_SESSION_SECRET;
-  if (!s) throw new Error('PORTAL_SESSION_SECRET not configured');
-  return s;
 }
 
 function base64url(bytes: Uint8Array): string {
@@ -33,7 +44,7 @@ function base64urlDecode(s: string): Uint8Array {
 async function sign(data: string): Promise<string> {
   const key = await crypto.subtle.importKey(
     'raw',
-    new TextEncoder().encode(getSecret()),
+    new TextEncoder().encode(SECRET),
     { name: 'HMAC', hash: 'SHA-256' },
     false,
     ['sign'],
