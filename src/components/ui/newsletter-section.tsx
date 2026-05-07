@@ -1,75 +1,16 @@
-"use client"
-
-import Link from "next/link"
 import { cn } from "@/lib/utils"
-import { ShinyButton } from "@/components/ui/shiny-button"
-import { Input } from "@/components/ui/input"
-import { Checkbox } from "@/components/ui/checkbox"
-import { ArrowRight, LoaderCircle } from "lucide-react"
-import { useState } from "react"
-
-type FormStatus = "idle" | "loading" | "success" | "error"
 
 interface NewsletterSectionProps extends React.HTMLAttributes<HTMLElement> {
   title?: string
-  onSubscribe?: (email: string) => Promise<{ success: boolean; error?: string }>
   backgroundEffect?: boolean
 }
 
 export function NewsletterSection({
-  title = "Mantente a la vanguardia. Suscríbete a nuestro newsletter.",
-  onSubscribe,
+  title = "Mantente a la vanguardia.",
   backgroundEffect = true,
   className,
   ...props
 }: NewsletterSectionProps) {
-  const [formState, setFormState] = useState({
-    email: "",
-    status: "idle" as FormStatus,
-    message: "",
-  })
-  const [consent, setConsent] = useState(false)
-
-  const isLoading = formState.status === "loading"
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!consent) {
-      setFormState((prev) => ({ ...prev, status: "error", message: "Debes aceptar el Aviso de Privacidad para suscribirte." }))
-      return
-    }
-    if (!onSubscribe) {
-      // Mock subscription if no handler is provided
-      setFormState({ email: "", status: "success", message: "¡Gracias por suscribirte a PixelTEC!" })
-      return
-    }
-
-    setFormState((prev) => ({ ...prev, status: "loading", message: "" }))
-
-    try {
-      const result = await onSubscribe(formState.email)
-      if (!result.success) {
-        setFormState((prev) => ({
-          ...prev,
-          status: "error",
-          message: result.error || "",
-        }))
-      } else {
-        setFormState({
-          email: "",
-          status: "success",
-          message: "¡Gracias por suscribirte!",
-        })
-      }
-    } catch (error) {
-      setFormState((prev) => ({
-        ...prev,
-        status: "error",
-        message: error instanceof Error ? error.message : "Error al suscribirse",
-      }))
-    }
-  }
-
   return (
     <section
       className={cn(
@@ -88,72 +29,22 @@ export function NewsletterSection({
               {title}
             </h2>
             <p className="text-zinc-400 text-sm md:text-base">
-              Recibe las últimas tendencias en inteligencia artificial, desarrollo de software y estrategias para escalar tu ecosistema digital.
+              Recibe insights sobre automatización, arquitectura y crecimiento operativo para empresas que escalan.
             </p>
           </div>
-          
-          <form onSubmit={handleSubmit} className="w-full md:w-auto md:min-w-[400px]">
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Input
-                id="subscribe-form"
-                className="flex-1 rounded-full h-12 px-6 border-white/10 bg-black/50 text-white placeholder:text-zinc-500 focus-visible:ring-cyan-500 focus-visible:border-cyan-500 transition-all"
-                placeholder="tu@correo.com"
-                type="email"
-                value={formState.email}
-                onChange={(e) =>
-                  setFormState((prev) => ({ ...prev, email: e.target.value }))
-                }
-                disabled={isLoading}
-                aria-label="Suscribirse al newsletter"
-                required
-              />
-              <ShinyButton
-                type="submit"
-                className="group"
-                disabled={isLoading || !consent}
-              >
-                {isLoading ? (
-                  <LoaderCircle className="animate-spin h-5 w-5" />
-                ) : (
-                  <>
-                    Suscribirse
-                    <ArrowRight
-                      className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1"
-                      aria-hidden="true"
-                    />
-                  </>
-                )}
-              </ShinyButton>
-            </div>
-            <div className="flex items-center gap-2 mt-3 pl-1">
-              <Checkbox
-                id="newsletter-consent"
-                checked={consent}
-                onCheckedChange={(checked) => setConsent(Boolean(checked))}
-                className="border-white/20 data-[state=checked]:bg-cyan-500 data-[state=checked]:border-cyan-500"
-              />
-              <label htmlFor="newsletter-consent" className="text-xs text-zinc-500 leading-relaxed cursor-pointer">
-                He leído y acepto el{" "}
-                <Link href="/aviso-de-privacidad" target="_blank" className="text-cyan-400 hover:underline">
-                  Aviso de Privacidad
-                </Link>
-              </label>
-            </div>
-            {formState.message && (
-              <p
-                className={cn(
-                  "mt-3 text-sm font-medium pl-4",
-                  formState.status === "error"
-                    ? "text-red-400"
-                    : "text-cyan-400",
-                )}
-                role="alert"
-                aria-live="polite"
-              >
-                {formState.message}
-              </p>
-            )}
-          </form>
+
+          <div className="w-full md:w-auto md:min-w-[360px] rounded-2xl border border-white/10 bg-white/5 px-6 py-5 space-y-3">
+            <p className="text-sm text-zinc-300 leading-relaxed">
+              Pronto lanzaremos nuestro newsletter. Si quieres estar entre los primeros en recibirlo, escríbenos con asunto{' '}
+              <span className="font-semibold text-white">NEWSLETTER</span>:
+            </p>
+            <a
+              href="mailto:hola@pixeltec.mx?subject=NEWSLETTER"
+              className="inline-flex items-center gap-2 text-cyan-400 hover:text-cyan-300 font-medium text-sm transition-colors"
+            >
+              hola@pixeltec.mx
+            </a>
+          </div>
         </div>
       </div>
     </section>
@@ -189,69 +80,23 @@ function BackgroundEffect() {
           />
         </g>
         <defs>
-          <linearGradient
-            id="ill-b"
-            x1="210.5"
-            x2="210.5"
-            y1="88"
-            y2="467"
-            gradientUnits="userSpaceOnUse"
-          >
-            {/* PixelTEC Cyan glow */}
+          <linearGradient id="ill-b" x1="210.5" x2="210.5" y1="88" y2="467" gradientUnits="userSpaceOnUse">
             <stop stopColor="#00F0FF" stopOpacity="0.8" />
             <stop offset="1" stopColor="#00F0FF" stopOpacity="0" />
           </linearGradient>
-          <linearGradient
-            id="ill-d"
-            x1="578.5"
-            x2="578.5"
-            y1="257"
-            y2="636"
-            gradientUnits="userSpaceOnUse"
-          >
-            {/* PixelTEC Cyan glow */}
+          <linearGradient id="ill-d" x1="578.5" x2="578.5" y1="257" y2="636" gradientUnits="userSpaceOnUse">
             <stop stopColor="#00F0FF" stopOpacity="0.8" />
             <stop offset="1" stopColor="#00F0FF" stopOpacity="0" />
           </linearGradient>
-          <filter
-            id="ill-a"
-            width="520"
-            height="576"
-            x="-32"
-            y="0"
-            colorInterpolationFilters="sRGB"
-            filterUnits="userSpaceOnUse"
-          >
+          <filter id="ill-a" width="520" height="576" x="-32" y="0" colorInterpolationFilters="sRGB" filterUnits="userSpaceOnUse">
             <feFlood floodOpacity="0" result="BackgroundImageFix" />
-            <feBlend
-              in="SourceGraphic"
-              in2="BackgroundImageFix"
-              result="shape"
-            />
-            <feGaussianBlur
-              result="effect1_foregroundBlur_244_5"
-              stdDeviation="44"
-            />
+            <feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape" />
+            <feGaussianBlur result="effect1_foregroundBlur_244_5" stdDeviation="44" />
           </filter>
-          <filter
-            id="ill-c"
-            width="520"
-            height="576"
-            x="336"
-            y="169"
-            colorInterpolationFilters="sRGB"
-            filterUnits="userSpaceOnUse"
-          >
+          <filter id="ill-c" width="520" height="576" x="336" y="169" colorInterpolationFilters="sRGB" filterUnits="userSpaceOnUse">
             <feFlood floodOpacity="0" result="BackgroundImageFix" />
-            <feBlend
-              in="SourceGraphic"
-              in2="BackgroundImageFix"
-              result="shape"
-            />
-            <feGaussianBlur
-              result="effect1_foregroundBlur_244_5"
-              stdDeviation="44"
-            />
+            <feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape" />
+            <feGaussianBlur result="effect1_foregroundBlur_244_5" stdDeviation="44" />
           </filter>
         </defs>
       </svg>
