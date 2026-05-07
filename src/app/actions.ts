@@ -28,6 +28,7 @@ import {
   clearPortalSession as clearPortalSessionCookie,
 } from '@/lib/portal/session-server';
 import { requirePortalSession, PortalAuthError } from '@/lib/portal/auth-guard';
+import { logSecurityEvent } from '@/lib/portal/security-log';
 import {
   doc, getDoc, getDocs, setDoc, updateDoc, addDoc, collection,
   query, where, limit, orderBy, Timestamp, serverTimestamp,
@@ -319,6 +320,7 @@ export async function requestPortalCodeAction(
       const windowStart = ipData.windowStartedAt?.toDate?.() as Date | undefined;
       if (windowStart && Date.now() - windowStart.getTime() < IP_WINDOW_MS) {
         if ((ipData.count ?? 0) >= IP_MAX_REQUESTS) {
+          await logSecurityEvent({ type: 'otp-rate-limit-ip', slug, reason: 'IP exceeded 10 req/hour' });
           return { success: false, error: 'Demasiadas solicitudes. Inténtalo más tarde.' };
         }
         await updateDoc(ipRef, { count: (ipData.count ?? 0) + 1 });
@@ -397,11 +399,13 @@ export async function verifyPortalCodeAction(
     const data = clientDoc.data();
 
     if (!data.accessCode || data.accessCode !== trimmedCode) {
+      await logSecurityEvent({ type: 'otp-invalid-code', slug });
       return { success: false, error: 'Código incorrecto.' };
     }
 
     const expiresAt = data.accessCodeExpiresAt?.toDate?.() as Date | undefined;
     if (!expiresAt || expiresAt < new Date()) {
+      await logSecurityEvent({ type: 'otp-expired-code', slug });
       return { success: false, error: 'El código expiró. Solicita uno nuevo.' };
     }
 
@@ -592,14 +596,12 @@ export async function migratePortalSessionAction(
 
     // Unified rejection: don't reveal whether the clientId exists in Firestore
     if (!clientSnap.exists() || clientSnap.data().slug !== slug.trim()) {
-      // Audit log for slug↔clientId mismatches — detects tampering or brute-force
       if (clientSnap.exists()) {
-        await addDoc(collection(db, 'portalSecurityEvents'), {
-          type:           'migration-slug-mismatch',
-          attemptedSlug:  slug.trim(),
-          resolvedSlug:   clientSnap.data().slug ?? null,
-          createdAt:      serverTimestamp(),
-        }).catch(() => {/* non-fatal */});
+        await logSecurityEvent({
+          type:         'migration-slug-mismatch',
+          slug:         slug.trim(),
+          resolvedSlug: clientSnap.data().slug ?? null,
+        });
       }
       return { success: false, error: 'Sesión inválida.' };
     }
