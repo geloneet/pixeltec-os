@@ -17,8 +17,10 @@ export function generateSlug(name: string): string {
 
 /** Generates a cryptographically uniform 6-digit numeric code. */
 export function generateAccessCode(): string {
-  // Use Math.random for simplicity; upgrade to crypto.randomInt in production
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  // crypto.getRandomValues is available in both browser and Node 15+ (no bias risk for 6-digit OTPs)
+  const array = new Uint32Array(1);
+  crypto.getRandomValues(array);
+  return (100_000 + (array[0] % 900_000)).toString();
 }
 
 /** Portal session stored in sessionStorage after code validation. */
@@ -60,4 +62,9 @@ export function loadPortalSession(slug: string): PortalSession | null {
 export function clearPortalSession(): void {
   if (typeof window === 'undefined') return;
   sessionStorage.removeItem(SESSION_KEY);
+}
+
+/** Alias of clearPortalSession — use this during the 7-day migration window for clarity. */
+export function clearLegacyPortalSession(): void {
+  clearPortalSession();
 }
