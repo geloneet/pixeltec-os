@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Loader2, LogOut, RefreshCw, CheckCircle2, Clock, FolderKanban,
-  MessageSquare, ImageIcon, CalendarDays, ChevronRight, AlertCircle,
+  MessageSquare, ImageIcon, CalendarDays, AlertCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { loadPortalSession, clearLegacyPortalSession, type PortalSession } from '@/lib/portal';
