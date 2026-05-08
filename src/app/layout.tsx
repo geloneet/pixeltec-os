@@ -5,6 +5,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { Poppins, Roboto, League_Spartan } from 'next/font/google';
 import { OrganizationStructuredData } from '@/components/seo/structured-data';
+import { headers } from 'next/headers';
 
 const poppins = Poppins({
   subsets: ['latin'],
@@ -40,11 +41,12 @@ export const metadata: Metadata = {
   authors: [{ name: 'PixelTEC' }],
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const nonce = (await headers()).get('x-nonce') ?? undefined;
   return (
     <html lang="es-MX" className={cn('dark scroll-smooth', poppins.variable, roboto.variable, leagueSpartan.variable)}>
       <body className={cn('font-body antialiased min-h-screen bg-background text-foreground')}>
