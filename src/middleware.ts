@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminAuth, getAdminFirestore } from '@/lib/firebase-admin';
+import crypto from 'crypto';
 
 export const runtime = 'nodejs';
 
@@ -75,7 +76,42 @@ const NOT_FOUND_HTML = `<!DOCTYPE html>
 </body>
 </html>`;
 
+const FIREBASE_AUTH_DOMAIN = 'studio-1487114664-78b63.firebaseapp.com';
+
+function buildCsp(nonce: string): string {
+  return [
+    "default-src 'self'",
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
+    "style-src 'self' 'unsafe-inline'",
+    [
+      "connect-src 'self'",
+      'https://identitytoolkit.googleapis.com',
+      'https://securetoken.googleapis.com',
+      'https://firestore.googleapis.com',
+      'wss://firestore.googleapis.com',
+      `https://${FIREBASE_AUTH_DOMAIN}`,
+    ].join(' '),
+    "img-src 'self' data: blob: https://lh3.googleusercontent.com https://firebasestorage.googleapis.com https://storage.googleapis.com",
+    "font-src 'self' data:",
+    "frame-src 'none'",
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "object-src 'none'",
+    'report-uri /api/csp-report',
+    'report-to csp-endpoint',
+  ].join('; ');
+}
+
+function withSecurityHeaders(res: NextResponse, nonce: string): NextResponse {
+  res.headers.set('Content-Security-Policy-Report-Only', buildCsp(nonce));
+  res.headers.set('Reporting-Endpoints', 'csp-endpoint="/api/csp-report"');
+  res.headers.set('x-nonce', nonce);
+  return res;
+}
+
 export async function middleware(request: NextRequest) {
+  const nonce = crypto.randomUUID().replace(/-/g, '');
   const { pathname } = request.nextUrl;
 
   // ── Admin session protection ──────────────────────────────────────────────
@@ -89,12 +125,12 @@ export async function middleware(request: NextRequest) {
     if (!sessionCookie) {
       const loginUrl = new URL('/login', request.url);
       loginUrl.searchParams.set('redirect', pathname);
-      return NextResponse.redirect(loginUrl);
+      return withSecurityHeaders(NextResponse.redirect(loginUrl), nonce);
     }
 
     try {
       await getAdminAuth().verifySessionCookie(sessionCookie, /* checkRevoked */ true);
-      return NextResponse.next();
+      return withSecurityHeaders(NextResponse.next(), nonce);
     } catch (err) {
       const code = (err as { code?: string }).code ?? '';
 
@@ -102,12 +138,12 @@ export async function middleware(request: NextRequest) {
         const loginUrl = new URL('/login', request.url);
         loginUrl.searchParams.set('redirect', pathname);
         loginUrl.searchParams.set('error', 'session_expired');
-        return NextResponse.redirect(loginUrl);
+        return withSecurityHeaders(NextResponse.redirect(loginUrl), nonce);
       }
 
       // Infrastructure error — fail open
       console.error('[middleware] session verify infrastructure error:', err);
-      return NextResponse.next();
+      return withSecurityHeaders(NextResponse.next(), nonce);
     }
   }
 
@@ -120,35 +156,20 @@ export async function middleware(request: NextRequest) {
     if (!slug.includes('.') && !slug.startsWith('_') && !KNOWN_ROUTES.has(slug)) {
       const valid = await isValidPortalSlug(slug);
       if (!valid) {
-        return new NextResponse(NOT_FOUND_HTML, {
+        const notFound = new NextResponse(NOT_FOUND_HTML, {
           status: 404,
           headers: { 'Content-Type': 'text/html; charset=utf-8' },
         });
+        return withSecurityHeaders(notFound, nonce);
       }
     }
   }
 
-  return NextResponse.next();
+  return withSecurityHeaders(NextResponse.next(), nonce);
 }
 
 export const config = {
-  matcher: [
-    // New IA admin paths (Semana 1+)
-    '/hoy/:path*',
-    '/tareas/:path*',
-    '/proyectos/:path*',
-    '/clientes/:path*',
-    '/cobros/:path*',
-    '/accesos/:path*',
-    // System & infra
-    '/vps/:path*',
-    '/portal/:path*',
-    '/crypto-intel/:path*',
-    '/perfil/:path*',
-    '/notificaciones/:path*',
-    '/blog-admin/:path*',
-    // Single-segment paths — portal slug validation
-    // Excludes _next internals and files with extensions via code checks above
-    '/:slug',
-  ],
+  // Broad matcher so CSP nonce is injected on every page.
+  // _next/static and _next/image are excluded to avoid unnecessary overhead on asset requests.
+  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 };

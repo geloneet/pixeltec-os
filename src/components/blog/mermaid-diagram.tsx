@@ -16,7 +16,7 @@ export default function MermaidDiagram({ content }: { content: string }) {
     (async () => {
       try {
         const { default: mermaid } = await import('mermaid');
-        mermaid.initialize({ theme: 'dark', startOnLoad: false, securityLevel: 'loose' });
+        mermaid.initialize({ theme: 'dark', startOnLoad: false, securityLevel: 'strict' });
         const result = await mermaid.render(uid, content);
         if (!cancelled) {
           setSvg(result.svg);
