@@ -1,10 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { LogOut } from "lucide-react";
-import { signOut } from "firebase/auth";
-import { useAuth } from "@/firebase";
+import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   Tooltip,
@@ -21,15 +18,6 @@ function isActive(href: string, pathname: string) {
 
 export function DesktopSidebar() {
   const pathname = usePathname();
-  const router = useRouter();
-  const auth = useAuth();
-
-  const handleLogout = async () => {
-    if (!auth) return;
-    await fetch("/api/auth/session", { method: "DELETE" });
-    await signOut(auth);
-    router.push("/login");
-  };
 
   return (
     <TooltipProvider delayDuration={100}>
@@ -68,28 +56,6 @@ export function DesktopSidebar() {
             );
           })}
         </nav>
-
-        {/* Separator + Logout */}
-        <div className="flex flex-col items-center pb-4 border-t border-white/5 pt-3">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="flex h-10 w-10 items-center justify-center rounded-lg text-zinc-500 hover:bg-red-500/10 hover:text-red-400 transition-all duration-150"
-              >
-                <LogOut className="h-5 w-5 flex-shrink-0" strokeWidth={1.75} />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent
-              side="right"
-              sideOffset={12}
-              className="z-[60] bg-zinc-900 border border-white/10 text-zinc-100 text-sm px-3 py-1.5 rounded-lg shadow-xl"
-            >
-              Cerrar sesión
-            </TooltipContent>
-          </Tooltip>
-        </div>
       </aside>
     </TooltipProvider>
   );
