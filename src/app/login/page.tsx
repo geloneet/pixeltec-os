@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Lock, Mail, LoaderCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Image from 'next/image';
@@ -17,6 +18,8 @@ import { useUserProfile } from '@/firebase/auth/use-user-profile';
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
+  const [honeypot, setHoneypot] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
@@ -49,6 +52,15 @@ export default function LoginPage() {
     e.preventDefault();
     if (isLoading || !auth || !firestore) return;
 
+    // Honeypot — silent no-op: looks like the form is processing,
+    // but Firebase and the session API are never called.
+    if (honeypot.trim() !== '') {
+      setIsLoading(true);
+      await new Promise((r) => setTimeout(r, 500));
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
 
@@ -78,7 +90,7 @@ export default function LoginPage() {
                 const sessionRes = await fetch('/api/auth/session', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ idToken }),
+                  body: JSON.stringify({ idToken, rememberMe }),
                 });
 
                 if (!sessionRes.ok) {
@@ -165,6 +177,22 @@ export default function LoginPage() {
 
         {/* Form */}
         <form onSubmit={handleLogin} className="space-y-6">
+          {/* Honeypot — hidden from humans (incl. screen readers), tempting for naive bots. */}
+          <div aria-hidden="true" style={{ position: 'absolute', left: '-9999px', width: 1, height: 1, overflow: 'hidden' }}>
+            <label htmlFor="login-company-hp">No completar este campo.</label>
+            <input
+              id="login-company-hp"
+              type="text"
+              name="company"
+              tabIndex={-1}
+              autoComplete="off"
+              aria-hidden="true"
+              value={honeypot}
+              onChange={(e) => setHoneypot(e.target.value)}
+              style={{ position: 'absolute', left: '-9999px', width: 1, height: 1, opacity: 0, pointerEvents: 'none' }}
+            />
+          </div>
+
           <div className="relative">
             <Label htmlFor="email" className="sr-only">Correo Electrónico</Label>
             <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500" />
@@ -196,6 +224,23 @@ export default function LoginPage() {
             />
           </div>
           
+          {/* Remember session checkbox */}
+          <div className="flex items-center gap-2 mt-2 mb-4">
+            <Checkbox
+              id="remember-me"
+              checked={rememberMe}
+              onCheckedChange={(checked) => setRememberMe(checked === true)}
+              disabled={isLoading}
+              className="border-white/20 data-[state=checked]:bg-cyan-500 data-[state=checked]:border-cyan-500 data-[state=checked]:text-zinc-950"
+            />
+            <Label
+              htmlFor="remember-me"
+              className="text-xs text-zinc-400 cursor-pointer select-none"
+            >
+              Mantener sesión iniciada por 30 días
+            </Label>
+          </div>
+
           {error && (
             <p className="text-sm text-red-400 text-center">{error}</p>
           )}
