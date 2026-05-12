@@ -128,15 +128,19 @@ export default function ContactPage() {
                 className="lg:col-span-3 bg-[#0A0A0A]/80 border border-white/10 rounded-2xl p-8 md:p-12 backdrop-blur-lg shadow-[0_0_40px_rgba(0,240,255,0.05)]"
             >
                 <form ref={formRef} action={formAction} className="space-y-6">
-                    {/* Honeypot — hidden from humans, tempting for naive bots. */}
-                    <input
-                      type="text"
-                      name="website"
-                      tabIndex={-1}
-                      autoComplete="off"
-                      aria-hidden="true"
-                      style={{ position: 'absolute', left: '-9999px', width: 1, height: 1, opacity: 0 }}
-                    />
+                    {/* Honeypot — hidden from humans (incl. screen readers), tempting for naive bots. */}
+                    <div aria-hidden="true" style={{ position: 'absolute', left: '-9999px', width: 1, height: 1, overflow: 'hidden' }}>
+                      <label htmlFor="website-hp">No completar este campo.</label>
+                      <input
+                        id="website-hp"
+                        type="text"
+                        name="website"
+                        tabIndex={-1}
+                        autoComplete="off"
+                        aria-hidden="true"
+                        style={{ position: 'absolute', left: '-9999px', width: 1, height: 1, opacity: 0, pointerEvents: 'none' }}
+                      />
+                    </div>
                     <div>
                         <Label htmlFor="name" className="text-white/80">Nombre Completo</Label>
                         <Input id="name" name="name" required className="mt-2 bg-black/50 border-white/10 text-white focus-visible:ring-cyan-500 focus-visible:border-cyan-500" />

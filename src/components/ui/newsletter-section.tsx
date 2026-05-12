@@ -96,19 +96,23 @@ export function NewsletterSection({
           </div>
           
           <form onSubmit={handleSubmit} className="w-full md:w-auto md:min-w-[400px]">
-            {/* Honeypot — hidden from humans, tempting for naive bots. */}
-            <input
-              type="text"
-              name="website"
-              tabIndex={-1}
-              autoComplete="off"
-              aria-hidden="true"
-              value={formState.honeypot}
-              onChange={(e) =>
-                setFormState((prev) => ({ ...prev, honeypot: e.target.value }))
-              }
-              style={{ position: 'absolute', left: '-9999px', width: 1, height: 1, opacity: 0 }}
-            />
+            {/* Honeypot — hidden from humans (incl. screen readers), tempting for naive bots. */}
+            <div aria-hidden="true" style={{ position: 'absolute', left: '-9999px', width: 1, height: 1, overflow: 'hidden' }}>
+              <label htmlFor="newsletter-website-hp">No completar este campo.</label>
+              <input
+                id="newsletter-website-hp"
+                type="text"
+                name="website"
+                tabIndex={-1}
+                autoComplete="off"
+                aria-hidden="true"
+                value={formState.honeypot}
+                onChange={(e) =>
+                  setFormState((prev) => ({ ...prev, honeypot: e.target.value }))
+                }
+                style={{ position: 'absolute', left: '-9999px', width: 1, height: 1, opacity: 0, pointerEvents: 'none' }}
+              />
+            </div>
             <div className="flex flex-col sm:flex-row gap-3">
               <Input
                 id="subscribe-form"
