@@ -9,8 +9,10 @@
  * (avoid bounce loops) and cost (Resend per-message). The visual page
  * response is the only feedback.
  *
- * Rate-limited to 10 hits / hour / IP via the shared rateLimit bucket
- * to defang token-guessing or scraper abuse.
+ * Rate-limited to 100 hits / hour / IP via the shared rateLimit bucket
+ * — generous on purpose to accommodate corporate NAT (see comment on
+ * the constant below). The real defense against token-guessing is the
+ * UUID v4 entropy of the unsubscribeToken, not the IP cap.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -20,7 +22,15 @@ import { enforceRateLimit, formatRetryAfter } from '@/lib/rate-limit';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const RATE_LIMIT = { max: 10, windowMs: 60 * 60 * 1000 } as const;
+// Rate-limit alto porque corporativos NAT-eados (varios empleados detrás
+// de una misma IP pública) pueden disparar muchos hits legítimos cuando
+// todos reciben el mismo newsletter y deciden darse de baja. GDPR Art. 7
+// exige que retirar consentimiento sea tan fácil como darlo, así que no
+// podemos bloquearles la salida. El espacio UUID v4 (2^122 ≈ 5.3e36)
+// hace inviable el token-guessing aun con 100 req/h sostenidas durante
+// años; la rate-limit aquí es contra scrapers triviales, no defensa
+// principal.
+const RATE_LIMIT = { max: 100, windowMs: 60 * 60 * 1000 } as const;
 
 function htmlResponse(body: string, status = 200): NextResponse {
   return new NextResponse(body, {
