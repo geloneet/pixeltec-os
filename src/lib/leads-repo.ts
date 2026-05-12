@@ -21,8 +21,14 @@ export interface CreateLeadInput {
   email: string;
   name?: string;
   message?: string;
+  /** Raw UA string. Not classified as PII on its own under our retention policy. */
   userAgent?: string;
-  ip?: string;
+  /**
+   * Salted sha256 of the caller IP — never the raw address. Compute with
+   * `hashIp()` from `@/lib/privacy`. Storing the raw IP violates GDPR posture
+   * declared in the aviso de privacidad.
+   */
+  ipHash?: string;
 }
 
 /** Persist a new lead. Returns the auto-generated doc id. */
@@ -42,7 +48,7 @@ export async function createLead(input: CreateLeadInput): Promise<string> {
   if (input.name) payload.name = input.name;
   if (input.message) payload.message = input.message;
   if (input.userAgent) payload.userAgent = input.userAgent;
-  if (input.ip) payload.ip = input.ip;
+  if (input.ipHash) payload.ipHash = input.ipHash;
 
   const ref = await db.collection('leads').add(payload);
   return ref.id;
