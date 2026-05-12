@@ -8,9 +8,9 @@
  * while we recover.
  */
 
-import { createHash } from 'crypto';
 import { getAdminFirestore } from './firebase-admin';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
+import { hashIp } from './privacy';
 
 export interface RateLimitInput {
   /** Caller IP. `unknown` is acceptable; we still bucket it. */
@@ -27,10 +27,6 @@ export interface RateLimitResult {
   allowed: boolean;
   remaining: number;
   retryAfterSec: number;
-}
-
-function hashIp(ip: string): string {
-  return createHash('sha256').update(ip).digest('hex').slice(0, 32);
 }
 
 function buildKey(bucket: string, ip: string): string {

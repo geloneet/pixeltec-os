@@ -22,6 +22,7 @@ import { enforceRateLimit, formatRetryAfter } from '@/lib/rate-limit';
 import { createLead, updateLeadEmailDelivery } from '@/lib/leads-repo';
 import { subscribeOrReactivate, normalizeEmail } from '@/lib/newsletter-repo';
 import { logSystemAlert } from '@/lib/system-alerts';
+import { hashIp } from '@/lib/privacy';
 import type { WelcomeEmailProps } from '@/emails/WelcomeEmail';
 import type { InvoiceEmailProps } from '@/emails/InvoiceEmail';
 import type { TaskAssignedEmailProps } from '@/emails/TaskAssignedEmail';
@@ -142,7 +143,7 @@ export async function submitContactForm(
       name,
       message,
       userAgent,
-      ip,
+      ipHash: hashIp(ip),
     });
   } catch (err) {
     console.error('[contact] createLead failed:', err);
