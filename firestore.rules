@@ -106,5 +106,8 @@ service cloud.firestore {
     match /newsletterSubscribers/{docId}        { allow read, write: if false; }
     match /rateLimit/{docId}                    { allow read, write: if false; }
     match /systemAlerts/{docId}                 { allow read, write: if false; }
+
+    // Auth brute-force lockout — Admin SDK only
+    match /authLockouts/{docId}                 { allow read, write: if false; }
   }
 }
