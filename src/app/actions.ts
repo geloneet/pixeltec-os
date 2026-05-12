@@ -257,7 +257,7 @@ export async function subscribeToNewsletterAction(
   }
 
   // 4) Dedupe / reactivate
-  let outcome: { created: boolean; reactivated: boolean; alreadyActive: boolean };
+  let outcome: Awaited<ReturnType<typeof subscribeOrReactivate>>;
   try {
     outcome = await subscribeOrReactivate(normalizedEmail, 'homepage');
   } catch (err) {
@@ -280,7 +280,8 @@ export async function subscribeToNewsletterAction(
   }
 
   // 6) Send welcome (only for fresh subs + reactivations)
-  const result = await sendNewsletterWelcome({ email: normalizedEmail });
+  const unsubscribeUrl = `${APP_URL}/api/newsletter/unsubscribe?token=${encodeURIComponent(outcome.unsubscribeToken)}`;
+  const result = await sendNewsletterWelcome({ email: normalizedEmail, unsubscribeUrl });
   if (!result.success) {
     console.error('[newsletter] welcome email failed:', result.error);
     await logSystemAlert({

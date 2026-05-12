@@ -7,10 +7,12 @@ import { clientLayout, escapeHtml } from './shared';
 
 export interface NewsletterWelcomeEmailProps {
   email: string;
+  /** Absolute URL — passed in pre-built so this template stays env-agnostic. */
+  unsubscribeUrl: string;
 }
 
 export function renderNewsletterWelcomeEmail(props: NewsletterWelcomeEmailProps): string {
-  const { email } = props;
+  const { email, unsubscribeUrl } = props;
 
   const body = `
     <h1 style="margin:0 0 12px;font-size:24px;font-weight:700;color:#fafafa;letter-spacing:-0.5px;">
@@ -63,8 +65,9 @@ export function renderNewsletterWelcomeEmail(props: NewsletterWelcomeEmailProps)
 
     <p style="margin:32px 0 0;font-size:12px;color:#52525b;text-align:center;line-height:1.6;">
       ¿No fuiste tú? Solo ignora este correo y no te volveremos a escribir.<br/>
-      Para darte de baja en cualquier momento, escríbenos a
-      <a href="mailto:contacto@pixeltec.mx" style="color:#71717a;">contacto@pixeltec.mx</a>.
+      ¿No quieres recibir más correos?
+      <a href="${escapeHtml(unsubscribeUrl)}" style="color:#a1a1aa;text-decoration:underline;">Date de baja aquí</a>
+      &mdash; un clic, sin preguntas.
     </p>
   `;
 
