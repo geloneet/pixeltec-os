@@ -27,6 +27,26 @@ import { createHash } from 'crypto';
  *   - If INTERNAL_IP_SALT is missing the function throws — never silently
  *     fall back to an unsalted hash, that defeats the GDPR posture. The
  *     env-guard catches this earlier in any user-facing flow.
+ *
+ * ⚠ Salt rotation trade-off:
+ *   Both `leads.ipHash` and the `rateLimit/{bucket__hash}` doc id derive
+ *   from this single salt. Rotating INTERNAL_IP_SALT therefore has TWO
+ *   simultaneous effects:
+ *
+ *     1. Legacy `leads.ipHash` becomes unlinkable to any future bucket —
+ *        DESIRABLE after a PII incident (you want old hashes orphaned
+ *        from the new namespace).
+ *     2. All in-flight `rateLimit` buckets are invalidated — counters
+ *        reset to zero, so traffic you had previously throttled or
+ *        blocked can now pass through until the new buckets fill up.
+ *
+ *   For PixelTEC's volume and threat model, salt rotation is a rare
+ *   event (probably never outside of an incident), so the simplicity of
+ *   one shared salt wins. If you ever need to rotate the privacy hash
+ *   without resetting rate-limit state (or vice-versa), split this into
+ *   two envs — e.g. `INTERNAL_IP_SALT` for leads / persistence and a
+ *   separate `RATE_LIMIT_SALT` for the bucket id — and update both
+ *   callers (lib/leads-repo.ts and lib/rate-limit.ts).
  */
 export function hashIp(ip: string): string {
   const salt = process.env.INTERNAL_IP_SALT;
