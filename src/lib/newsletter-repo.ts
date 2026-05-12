@@ -27,6 +27,8 @@ export interface SubscribeResult {
   reactivated: boolean;
   /** Existing doc with status='active' — no email should be sent. */
   alreadyActive: boolean;
+  /** Stable across reactivations — embed in the welcome email's unsubscribe link. */
+  unsubscribeToken: string;
 }
 
 export function normalizeEmail(raw: string): string {
@@ -45,6 +47,48 @@ export function subscriberDocId(email: string): string {
   return createHash('sha256').update(normalizeEmail(email)).digest('hex').slice(0, 32);
 }
 
+export type UnsubscribeResult =
+  | { status: 'unsubscribed'; email: string }
+  | { status: 'already-unsubscribed'; email: string }
+  | { status: 'not-found' };
+
+/**
+ * Look up a subscriber by unsubscribe token and flip them to
+ * `status: 'unsubscribed'`. Token is NOT rotated — a later
+ * subscribeOrReactivate() call with the same email will reactivate the
+ * same doc and the link in any prior email keeps working idempotently.
+ *
+ * Requires a single-field index on unsubscribeToken (declared in
+ * firestore.indexes.json — Firestore auto-creates single-field indexes
+ * but we keep it explicit).
+ */
+export async function unsubscribeByToken(rawToken: string): Promise<UnsubscribeResult> {
+  const token = rawToken.trim();
+  if (!token) return { status: 'not-found' };
+
+  const db = getAdminFirestore();
+  const snap = await db
+    .collection('newsletterSubscribers')
+    .where('unsubscribeToken', '==', token)
+    .limit(1)
+    .get();
+
+  if (snap.empty) return { status: 'not-found' };
+
+  const docRef = snap.docs[0].ref;
+  const data = snap.docs[0].data() as SubscriberRecord;
+
+  if (data.status === 'unsubscribed') {
+    return { status: 'already-unsubscribed', email: data.email };
+  }
+
+  await docRef.update({
+    status: 'unsubscribed' as SubscriberStatus,
+    unsubscribedAt: FieldValue.serverTimestamp(),
+  });
+  return { status: 'unsubscribed', email: data.email };
+}
+
 export async function subscribeOrReactivate(
   rawEmail: string,
   source: string
@@ -57,19 +101,25 @@ export async function subscribeOrReactivate(
     const snap = await tx.get(ref);
 
     if (!snap.exists) {
+      const unsubscribeToken = randomUUID();
       tx.set(ref, {
         email,
         status: 'active' as SubscriberStatus,
         source,
-        unsubscribeToken: randomUUID(),
+        unsubscribeToken,
         subscribedAt: FieldValue.serverTimestamp(),
       });
-      return { created: true, reactivated: false, alreadyActive: false };
+      return { created: true, reactivated: false, alreadyActive: false, unsubscribeToken };
     }
 
     const data = snap.data() as SubscriberRecord;
     if (data.status === 'active') {
-      return { created: false, reactivated: false, alreadyActive: true };
+      return {
+        created: false,
+        reactivated: false,
+        alreadyActive: true,
+        unsubscribeToken: data.unsubscribeToken,
+      };
     }
 
     tx.update(ref, {
@@ -77,6 +127,11 @@ export async function subscribeOrReactivate(
       source,
       reactivatedAt: FieldValue.serverTimestamp(),
     });
-    return { created: false, reactivated: true, alreadyActive: false };
+    return {
+      created: false,
+      reactivated: true,
+      alreadyActive: false,
+      unsubscribeToken: data.unsubscribeToken,
+    };
   });
 }
