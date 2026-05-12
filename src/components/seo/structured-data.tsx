@@ -16,8 +16,8 @@ const organizationSchema = {
   },
   contactPoint: {
     "@type": "ContactPoint",
-    telephone: "+52-322-124-6680",
-    email: "hola@pixeltec.mx",
+    telephone: "+52-322-137-8336",
+    email: "contacto@pixeltec.mx",
     contactType: "sales",
   },
   founder: {

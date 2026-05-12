@@ -9,6 +9,7 @@ import { NewsletterSection } from '@/components/ui/newsletter-section';
 import { AboutWaveSection } from '@/components/ui/about-wave-section';
 import { LandingAccordionItem } from '@/components/ui/interactive-image-accordion';
 import ContactSection from '@/components/sections/contact';
+import { subscribeToNewsletterAction } from '@/app/actions';
 
 export const metadata: Metadata = buildMetadata({
   path: '/',
@@ -31,7 +32,7 @@ export default function Home() {
         <BenefitsSection />
         <TestimonialsSection />
         <ContactSection />
-        <NewsletterSection />
+        <NewsletterSection onSubscribe={subscribeToNewsletterAction} />
       </main>
       <Footer />
     </div>

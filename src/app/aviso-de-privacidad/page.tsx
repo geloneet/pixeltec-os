@@ -133,7 +133,7 @@ export default function AvisoDePrivacidadPage() {
             <section id="derechos-arco" className="space-y-4 mt-12 scroll-mt-32">
               <h2 className="text-2xl font-bold text-white">5. Derechos ARCO</h2>
               <p>Usted tiene derecho a conocer qué datos personales tenemos de usted, para qué los utilizamos y las condiciones del uso que les damos (Acceso). Asimismo, es su derecho solicitar la corrección de su información personal en caso de que esté desactualizada, sea inexacta o incompleta (Rectificación); que la eliminemos de nuestros registros cuando considere que no está siendo utilizada adecuadamente (Cancelación); así como oponerse al uso de sus datos para fines específicos (Oposición). Estos derechos se conocen como derechos ARCO.</p>
-              <p>Para el ejercicio de cualquiera de los derechos ARCO, usted deberá presentar la solicitud respectiva a través de un correo electrónico a <a href="mailto:hola@pixeltec.mx" className="text-cyan-400 hover:underline">hola@pixeltec.mx</a>.</p>
+              <p>Para el ejercicio de cualquiera de los derechos ARCO, usted deberá presentar la solicitud respectiva a través de un correo electrónico a <a href="mailto:contacto@pixeltec.mx" className="text-cyan-400 hover:underline">contacto@pixeltec.mx</a>.</p>
             </section>
             
             <section id="cookies" className="space-y-4 mt-12 scroll-mt-32">
@@ -150,7 +150,7 @@ export default function AvisoDePrivacidadPage() {
               <p className="text-sm font-semibold text-amber-400">Aviso en actualización</p>
               <p className="text-sm text-zinc-400">
                 Este aviso de privacidad se encuentra en proceso de actualización integral. Si requieres información específica sobre el tratamiento de tus datos, escribe a{' '}
-                <a href="mailto:hola@pixeltec.mx" className="text-cyan-400 hover:underline">hola@pixeltec.mx</a>.
+                <a href="mailto:contacto@pixeltec.mx" className="text-cyan-400 hover:underline">contacto@pixeltec.mx</a>.
               </p>
             </div>
           </article>

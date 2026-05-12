@@ -47,7 +47,7 @@ const footerLinks: FooterSection[] = [
 		links: [
 			{ title: 'Facebook', href: 'https://www.facebook.com/profile.php?id=61556300117500', icon: FacebookIcon },
 			{ title: 'Instagram', href: 'https://instagram.com/pixeltecmx', icon: InstagramIcon },
-			{ title: 'WhatsApp', href: 'https://api.whatsapp.com/send?phone=523221246680&text=Hola,%20quiero%20informaci%C3%B3n.', icon: Phone },
+			{ title: 'WhatsApp', href: 'https://api.whatsapp.com/send?phone=523221378336&text=Hola,%20quiero%20informaci%C3%B3n.', icon: Phone },
 		],
 	},
 ];
