@@ -216,20 +216,15 @@ const newsletterSchema = z.object({
 /**
  * Subscribe a visitor to the newsletter.
  *
- * Signature preserves the public contract `(email: string) => Promise<...>`;
- * the optional `honeypot` 2nd argument is additive and ignored when omitted.
+ * Public contract — unary `(email: string)` to match the original handler
+ * shape consumed by `<NewsletterSection />`. The honeypot bot-check is
+ * the form's responsibility (it knows about its own DOM); this action
+ * never sees it. Concerns stay separated.
  */
 export async function subscribeToNewsletterAction(
-  email: string,
-  honeypot?: string
+  email: string
 ): Promise<{ success: boolean; error?: string }> {
-  // 1) Honeypot — silent success.
-  if (honeypot && honeypot.trim() !== '') {
-    console.warn('[newsletter] honeypot tripped, dropping submission');
-    return { success: true };
-  }
-
-  // 2) Validate
+  // 1) Validate
   const parsed = newsletterSchema.safeParse({ email });
   if (!parsed.success) {
     return { success: false, error: parsed.error.errors[0]?.message ?? 'Correo inválido.' };
@@ -237,7 +232,7 @@ export async function subscribeToNewsletterAction(
 
   const normalizedEmail = normalizeEmail(parsed.data.email);
 
-  // 3) Env guard
+  // 2) Env guard
   const envCheck = await assertEmailEnv('newsletter');
   if (!envCheck.ok) {
     return {
@@ -246,7 +241,7 @@ export async function subscribeToNewsletterAction(
     };
   }
 
-  // 4) Rate limit
+  // 3) Rate limit
   const { ip } = await getRequestContext();
   const rl = await enforceRateLimit({
     ip,
@@ -261,7 +256,7 @@ export async function subscribeToNewsletterAction(
     };
   }
 
-  // 5) Dedupe / reactivate
+  // 4) Dedupe / reactivate
   let outcome: { created: boolean; reactivated: boolean; alreadyActive: boolean };
   try {
     outcome = await subscribeOrReactivate(normalizedEmail, 'homepage');
@@ -279,12 +274,12 @@ export async function subscribeToNewsletterAction(
     };
   }
 
-  // 6) Silent success for already-active — never re-spam an existing subscriber.
+  // 5) Silent success for already-active — never re-spam an existing subscriber.
   if (outcome.alreadyActive) {
     return { success: true };
   }
 
-  // 7) Send welcome (only for fresh subs + reactivations)
+  // 6) Send welcome (only for fresh subs + reactivations)
   const result = await sendNewsletterWelcome({ email: normalizedEmail });
   if (!result.success) {
     console.error('[newsletter] welcome email failed:', result.error);
@@ -298,7 +293,7 @@ export async function subscribeToNewsletterAction(
     return { success: true };
   }
 
-  // 8) Best-effort team heads-up — never blocks the visitor flow.
+  // 7) Best-effort team heads-up — never blocks the visitor flow.
   const teamEmail = process.env.PIXELTEC_TEAM_EMAIL;
   if (teamEmail) {
     const label = outcome.reactivated ? 'Reactivación' : 'Nueva suscripción';

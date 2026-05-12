@@ -11,13 +11,11 @@ type FormStatus = "idle" | "loading" | "success" | "error"
 interface NewsletterSectionProps extends React.HTMLAttributes<HTMLElement> {
   title?: string
   /**
-   * Server action handler. Optional 2nd argument carries the honeypot value
-   * so the action can drop bot submissions silently. Legacy callers that
-   * only accept `(email)` remain compatible.
+   * Server action handler. Unary by contract — the form owns its honeypot
+   * gate client-side and never forwards bot submissions to the action.
    */
   onSubscribe?: (
-    email: string,
-    honeypot?: string
+    email: string
   ) => Promise<{ success: boolean; error?: string }>
   backgroundEffect?: boolean
 }
@@ -40,6 +38,14 @@ export function NewsletterSection({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    // Honeypot gate — silent success, the server never sees the bot.
+    // Concern stays in the form: subscribeToNewsletterAction is unary.
+    if (formState.honeypot.trim() !== "") {
+      setFormState({ email: "", honeypot: "", status: "success", message: "¡Gracias por suscribirte!" })
+      return
+    }
+
     if (!onSubscribe) {
       // Mock subscription if no handler is provided
       setFormState({ email: "", honeypot: "", status: "success", message: "¡Gracias por suscribirte a PixelTEC!" })
@@ -49,7 +55,7 @@ export function NewsletterSection({
     setFormState((prev) => ({ ...prev, status: "loading", message: "" }))
 
     try {
-      const result = await onSubscribe(formState.email, formState.honeypot)
+      const result = await onSubscribe(formState.email)
       if (!result.success) {
         setFormState((prev) => ({
           ...prev,
