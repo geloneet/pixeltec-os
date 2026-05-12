@@ -13,3 +13,10 @@ nginx/ssl/
 tsconfig.tsbuildinfo
 *.tsbuildinfo
 .worktrees/
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Claude Code local settings (no compartir entre devs)
+.claude/settings.local.json
