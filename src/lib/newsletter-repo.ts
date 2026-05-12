@@ -5,7 +5,7 @@
  * subscribeOrReactivate is the only legitimate entry point from server actions.
  */
 
-import { randomUUID } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import { getAdminFirestore } from './firebase-admin';
 import { FieldValue, type Timestamp } from 'firebase-admin/firestore';
 
@@ -33,11 +33,16 @@ export function normalizeEmail(raw: string): string {
   return raw.toLowerCase().trim();
 }
 
-/** Use this as the document id so each email maps to exactly one subscriber. */
+/**
+ * Use this as the document id so each email maps to exactly one subscriber.
+ *
+ * Hashed with sha256 (32-char prefix) instead of URL-encoded so the id is
+ * Firestore-safe regardless of internationalized email content and so the
+ * id never leaks PII in URLs or logs. Reverse lookup uses the stored
+ * `email` field.
+ */
 export function subscriberDocId(email: string): string {
-  // Firestore doc ids cannot contain '/' and have a 1500-byte limit; emails
-  // never realistically hit either, but we encode anyway to be safe.
-  return encodeURIComponent(normalizeEmail(email));
+  return createHash('sha256').update(normalizeEmail(email)).digest('hex').slice(0, 32);
 }
 
 export async function subscribeOrReactivate(
