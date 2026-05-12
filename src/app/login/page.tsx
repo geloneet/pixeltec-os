@@ -237,7 +237,7 @@ export default function LoginPage() {
               htmlFor="remember-me"
               className="text-xs text-zinc-400 cursor-pointer select-none"
             >
-              Mantener sesión iniciada por 30 días
+              Mantener sesión iniciada
             </Label>
           </div>
 
