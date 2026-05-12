@@ -10,7 +10,15 @@ type FormStatus = "idle" | "loading" | "success" | "error"
 
 interface NewsletterSectionProps extends React.HTMLAttributes<HTMLElement> {
   title?: string
-  onSubscribe?: (email: string) => Promise<{ success: boolean; error?: string }>
+  /**
+   * Server action handler. Optional 2nd argument carries the honeypot value
+   * so the action can drop bot submissions silently. Legacy callers that
+   * only accept `(email)` remain compatible.
+   */
+  onSubscribe?: (
+    email: string,
+    honeypot?: string
+  ) => Promise<{ success: boolean; error?: string }>
   backgroundEffect?: boolean
 }
 
@@ -23,6 +31,7 @@ export function NewsletterSection({
 }: NewsletterSectionProps) {
   const [formState, setFormState] = useState({
     email: "",
+    honeypot: "",
     status: "idle" as FormStatus,
     message: "",
   })
@@ -33,14 +42,14 @@ export function NewsletterSection({
     e.preventDefault()
     if (!onSubscribe) {
       // Mock subscription if no handler is provided
-      setFormState({ email: "", status: "success", message: "¡Gracias por suscribirte a PixelTEC!" })
+      setFormState({ email: "", honeypot: "", status: "success", message: "¡Gracias por suscribirte a PixelTEC!" })
       return
     }
 
     setFormState((prev) => ({ ...prev, status: "loading", message: "" }))
 
     try {
-      const result = await onSubscribe(formState.email)
+      const result = await onSubscribe(formState.email, formState.honeypot)
       if (!result.success) {
         setFormState((prev) => ({
           ...prev,
@@ -50,6 +59,7 @@ export function NewsletterSection({
       } else {
         setFormState({
           email: "",
+          honeypot: "",
           status: "success",
           message: "¡Gracias por suscribirte!",
         })
@@ -86,6 +96,19 @@ export function NewsletterSection({
           </div>
           
           <form onSubmit={handleSubmit} className="w-full md:w-auto md:min-w-[400px]">
+            {/* Honeypot — hidden from humans, tempting for naive bots. */}
+            <input
+              type="text"
+              name="website"
+              tabIndex={-1}
+              autoComplete="off"
+              aria-hidden="true"
+              value={formState.honeypot}
+              onChange={(e) =>
+                setFormState((prev) => ({ ...prev, honeypot: e.target.value }))
+              }
+              style={{ position: 'absolute', left: '-9999px', width: 1, height: 1, opacity: 0 }}
+            />
             <div className="flex flex-col sm:flex-row gap-3">
               <Input
                 id="subscribe-form"

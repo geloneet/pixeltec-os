@@ -15,6 +15,9 @@ import { renderWelcomeEmail, type WelcomeEmailProps } from '@/emails/WelcomeEmai
 import { renderInvoiceEmail, type InvoiceEmailProps } from '@/emails/InvoiceEmail';
 import { renderTaskAssignedEmail, type TaskAssignedEmailProps } from '@/emails/TaskAssignedEmail';
 import { renderSupportTicketEmail, type SupportTicketEmailProps } from '@/emails/SupportTicketEmail';
+import { renderContactConfirmationEmail, type ContactConfirmationEmailProps } from '@/emails/ContactConfirmationEmail';
+import { renderContactNotificationEmail, type ContactNotificationEmailProps } from '@/emails/ContactNotificationEmail';
+import { renderNewsletterWelcomeEmail, type NewsletterWelcomeEmailProps } from '@/emails/NewsletterWelcomeEmail';
 
 // ── Resend client ──────────────────────────────────────────────────────────────
 
@@ -120,4 +123,32 @@ export async function sendTestEmail(to: string): Promise<EmailResult> {
 </body>
 </html>`;
   return sendEmail(to, '✅ Test de integración — PixelTEC OS', html);
+}
+
+// ── Public website senders ─────────────────────────────────────────────────────
+
+/** Sent to the visitor who submits the public contact form. */
+export async function sendContactConfirmation(
+  props: ContactConfirmationEmailProps & { email: string }
+): Promise<EmailResult> {
+  const { email, ...templateProps } = props;
+  const html = renderContactConfirmationEmail(templateProps);
+  return sendEmail(email, 'Recibimos tu mensaje — PixelTEC', html);
+}
+
+/** Sent to the internal team when the public contact form is submitted. */
+export async function sendContactNotification(
+  props: ContactNotificationEmailProps
+): Promise<EmailResult> {
+  const html = renderContactNotificationEmail(props);
+  const subject = `✦ Nuevo contacto web — ${props.name}${props.empresa ? ` (${props.empresa})` : ''}`;
+  return sendEmail(TEAM_EMAIL, subject, html);
+}
+
+/** Sent to a visitor who subscribes to the newsletter. */
+export async function sendNewsletterWelcome(
+  props: NewsletterWelcomeEmailProps
+): Promise<EmailResult> {
+  const html = renderNewsletterWelcomeEmail(props);
+  return sendEmail(props.email, 'Bienvenido al newsletter de PixelTEC', html);
 }
