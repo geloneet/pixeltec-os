@@ -95,7 +95,10 @@ export async function submitContactForm(
   const validatedFields = contactSchema.safeParse({
     name: formData.get('name'),
     email: formData.get('email'),
-    empresa: formData.get('empresa'),
+    // The landing-page <ContactSection /> doesn't render this field;
+    // FormData.get returns null when absent, which Zod's .optional()
+    // rejects ("Expected string, received null"). Coerce to undefined.
+    empresa: formData.get('empresa') ?? undefined,
     message: formData.get('message'),
   });
 
