@@ -3,21 +3,32 @@ import { cookies } from 'next/headers';
 const COOKIE_NAME = '__portal_session';
 const TTL_SECONDS = 7 * 24 * 60 * 60; // 7 días
 
-// ── Secret validation — runs on first module import (request time, not build time) ──
-const SECRET = process.env.PORTAL_SESSION_SECRET ?? '';
+// ── Secret resolution — lazy, only on actual portal session use (NOT at build time) ──
+// Module-level validation broke `next build`'s page data collection because Next.js
+// evaluates module top-level code during build. We now validate on first call.
+let cachedSecret: string | null = null;
 
-if (!SECRET) {
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error(
-      'PORTAL_SESSION_SECRET is required in production. ' +
-      'Generate with: openssl rand -hex 32',
-    );
+function getSecret(): string {
+  if (cachedSecret !== null) return cachedSecret;
+
+  const secret = process.env.PORTAL_SESSION_SECRET ?? '';
+
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(
+        'PORTAL_SESSION_SECRET is required in production. ' +
+        'Generate with: openssl rand -hex 32',
+      );
+    }
+    console.warn('PORTAL_SESSION_SECRET not set — portal sessions will not work');
   }
-  console.warn('PORTAL_SESSION_SECRET not set — portal sessions will not work');
-}
 
-if (SECRET && SECRET.length < 32) {
-  throw new Error('PORTAL_SESSION_SECRET must be at least 32 characters');
+  if (secret && secret.length < 32) {
+    throw new Error('PORTAL_SESSION_SECRET must be at least 32 characters');
+  }
+
+  cachedSecret = secret;
+  return secret;
 }
 
 interface PortalSessionPayload {
@@ -44,7 +55,7 @@ function base64urlDecode(s: string): Uint8Array {
 async function sign(data: string): Promise<string> {
   const key = await crypto.subtle.importKey(
     'raw',
-    new TextEncoder().encode(SECRET),
+    new TextEncoder().encode(getSecret()),
     { name: 'HMAC', hash: 'SHA-256' },
     false,
     ['sign'],
