@@ -1,6 +1,6 @@
 import {
   LayoutDashboard,
-  CalendarDays,
+  Sparkles,
   Users,
   Wrench,
   Server,
@@ -28,10 +28,10 @@ export interface PaletteNavItem {
 export const PALETTE_NAV_ITEMS: PaletteNavItem[] = [
   // ── Operación ────────────────────────────────────────────────────────────
   {
-    href: "/hoy",
-    label: "Hoy",
-    description: "Tareas pendientes y agenda del día",
-    icon: CalendarDays,
+    href: "/asistente",
+    label: "Asistente",
+    description: "Tareas de la semana con rollover automático",
+    icon: Sparkles,
     section: "operacion",
   },
   {

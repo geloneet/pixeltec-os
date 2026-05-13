@@ -27,7 +27,7 @@ function initials(name: string) {
 
 interface ClientDetailProps {
   client: CRMClient;
-  setView: (v: "today" | "clients" | "client" | "project" | "search") => void;
+  setView: (v: "asistente" | "clients" | "client" | "project" | "search") => void;
   navigateToProject: (cid: string, pid: string) => void;
   setModal: (m: { type: string; data?: Record<string, string> } | null) => void;
   deleteClient: (id: string) => void;

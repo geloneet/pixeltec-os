@@ -35,18 +35,34 @@ interface BadgeMeta {
 /**
  * Static placeholders so the badge UI is testable today.
  * TODO: wire each entry to a real data source:
- *   - "/hoy"          → useCRM() pending tasks count for the day
+ *   - "/asistente"    → useCRM() pending tasks for the week
  *   - "/vps"          → fetch to vps-api status → boolean alert flag
  *   - "/crypto-intel" → count of alertEvents triggered in the last 24h
  */
 const BADGE_PLACEHOLDERS: Record<string, BadgeMeta> = {
-  "/hoy": { count: 3, severity: "info" },
+  "/asistente": { count: 3, severity: "info" },
   "/vps": { severity: "warning" },
 };
 
-function isActive(href: string, pathname: string) {
-  if (href === "/dashboard") return pathname === href;
-  return pathname === href || pathname.startsWith(`${href}/`);
+/**
+ * Resolves which single href in the catalog should light up for a given
+ * pathname. Uses longest-prefix-wins so a parent route (e.g. /asistente)
+ * doesn't fight an active sub-route (/asistente/historial). /dashboard
+ * stays exact-match because it would otherwise swallow every admin path.
+ */
+function resolveActiveHref(items: PaletteNavItem[], pathname: string): string | null {
+  let best: { href: string; length: number } | null = null;
+  for (const item of items) {
+    if (item.href === "/dashboard") {
+      if (pathname === item.href) return item.href;
+      continue;
+    }
+    const matches = pathname === item.href || pathname.startsWith(`${item.href}/`);
+    if (matches && (!best || item.href.length > best.length)) {
+      best = { href: item.href, length: item.href.length };
+    }
+  }
+  return best?.href ?? null;
 }
 
 function groupBySection(items: PaletteNavItem[]): Record<NavSection, PaletteNavItem[]> {
@@ -192,6 +208,8 @@ export function DesktopSidebar() {
   const { setOpen: setCmdKOpen } = useCmdK();
   const [isCollapsed, setIsCollapsed] = useState(false);
 
+  const activeHref = resolveActiveHref(PALETTE_NAV_ITEMS, pathname);
+
   const handleLogout = async () => {
     if (!auth) return;
     await fetch("/api/auth/session", { method: "DELETE" });
@@ -302,7 +320,7 @@ export function DesktopSidebar() {
                   </h3>
 
                   {sectionItems.map((item) => {
-                    const active = isActive(item.href, pathname);
+                    const active = item.href === activeHref;
                     const Icon = item.icon;
                     const badge = BADGE_PLACEHOLDERS[item.href];
 

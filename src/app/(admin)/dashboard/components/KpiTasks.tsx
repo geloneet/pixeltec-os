@@ -30,7 +30,7 @@ export function KpiTasks() {
       : "por completar";
 
   return (
-    <Link href="/hoy" className="block focus:outline-none">
+    <Link href="/asistente" className="block focus:outline-none">
       <KpiCard
         icon={<CheckSquare className="w-5 h-5" />}
         iconColor="text-violet-400"

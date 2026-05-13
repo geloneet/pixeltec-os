@@ -6,7 +6,7 @@ import { useCRM } from "@/components/crm/CRMContext";
 import { useCRMShell } from "@/components/crm/CRMShellProvider";
 import { ProjectView } from "@/components/crm/ProjectView";
 
-type LegacyView = "today" | "clients" | "client" | "project" | "search";
+type LegacyView = "asistente" | "clients" | "client" | "project" | "search";
 
 export default function ProyectoDetailPage() {
   const params = useParams<{ id: string }>();
@@ -57,7 +57,7 @@ export default function ProyectoDetailPage() {
 
   const setView = (v: LegacyView) => {
     if (v === "clients") router.push("/clientes");
-    else if (v === "today") router.push("/hoy");
+    else if (v === "asistente") router.push("/asistente");
     else if (v === "client") router.push(`/clientes/${foundClient!.id}`);
     else if (v === "project") router.push(`/proyectos/${foundProject!.id}`);
   };

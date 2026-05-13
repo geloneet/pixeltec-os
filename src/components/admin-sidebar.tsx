@@ -1,11 +1,15 @@
 "use client";
 
+// TODO: deprecated — replaced by src/components/nav/desktop-sidebar.tsx.
+// Kept temporarily because it still exports AdminNavItem / ADMIN_NAV_ITEMS;
+// remove once no consumer references those symbols.
+
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
-  CalendarDays,
+  Sparkles,
   Users,
   Wrench,
   Server,
@@ -25,7 +29,7 @@ export interface AdminNavItem {
 
 export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/hoy", label: "Hoy", icon: CalendarDays },
+  { href: "/asistente", label: "Asistente", icon: Sparkles },
   { href: "/clientes", label: "Clientes", icon: Users },
   { href: "/herramientas", label: "Herramientas", icon: Wrench },
   { href: "/vps", label: "DevOps", icon: Server },
