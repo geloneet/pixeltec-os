@@ -35,7 +35,7 @@ const servicesData = [
         description: 'Creación de aplicaciones web robustas, CRMs personalizados y sitios corporativos ultra rápidos. Construimos con tecnologías de vanguardia como Next.js, React y Firebase, diseñando arquitecturas escalables preparadas para el futuro de tu negocio.',
         features: [
             'Desarrollo Full-Stack con Next.js',
-            'Bases de Datos en tiempo real con Firebase',
+            'Base de datos en tiempo real',
             'Interfaces de usuario reactivas con React',
             'Optimización de rendimiento (Core Web Vitals)',
             'Diseño de CRMs y dashboards a la medida',
