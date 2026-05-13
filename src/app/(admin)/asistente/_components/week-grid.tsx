@@ -66,7 +66,7 @@ export function WeekGrid({ tasks, weekKey, onTaskClick, onStatusChange, onDelete
                 }}
               >
                 <p className="text-[10px] text-amber-500/70 leading-none mb-0.5">12:00 PM</p>
-                <p className="text-[11px] text-amber-500/50">Reporte automático (Fase 4)</p>
+                <p className="text-[11px] text-amber-500/50">Reporte automático</p>
               </div>
             )}
           </div>

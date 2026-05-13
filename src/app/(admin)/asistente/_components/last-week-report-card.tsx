@@ -6,6 +6,37 @@ interface Props {
   lastReport: AssistantWeeklyReportSerialized | null;
 }
 
+function formatRelative(iso: string): string {
+  const ts = new Date(iso).getTime();
+  const diff = Date.now() - ts;
+  const min = Math.floor(diff / 60000);
+  if (min < 1) return 'hace unos segundos';
+  if (min < 60) return `hace ${min}m`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `hace ${hr}h`;
+  const days = Math.floor(hr / 24);
+  return `hace ${days}d`;
+}
+
+function deliveryStatus(report: AssistantWeeklyReportSerialized): {
+  text: string;
+  className: string;
+} {
+  if (report.whatsappSentAt) {
+    return {
+      text: `✓ WhatsApp · ${formatRelative(report.whatsappSentAt)}`,
+      className: 'text-green-400',
+    };
+  }
+  if (report.whatsappError) {
+    return { text: '⚠ Error al enviar', className: 'text-rose-400' };
+  }
+  if (report.telegramSentAt) {
+    return { text: '✓ Telegram (legacy)', className: 'text-zinc-400' };
+  }
+  return { text: 'Pendiente de envío', className: 'text-amber-500/70' };
+}
+
 export function LastWeekReportCard({ lastReport }: Props) {
   if (!lastReport) {
     return (
@@ -27,8 +58,7 @@ export function LastWeekReportCard({ lastReport }: Props) {
           </p>
         </div>
         <div className="mt-auto pt-2 border-t border-amber-500/10">
-          <p className="text-[10px] text-zinc-500">Bot conectado · @pixeltec_bot</p>
-          <p className="text-[10px] text-amber-500/50">Pendiente de Fase 4</p>
+          <p className="text-[10px] text-zinc-500">Notifica vía WhatsApp al completar el rollover.</p>
         </div>
       </div>
     );
@@ -39,6 +69,7 @@ export function LastWeekReportCard({ lastReport }: Props) {
   const pct = totals.total > 0
     ? Math.round((totals.completed / totals.total) * 100)
     : 0;
+  const delivery = deliveryStatus(lastReport);
 
   return (
     <div
@@ -73,7 +104,12 @@ export function LastWeekReportCard({ lastReport }: Props) {
 
       <div className="mt-auto pt-2 border-t border-white/[0.05] flex items-center justify-between">
         <span className="text-[10px] text-zinc-500">{pct}% completado</span>
-        <span className="text-[10px] text-amber-500/50">Telegram · Fase 4</span>
+        <span
+          className={`text-[10px] ${delivery.className}`}
+          title={lastReport.whatsappError ?? undefined}
+        >
+          {delivery.text}
+        </span>
       </div>
     </div>
   );
