@@ -7,10 +7,10 @@ const SESSION_COOKIE_NAME = '__session';
 
 const PROTECTED_PATHS = [
   '/dashboard',
-  '/hoy',
   '/clientes',
   '/proyectos',
   '/herramientas',
+  '/asistente',
   '/vps',
   '/portal',
   '/crypto-intel',
@@ -25,7 +25,7 @@ const KNOWN_ROUTES = new Set([
   'industrias', 'privacy-policy', 'aviso-de-privacidad', 'terminos-de-servicio',
   'data-deletion', 'guias-transformacion', 'login', 'api',
   // Admin roots (also in PROTECTED_PATHS — handled first)
-  'dashboard', 'hoy', 'clientes', 'proyectos', 'herramientas',
+  'dashboard', 'clientes', 'proyectos', 'herramientas', 'asistente',
   'vps', 'portal', 'crypto-intel', 'perfil', 'notificaciones', 'blog-admin',
 ]);
 
@@ -131,10 +131,10 @@ export const config = {
   matcher: [
     // Admin paths (session protection)
     '/dashboard/:path*',
-    '/hoy/:path*',
     '/clientes/:path*',
     '/proyectos/:path*',
     '/herramientas/:path*',
+    '/asistente/:path*',
     '/vps/:path*',
     '/portal/:path*',
     '/crypto-intel/:path*',
