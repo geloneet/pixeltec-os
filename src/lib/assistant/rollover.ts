@@ -3,6 +3,8 @@ import { db, COL } from './firebase-admin';
 import { getCurrentWeekKey, getWeekRange } from './week-helpers';
 import { getTemplates } from './queries/templates';
 import { generateTaskInstancesForWeek } from './rrule-helpers';
+import { sendWhatsApp } from '@/lib/whatsapp/sender';
+import { renderWeeklyReportMessage } from './whatsapp-report';
 import type {
   AssistantTaskDoc,
   AssistantWeeklyReportDoc,
@@ -70,6 +72,11 @@ export async function performWeeklyRollover(opts: {
   generatedCount: number;
   skippedGenerationCount: number;
   errors: string[];
+  notification?: {
+    sent: boolean;
+    messageId: string | null;
+    error: string | null;
+  };
 }> {
   // Step 1: Setup
   const weekKey     = opts.targetWeekKey ?? getCurrentWeekKey();
@@ -197,8 +204,9 @@ export async function performWeeklyRollover(opts: {
       byCategory,
       generatedAt:       nowTs,
       generatedBy:       opts.trigger,
-      telegramMessageId: null,
-      telegramSentAt:    null,
+      whatsappMessageId: null,
+      whatsappSentAt:    null,
+      whatsappError:     null,
       emailSentAt:       null,
     };
     batches[0].set(reportRef, reportData);
@@ -240,6 +248,43 @@ export async function performWeeklyRollover(opts: {
     const archivedCount  = tasks.length;
     const generatedCount = instancesToCreate.length;
 
+    // Step 8: Notify owner via WhatsApp (best-effort, non-blocking).
+    // Failures here update the report doc with whatsappError but never
+    // throw — the rollover already completed its critical work.
+    let whatsappResult: {
+      messageId: string | null;
+      sentAt: Date | null;
+      error: string | null;
+    } = { messageId: null, sentAt: null, error: null };
+
+    try {
+      const message = renderWeeklyReportMessage(reportData);
+      const sent = await sendWhatsApp(message);
+      whatsappResult = {
+        messageId: sent.messageId,
+        sentAt:    new Date(),
+        error:     null,
+      };
+      console.log(`[rollover] whatsapp sent: ${sent.messageId}`);
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      whatsappResult = { messageId: null, sentAt: null, error: errMsg };
+      console.error('[rollover] whatsapp send failed:', errMsg);
+    }
+
+    // Persist the delivery outcome on the report doc that already exists.
+    try {
+      await reportRef.update({
+        whatsappMessageId: whatsappResult.messageId,
+        whatsappSentAt:    whatsappResult.sentAt
+          ? Timestamp.fromDate(whatsappResult.sentAt)
+          : null,
+        whatsappError:     whatsappResult.error,
+      });
+    } catch (updateErr) {
+      console.error('[rollover] failed to persist whatsapp status:', updateErr);
+    }
+
     if (archivedCount > 0 || generatedCount > 0) {
       try {
         const cronSecret = process.env.CRON_SECRET;
@@ -279,6 +324,11 @@ export async function performWeeklyRollover(opts: {
       generatedCount,
       skippedGenerationCount,
       errors:                [],
+      notification: {
+        sent:      whatsappResult.messageId !== null,
+        messageId: whatsappResult.messageId,
+        error:     whatsappResult.error,
+      },
     };
   } catch (err) {
     return {

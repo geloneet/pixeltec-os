@@ -123,9 +123,15 @@ export interface AssistantWeeklyReportDoc {
   byCategory:       Record<AssistantTaskCategory, ReportTotals>;
   generatedAt:      Timestamp;
   generatedBy:      'cron' | 'manual';
-  telegramMessageId: number | null;
-  telegramSentAt:   Timestamp | null;
-  emailSentAt:      Timestamp | null;
+  // WhatsApp (current transport)
+  whatsappMessageId: string | null;
+  whatsappSentAt:    Timestamp | null;
+  whatsappError:     string | null;
+  // Telegram (legacy — kept optional for backwards compat with old docs)
+  telegramMessageId?: number | null;
+  telegramSentAt?:   Timestamp | null;
+  // Email (future)
+  emailSentAt:       Timestamp | null;
 }
 
 export interface AssistantWeeklyReportSerialized {
@@ -138,9 +144,15 @@ export interface AssistantWeeklyReportSerialized {
   byCategory:       Record<AssistantTaskCategory, ReportTotals>;
   generatedAt:      string;
   generatedBy:      'cron' | 'manual';
-  telegramMessageId: number | null;
-  telegramSentAt:   string | null;
-  emailSentAt:      string | null;
+  // WhatsApp (current transport)
+  whatsappMessageId: string | null;
+  whatsappSentAt:    string | null;
+  whatsappError:     string | null;
+  // Telegram (legacy — kept optional for backwards compat with old docs)
+  telegramMessageId?: number | null;
+  telegramSentAt?:   string | null;
+  // Email (future)
+  emailSentAt:       string | null;
 }
 
 export function serializeReport(
@@ -157,7 +169,10 @@ export function serializeReport(
     byCategory:        doc.byCategory,
     generatedAt:       doc.generatedAt.toDate().toISOString(),
     generatedBy:       doc.generatedBy,
-    telegramMessageId: doc.telegramMessageId,
+    whatsappMessageId: doc.whatsappMessageId ?? null,
+    whatsappSentAt:    doc.whatsappSentAt?.toDate().toISOString() ?? null,
+    whatsappError:     doc.whatsappError ?? null,
+    telegramMessageId: doc.telegramMessageId ?? null,
     telegramSentAt:    doc.telegramSentAt?.toDate().toISOString() ?? null,
     emailSentAt:       doc.emailSentAt?.toDate().toISOString() ?? null,
   };
