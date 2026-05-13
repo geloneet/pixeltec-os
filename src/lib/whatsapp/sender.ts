@@ -1,13 +1,13 @@
 /**
  * Sender de WhatsApp vía Meta Cloud API.
  *
- * Reemplazo planeado de src/lib/twilio.ts. Mantiene la misma firma
- * (sendWhatsApp(message)) para permitir migración drop-in en los
- * 4 routes que hoy usan Twilio:
+ * Único transport de WhatsApp del sistema desde la migración del legacy
+ * Twilio (ver historial git si necesitas el shim anterior). Usado por:
  *   - /api/notifications/test
  *   - /api/notifications/send
  *   - /api/notifications/daily
  *   - /api/notifications/charges
+ *   - /api/whatsapp/send-test (smoke test)
  *
  * También usado por el cron de Fase 4 del Asistente (reporte semanal).
  *
