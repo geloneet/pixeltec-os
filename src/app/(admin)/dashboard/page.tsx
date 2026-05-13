@@ -1,10 +1,10 @@
 "use client";
 
 import {
-  Calendar,
   DollarSign,
   Rocket,
   Server,
+  Sparkles,
   Users,
   Wrench,
 } from "lucide-react";
@@ -16,10 +16,10 @@ import { ModuleCard } from "./components/ModuleCard";
 
 const MODULE_CARDS = [
   {
-    title: "Hoy",
-    description: "Tareas pendientes, pomodoro y agenda del día",
-    href: "/hoy",
-    icon: Calendar,
+    title: "Asistente",
+    description: "Tareas de la semana, rollover automático y reportes",
+    href: "/asistente",
+    icon: Sparkles,
     accent: "cyan" as const,
   },
   {
