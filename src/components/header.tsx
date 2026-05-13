@@ -103,7 +103,7 @@ export default function Header() {
             </nav>
 
             <div className="hidden lg:block">
-              <a href="https://api.whatsapp.com/send?phone=523221246680&text=Hola,%20quiero%20informaci%C3%B3n." target="_blank" rel="noopener noreferrer">
+              <a href="https://api.whatsapp.com/send?phone=523221378336&text=Hola,%20quiero%20informaci%C3%B3n." target="_blank" rel="noopener noreferrer">
                 <ShinyButton>
                     <Phone className="h-5 w-5" />
                     WhatsApp
@@ -147,7 +147,7 @@ export default function Header() {
                           <div className="mb-8">
                               <SocialLinks />
                           </div>
-                          <a href="https://api.whatsapp.com/send?phone=523221246680&text=Hola,%20quiero%20informaci%C3%B3n." target="_blank" rel="noopener noreferrer" onClick={() => setIsMenuOpen(false)}>
+                          <a href="https://api.whatsapp.com/send?phone=523221378336&text=Hola,%20quiero%20informaci%C3%B3n." target="_blank" rel="noopener noreferrer" onClick={() => setIsMenuOpen(false)}>
                             <ShinyButton className="w-full text-sm uppercase tracking-widest">
                               <Phone className="h-5 w-5" />
                               WhatsApp

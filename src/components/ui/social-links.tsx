@@ -17,7 +17,7 @@ const socialLinksData = [
   },
   { 
     title: 'WhatsApp', 
-    href: 'https://api.whatsapp.com/send?phone=523221246680&text=Hola,%20quiero%20informaci%C3%B3n.',
+    href: 'https://api.whatsapp.com/send?phone=523221378336&text=Hola,%20quiero%20informaci%C3%B3n.',
     icon: <Phone className='h-3/4 w-3/4 text-white group-hover:text-black transition-colors duration-300' />
   },
 ];

@@ -20,12 +20,12 @@ const contactInfo = [
   {
       icon: Mail,
       label: 'Email',
-      value: 'hola@pixeltec.mx',
+      value: 'contacto@pixeltec.mx',
   },
   {
       icon: Phone,
       label: 'Teléfono',
-      value: '+52 (322) 124-6680',
+      value: '+52 (322) 137-8336',
   },
   {
       icon: MapPin,
@@ -61,6 +61,19 @@ export default function ContactSection() {
             contactInfo={contactInfo}
         >
             <form ref={formRef} action={formAction} className="w-full space-y-6">
+              {/* Honeypot — hidden from humans (incl. screen readers), tempting for naive bots. */}
+              <div aria-hidden="true" style={{ position: 'absolute', left: '-9999px', width: 1, height: 1, overflow: 'hidden' }}>
+                <label htmlFor="website-hp">No completar este campo.</label>
+                <input
+                  id="website-hp"
+                  type="text"
+                  name="website"
+                  tabIndex={-1}
+                  autoComplete="off"
+                  aria-hidden="true"
+                  style={{ position: 'absolute', left: '-9999px', width: 1, height: 1, opacity: 0, pointerEvents: 'none' }}
+                />
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="name">Nombre</Label>
                 <Input id="name" name="name" placeholder="Tu nombre" required className="bg-transparent border-white/20 focus:border-primary"/>
