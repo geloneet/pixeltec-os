@@ -25,7 +25,7 @@ interface ProjectViewProps {
   project: CRMProject;
   projectTab: string;
   setProjectTab: (t: string) => void;
-  setView: (v: "today" | "clients" | "client" | "project" | "search") => void;
+  setView: (v: "asistente" | "clients" | "client" | "project" | "search") => void;
   setModal: (m: { type: string; data?: Record<string, string> } | null) => void;
   cycleTaskStatus: (cid: string, pid: string, tid: string) => void;
   deleteTask: (cid: string, pid: string, tid: string) => void;
