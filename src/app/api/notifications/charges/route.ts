@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { sendWhatsApp } from "@/lib/twilio";
+import { sendWhatsApp } from "@/lib/whatsapp/sender";
 import { sendEmail } from "@/lib/email";
 import { getAdminApp } from "@/lib/firebase-admin";
 import { getFirestore } from "firebase-admin/firestore";
