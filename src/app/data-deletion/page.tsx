@@ -107,10 +107,10 @@ export default function DataDeletionPage() {
               <div className="my-6 rounded-xl border border-white/10 bg-white/5 px-6 py-5">
                 <p className="text-sm text-zinc-500 mb-1">Correo de contacto</p>
                 <a
-                  href="mailto:hola@pixeltec.mx"
+                  href="mailto:contacto@pixeltec.mx"
                   className="text-xl font-semibold text-cyan-400 hover:underline"
                 >
-                  hola@pixeltec.mx
+                  contacto@pixeltec.mx
                 </a>
               </div>
               <p>

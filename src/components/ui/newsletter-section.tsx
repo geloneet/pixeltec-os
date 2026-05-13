@@ -10,7 +10,13 @@ type FormStatus = "idle" | "loading" | "success" | "error"
 
 interface NewsletterSectionProps extends React.HTMLAttributes<HTMLElement> {
   title?: string
-  onSubscribe?: (email: string) => Promise<{ success: boolean; error?: string }>
+  /**
+   * Server action handler. Unary by contract — the form owns its honeypot
+   * gate client-side and never forwards bot submissions to the action.
+   */
+  onSubscribe?: (
+    email: string
+  ) => Promise<{ success: boolean; error?: string }>
   backgroundEffect?: boolean
 }
 
@@ -23,6 +29,7 @@ export function NewsletterSection({
 }: NewsletterSectionProps) {
   const [formState, setFormState] = useState({
     email: "",
+    honeypot: "",
     status: "idle" as FormStatus,
     message: "",
   })
@@ -31,9 +38,17 @@ export function NewsletterSection({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    // Honeypot gate — silent success, the server never sees the bot.
+    // Concern stays in the form: subscribeToNewsletterAction is unary.
+    if (formState.honeypot.trim() !== "") {
+      setFormState({ email: "", honeypot: "", status: "success", message: "¡Gracias por suscribirte!" })
+      return
+    }
+
     if (!onSubscribe) {
       // Mock subscription if no handler is provided
-      setFormState({ email: "", status: "success", message: "¡Gracias por suscribirte a PixelTEC!" })
+      setFormState({ email: "", honeypot: "", status: "success", message: "¡Gracias por suscribirte a PixelTEC!" })
       return
     }
 
@@ -50,6 +65,7 @@ export function NewsletterSection({
       } else {
         setFormState({
           email: "",
+          honeypot: "",
           status: "success",
           message: "¡Gracias por suscribirte!",
         })
@@ -86,6 +102,23 @@ export function NewsletterSection({
           </div>
           
           <form onSubmit={handleSubmit} className="w-full md:w-auto md:min-w-[400px]">
+            {/* Honeypot — hidden from humans (incl. screen readers), tempting for naive bots. */}
+            <div aria-hidden="true" style={{ position: 'absolute', left: '-9999px', width: 1, height: 1, overflow: 'hidden' }}>
+              <label htmlFor="newsletter-website-hp">No completar este campo.</label>
+              <input
+                id="newsletter-website-hp"
+                type="text"
+                name="website"
+                tabIndex={-1}
+                autoComplete="off"
+                aria-hidden="true"
+                value={formState.honeypot}
+                onChange={(e) =>
+                  setFormState((prev) => ({ ...prev, honeypot: e.target.value }))
+                }
+                style={{ position: 'absolute', left: '-9999px', width: 1, height: 1, opacity: 0, pointerEvents: 'none' }}
+              />
+            </div>
             <div className="flex flex-col sm:flex-row gap-3">
               <Input
                 id="subscribe-form"

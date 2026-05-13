@@ -12,8 +12,17 @@ import {
   sendSupportTicketNotification,
   sendTestEmail,
   sendEmail,
+  sendContactConfirmation,
+  sendContactNotification,
+  sendNewsletterWelcome,
   type EmailResult,
 } from '@/lib/email';
+import { assertEmailEnv } from '@/lib/email-env-guard';
+import { enforceRateLimit, formatRetryAfter } from '@/lib/rate-limit';
+import { createLead, updateLeadEmailDelivery } from '@/lib/leads-repo';
+import { subscribeOrReactivate, normalizeEmail } from '@/lib/newsletter-repo';
+import { logSystemAlert } from '@/lib/system-alerts';
+import { hashIp } from '@/lib/privacy';
 import type { WelcomeEmailProps } from '@/emails/WelcomeEmail';
 import type { InvoiceEmailProps } from '@/emails/InvoiceEmail';
 import type { TaskAssignedEmailProps } from '@/emails/TaskAssignedEmail';
@@ -35,10 +44,10 @@ import {
 } from 'firebase/firestore';
 
 const contactSchema = z.object({
-  name: z.string().min(2, 'Name must be at least 2 characters.'),
-  email: z.string().email('Please enter a valid email address.'),
+  name: z.string().min(2, 'Tu nombre debe tener al menos 2 caracteres.'),
+  email: z.string().email('Ingresa un correo electrónico válido.'),
   empresa: z.string().optional(),
-  message: z.string().min(10, 'Message must be at least 10 characters.'),
+  message: z.string().min(10, 'Tu mensaje debe tener al menos 10 caracteres.'),
 });
 
 type ContactFormState = {
@@ -52,37 +61,254 @@ type ContactFormState = {
   isSuccess: boolean;
 };
 
+const CONTACT_RATE_LIMIT = { max: 3, windowMs: 60 * 60 * 1000 } as const; // 3/hour
+const NEWSLETTER_RATE_LIMIT = { max: 3, windowMs: 60 * 60 * 1000 } as const;
+
+/** Best-effort silent success used to defeat honeypot-tripping bots. */
+const HONEYPOT_SILENT_SUCCESS: ContactFormState = {
+  message: '¡Gracias! Te enviamos una confirmación a tu correo. Te respondemos en menos de 24 h.',
+  isSuccess: true,
+};
+
+async function getRequestContext(): Promise<{ ip: string; userAgent: string }> {
+  const h = await headers();
+  const ip =
+    h.get('x-forwarded-for')?.split(',')[0].trim() ??
+    h.get('x-real-ip') ??
+    'unknown';
+  const userAgent = h.get('user-agent') ?? '';
+  return { ip, userAgent };
+}
+
 export async function submitContactForm(
   prevState: ContactFormState,
   formData: FormData
 ): Promise<ContactFormState> {
+  // 1) Honeypot — silent success, NO persistence, NO email.
+  const honeypot = (formData.get('website') ?? '').toString();
+  if (honeypot.trim() !== '') {
+    console.warn('[contact] honeypot tripped, dropping submission');
+    return HONEYPOT_SILENT_SUCCESS;
+  }
+
+  // 2) Validate
   const validatedFields = contactSchema.safeParse({
     name: formData.get('name'),
     email: formData.get('email'),
-    empresa: formData.get('empresa'),
+    // The landing-page <ContactSection /> doesn't render this field;
+    // FormData.get returns null when absent, which Zod's .optional()
+    // rejects ("Expected string, received null"). Coerce to undefined.
+    empresa: formData.get('empresa') ?? undefined,
     message: formData.get('message'),
   });
 
   if (!validatedFields.success) {
     return {
-      message: 'Please correct the errors below.',
+      message: 'Por favor corrige los errores señalados.',
       errors: validatedFields.error.flatten().fieldErrors,
       isSuccess: false,
     };
   }
 
-  try {
+  const { name, email, empresa, message } = validatedFields.data;
+
+  // 3) Env guard — visible failure, leads cannot proceed without Resend wired up.
+  const envCheck = await assertEmailEnv('contact_form');
+  if (!envCheck.ok) {
     return {
-      message: 'Thank you! Your message has been sent successfully.',
-      isSuccess: true,
-    };
-  } catch (error) {
-    console.error('Error submitting form:', error);
-    return {
-      message: 'An unexpected error occurred. Please try again later.',
+      message:
+        'Servicio de correo no disponible temporalmente. Escríbenos directamente a contacto@pixeltec.mx mientras lo resolvemos.',
       isSuccess: false,
     };
   }
+
+  // 4) Rate limit
+  const { ip, userAgent } = await getRequestContext();
+  const rl = await enforceRateLimit({
+    ip,
+    bucket: 'contact_form',
+    max: CONTACT_RATE_LIMIT.max,
+    windowMs: CONTACT_RATE_LIMIT.windowMs,
+  });
+  if (!rl.allowed) {
+    return {
+      message: `Demasiados intentos. Intenta en ${formatRetryAfter(rl.retryAfterSec)}.`,
+      isSuccess: false,
+    };
+  }
+
+  // 5) Persist FIRST — never lose a high-ticket lead to an email outage.
+  let leadId: string | null = null;
+  try {
+    leadId = await createLead({
+      source: 'contact_form',
+      email,
+      name,
+      message,
+      userAgent,
+      ipHash: hashIp(ip),
+    });
+  } catch (err) {
+    console.error('[contact] createLead failed:', err);
+    await logSystemAlert({
+      severity: 'critical',
+      source: 'contact_form',
+      message: 'createLead failed — visitor saw a generic error',
+      context: { error: String(err) },
+    });
+    return {
+      message: 'Ocurrió un error inesperado. Inténtalo de nuevo en unos minutos.',
+      isSuccess: false,
+    };
+  }
+
+  // 6) Send notifications in parallel; the lead is already safe.
+  const submittedAt = new Date().toLocaleString('es-MX', {
+    dateStyle: 'full',
+    timeStyle: 'short',
+    timeZone: 'America/Mexico_City',
+  });
+
+  const [teamResult, userResult] = await Promise.all([
+    sendContactNotification({ name, email, message, empresa, submittedAt }),
+    sendContactConfirmation({ email, name, message, empresa }),
+  ]);
+
+  const teamOk = teamResult.success;
+  const userOk = userResult.success;
+
+  if (teamOk && userOk) {
+    await updateLeadEmailDelivery(leadId, 'sent');
+  } else {
+    const errMsg = [
+      !teamOk ? `team: ${teamResult.error}` : null,
+      !userOk ? `user: ${userResult.error}` : null,
+    ]
+      .filter(Boolean)
+      .join(' | ');
+    await updateLeadEmailDelivery(leadId, 'failed', errMsg);
+    await logSystemAlert({
+      severity: !teamOk ? 'critical' : 'warning',
+      source: 'contact_form',
+      message: `Resend delivery failed (lead ${leadId})`,
+      context: { teamOk, userOk, errMsg, leadId },
+    });
+  }
+
+  // 7) Visitor-facing response: surface failure only when team did NOT get the message.
+  if (!teamOk) {
+    return {
+      message:
+        'Guardamos tu mensaje pero el correo al equipo falló. Si es urgente, escríbenos a contacto@pixeltec.mx — ya estamos al tanto.',
+      isSuccess: false,
+    };
+  }
+
+  return {
+    message: '¡Gracias! Te enviamos una confirmación a tu correo. Te respondemos en menos de 24 h.',
+    isSuccess: true,
+  };
+}
+
+// ─── Newsletter ───────────────────────────────────────────────────────────────
+
+const newsletterSchema = z.object({
+  email: z.string().trim().email('Ingresa un correo electrónico válido.'),
+});
+
+/**
+ * Subscribe a visitor to the newsletter.
+ *
+ * Public contract — unary `(email: string)` to match the original handler
+ * shape consumed by `<NewsletterSection />`. The honeypot bot-check is
+ * the form's responsibility (it knows about its own DOM); this action
+ * never sees it. Concerns stay separated.
+ */
+export async function subscribeToNewsletterAction(
+  email: string
+): Promise<{ success: boolean; error?: string }> {
+  // 1) Validate
+  const parsed = newsletterSchema.safeParse({ email });
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.errors[0]?.message ?? 'Correo inválido.' };
+  }
+
+  const normalizedEmail = normalizeEmail(parsed.data.email);
+
+  // 2) Env guard
+  const envCheck = await assertEmailEnv('newsletter');
+  if (!envCheck.ok) {
+    return {
+      success: false,
+      error: 'Servicio de correo no disponible temporalmente. Inténtalo en unos minutos.',
+    };
+  }
+
+  // 3) Rate limit
+  const { ip } = await getRequestContext();
+  const rl = await enforceRateLimit({
+    ip,
+    bucket: 'newsletter',
+    max: NEWSLETTER_RATE_LIMIT.max,
+    windowMs: NEWSLETTER_RATE_LIMIT.windowMs,
+  });
+  if (!rl.allowed) {
+    return {
+      success: false,
+      error: `Demasiados intentos. Intenta en ${formatRetryAfter(rl.retryAfterSec)}.`,
+    };
+  }
+
+  // 4) Dedupe / reactivate
+  let outcome: Awaited<ReturnType<typeof subscribeOrReactivate>>;
+  try {
+    outcome = await subscribeOrReactivate(normalizedEmail, 'homepage');
+  } catch (err) {
+    console.error('[newsletter] subscribeOrReactivate failed:', err);
+    await logSystemAlert({
+      severity: 'critical',
+      source: 'newsletter',
+      message: 'subscribeOrReactivate failed',
+      context: { error: String(err), email: normalizedEmail },
+    });
+    return {
+      success: false,
+      error: 'No pudimos confirmar tu suscripción. Inténtalo en unos minutos.',
+    };
+  }
+
+  // 5) Silent success for already-active — never re-spam an existing subscriber.
+  if (outcome.alreadyActive) {
+    return { success: true };
+  }
+
+  // 6) Send welcome (only for fresh subs + reactivations)
+  const unsubscribeUrl = `${APP_URL}/api/newsletter/unsubscribe?token=${encodeURIComponent(outcome.unsubscribeToken)}`;
+  const result = await sendNewsletterWelcome({ email: normalizedEmail, unsubscribeUrl });
+  if (!result.success) {
+    console.error('[newsletter] welcome email failed:', result.error);
+    await logSystemAlert({
+      severity: 'warning',
+      source: 'newsletter',
+      message: 'Welcome email failed — subscriber persisted in Firestore',
+      context: { email: normalizedEmail, error: result.error },
+    });
+    // Subscriber is already in Firestore; show success to keep funnel clean.
+    return { success: true };
+  }
+
+  // 7) Best-effort team heads-up — never blocks the visitor flow.
+  const teamEmail = process.env.PIXELTEC_TEAM_EMAIL;
+  if (teamEmail) {
+    const label = outcome.reactivated ? 'Reactivación' : 'Nueva suscripción';
+    sendEmail(
+      teamEmail,
+      `✦ ${label} al newsletter — ${normalizedEmail}`,
+      `<p style="font-family:-apple-system,sans-serif;font-size:14px;color:#27272a;">${label}: <strong>${normalizedEmail}</strong></p>`
+    ).catch(err => console.error('[newsletter] team notify failed:', err));
+  }
+
+  return { success: true };
 }
 
 type AIEnhancerState = {
