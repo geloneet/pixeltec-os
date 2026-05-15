@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import type { WeekCellData, HistoryStatsSummary, HistoryFiltersState } from '@/lib/assistant/types-history';
 import { MetricsPanel } from './_components/metrics-panel';
@@ -14,16 +14,71 @@ interface Props {
   initialStats:  HistoryStatsSummary;
 }
 
+/**
+ * Mapea `status` de UI al subconjunto de buckets aceptados por Firestore (`in`).
+ *  - 'all'        → undefined (sin filtro server-side)
+ *  - 'completed'  → ['high']
+ *  - 'incomplete' → ['mid','low','empty']  (réplica de `c.colorBucket !== 'high'`)
+ */
+function mapStatusToBuckets(
+  status: HistoryFiltersState['status'],
+): WeekCellData['colorBucket'][] | undefined {
+  if (status === 'completed')  return ['high'];
+  if (status === 'incomplete') return ['mid', 'low', 'empty'];
+  return undefined;
+}
+
+function filtersAreEmpty(f: HistoryFiltersState): boolean {
+  return !f.from && !f.to && (!f.status || f.status === 'all');
+}
+
 export function HistorialClient({ initialCells, initialCursor, initialStats }: Props) {
   const [cells,       setCells]       = useState<WeekCellData[]>(initialCells);
   const [cursor,      setCursor]      = useState<string | null>(initialCursor);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [resetting,   setResetting]   = useState(false);
   const [filters,     setFilters]     = useState<HistoryFiltersState>({ status: 'all' });
 
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const loadingRef  = useRef(false);
 
-  // Infinite scroll via IntersectionObserver
+  // Reset + refetch cuando cambian los filtros.
+  useEffect(() => {
+    // Filtros vacíos → restaurar lo que el server entregó al montar.
+    if (filtersAreEmpty(filters)) {
+      setCells(initialCells);
+      setCursor(initialCursor);
+      setResetting(false);
+      return;
+    }
+
+    let cancelled = false;
+    setResetting(true);
+    setCells([]);
+    setCursor(null);
+    loadingRef.current = false;
+
+    (async () => {
+      const result = await loadMoreReports({
+        cursor:      null,
+        from:        filters.from,
+        to:          filters.to,
+        colorBucket: mapStatusToBuckets(filters.status),
+      });
+      if (cancelled) return;
+      if (result.ok) {
+        setCells(result.cells);
+        setCursor(result.nextCursor);
+      }
+      setResetting(false);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [filters, initialCells, initialCursor]);
+
+  // Infinite scroll via IntersectionObserver. Pasa filtros activos en cada fetch.
   useEffect(() => {
     if (!cursor) return;
 
@@ -36,7 +91,12 @@ export function HistorialClient({ initialCells, initialCursor, initialStats }: P
         loadingRef.current = true;
         setLoadingMore(true);
 
-        const result = await loadMoreReports(cursor);
+        const result = await loadMoreReports({
+          cursor,
+          from:        filters.from,
+          to:          filters.to,
+          colorBucket: mapStatusToBuckets(filters.status),
+        });
         if (result.ok) {
           setCells(prev => [...prev, ...result.cells]);
           setCursor(result.nextCursor);
@@ -50,21 +110,7 @@ export function HistorialClient({ initialCells, initialCursor, initialStats }: P
 
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [cursor]);
-
-  // Client-side filtering
-  const filteredCells = useMemo(() => {
-    return cells.filter(c => {
-      const weekDate = c.weekStart.slice(0, 10);
-      if (filters.from && weekDate < filters.from) return false;
-      if (filters.to   && weekDate > filters.to)   return false;
-
-      if (filters.status === 'completed'  && c.colorBucket !== 'high') return false;
-      if (filters.status === 'incomplete' && c.colorBucket === 'high') return false;
-
-      return true;
-    });
-  }, [cells, filters]);
+  }, [cursor, filters]);
 
   return (
     <div className="flex flex-col gap-6 p-6 min-h-screen bg-gradient-to-b from-zinc-950 to-zinc-900/80">
@@ -92,8 +138,8 @@ export function HistorialClient({ initialCells, initialCursor, initialStats }: P
 
       {/* Timeline */}
       <WeekTimeline
-        cells={filteredCells}
-        loadingMore={loadingMore}
+        cells={cells}
+        loadingMore={loadingMore || resetting}
         sentinelRef={sentinelRef}
       />
     </div>

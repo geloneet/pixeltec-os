@@ -29,7 +29,9 @@ export function WeekTimeline({ cells, loadingMore, sentinelRef }: Props) {
   if (cells.length === 0) {
     return (
       <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-12 text-center">
-        <p className="text-zinc-500 text-sm">Sin semanas archivadas en este rango.</p>
+        <p className="text-zinc-500 text-sm">
+          {loadingMore ? 'Cargando…' : 'Sin semanas archivadas en este rango.'}
+        </p>
       </div>
     );
   }
