@@ -1,0 +1,30 @@
+{
+  "extends": "next/core-web-vitals",
+  "overrides": [
+    {
+      "files": [
+        "src/app/(admin)/asistente/**/*.{ts,tsx}",
+        "src/lib/assistant/**/*.{ts,tsx}",
+        "src/components/asistente/**/*.{ts,tsx}"
+      ],
+      "excludedFiles": ["src/lib/assistant/timezone.ts"],
+      "rules": {
+        "no-restricted-syntax": [
+          "error",
+          {
+            "selector": "Literal[value=\"UTC\"]",
+            "message": "No uses timeZone:'UTC' en módulo Asistente. Usa formatInAssistantTZ() de @/lib/assistant/timezone — las fechas se muestran en zona MX."
+          },
+          {
+            "selector": "CallExpression[callee.property.name=/^getUTC(Day|Date|Month|FullYear|Hours|Minutes)$/]",
+            "message": "No uses getUTC*() en módulo Asistente. Usa getDayIndexInAssistantTZ() o formatInAssistantTZ() de @/lib/assistant/timezone."
+          },
+          {
+            "selector": "NewExpression[callee.name='Date'][arguments.0.type='TemplateLiteral']",
+            "message": "No construyas fechas con template literals (`${date}T${time}`). Usa parseDateTimeToUTC() de @/lib/assistant/timezone."
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -4,6 +4,10 @@ import Link from 'next/link';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import type { AssistantWeeklyReportSerialized } from '@/lib/assistant/types';
 import type { ArchivedTaskSerialized } from '@/lib/assistant/queries/archive';
+import {
+  formatInAssistantTZ,
+  getDayIndexInAssistantTZ,
+} from '@/lib/assistant/timezone';
 
 const CATEGORY_COLORS: Record<string, string> = {
   trabajo:     '#3b82f6',
@@ -32,21 +36,16 @@ const STATUS_STYLE: Record<string, { label: string; color: string }> = {
 const DAY_NAMES = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 
 function dayIndex(iso: string): number {
-  const d = new Date(iso).getUTCDay(); // 0=Sun, 1=Mon, ..., 6=Sat
-  return (d + 6) % 7;                 // 0=Mon, ..., 6=Sun
+  return getDayIndexInAssistantTZ(new Date(iso));
 }
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('es-MX', {
-    weekday: 'long', day: 'numeric', month: 'short',
-    timeZone: 'UTC',
-  });
+  // 'EEEE d MMM' → "lunes 12 may" (locale por defecto del runtime)
+  return formatInAssistantTZ(new Date(iso), 'EEEE d MMM');
 }
 
 function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString('es-MX', {
-    hour: '2-digit', minute: '2-digit', timeZone: 'UTC',
-  });
+  return formatInAssistantTZ(new Date(iso), 'HH:mm');
 }
 
 interface Props {
@@ -81,12 +80,8 @@ export function WeekDetailClient({ report, tasks }: Props) {
     byDay[idx].push(task);
   }
 
-  const startStr = new Date(weekStart).toLocaleDateString('es-MX', {
-    day: 'numeric', month: 'short', timeZone: 'UTC',
-  });
-  const endStr = new Date(weekEnd).toLocaleDateString('es-MX', {
-    day: 'numeric', month: 'short', timeZone: 'UTC',
-  });
+  const startStr = formatInAssistantTZ(new Date(weekStart), 'd MMM');
+  const endStr   = formatInAssistantTZ(new Date(weekEnd),   'd MMM');
 
   return (
     <div className="flex flex-col gap-6 p-6 min-h-screen bg-gradient-to-b from-zinc-950 to-zinc-900/80">

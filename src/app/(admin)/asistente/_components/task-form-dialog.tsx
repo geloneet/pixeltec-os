@@ -24,12 +24,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { CATEGORIES } from '@/lib/assistant/constants';
 import { formatDateMX, formatTimeMX } from '@/lib/assistant/week-helpers';
+import { parseDateTimeToUTC } from '@/lib/assistant/timezone';
 import {
   AssistantTaskCreateSchema,
   type AssistantTaskCreateInput,
 } from '@/lib/assistant/schemas';
 import { createTask, updateTask } from '@/lib/assistant/actions/tasks';
 import type { AssistantTaskSerialized } from '@/lib/assistant/types';
+import { DateTimePicker } from './date-time-picker';
 
 interface Props {
   open: boolean;
@@ -76,7 +78,7 @@ export function TaskFormDialog({ open, task, onClose, onSave }: Props) {
         toast.error(result.error ?? 'Error al actualizar');
         return;
       }
-      const startsAt = new Date(task.startsAt);
+      const startsAt = parseDateTimeToUTC(data.date, data.time);
       const updated: AssistantTaskSerialized = {
         ...task,
         title:       data.title,
@@ -101,7 +103,7 @@ export function TaskFormDialog({ open, task, onClose, onSave }: Props) {
         title:       data.title,
         description: data.description ?? null,
         category:    data.category,
-        startsAt:    new Date(`${data.date}T${data.time}:00`).toISOString(),
+        startsAt:    parseDateTimeToUTC(data.date, data.time).toISOString(),
         durationMin: data.durationMin ?? 60,
         status:      'pending',
         weekKey:     '',
@@ -115,6 +117,8 @@ export function TaskFormDialog({ open, task, onClose, onSave }: Props) {
   }
 
   const categoryValue = watch('category');
+  const dateValue = watch('date');
+  const timeValue = watch('time');
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -181,31 +185,23 @@ export function TaskFormDialog({ open, task, onClose, onSave }: Props) {
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label htmlFor="tf-date">Fecha</Label>
-              <Input
-                id="tf-date"
-                type="date"
-                className="bg-zinc-800 border-zinc-600"
-                {...register('date')}
-              />
-              {errors.date && (
-                <p className="text-xs text-red-400">{errors.date.message}</p>
-              )}
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="tf-time">Hora</Label>
-              <Input
-                id="tf-time"
-                type="time"
-                className="bg-zinc-800 border-zinc-600"
-                {...register('time')}
-              />
-              {errors.time && (
-                <p className="text-xs text-red-400">{errors.time.message}</p>
-              )}
-            </div>
+          <div className="space-y-1">
+            <Label>Fecha y hora</Label>
+            <DateTimePicker
+              date={dateValue}
+              time={timeValue}
+              onChange={({ date, time }) => {
+                if (date !== undefined)
+                  setValue('date', date, { shouldValidate: true, shouldDirty: true });
+                if (time !== undefined)
+                  setValue('time', time, { shouldValidate: true, shouldDirty: true });
+              }}
+            />
+            {(errors.date || errors.time) && (
+              <p className="text-xs text-red-400">
+                {errors.date?.message ?? errors.time?.message}
+              </p>
+            )}
           </div>
 
           <div className="space-y-1">
