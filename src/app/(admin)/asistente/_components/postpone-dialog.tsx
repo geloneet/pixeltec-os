@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
@@ -28,11 +29,23 @@ export function PostponeDialog({ taskId, open, onClose, onPostponed }: Props) {
     setValue,
     watch,
     handleSubmit,
+    reset,
     formState: { errors, isSubmitting },
   } = useForm<AssistantPostponeInput>({ resolver: zodResolver(AssistantPostponeSchema) });
 
   const dateValue = watch('date');
   const timeValue = watch('time');
+
+  useEffect(() => {
+    if (!open) {
+      // Limpia date/time + errors al cerrar para que la próxima apertura
+      // arranque limpia y no arrastre la tarea anterior.
+      reset({
+        date: undefined as unknown as string,
+        time: undefined as unknown as string,
+      });
+    }
+  }, [open, reset]);
 
   async function onSubmit(data: AssistantPostponeInput) {
     const result = await postponeTask(taskId, data);
