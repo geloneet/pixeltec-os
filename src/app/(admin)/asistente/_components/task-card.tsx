@@ -9,6 +9,17 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Loader2 } from 'lucide-react';
 import { CATEGORIES, STATUSES } from '@/lib/assistant/constants';
 import { formatTimeMX } from '@/lib/assistant/week-helpers';
@@ -105,12 +116,35 @@ export function TaskCard({ task, onStatusChange, onDelete, onEdit }: Props) {
           <DropdownMenuItem onClick={() => onEdit(task)}>
             Editar
           </DropdownMenuItem>
-          <DropdownMenuItem
-            className="text-red-400 focus:text-red-300"
-            onClick={handleDelete}
-          >
-            Eliminar
-          </DropdownMenuItem>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <DropdownMenuItem
+                className="text-red-400 focus:text-red-300"
+                onSelect={(e) => e.preventDefault()}
+              >
+                Eliminar
+              </DropdownMenuItem>
+            </AlertDialogTrigger>
+            <AlertDialogContent className="bg-zinc-900 border-zinc-700 text-zinc-100">
+              <AlertDialogHeader>
+                <AlertDialogTitle>¿Eliminar tarea?</AlertDialogTitle>
+                <AlertDialogDescription className="text-zinc-400">
+                  Esta acción no se puede deshacer. La tarea &ldquo;{task.title}&rdquo; se eliminará permanentemente.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel className="border-zinc-700 text-zinc-300">
+                  Cancelar
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-red-600 hover:bg-red-700"
+                  onClick={handleDelete}
+                >
+                  Eliminar
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </DropdownMenuContent>
       </DropdownMenu>
 

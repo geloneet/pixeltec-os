@@ -31,13 +31,26 @@ interface Props {
 }
 
 const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
-const MINUTES = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0'));
+const MINUTE_STEPS = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0'));
 
 function parseLocalDate(value: string | undefined): Date | undefined {
   if (!value) return undefined;
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
   if (!m) return undefined;
-  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  const y  = Number(m[1]);
+  const mo = Number(m[2]);
+  const d  = Number(m[3]);
+  const date = new Date(y, mo - 1, d);
+  // Roundtrip: rechaza overflow tipo 2026-13-99 o 2026-02-31 que el
+  // constructor de Date aceptaría silenciosamente.
+  if (
+    date.getFullYear() !== y ||
+    date.getMonth() !== mo - 1 ||
+    date.getDate() !== d
+  ) {
+    return undefined;
+  }
+  return date;
 }
 
 function toDateString(d: Date): string {
@@ -74,10 +87,19 @@ export function DateTimePicker({
   const timeTouched = useRef(false);
 
   useEffect(() => {
-    if (!open) {
+    if (open) {
+      // Si el campo ya tenía valor al abrir, cuenta como "tocado" — basta
+      // cambiar el otro para disparar auto-cierre.
+      dateTouched.current = Boolean(date);
+      timeTouched.current = Boolean(time);
+    } else {
       dateTouched.current = false;
       timeTouched.current = false;
     }
+    // date/time excluidos a propósito: solo nos interesa el estado al MOMENTO
+    // de abrir, no en cada cambio mientras está abierto (commitDate/commitTime
+    // ya gestionan los cambios subsiguientes).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   const selectedDate = useMemo(() => parseLocalDate(date), [date]);
@@ -86,6 +108,19 @@ export function DateTimePicker({
     const m = /^(\d{2}):(\d{2})$/.exec(time);
     return m ? [m[1], m[2]] : ['', ''];
   }, [time]);
+
+  const minuteOptions = useMemo<{ value: string; isLegacy: boolean }[]>(() => {
+    if (mm && !MINUTE_STEPS.includes(mm)) {
+      const n = parseInt(mm, 10);
+      if (Number.isFinite(n) && n >= 0 && n <= 59) {
+        const merged = [...MINUTE_STEPS, mm].sort(
+          (a, b) => parseInt(a, 10) - parseInt(b, 10),
+        );
+        return merged.map((v) => ({ value: v, isLegacy: v === mm }));
+      }
+    }
+    return MINUTE_STEPS.map((v) => ({ value: v, isLegacy: false }));
+  }, [mm]);
 
   const label = formatLabel(date, time);
 
@@ -163,9 +198,11 @@ export function DateTimePicker({
                   <SelectValue placeholder="mm" />
                 </SelectTrigger>
                 <SelectContent className="bg-zinc-900 border-zinc-700 max-h-60">
-                  {MINUTES.map((m) => (
-                    <SelectItem key={m} value={m}>
-                      {m}
+                  {minuteOptions.map(({ value, isLegacy }) => (
+                    <SelectItem key={value} value={value}>
+                      <span className={isLegacy ? 'italic text-amber-400' : undefined}>
+                        {value}{isLegacy ? ' · actual' : ''}
+                      </span>
                     </SelectItem>
                   ))}
                 </SelectContent>
