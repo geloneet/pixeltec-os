@@ -24,7 +24,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { CATEGORIES } from '@/lib/assistant/constants';
 import { formatDateMX, formatTimeMX } from '@/lib/assistant/week-helpers';
-import { parseDateTimeToUTC } from '@/lib/assistant/timezone';
 import {
   AssistantTaskCreateSchema,
   type AssistantTaskCreateInput,
@@ -74,21 +73,11 @@ export function TaskFormDialog({ open, task, onClose, onSave }: Props) {
   async function onSubmit(data: AssistantTaskCreateInput) {
     if (isEditing && task) {
       const result = await updateTask(task.id, data);
-      if (!result.ok) {
+      if (!result.ok || !result.data) {
         toast.error(result.error ?? 'Error al actualizar');
         return;
       }
-      const startsAt = parseDateTimeToUTC(data.date, data.time);
-      const updated: AssistantTaskSerialized = {
-        ...task,
-        title:       data.title,
-        description: data.description ?? null,
-        category:    data.category,
-        durationMin: data.durationMin ?? 60,
-        startsAt:    startsAt.toISOString(),
-        updatedAt:   new Date().toISOString(),
-      };
-      onSave(updated);
+      onSave(result.data);
       toast.success('Tarea actualizada');
     } else {
       const result = await createTask(data);
@@ -96,21 +85,7 @@ export function TaskFormDialog({ open, task, onClose, onSave }: Props) {
         toast.error(result.error ?? 'Error al crear');
         return;
       }
-      const now = new Date().toISOString();
-      const newTask: AssistantTaskSerialized = {
-        id:          result.data.taskId,
-        uid:         '',
-        title:       data.title,
-        description: data.description ?? null,
-        category:    data.category,
-        startsAt:    parseDateTimeToUTC(data.date, data.time).toISOString(),
-        durationMin: data.durationMin ?? 60,
-        status:      'pending',
-        weekKey:     '',
-        createdAt:   now,
-        updatedAt:   now,
-      };
-      onSave(newTask);
+      onSave(result.data);
       toast.success('Tarea creada');
     }
     onClose();

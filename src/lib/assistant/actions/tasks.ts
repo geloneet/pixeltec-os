@@ -12,7 +12,12 @@ import {
   type ActionResult,
 } from '../schemas';
 import { parseDateTimeToUTC, getWeekKeyFromDate, formatDateMX, formatTimeMX } from '../week-helpers';
-import type { AssistantTaskDoc, AssistantTaskStatus } from '../types';
+import {
+  serializeTask,
+  type AssistantTaskDoc,
+  type AssistantTaskSerialized,
+  type AssistantTaskStatus,
+} from '../types';
 
 const VALID_TRANSITIONS: Partial<Record<AssistantTaskStatus, AssistantTaskStatus[]>> = {
   pending:     ['in_progress', 'completed', 'cancelled', 'postponed'],
@@ -30,7 +35,7 @@ async function verifyOwnership(uid: string, taskId: string): Promise<boolean> {
 
 export async function createTask(
   input: unknown,
-): Promise<ActionResult<{ taskId: string }>> {
+): Promise<ActionResult<AssistantTaskSerialized>> {
   const uid = await getSessionUid();
   if (!uid) return { ok: false, error: 'No autenticado' };
 
@@ -55,14 +60,19 @@ export async function createTask(
     updatedAt: now,
   });
 
+  // Re-read para obtener timestamps server-resolved (serverTimestamp()
+  // se resuelve en el write, no antes).
+  const snap = await ref.get();
+  const serialized = serializeTask(snap.data() as AssistantTaskDoc, ref.id);
+
   revalidatePath('/asistente');
-  return { ok: true, data: { taskId: ref.id } };
+  return { ok: true, data: serialized };
 }
 
 export async function updateTask(
   taskId: string,
   input: unknown,
-): Promise<ActionResult> {
+): Promise<ActionResult<AssistantTaskSerialized>> {
   const uid = await getSessionUid();
   if (!uid) return { ok: false, error: 'No autenticado' };
 
@@ -92,8 +102,14 @@ export async function updateTask(
   }
 
   await db().collection(COL.assistantTasks).doc(taskId).update(updates);
+
+  // Re-read post-update: timestamps y campos derivados ya resueltos.
+  const snap = await db().collection(COL.assistantTasks).doc(taskId).get();
+  if (!snap.exists) return { ok: false, error: 'Tarea no existe' };
+  const serialized = serializeTask(snap.data() as AssistantTaskDoc, taskId);
+
   revalidatePath('/asistente');
-  return { ok: true };
+  return { ok: true, data: serialized };
 }
 
 export async function setTaskStatus(
