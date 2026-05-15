@@ -1,6 +1,5 @@
 import { STATUSES } from '@/lib/assistant/constants';
 import type { WeekStats } from '@/lib/assistant/queries/stats';
-import type { AssistantTaskStatus } from '@/lib/assistant/types';
 
 interface Props {
   stats: WeekStats;
@@ -10,7 +9,7 @@ export function StatsCards({ stats }: Props) {
   return (
     <div className="grid grid-cols-5 gap-3">
       {STATUSES.map((s) => {
-        const count = stats.byStatus[s.value as AssistantTaskStatus] ?? 0;
+        const count = stats.byStatus[s.value] ?? 0;
         const Icon  = s.icon;
         return (
           <div
