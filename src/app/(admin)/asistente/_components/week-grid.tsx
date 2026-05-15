@@ -19,8 +19,7 @@ export function WeekGrid({ tasks, weekKey, onTaskClick, onStatusChange, onDelete
 
   return (
     <div className="grid grid-cols-7 gap-2">
-      {days.map((day, idx) => {
-        const isSunday = idx === 6;
+      {days.map((day) => {
         const dayStr   = formatInTimeZone(day.date, TIMEZONE, 'yyyy-MM-dd');
         const dayTasks = tasks.filter(
           (t) => formatInTimeZone(new Date(t.startsAt), TIMEZONE, 'yyyy-MM-dd') === dayStr,
@@ -56,19 +55,6 @@ export function WeekGrid({ tasks, weekKey, onTaskClick, onStatusChange, onDelete
                 onEdit={onTaskClick}
               />
             ))}
-
-            {isSunday && dayTasks.length === 0 && (
-              <div
-                className="rounded-md p-2 mt-auto"
-                style={{
-                  border:     '1px dashed rgba(245,158,11,0.4)',
-                  background: 'rgba(245,158,11,0.04)',
-                }}
-              >
-                <p className="text-[10px] text-amber-500/70 leading-none mb-0.5">12:00 PM</p>
-                <p className="text-[11px] text-amber-500/50">Reporte automático</p>
-              </div>
-            )}
           </div>
         );
       })}

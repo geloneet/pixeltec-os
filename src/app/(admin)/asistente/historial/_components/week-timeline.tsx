@@ -48,6 +48,8 @@ export function WeekTimeline({ cells, loadingMore, sentinelRef }: Props) {
       {Array.from(grouped.entries()).map(([month, weeks]) => (
         <section key={month}>
           <h3 className="text-sm font-medium text-zinc-400 mb-3">
+            {/* TODO(asistente-tz): migrar a formatInAssistantTZ. Out of scope del pass actual de fixes TZ. */}
+            {/* eslint-disable-next-line no-restricted-syntax */}
             {new Date(`${month}-02`).toLocaleDateString('es-MX', {
               year: 'numeric', month: 'long',
             })}

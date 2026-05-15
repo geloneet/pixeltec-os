@@ -21,6 +21,7 @@ function isLeapYear(year: number): boolean {
 function isoWeeksInYear(year: number): number {
   // A year has 53 ISO weeks iff it starts on Thursday, or
   // it starts on Wednesday AND is a leap year.
+  // eslint-disable-next-line no-restricted-syntax -- aritmética ISO pura sobre Jan 1 UTC, sin TZ implícita.
   const jan1DayOfWeek = new Date(Date.UTC(year, 0, 1)).getUTCDay(); // 0=Sun..6=Sat
   // Convert to Mon=0..Sun=6
   const d = (jan1DayOfWeek + 6) % 7;

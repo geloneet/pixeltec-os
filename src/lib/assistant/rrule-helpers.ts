@@ -57,9 +57,15 @@ export function generateTaskInstancesForWeek(
   const occurrences = rule.between(start, end, true);
 
   return occurrences.map((d) => {
+    // RRule devuelve ocurrencias como "floating UTC" — los componentes UTC son
+    // las fechas planificadas tal cual, no convertibles vía TZ. Por eso aquí
+    // sí usamos getUTC*, y luego pasamos por parseDateTimeToUTC para anclarlo
+    // en zona Asistente.
+    /* eslint-disable no-restricted-syntax */
     const yyyy = d.getUTCFullYear();
     const mm   = String(d.getUTCMonth() + 1).padStart(2, '0');
     const dd   = String(d.getUTCDate()).padStart(2, '0');
+    /* eslint-enable no-restricted-syntax */
     const dateStr = `${yyyy}-${mm}-${dd}`;
     const startsAt = parseDateTimeToUTC(dateStr, template.defaultTime);
     return {
