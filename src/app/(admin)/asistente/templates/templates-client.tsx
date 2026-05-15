@@ -4,7 +4,6 @@ import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { getCurrentWeekKey } from '@/lib/assistant/week-helpers';
 import type { AssistantTemplateSerialized } from '@/lib/assistant/types';
 import {
   generateTasksForCurrentWeek,
@@ -16,13 +15,14 @@ import { ForceRolloverButton } from './_components/force-rollover-button';
 
 interface Props {
   templates: AssistantTemplateSerialized[];
+  weekKey:   string;
 }
 
-export function TemplatesClient({ templates }: Props) {
+export function TemplatesClient({ templates, weekKey }: Props) {
   const [items, setItems] = useState<AssistantTemplateSerialized[]>(templates);
   const [isPending, startTransition] = useTransition();
 
-  const weekNum = getCurrentWeekKey().split('-W')[1];
+  const weekNum = weekKey.split('-W')[1];
 
   async function handleGenerate() {
     startTransition(async () => {

@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { getSessionUid } from '@/lib/crypto-intel/auth';
 import { getTemplates } from '@/lib/assistant/queries/templates';
+import { getCurrentWeekKeyInAssistantTZ } from '@/lib/assistant/timezone';
 import { TemplatesClient } from './templates-client';
 
 export default async function TemplatesPage() {
@@ -8,5 +9,7 @@ export default async function TemplatesPage() {
   if (!uid) redirect('/login?redirect=/asistente/templates');
 
   const templates = await getTemplates(uid);
-  return <TemplatesClient templates={templates} />;
+  const weekKey   = getCurrentWeekKeyInAssistantTZ();
+
+  return <TemplatesClient templates={templates} weekKey={weekKey} />;
 }
