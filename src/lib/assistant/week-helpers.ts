@@ -42,7 +42,7 @@ export function getWeekRange(weekKey: string): { start: Date; end: Date } {
     ASSISTANT_TZ,
   );
   const end = fromZonedTime(
-    new Date(targetSun.getFullYear(), targetSun.getMonth(), targetSun.getDate(), 23, 59, 59),
+    new Date(targetSun.getFullYear(), targetSun.getMonth(), targetSun.getDate(), 23, 59, 59, 999),
     ASSISTANT_TZ,
   );
 
