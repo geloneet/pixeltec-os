@@ -26,6 +26,21 @@ export interface PaletteNavItem {
  * desktop sidebar without any extra logic.
  */
 export const PALETTE_NAV_ITEMS: PaletteNavItem[] = [
+  // ── Sistema ──────────────────────────────────────────────────────────────
+  {
+    href: "/dashboard",
+    label: "Dashboard",
+    description: "Centro de control de PixelTEC OS",
+    icon: LayoutDashboard,
+    section: "sistema",
+  },
+  {
+    href: "/herramientas",
+    label: "Herramientas",
+    description: "Credenciales, prompts y documentación interna",
+    icon: Wrench,
+    section: "sistema",
+  },
   // ── Operación ────────────────────────────────────────────────────────────
   {
     href: "/asistente",
@@ -71,28 +86,13 @@ export const PALETTE_NAV_ITEMS: PaletteNavItem[] = [
     icon: Bitcoin,
     section: "infra",
   },
-  // ── Sistema ──────────────────────────────────────────────────────────────
-  {
-    href: "/dashboard",
-    label: "Dashboard",
-    description: "Centro de control de PixelTEC OS",
-    icon: LayoutDashboard,
-    section: "sistema",
-  },
-  {
-    href: "/herramientas",
-    label: "Herramientas",
-    description: "Credenciales, prompts y documentación interna",
-    icon: Wrench,
-    section: "sistema",
-  },
 ];
 
 export const NAV_SECTION_ORDER: NavSection[] = [
+  "sistema",
   "operacion",
   "negocio",
   "infra",
-  "sistema",
 ];
 
 export const NAV_SECTION_LABELS: Record<NavSection, string> = {
