@@ -5,6 +5,7 @@ import {
   type AssistantWeeklyReportDoc,
   type AssistantWeeklyReportSerialized,
 } from '../types';
+import type { WeekCellData } from '../types-history';
 
 export async function getReportByWeekKey(
   uid: string,
@@ -33,7 +34,17 @@ export async function getRecentReports(
 
 export async function getReportsRange(
   uid: string,
-  opts: { cursor?: string; limit?: number; from?: string; to?: string } = {},
+  opts: {
+    cursor?:      string;
+    limit?:       number;
+    from?:        string;
+    to?:          string;
+    /**
+     * Lista de buckets aceptados (OR vía `in`). `undefined` o `[]` = sin filtro.
+     * Para "completed" pasar `['high']`; para "incomplete" pasar `['mid','low','empty']`.
+     */
+    colorBucket?: WeekCellData['colorBucket'][];
+  } = {},
 ): Promise<{ reports: AssistantWeeklyReportSerialized[]; nextCursor: string | null }> {
   const pageSize = opts.limit ?? 12;
 
@@ -44,6 +55,9 @@ export async function getReportsRange(
 
   if (opts.from) q = q.where('weekKey', '>=', opts.from);
   if (opts.to)   q = q.where('weekKey', '<=', opts.to);
+  if (opts.colorBucket && opts.colorBucket.length > 0) {
+    q = q.where('colorBucket', 'in', opts.colorBucket);
+  }
   if (opts.cursor) q = q.startAfter(opts.cursor);
 
   const snap = await q.limit(pageSize + 1).get();
