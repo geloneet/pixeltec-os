@@ -24,6 +24,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { CATEGORIES } from '@/lib/assistant/constants';
 import { formatDateMX, formatTimeMX } from '@/lib/assistant/week-helpers';
+import { formatInAssistantTZ } from '@/lib/assistant/timezone';
 import {
   AssistantTaskCreateSchema,
   type AssistantTaskCreateInput,
@@ -31,6 +32,25 @@ import {
 import { createTask, updateTask } from '@/lib/assistant/actions/tasks';
 import type { AssistantTaskSerialized } from '@/lib/assistant/types';
 import { DateTimePicker } from './date-time-picker';
+
+/**
+ * Defaults para modo create. `date` = hoy en MX, `time` = próxima hora
+ * redonda en MX. Evita que el DateTimePicker arranque sin selección y
+ * el usuario caiga en defaults del Calendar shadcn.
+ */
+function getCreateDefaults(): Partial<AssistantTaskCreateInput> {
+  const nextHour = new Date();
+  nextHour.setMinutes(0, 0, 0);
+  nextHour.setHours(nextHour.getHours() + 1);
+
+  return {
+    title:       '',
+    description: undefined,
+    date:        formatInAssistantTZ(nextHour, 'yyyy-MM-dd'),
+    time:        formatInAssistantTZ(nextHour, 'HH:mm'),
+    durationMin: 60,
+  };
+}
 
 interface Props {
   open: boolean;
@@ -51,10 +71,12 @@ export function TaskFormDialog({ open, task, onClose, onSave }: Props) {
     formState: { errors, isSubmitting },
   } = useForm<AssistantTaskCreateInput>({
     resolver: zodResolver(AssistantTaskCreateSchema),
-    defaultValues: { durationMin: 60 },
+    defaultValues: getCreateDefaults(),
   });
 
   useEffect(() => {
+    if (!open) return;
+
     if (task) {
       const startsAt = new Date(task.startsAt);
       reset({
@@ -66,9 +88,9 @@ export function TaskFormDialog({ open, task, onClose, onSave }: Props) {
         durationMin: task.durationMin,
       });
     } else {
-      reset({ durationMin: 60 });
+      reset(getCreateDefaults());
     }
-  }, [task, reset]);
+  }, [task, reset, open]);
 
   async function onSubmit(data: AssistantTaskCreateInput) {
     if (isEditing && task) {
