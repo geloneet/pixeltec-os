@@ -124,6 +124,11 @@ export function DateTimePicker({
 
   const label = formatLabel(date, time);
 
+  // A11y: anuncia qué representa el botón + valor actual o placeholder
+  const ariaLabel = label
+    ? `Fecha y hora seleccionada: ${label}. Pulsa para cambiar.`
+    : `Seleccionar fecha y hora. ${placeholder}`;
+
   function commitDate(d: Date | undefined) {
     if (!d) return;
     const next = toDateString(d);
@@ -148,6 +153,7 @@ export function DateTimePicker({
           type="button"
           variant="outline"
           disabled={disabled}
+          aria-label={ariaLabel}
           className={cn(
             'w-full justify-start gap-2 bg-zinc-800 border-zinc-600 font-normal text-zinc-100 hover:bg-zinc-700 hover:text-zinc-100',
             !label && 'text-zinc-400',

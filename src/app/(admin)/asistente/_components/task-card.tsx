@@ -65,12 +65,23 @@ export function TaskCard({ task, onStatusChange, onDelete, onEdit }: Props) {
 
   const timeMX = formatTimeMX(new Date(task.startsAt));
 
+  // A11y: label compuesto que describe la tarea + estado + acción
+  const statusLabel   = status?.label ?? task.status;
+  const categoryLabel = category?.label ?? task.category;
+  const ariaLabel     = `Tarea: ${task.title}. ${timeMX}. Categoría: ${categoryLabel}. Estado: ${statusLabel}. Pulsa Enter para ver opciones.`;
+
   return (
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <div
-            className="rounded-md p-2 cursor-pointer select-none bg-white/[0.03] hover:bg-white/[0.06] transition-colors"
+          <button
+            type="button"
+            aria-label={ariaLabel}
+            className="w-full text-left appearance-none bg-transparent border-0 font-inherit
+                       rounded-md p-2 cursor-pointer select-none bg-white/[0.03] hover:bg-white/[0.06]
+                       transition-colors
+                       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500
+                       focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900"
             style={{ borderLeft: `2px solid ${category?.color ?? '#71717a'}` }}
           >
             <p className="text-[10px] text-zinc-500 leading-none mb-1">{timeMX}</p>
@@ -92,7 +103,7 @@ export function TaskCard({ task, onStatusChange, onDelete, onEdit }: Props) {
                 <span className="text-[10px] text-amber-400">En progreso</span>
               </div>
             )}
-          </div>
+          </button>
         </DropdownMenuTrigger>
 
         <DropdownMenuContent
