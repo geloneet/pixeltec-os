@@ -1,0 +1,60 @@
+# Dependabot config — repo pixeltec-os (legacy Firebase)
+#
+# Activado durante la migración a Postgres como pre-requisito de la
+# Excepción 2 del code-freeze-policy.md: si surge un CVE crítico en
+# una dep del legacy durante el sprint, Dependabot abre PR auto para
+# revisión. Sin esto, el founder no va a estar revisando GitHub
+# Security Advisories durante el sprint (100% absorbido en v2).
+#
+# Política: PRs marcados con label "freeze-exception-2" se mergean
+# solo si afectan seguridad activa. Resto se queda en el queue hasta
+# post-cutover.
+
+version: 2
+updates:
+  # npm — el ecosistema principal del repo
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/Mexico_City"
+    open-pull-requests-limit: 5
+    labels:
+      - "security"
+      - "freeze-exception-2"
+    commit-message:
+      prefix: "chore(deps)"
+      prefix-development: "chore(deps-dev)"
+      include: "scope"
+
+  # GitHub Actions — para mantener workflows/deploy.yml actualizado
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/Mexico_City"
+    open-pull-requests-limit: 2
+    labels:
+      - "ci"
+      - "freeze-exception-2"
+    commit-message:
+      prefix: "chore(ci)"
+
+  # Docker — Dockerfile usa node:20-alpine
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/Mexico_City"
+    open-pull-requests-limit: 2
+    labels:
+      - "docker"
+      - "freeze-exception-2"
+    commit-message:
+      prefix: "chore(docker)"
