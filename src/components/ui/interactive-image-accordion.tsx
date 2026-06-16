@@ -1,5 +1,6 @@
 'use client';
 import React, { useState } from 'react';
+import Image from 'next/image';
 import {
   Dialog,
   DialogContent,
@@ -98,15 +99,13 @@ const AccordionItem = ({ item, isActive, onMouseEnter, onClick }: AccordionItemP
       onKeyDown={handleKeyDown}
     >
       {/* Background Image */}
-      <img
+      <Image
         src={item.imageUrl}
         alt={item.title}
-        className="absolute inset-0 w-full h-full object-cover"
-        onError={(e) => {
-          const target = e.target as HTMLImageElement;
-          target.onerror = null;
-          target.src = 'https://placehold.co/400x450/111111/ffffff?text=Tech+Image';
-        }}
+        fill
+        sizes="400px"
+        className="object-cover"
+        loading="lazy"
       />
       {/* Dark overlay for better text readability */}
       <div className="absolute inset-0 bg-black bg-opacity-50 transition-opacity duration-300 hover:bg-opacity-30"></div>
@@ -185,10 +184,12 @@ export function LandingAccordionItem() {
             <>
               {/* Hero image */}
               <div className="relative h-56 w-full overflow-hidden">
-                <img
+                <Image
                   src={openItem.imageUrl}
                   alt={openItem.title}
-                  className="absolute inset-0 w-full h-full object-cover"
+                  fill
+                  sizes="(max-width: 768px) 100vw, 672px"
+                  className="object-cover"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/60 to-transparent" />
                 <div className="absolute bottom-4 left-6">

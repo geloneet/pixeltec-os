@@ -12,60 +12,81 @@ export function ShinyButton({ children, className = "", ...props }: ShinyButtonP
   return (
     <>
       <style jsx>{`
-        @property --gradient-angle {
-          syntax: "<angle>";
-          initial-value: 0deg;
-          inherits: false;
+        /* Composited rotation via transform instead of @property --gradient-angle */
+        @keyframes shiny-rotate {
+          to { transform: rotate(360deg); }
         }
 
         .shiny-cta {
           --shiny-cta-bg: #000000;
           --shiny-cta-fg: #ffffff;
-          --shiny-cta-highlight: #2196F3; /* PixelTEC Blue */
+          --shiny-cta-highlight: #2196F3;
           --duration: 3s;
-          
+
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          isolation: isolate;
           position: relative;
           overflow: hidden;
+          isolation: isolate;
           cursor: pointer;
           outline-offset: 4px;
           padding: 1rem 2rem;
           font-size: 1rem;
           line-height: 1.2;
           font-weight: 700;
-          border: 1px solid transparent;
+          border: none;
           border-radius: 360px;
           color: var(--shiny-cta-fg);
-          background: linear-gradient(var(--shiny-cta-bg), var(--shiny-cta-bg)) padding-box,
-            conic-gradient(
-              from var(--gradient-angle),
-              transparent 0%,
-              var(--shiny-cta-highlight) 5%,
-              white 10%,
-              var(--shiny-cta-highlight) 15%,
-              transparent 20%
-            ) border-box;
+          background: transparent;
+        }
 
-          animation: gradient-angle var(--duration) linear infinite;
+        /* Rotating gradient layer — uses transform:rotate() which is GPU-composited */
+        .shiny-cta::before {
+          content: '';
+          position: absolute;
+          width: 400px;
+          height: 400px;
+          top: 50%;
+          left: 50%;
+          margin-top: -200px;
+          margin-left: -200px;
+          background: conic-gradient(
+            from 0deg,
+            transparent 0%,
+            var(--shiny-cta-highlight) 5%,
+            white 10%,
+            var(--shiny-cta-highlight) 15%,
+            transparent 20%
+          );
+          animation: shiny-rotate var(--duration) linear infinite;
+          z-index: -2;
+        }
+
+        /* Solid fill layer — creates the 1px "border" gap */
+        .shiny-cta::after {
+          content: '';
+          position: absolute;
+          inset: 1px;
+          background: var(--shiny-cta-bg);
+          border-radius: 360px;
+          z-index: -1;
+          transition: background 0.3s ease;
+        }
+
+        .shiny-cta:hover::after {
+          background: rgb(33 150 243 / 0.08);
         }
 
         .shiny-cta > span {
+          position: relative;
           z-index: 1;
           letter-spacing: 0.05em;
-        }
-
-        @keyframes gradient-angle {
-          to {
-            --gradient-angle: 360deg;
-          }
         }
       `}</style>
 
       <button className={cn(
-        "shiny-cta tracking-wide transition-all duration-300 ease-out hover:bg-brand-blue/10 hover:text-blue-300 hover:shadow-[0_0_20px_rgba(33,150,243,0.2)] active:scale-95 active:shadow-none",
+        "shiny-cta tracking-wide transition-all duration-300 ease-out hover:text-blue-300 hover:shadow-[0_0_20px_rgba(33,150,243,0.2)] active:scale-95 active:shadow-none",
         "disabled:opacity-60 disabled:cursor-not-allowed disabled:pointer-events-none",
         className)} {...props}>
         <span className="flex items-center justify-center gap-2">{children}</span>
