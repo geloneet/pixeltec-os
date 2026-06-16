@@ -1,5 +1,3 @@
-"use client";
-
 const organizationSchema = {
   "@context": "https://schema.org",
   "@type": "Organization",
