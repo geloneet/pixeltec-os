@@ -20,17 +20,13 @@ const nextConfig: NextConfig = {
       { source: '/contacto', destination: '/contact', permanent: true },
       { source: '/servicios', destination: '/services', permanent: true },
       { source: '/blog/de-excel-a-saas', destination: '/blog/de-excel-a-saas-roi', permanent: true },
-      // ── IA Redesign — Semana 1 route migration (302 — permanent: false) ──
-      // permanent:false so we can revert if needed during rollout.
-      // /dashboard → /hoy (new default screen)
-      { source: '/dashboard', destination: '/hoy', permanent: false },
-      { source: '/dashboard/:path*', destination: '/hoy', permanent: false },
-      // /asistente → /tareas (weekly planner is a feature of Tareas, not the module)
-      { source: '/asistente', destination: '/tareas', permanent: false },
-      { source: '/asistente/:path*', destination: '/tareas/:path*', permanent: false },
-      // /herramientas → /accesos (credentials + docs unified)
-      { source: '/herramientas', destination: '/accesos', permanent: false },
-      { source: '/herramientas/:path*', destination: '/accesos/:path*', permanent: false },
+      // ── IA Redesign — Semana 1 route migration (301 — rollout estable) ──
+      { source: '/dashboard', destination: '/hoy', permanent: true },
+      { source: '/dashboard/:path*', destination: '/hoy', permanent: true },
+      { source: '/asistente', destination: '/tareas', permanent: true },
+      { source: '/asistente/:path*', destination: '/tareas/:path*', permanent: true },
+      { source: '/herramientas', destination: '/accesos', permanent: true },
+      { source: '/herramientas/:path*', destination: '/accesos/:path*', permanent: true },
     ];
   },
   async headers() {
