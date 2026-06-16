@@ -62,7 +62,7 @@ export function CRMShellProvider({ children }: { children: ReactNode }) {
       }
     }
   }
-  if (segments[0] === "herramientas" && segments[1]) {
+  if (segments[0] === "accesos" && segments[1]) {
     urlToolId = segments[1];
   }
 

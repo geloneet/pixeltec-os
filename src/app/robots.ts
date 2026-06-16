@@ -16,7 +16,7 @@ export default function robots(): MetadataRoute.Robots {
           "/tareas",
           "/clientes",
           "/proyectos",
-          "/herramientas",
+          "/accesos",
           "/vps",
           "/crypto-intel",
           "/api/",
