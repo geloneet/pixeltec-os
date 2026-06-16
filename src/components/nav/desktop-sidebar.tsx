@@ -3,7 +3,7 @@
 import { memo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LogOut, PanelLeftClose, PanelLeftOpen, Search } from "lucide-react";
+import { ChevronRight, LogOut, PanelLeftClose, PanelLeftOpen, Search } from "lucide-react";
 import { signOut } from "firebase/auth";
 import { useAuth } from "@/firebase";
 import { cn } from "@/lib/utils";
@@ -206,6 +206,16 @@ export function DesktopSidebar() {
   const auth = useAuth();
   const { setOpen: setCmdKOpen } = useCmdK();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [collapsedSections, setCollapsedSections] = useState<Set<NavSection>>(
+    () => new Set<NavSection>(["sistema"]),
+  );
+  const toggleSection = (section: NavSection) =>
+    setCollapsedSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(section)) next.delete(section);
+      else next.add(section);
+      return next;
+    });
 
   const activeHref = resolveActiveHref(PALETTE_NAV_ITEMS, pathname);
 
@@ -306,19 +316,29 @@ export function DesktopSidebar() {
                     />
                   )}
 
-                  <h3
-                    role="heading"
-                    aria-level={3}
+                  <button
+                    type="button"
+                    onClick={() => toggleSection(section)}
+                    aria-expanded={!collapsedSections.has(section)}
+                    tabIndex={isCollapsed ? -1 : 0}
                     className={cn(
-                      "px-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500 overflow-hidden whitespace-nowrap",
+                      "flex items-center justify-between px-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500 hover:text-zinc-300 overflow-hidden whitespace-nowrap",
                       "transition-all duration-200 ease-out",
-                      isCollapsed ? "h-0 mb-0 opacity-0" : "h-5 mb-1.5 opacity-100"
+                      isCollapsed
+                        ? "h-0 mb-0 opacity-0 pointer-events-none"
+                        : "h-5 mb-1.5 opacity-100"
                     )}
                   >
-                    {NAV_SECTION_LABELS[section]}
-                  </h3>
+                    <span>{NAV_SECTION_LABELS[section]}</span>
+                    <ChevronRight
+                      className={cn(
+                        "h-3 w-3 transition-transform duration-200",
+                        !collapsedSections.has(section) && "rotate-90"
+                      )}
+                    />
+                  </button>
 
-                  {sectionItems.map((item) => {
+                  {(isCollapsed || !collapsedSections.has(section)) && sectionItems.map((item) => {
                     const active = item.href === activeHref;
                     const Icon = item.icon;
                     const badge = BADGE_PLACEHOLDERS[item.href];
