@@ -24,7 +24,10 @@ export function ClientsView({ clients, navigateToClient, setModal }: ClientsView
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-[20px] font-semibold text-zinc-200">Clientes</h2>
+        <div>
+          <h2 className="text-[20px] font-semibold text-zinc-200">Clientes</h2>
+          <p className="text-[12px] text-zinc-500">Directorio de cuentas activas</p>
+        </div>
         <button
           onClick={() => setModal({ type: "addClient" })}
           className="rounded-lg bg-[#0EA5E9] px-4 py-2 text-sm text-white hover:bg-[#0284C7] transition-all duration-150"
