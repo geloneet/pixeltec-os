@@ -57,7 +57,7 @@ export default function ProyectoDetailPage() {
 
   const setView = (v: LegacyView) => {
     if (v === "clients") router.push("/clientes");
-    else if (v === "asistente") router.push("/asistente");
+    else if (v === "asistente") router.push("/tareas");
     else if (v === "client") router.push(`/clientes/${foundClient!.id}`);
     else if (v === "project") router.push(`/proyectos/${foundProject!.id}`);
   };

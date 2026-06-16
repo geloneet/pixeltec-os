@@ -97,7 +97,7 @@ export default function LoginPage() {
         if (redirectParam) {
             router.push(redirectParam);
         } else if (userProfile.role === 'admin' || userProfile.role === 'editor') {
-            router.push('/dashboard');
+            router.push('/hoy');
         } else if (userProfile.role === 'client') {
             router.push('/portal');
         }
@@ -135,7 +135,7 @@ export default function LoginPage() {
             if (redirectParam) {
                 redirectTo = redirectParam;
             } else if (userData.role === 'admin' || userData.role === 'editor') {
-                redirectTo = '/dashboard';
+                redirectTo = '/hoy';
             } else if (userData.role === 'client') {
                 redirectTo = '/portal';
             }
