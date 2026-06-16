@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { buildMetadata } from '@/lib/seo';
+import { BreadcrumbStructuredData, ServiceStructuredData } from '@/components/seo/structured-data';
 import ServiceDetailClient from './service-detail-client';
 
 const SERVICE_META: Record<string, { title: string; description: string }> = {
@@ -36,5 +37,16 @@ export default async function ServiceDetailPage(
 ) {
   const { slug } = await params;
   if (!SERVICE_META[slug]) notFound();
-  return <ServiceDetailClient slug={slug} />;
+  const meta = SERVICE_META[slug];
+  return (
+    <>
+      <BreadcrumbStructuredData items={[
+        { name: 'PixelTEC', url: 'https://pixeltec.mx' },
+        { name: 'Servicios', url: 'https://pixeltec.mx/services' },
+        { name: meta.title, url: `https://pixeltec.mx/services/${slug}` },
+      ]} />
+      <ServiceStructuredData slug={slug} title={meta.title} description={meta.description} />
+      <ServiceDetailClient slug={slug} />
+    </>
+  );
 }
