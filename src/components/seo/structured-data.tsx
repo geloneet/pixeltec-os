@@ -82,6 +82,7 @@ interface BlogPostingSchemaProps {
   title: string;
   excerpt: string;
   datePublished: string;
+  dateModified?: string;
   author: string;
   imageUrl: string;
 }
@@ -91,6 +92,7 @@ export function BlogPostingStructuredData({
   title,
   excerpt,
   datePublished,
+  dateModified,
   author,
   imageUrl,
 }: BlogPostingSchemaProps) {
@@ -101,6 +103,7 @@ export function BlogPostingStructuredData({
     description: excerpt,
     url: `https://pixeltec.mx/blog/${slug}`,
     datePublished,
+    dateModified: dateModified ?? datePublished,
     author: {
       "@type": "Person",
       name: author,
