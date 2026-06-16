@@ -1,16 +1,18 @@
 import {
-  LayoutDashboard,
-  Sparkles,
+  Sun,
+  ListTodo,
+  FolderKanban,
   Users,
-  Wrench,
+  Receipt,
+  KeyRound,
   Server,
-  Bitcoin,
   FileText,
-  History,
+  Settings2,
+  Bitcoin,
   type LucideIcon,
 } from "lucide-react";
 
-export type NavSection = "operacion" | "negocio" | "infra" | "sistema";
+export type NavSection = "nucleo" | "gestion" | "sistema";
 
 export interface PaletteNavItem {
   href: string;
@@ -18,87 +20,97 @@ export interface PaletteNavItem {
   description: string;
   icon: LucideIcon;
   section: NavSection;
+  /** Items with hidden:true are excluded from sidebar and ⌘K palette (rendered in Week 2+). */
+  hidden?: boolean;
 }
 
 /**
- * Items ordered by section so consumers that simply iterate the array
- * (command palette, mobile menu, etc.) render the same grouping as the
- * desktop sidebar without any extra logic.
+ * Single source of truth for all navigation items.
+ * Ordered by section so consumers that iterate the array render
+ * the same grouping as the desktop sidebar without extra logic.
  */
 export const PALETTE_NAV_ITEMS: PaletteNavItem[] = [
-  // ── Sistema ──────────────────────────────────────────────────────────────
+  // ── Núcleo (trabajo diario) ───────────────────────────────────────────────
   {
-    href: "/dashboard",
-    label: "Dashboard",
-    description: "Centro de control de PixelTEC OS",
-    icon: LayoutDashboard,
-    section: "sistema",
+    href: "/hoy",
+    label: "Hoy",
+    description: "Tareas del día, proyectos activos y actividad reciente de clientes",
+    icon: Sun,
+    section: "nucleo",
   },
   {
-    href: "/herramientas",
-    label: "Herramientas",
-    description: "Credenciales, prompts y documentación interna",
-    icon: Wrench,
-    section: "sistema",
-  },
-  // ── Operación ────────────────────────────────────────────────────────────
-  {
-    href: "/asistente",
-    label: "Asistente",
-    description: "Tareas de la semana con rollover automático",
-    icon: Sparkles,
-    section: "operacion",
+    href: "/tareas",
+    label: "Tareas",
+    description: "Lista maestra de tareas y vista semanal con planificador IA",
+    icon: ListTodo,
+    section: "nucleo",
   },
   {
-    href: "/asistente/historial",
-    label: "Historial — Asistente",
-    description: "Timeline de semanas archivadas con drill-down y KPIs",
-    icon: History,
-    section: "operacion",
+    href: "/proyectos",
+    label: "Proyectos",
+    description: "Estado por proyecto, kanban de tareas y entregas",
+    icon: FolderKanban,
+    section: "nucleo",
   },
-  // ── Negocio ──────────────────────────────────────────────────────────────
   {
     href: "/clientes",
     label: "Clientes",
-    description: "Gestión de clientes y pipeline comercial",
+    description: "Directorio de cuentas activas, portal y actualizaciones",
     icon: Users,
-    section: "negocio",
+    section: "nucleo",
+  },
+  // ── Gestión (ciclo operativo) ─────────────────────────────────────────────
+  {
+    href: "/cobros",
+    label: "Cobros",
+    description: "Facturas, pagos pendientes y cobros por cliente",
+    icon: Receipt,
+    section: "gestion",
   },
   {
-    href: "/blog-admin",
-    label: "Blog Admin",
-    description: "Gestión de posts, borradores y pipeline de contenido",
-    icon: FileText,
-    section: "negocio",
-  },
-  // ── Infra ────────────────────────────────────────────────────────────────
-  {
-    href: "/vps",
-    label: "VPS / DevOps",
-    description: "Infraestructura VPS, deploys y monitoreo",
-    icon: Server,
-    section: "infra",
+    href: "/accesos",
+    label: "Accesos",
+    description: "Credenciales, documentación técnica y links por proyecto",
+    icon: KeyRound,
+    section: "gestion",
   },
   {
     href: "/crypto-intel",
     label: "Crypto Intel",
     description: "Precios y alertas de mercado en tiempo real",
     icon: Bitcoin,
-    section: "infra",
+    section: "gestion",
+    hidden: true,
+  },
+  // ── Sistema (colapsado por defecto) ──────────────────────────────────────
+  {
+    href: "/vps",
+    label: "Infraestructura",
+    description: "VPS status, deploys y monitoreo",
+    icon: Server,
+    section: "sistema",
+  },
+  {
+    href: "/blog-admin",
+    label: "Blog",
+    description: "Gestión de posts, borradores y pipeline de contenido",
+    icon: FileText,
+    section: "sistema",
+  },
+  {
+    href: "/perfil",
+    label: "Configuración",
+    description: "Perfil, notificaciones y preferencias del sistema",
+    icon: Settings2,
+    section: "sistema",
   },
 ];
 
-export const NAV_SECTION_ORDER: NavSection[] = [
-  "sistema",
-  "operacion",
-  "negocio",
-  "infra",
-];
+export const NAV_SECTION_ORDER: NavSection[] = ["nucleo", "gestion", "sistema"];
 
 export const NAV_SECTION_LABELS: Record<NavSection, string> = {
-  operacion: "Operación",
-  negocio: "Negocio",
-  infra: "Infra",
+  nucleo: "Núcleo",
+  gestion: "Gestión",
   sistema: "Sistema",
 };
 
