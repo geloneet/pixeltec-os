@@ -8,7 +8,7 @@ import BlogPostClient from './blog-post-client';
 import BlogPostFirestoreClient from './blog-post-firestore-client';
 import type { BlogPostSerialized } from '@/lib/blog/types';
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 86400; // ISR: regenerar máximo cada día
 
 async function getFirestorePost(slug: string): Promise<BlogPostSerialized | null> {
   try {

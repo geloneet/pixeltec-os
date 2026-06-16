@@ -6,8 +6,7 @@ import { BlogGrid, type BlogCardData } from "./blog-grid";
 import type { Metadata } from "next";
 import { buildMetadata } from "@/lib/seo";
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+export const revalidate = 3600; // ISR: regenerar máximo cada hora
 
 export const metadata: Metadata = buildMetadata({
   path: '/blog',
