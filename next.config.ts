@@ -13,12 +13,24 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     return [
+      // ── Existing permanent redirects ────────────────────────────────────
       { source: '/crm', destination: '/dashboard', permanent: true },
       { source: '/crm/:path*', destination: '/dashboard', permanent: true },
       { source: '/nosotros', destination: '/about', permanent: true },
       { source: '/contacto', destination: '/contact', permanent: true },
       { source: '/servicios', destination: '/services', permanent: true },
       { source: '/blog/de-excel-a-saas', destination: '/blog/de-excel-a-saas-roi', permanent: true },
+      // ── IA Redesign — Semana 1 route migration (302 — permanent: false) ──
+      // permanent:false so we can revert if needed during rollout.
+      // /dashboard → /hoy (new default screen)
+      { source: '/dashboard', destination: '/hoy', permanent: false },
+      { source: '/dashboard/:path*', destination: '/hoy', permanent: false },
+      // /asistente → /tareas (weekly planner is a feature of Tareas, not the module)
+      { source: '/asistente', destination: '/tareas', permanent: false },
+      { source: '/asistente/:path*', destination: '/tareas', permanent: false },
+      // /herramientas → /accesos (credentials + docs unified)
+      { source: '/herramientas', destination: '/accesos', permanent: false },
+      { source: '/herramientas/:path*', destination: '/accesos', permanent: false },
     ];
   },
   async headers() {
