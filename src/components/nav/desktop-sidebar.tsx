@@ -67,9 +67,8 @@ function resolveActiveHref(items: PaletteNavItem[], pathname: string): string | 
 
 function groupBySection(items: PaletteNavItem[]): Record<NavSection, PaletteNavItem[]> {
   const acc: Record<NavSection, PaletteNavItem[]> = {
-    operacion: [],
-    negocio: [],
-    infra: [],
+    nucleo: [],
+    gestion: [],
     sistema: [],
   };
   for (const item of items) acc[item.section].push(item);
