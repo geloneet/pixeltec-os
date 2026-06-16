@@ -3,7 +3,7 @@ import { buildMetadata } from '@/lib/seo';
 
 export const metadata: Metadata = buildMetadata({
   path: '/aviso-de-privacidad',
-  title: 'Aviso de Privacidad',
+  title: 'Aviso de Privacidad · Tratamiento de tus datos',
   description: 'Consulta nuestro aviso de privacidad sobre el tratamiento de tus datos personales, conforme a la Ley Federal de Protección de Datos Personales en Posesión de los Particulares.',
 });
 

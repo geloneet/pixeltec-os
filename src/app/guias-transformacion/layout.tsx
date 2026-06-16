@@ -3,7 +3,7 @@ import { buildMetadata } from '@/lib/seo';
 
 export const metadata: Metadata = buildMetadata({
   path: '/guias-transformacion',
-  title: 'Guías de Transformación Digital',
+  title: 'Guías de Transformación Digital · Recursos exclusivos',
   description: 'Accede a nuestro centro de recursos exclusivos: playbooks, arquitecturas y estrategias para escalar tu ecosistema digital.',
 });
 
