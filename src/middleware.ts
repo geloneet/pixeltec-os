@@ -1,38 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminAuth, getAdminFirestore } from '@/lib/firebase-admin';
+import { PROTECTED_PATHS, KNOWN_ROUTES } from '@/lib/routes/admin-routes';
 import crypto from 'crypto';
 
 export const runtime = 'nodejs';
 
 const SESSION_COOKIE_NAME = '__session';
-
-const PROTECTED_PATHS = [
-  // New IA routes (Semana 1+)
-  '/hoy',
-  '/tareas',
-  '/proyectos',
-  '/clientes',
-  '/cobros',
-  '/accesos',
-  // System & infra
-  '/vps',
-  '/portal',
-  '/perfil',
-  '/notificaciones',
-  '/blog-admin',
-  '/crypto-intel',
-];
-
-// Single-segment paths that are app routes, not portal slugs
-const KNOWN_ROUTES = new Set([
-  'about', 'contact', 'services', 'blog', 'metodologia', 'equipo',
-  'industrias', 'privacy-policy', 'aviso-de-privacidad', 'terminos-de-servicio',
-  'data-deletion', 'guias-transformacion', 'login', 'api',
-  // Admin roots — new IA routes (also in PROTECTED_PATHS — handled first)
-  'hoy', 'tareas', 'proyectos', 'clientes', 'cobros', 'accesos',
-  // System & infra
-  'vps', 'portal', 'crypto-intel', 'perfil', 'notificaciones', 'blog-admin',
-]);
 
 async function isValidPortalSlug(slug: string): Promise<boolean> {
   try {
