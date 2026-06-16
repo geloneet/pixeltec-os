@@ -25,7 +25,7 @@
 **PixelTEC** (en adelante "el Responsable"), con domicilio en Puerto Vallarta, Jalisco, México, es responsable del tratamiento de los datos personales que usted nos proporciona.
 
 Para cualquier asunto relacionado con la protección de sus datos personales, puede contactarnos en:  
-**Correo electrónico:** contacto@pixeltec.mx
+**Correo electrónico:** hola@pixeltec.mx
 
 ---
 
@@ -70,7 +70,7 @@ PixelTEC **no recaba datos personales sensibles** en el sentido del artículo 3,
 
 ### Finalidades secundarias (puede oponerse en cualquier momento)
 
-6. **Envío de información comercial y actualizaciones**: comunicaciones sobre nuevos servicios, mejoras o información de interés relacionada con PixelTEC. Puede revocar su consentimiento en cualquier momento escribiendo a contacto@pixeltec.mx con el asunto "Baja de comunicaciones".
+6. **Envío de información comercial y actualizaciones**: comunicaciones sobre nuevos servicios, mejoras o información de interés relacionada con PixelTEC. Puede revocar su consentimiento en cualquier momento escribiendo a hola@pixeltec.mx con el asunto "Baja de comunicaciones".
 
 ### Finalidades de seguridad *(nuevas a partir de Mayo 2026)*
 
@@ -130,7 +130,7 @@ Usted tiene derecho a **Acceder, Rectificar, Cancelar u Oponerse** al tratamient
 
 ### Procedimiento para ejercer sus derechos ARCO
 
-1. Envíe un correo electrónico a **contacto@pixeltec.mx** con el asunto: **"Solicitud ARCO"**
+1. Envíe un correo electrónico a **hola@pixeltec.mx** con el asunto: **"Solicitud ARCO"**
 2. Incluya en su solicitud:
    - Nombre completo y correo electrónico registrado con PixelTEC
    - Descripción clara del derecho que desea ejercer (Acceso, Rectificación, Cancelación u Oposición)
@@ -145,7 +145,7 @@ Usted tiene derecho a **Acceder, Rectificar, Cancelar u Oponerse** al tratamient
 
 ## VIII. Revocación del Consentimiento
 
-Usted puede revocar en cualquier momento el consentimiento otorgado para el tratamiento de sus datos personales para las **finalidades secundarias** (finalidad 6: comunicaciones comerciales), escribiendo a contacto@pixeltec.mx con el asunto "Revocación de consentimiento".
+Usted puede revocar en cualquier momento el consentimiento otorgado para el tratamiento de sus datos personales para las **finalidades secundarias** (finalidad 6: comunicaciones comerciales), escribiendo a hola@pixeltec.mx con el asunto "Revocación de consentimiento".
 
 > Tenga en cuenta que la revocación del consentimiento no tiene efectos retroactivos y puede limitar nuestra capacidad para prestar ciertos servicios o mantener la relación contractual activa.
 

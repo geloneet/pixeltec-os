@@ -20,8 +20,8 @@ export async function forceRollover(): Promise<ActionResult<{
     return { ok: false, error: result.errors[0] ?? 'Error en rollover' };
   }
 
-  revalidatePath('/asistente');
-  revalidatePath('/asistente/templates');
+  revalidatePath('/tareas');
+  revalidatePath('/tareas/templates');
 
   return {
     ok: true,

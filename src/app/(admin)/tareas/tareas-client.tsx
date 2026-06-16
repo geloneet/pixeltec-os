@@ -31,7 +31,7 @@ function formatWeekHeader(
   return `Semana ${weekNum} · ${from} - ${to}`;
 }
 
-export function AsistenteClient({ initialTasks, weekKey, lastReport }: Props) {
+export function TareasClient({ initialTasks, weekKey, lastReport }: Props) {
   const [tasks, setTasks]             = useState<AssistantTaskSerialized[]>(initialTasks);
   const [isFormOpen, setIsFormOpen]   = useState(false);
   const [editingTask, setEditingTask] = useState<AssistantTaskSerialized | undefined>();
@@ -75,12 +75,12 @@ export function AsistenteClient({ initialTasks, weekKey, lastReport }: Props) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-zinc-100">Asistente</h1>
+          <h1 className="text-xl font-semibold text-zinc-100">Tareas</h1>
           <p className="text-sm text-zinc-400">{weekHeader}</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" asChild>
-            <Link href="/asistente/templates">Templates</Link>
+            <Link href="/tareas/templates">Templates</Link>
           </Button>
           <Button size="sm" onClick={handleNewTask}>
             + Nueva actividad

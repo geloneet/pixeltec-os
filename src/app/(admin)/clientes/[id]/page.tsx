@@ -40,7 +40,7 @@ export default function ClienteDetailPage() {
 
   const setView = (v: LegacyView) => {
     if (v === "clients") router.push("/clientes");
-    else if (v === "asistente") router.push("/asistente");
+    else if (v === "asistente") router.push("/tareas");
     else if (v === "client") router.push(`/clientes/${client.id}`);
   };
 

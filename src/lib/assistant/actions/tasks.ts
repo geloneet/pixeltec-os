@@ -65,7 +65,7 @@ export async function createTask(
   const snap = await ref.get();
   const serialized = serializeTask(snap.data() as AssistantTaskDoc, ref.id);
 
-  revalidatePath('/asistente');
+  revalidatePath('/tareas');
   return { ok: true, data: serialized };
 }
 
@@ -108,7 +108,7 @@ export async function updateTask(
   if (!snap.exists) return { ok: false, error: 'Tarea no existe' };
   const serialized = serializeTask(snap.data() as AssistantTaskDoc, taskId);
 
-  revalidatePath('/asistente');
+  revalidatePath('/tareas');
   return { ok: true, data: serialized };
 }
 
@@ -138,7 +138,7 @@ export async function setTaskStatus(
     updatedAt: FieldValue.serverTimestamp(),
   });
 
-  revalidatePath('/asistente');
+  revalidatePath('/tareas');
   return { ok: true };
 }
 
@@ -165,7 +165,7 @@ export async function postponeTask(
     updatedAt: FieldValue.serverTimestamp(),
   });
 
-  revalidatePath('/asistente');
+  revalidatePath('/tareas');
   return { ok: true };
 }
 
@@ -177,6 +177,6 @@ export async function deleteTask(taskId: string): Promise<ActionResult> {
   if (!owns) return { ok: false, error: 'Tarea no encontrada' };
 
   await db().collection(COL.assistantTasks).doc(taskId).delete();
-  revalidatePath('/asistente');
+  revalidatePath('/tareas');
   return { ok: true };
 }

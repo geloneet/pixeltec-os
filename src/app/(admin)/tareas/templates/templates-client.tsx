@@ -70,7 +70,7 @@ export function TemplatesClient({ templates, weekKey }: Props) {
           <p className="text-sm text-zinc-400">Actividades recurrentes configuradas</p>
         </div>
         <Button size="sm" asChild>
-          <Link href="/asistente/templates/nuevo">+ Nuevo template</Link>
+          <Link href="/tareas/templates/nuevo">+ Nuevo template</Link>
         </Button>
       </div>
 
