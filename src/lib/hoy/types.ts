@@ -11,12 +11,12 @@ export interface TodayTask {
   id: string;
   title: string;
   description: string | null;
-  status: "pendiente" | "proceso" | "completado" | "cancelado" | "postergado";
+  status: "pending" | "in_progress" | "completed" | "cancelled" | "postponed";
   category: string;
   /** ISO 8601 string — startsAt from Firestore Timestamp, converted in action */
   startsAt: string;
   durationMin: number;
-  /** true when startsAt < now and status is not completado/cancelado */
+  /** true when startsAt < now and status is not completed/cancelled */
   isOverdue: boolean;
 }
 
