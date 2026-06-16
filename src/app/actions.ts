@@ -48,6 +48,9 @@ const contactSchema = z.object({
   email: z.string().email('Ingresa un correo electrónico válido.'),
   empresa: z.string().optional(),
   message: z.string().min(10, 'Tu mensaje debe tener al menos 10 caracteres.'),
+  consent: z.literal('on', {
+    errorMap: () => ({ message: 'Debes aceptar el Aviso de Privacidad para enviar el formulario.' }),
+  }),
 });
 
 type ContactFormState = {
@@ -57,6 +60,7 @@ type ContactFormState = {
     email?: string[];
     empresa?: string[];
     message?: string[];
+    consent?: string[];
   };
   isSuccess: boolean;
 };
@@ -100,6 +104,7 @@ export async function submitContactForm(
     // rejects ("Expected string, received null"). Coerce to undefined.
     empresa: formData.get('empresa') ?? undefined,
     message: formData.get('message'),
+    consent: formData.get('consent'),
   });
 
   if (!validatedFields.success) {
