@@ -40,7 +40,7 @@ interface BadgeMeta {
  *   - "/crypto-intel" → count of alertEvents triggered in the last 24h
  */
 const BADGE_PLACEHOLDERS: Record<string, BadgeMeta> = {
-  "/asistente": { count: 3, severity: "info" },
+  "/tareas": { count: 3, severity: "info" },
   "/vps": { severity: "warning" },
 };
 
@@ -75,7 +75,7 @@ function groupBySection(items: PaletteNavItem[]): Record<NavSection, PaletteNavI
   return acc;
 }
 
-const BY_SECTION = groupBySection(PALETTE_NAV_ITEMS);
+const BY_SECTION = groupBySection(PALETTE_NAV_ITEMS.filter((item) => !item.hidden));
 
 /**
  * Liquid-glass backdrop. Stacks five layers behind the sidebar content
