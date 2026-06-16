@@ -83,6 +83,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
           title={firestorePost.title}
           excerpt={firestorePost.excerpt}
           datePublished={firestorePost.publishedAt ?? firestorePost.createdAt}
+          dateModified={firestorePost.updatedAt ?? firestorePost.publishedAt ?? firestorePost.createdAt}
           author={firestorePost.author.name}
           imageUrl={firestorePost.coverImage ?? ''}
         />
