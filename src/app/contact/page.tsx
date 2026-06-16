@@ -1,6 +1,7 @@
 'use client';
 
-import { useActionState, useEffect, useRef } from 'react';
+import { useActionState, useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Mail, MapPin, Phone, Send, LoaderCircle } from 'lucide-react';
 import { useFormStatus } from 'react-dom';
@@ -9,6 +10,7 @@ import Header from '@/components/header';
 import { Footer } from '@/components/ui/footer-section';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { submitContactForm } from '@/app/actions';
@@ -27,14 +29,14 @@ const initialState = {
   errors: undefined,
 };
 
-function SubmitButton() {
+function SubmitButton({ disabled }: { disabled?: boolean }) {
   const { pending } = useFormStatus();
 
   return (
-    <ShinyButton 
-      type="submit" 
+    <ShinyButton
+      type="submit"
       className="w-full"
-      disabled={pending}
+      disabled={pending || !!disabled}
     >
       {pending ? (
         <LoaderCircle className="animate-spin h-6 w-6" />
@@ -51,6 +53,7 @@ export default function ContactPage() {
   const [state, formAction] = useActionState(submitContactForm, initialState);
   const { toast } = useToast();
   const formRef = useRef<HTMLFormElement>(null);
+  const [consent, setConsent] = useState(false);
 
   useEffect(() => {
     if (state.message && !state.isSuccess) {
@@ -160,8 +163,31 @@ export default function ContactPage() {
                         <Textarea id="message" name="message" required rows={4} className="mt-2 bg-black/50 border-white/10 text-white focus-visible:ring-cyan-500 focus-visible:border-cyan-500" />
                         {state.errors?.message && <p className="text-sm text-destructive mt-1">{state.errors.message[0]}</p>}
                     </div>
+                    <div className="flex items-start gap-3">
+                        <input type="hidden" name="consent" value={consent ? 'on' : ''} />
+                        <Checkbox
+                          id="contact-consent"
+                          checked={consent}
+                          onCheckedChange={(checked) => setConsent(Boolean(checked))}
+                          className="mt-0.5 border-white/20 data-[state=checked]:bg-cyan-500 data-[state=checked]:border-cyan-500"
+                        />
+                        <Label htmlFor="contact-consent" className="text-sm text-zinc-400 leading-relaxed cursor-pointer">
+                          He leído y acepto el{' '}
+                          <Link
+                            href="/aviso-de-privacidad"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-cyan-400 hover:underline"
+                          >
+                            Aviso de Privacidad
+                          </Link>
+                        </Label>
+                    </div>
+                    {state.errors?.consent && (
+                      <p className="text-sm text-destructive -mt-2">{state.errors.consent[0]}</p>
+                    )}
                     <div className="pt-4">
-                        <SubmitButton />
+                        <SubmitButton disabled={!consent} />
                     </div>
                 </form>
             </motion.div>

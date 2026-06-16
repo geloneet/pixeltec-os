@@ -4,8 +4,6 @@ import { buildMetadata } from '@/lib/seo';
 import Header from '@/components/header';
 import { HeroGeometric } from '@/components/ui/shape-landing-hero';
 import { LazyWaveSection } from '@/components/ui/lazy-wave-section';
-import { subscribeToNewsletterAction } from '@/app/actions';
-
 // Below-fold sections: code-split into separate chunks.
 // SSR is kept (no ssr:false) so text content stays in the server HTML for SEO.
 const LandingAccordionItem = dynamic(() =>
@@ -42,7 +40,7 @@ export default function Home() {
         <BenefitsSection />
         <TestimonialsSection />
         <ContactSection />
-        <NewsletterSection onSubscribe={subscribeToNewsletterAction} />
+        <NewsletterSection />
       </main>
       <Footer />
     </div>
