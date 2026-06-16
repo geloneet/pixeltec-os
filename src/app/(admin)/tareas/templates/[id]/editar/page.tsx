@@ -10,7 +10,7 @@ interface Props {
 export default async function EditarTemplatePage({ params }: Props) {
   const { id } = await params;
   const uid = await getSessionUid();
-  if (!uid) redirect('/login?redirect=/asistente/templates');
+  if (!uid) redirect('/login?redirect=/tareas/templates');
 
   const template = await getTemplateById(uid, id);
   if (!template) notFound();

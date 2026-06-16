@@ -123,10 +123,10 @@ export function HistorialClient({ initialCells, initialCursor, initialStats }: P
           </p>
         </div>
         <Link
-          href="/asistente"
+          href="/tareas"
           className="text-sm text-zinc-500 hover:text-zinc-300 transition-colors"
         >
-          ← Asistente
+          ← Tareas
         </Link>
       </div>
 

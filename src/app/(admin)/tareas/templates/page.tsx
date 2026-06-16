@@ -6,7 +6,7 @@ import { TemplatesClient } from './templates-client';
 
 export default async function TemplatesPage() {
   const uid = await getSessionUid();
-  if (!uid) redirect('/login?redirect=/asistente/templates');
+  if (!uid) redirect('/login?redirect=/tareas/templates');
 
   const templates = await getTemplates(uid);
   const weekKey   = getCurrentWeekKeyInAssistantTZ();

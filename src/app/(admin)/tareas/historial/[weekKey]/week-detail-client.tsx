@@ -90,7 +90,7 @@ export function WeekDetailClient({ report, tasks }: Props) {
         <div>
           <div className="flex items-center gap-3">
             <Link
-              href="/asistente/historial"
+              href="/tareas/historial"
               className="text-sm text-zinc-500 hover:text-zinc-300 transition-colors"
             >
               ← Historial

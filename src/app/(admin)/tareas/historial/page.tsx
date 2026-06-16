@@ -4,11 +4,11 @@ import { getReportsRange } from '@/lib/assistant/queries/reports';
 import { reportToCell, computeStats } from '@/lib/assistant/history-stats';
 import { HistorialClient } from './historial-client';
 
-export const metadata = { title: 'Historial — Asistente' };
+export const metadata = { title: 'Historial — Tareas' };
 
 export default async function HistorialPage() {
   const uid = await getSessionUid();
-  if (!uid) redirect('/login?redirect=/asistente/historial');
+  if (!uid) redirect('/login?redirect=/tareas/historial');
 
   const { reports, nextCursor } = await getReportsRange(uid, { limit: 12 });
 

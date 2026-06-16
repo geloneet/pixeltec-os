@@ -40,7 +40,7 @@ export async function createTemplate(
     updatedAt: now,
   });
 
-  revalidatePath('/asistente/templates');
+  revalidatePath('/tareas/templates');
   return { ok: true, data: { templateId: ref.id } };
 }
 
@@ -74,7 +74,7 @@ export async function updateTemplate(
   if (weekdays    !== undefined) updates.rrule       = buildWeeklyRRule(weekdays);
 
   await db().collection(COL.assistantTemplates).doc(templateId).update(updates);
-  revalidatePath('/asistente/templates');
+  revalidatePath('/tareas/templates');
   return { ok: true };
 }
 
@@ -92,7 +92,7 @@ export async function toggleTemplateActive(templateId: string): Promise<ActionRe
     updatedAt: FieldValue.serverTimestamp(),
   });
 
-  revalidatePath('/asistente/templates');
+  revalidatePath('/tareas/templates');
   return { ok: true };
 }
 
@@ -104,7 +104,7 @@ export async function deleteTemplate(templateId: string): Promise<ActionResult> 
   if (!owns) return { ok: false, error: 'Template no encontrado' };
 
   await db().collection(COL.assistantTemplates).doc(templateId).delete();
-  revalidatePath('/asistente/templates');
+  revalidatePath('/tareas/templates');
   return { ok: true };
 }
 
@@ -154,7 +154,7 @@ export async function generateTasksForCurrentWeek(): Promise<ActionResult<{ crea
     }
   }
 
-  revalidatePath('/asistente');
-  revalidatePath('/asistente/templates');
+  revalidatePath('/tareas');
+  revalidatePath('/tareas/templates');
   return { ok: true, data: { created, skipped } };
 }

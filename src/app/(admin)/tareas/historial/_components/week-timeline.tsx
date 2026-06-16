@@ -60,7 +60,7 @@ export function WeekTimeline({ cells, loadingMore, sentinelRef }: Props) {
             {weeks.map(w => (
               <button
                 key={w.weekKey}
-                onClick={() => router.push(`/asistente/historial/${w.weekKey}`)}
+                onClick={() => router.push(`/tareas/historial/${w.weekKey}`)}
                 className={`group aspect-square rounded-xl border-2 transition-all duration-150 ${COLOR_MAP[w.colorBucket]} flex flex-col items-center justify-center p-1.5`}
                 title={`${w.weekKey} · ${w.totals.completed}/${w.totals.total} tasks · ${(w.completionRate * 100).toFixed(0)}%`}
               >

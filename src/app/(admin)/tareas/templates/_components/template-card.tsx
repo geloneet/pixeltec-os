@@ -47,7 +47,7 @@ export function TemplateCard({ template, onToggleActive, onDelete }: Props) {
       <div className="flex items-start gap-3 p-4">
         {/* Clickable content area */}
         <Link
-          href={`/asistente/templates/${template.id}/editar`}
+          href={`/tareas/templates/${template.id}/editar`}
           className="flex-1 min-w-0"
         >
           {/* Row 1: title + badge */}
@@ -101,7 +101,7 @@ export function TemplateCard({ template, onToggleActive, onDelete }: Props) {
               align="end"
             >
               <DropdownMenuItem asChild>
-                <Link href={`/asistente/templates/${template.id}/editar`}>Editar</Link>
+                <Link href={`/tareas/templates/${template.id}/editar`}>Editar</Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator className="bg-zinc-700" />
               <AlertDialog>

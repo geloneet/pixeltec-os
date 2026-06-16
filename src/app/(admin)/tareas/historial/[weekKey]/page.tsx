@@ -10,12 +10,12 @@ interface Props {
 
 export async function generateMetadata({ params }: Props) {
   const { weekKey } = await params;
-  return { title: `${weekKey} — Historial Asistente` };
+  return { title: `${weekKey} — Historial Tareas` };
 }
 
 export default async function WeekDetailPage({ params }: Props) {
   const uid = await getSessionUid();
-  if (!uid) redirect('/login?redirect=/asistente/historial');
+  if (!uid) redirect('/login?redirect=/tareas/historial');
 
   const { weekKey } = await params;
 

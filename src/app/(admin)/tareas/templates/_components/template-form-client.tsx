@@ -65,7 +65,7 @@ export function TemplateFormClient({ mode, template }: Props) {
       const result = await createTemplate(data);
       if (result.ok) {
         toast.success('Template guardado');
-        router.push('/asistente/templates');
+        router.push('/tareas/templates');
       } else {
         toast.error(result.error ?? 'Error');
       }
@@ -73,7 +73,7 @@ export function TemplateFormClient({ mode, template }: Props) {
       const result = await updateTemplate(template.id, data);
       if (result.ok) {
         toast.success('Template guardado');
-        router.push('/asistente/templates');
+        router.push('/tareas/templates');
       } else {
         toast.error(result.error ?? 'Error');
       }
@@ -85,7 +85,7 @@ export function TemplateFormClient({ mode, template }: Props) {
       {/* Header */}
       <div className="flex items-center gap-3">
         <Link
-          href="/asistente/templates"
+          href="/tareas/templates"
           className="text-zinc-400 hover:text-zinc-100 text-sm transition-colors"
         >
           ← Templates
@@ -237,7 +237,7 @@ export function TemplateFormClient({ mode, template }: Props) {
           <Button
             type="button"
             variant="outline"
-            onClick={() => router.push('/asistente/templates')}
+            onClick={() => router.push('/tareas/templates')}
             disabled={isSubmitting}
           >
             Cancelar
