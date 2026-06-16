@@ -20,10 +20,6 @@ const PROTECTED_PATHS = [
   '/notificaciones',
   '/blog-admin',
   '/crypto-intel',
-  // Legacy routes — kept during redirect period (dashboard→hoy, asistente→tareas, herramientas→accesos)
-  '/dashboard',
-  '/asistente',
-  '/herramientas',
 ];
 
 // Single-segment paths that are app routes, not portal slugs
@@ -35,8 +31,6 @@ const KNOWN_ROUTES = new Set([
   'hoy', 'tareas', 'proyectos', 'clientes', 'cobros', 'accesos',
   // System & infra
   'vps', 'portal', 'crypto-intel', 'perfil', 'notificaciones', 'blog-admin',
-  // Legacy routes kept during redirect period
-  'dashboard', 'asistente', 'herramientas',
 ]);
 
 async function isValidPortalSlug(slug: string): Promise<boolean> {
@@ -153,10 +147,6 @@ export const config = {
     '/perfil/:path*',
     '/notificaciones/:path*',
     '/blog-admin/:path*',
-    // Legacy paths — kept during redirect period
-    '/dashboard/:path*',
-    '/asistente/:path*',
-    '/herramientas/:path*',
     // Single-segment paths — portal slug validation
     // Excludes _next internals and files with extensions via code checks above
     '/:slug',
