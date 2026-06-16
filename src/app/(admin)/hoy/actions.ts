@@ -1,16 +1,14 @@
 "use server";
 
 import { getSessionUid } from "@/lib/crypto-intel/auth";
-import { getAdminFirestore } from "@/lib/firebase-admin";
 import { getCurrentWeekTasks } from "@/lib/assistant/queries/tasks";
 import { formatDateMX } from "@/lib/assistant/week-helpers";
-import type { CRMClient } from "@/types/crm";
-import type {
-  TodayData,
-  TodayTask,
-  ActiveProject,
-  RecentClient,
-} from "@/lib/hoy/types";
+import {
+  getCrmClients,
+  deriveActiveProjects,
+  deriveRecentClients,
+} from "@/lib/hoy/crm-data";
+import type { TodayData, TodayTask } from "@/lib/hoy/types";
 
 const DONE_STATUSES = new Set(["completed", "cancelled"]);
 
@@ -33,8 +31,8 @@ export async function getTodayData(): Promise<TodayData | null> {
 
   return {
     tasks,
-    projects: deriveActiveProjects(clients),
-    clients: deriveRecentClients(clients),
+    projects: deriveActiveProjects(clients, 6),
+    clients: deriveRecentClients(clients, 5),
     asOf: now.toISOString(),
   };
 }
@@ -55,45 +53,4 @@ async function getTodayTasks(uid: string, now: Date): Promise<TodayTask[]> {
       durationMin: t.durationMin,
       isOverdue: new Date(t.startsAt) < now && !DONE_STATUSES.has(t.status),
     }));
-}
-
-/** Reads the single CRM blob document via the Admin SDK. */
-async function getCrmClients(uid: string): Promise<CRMClient[]> {
-  const snap = await getAdminFirestore().collection("crm_data").doc(uid).get();
-  if (!snap.exists) return [];
-  return (snap.data()?.clients ?? []) as CRMClient[];
-}
-
-/** Flatten nested client.projects[]; lastActivityAt falls back to createdAt. */
-function deriveActiveProjects(clients: CRMClient[]): ActiveProject[] {
-  const projects: ActiveProject[] = [];
-  for (const client of clients) {
-    for (const p of client.projects ?? []) {
-      projects.push({
-        id: p.id,
-        clientId: client.id,
-        clientName: client.name,
-        name: p.name,
-        domain: p.domain,
-        lastActivityAt: p.createdAt ?? null,
-      });
-    }
-  }
-  // Sort most-recently-created first; cap at 6
-  return projects
-    .sort((a, b) => (b.lastActivityAt ?? "").localeCompare(a.lastActivityAt ?? ""))
-    .slice(0, 6);
-}
-
-/** Map clients; slug carries the id (no slug field in the model) — panel links by id. */
-function deriveRecentClients(clients: CRMClient[]): RecentClient[] {
-  return clients
-    .map((c) => ({
-      id: c.id,
-      name: c.name,
-      slug: c.id,
-      lastActivityAt: c.createdAt ?? null,
-    }))
-    .sort((a, b) => (b.lastActivityAt ?? "").localeCompare(a.lastActivityAt ?? ""))
-    .slice(0, 5);
 }
