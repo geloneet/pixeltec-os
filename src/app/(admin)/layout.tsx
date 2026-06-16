@@ -67,7 +67,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (user === null) {
-      const redirect = encodeURIComponent(pathname || "/dashboard");
+      const redirect = encodeURIComponent(pathname || "/hoy");
       router.push(`/login?redirect=${redirect}`);
     }
   }, [user, router, pathname]);

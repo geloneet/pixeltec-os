@@ -6,17 +6,20 @@ export const runtime = 'nodejs';
 const SESSION_COOKIE_NAME = '__session';
 
 const PROTECTED_PATHS = [
-  '/dashboard',
-  '/clientes',
+  // New IA routes (Semana 1+)
+  '/hoy',
+  '/tareas',
   '/proyectos',
-  '/herramientas',
-  '/asistente',
+  '/clientes',
+  '/cobros',
+  '/accesos',
+  // System & infra
   '/vps',
   '/portal',
-  '/crypto-intel',
   '/perfil',
   '/notificaciones',
   '/blog-admin',
+  '/crypto-intel',
 ];
 
 // Single-segment paths that are app routes, not portal slugs
@@ -24,8 +27,9 @@ const KNOWN_ROUTES = new Set([
   'about', 'contact', 'services', 'blog', 'metodologia', 'equipo',
   'industrias', 'privacy-policy', 'aviso-de-privacidad', 'terminos-de-servicio',
   'data-deletion', 'guias-transformacion', 'login', 'api',
-  // Admin roots (also in PROTECTED_PATHS — handled first)
-  'dashboard', 'clientes', 'proyectos', 'herramientas', 'asistente',
+  // Admin roots — new IA routes (also in PROTECTED_PATHS — handled first)
+  'hoy', 'tareas', 'proyectos', 'clientes', 'cobros', 'accesos',
+  // System & infra
   'vps', 'portal', 'crypto-intel', 'perfil', 'notificaciones', 'blog-admin',
 ]);
 
@@ -129,12 +133,14 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Admin paths (session protection)
-    '/dashboard/:path*',
-    '/clientes/:path*',
+    // New IA admin paths (Semana 1+)
+    '/hoy/:path*',
+    '/tareas/:path*',
     '/proyectos/:path*',
-    '/herramientas/:path*',
-    '/asistente/:path*',
+    '/clientes/:path*',
+    '/cobros/:path*',
+    '/accesos/:path*',
+    // System & infra
     '/vps/:path*',
     '/portal/:path*',
     '/crypto-intel/:path*',

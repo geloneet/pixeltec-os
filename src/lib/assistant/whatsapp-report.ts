@@ -98,7 +98,7 @@ export function renderWeeklyReportMessage(
   const generatedAt = toDate(report.generatedAt);
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://pixeltec.mx';
-  const detailUrl = `${baseUrl}/asistente/historial/${report.weekKey}`;
+  const detailUrl = `${baseUrl}/tareas/historial/${report.weekKey}`;
   const generatedLine = `Generado: ${formatGeneratedAt(generatedAt)}`;
 
   // Empty-week short-circuit

@@ -12,18 +12,21 @@ export function ToolsView({ tools, onSelectTool, onAddTool }: ToolsViewProps) {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-[20px] font-semibold text-zinc-200">Herramientas</h2>
+        <div>
+          <h2 className="text-[20px] font-semibold text-zinc-200">Accesos</h2>
+          <p className="text-[12px] text-zinc-500">Base de conocimiento interna y recursos operativos</p>
+        </div>
         <button
           onClick={onAddTool}
           className="px-3 py-1.5 text-sm bg-[#0EA5E9] text-white rounded-lg hover:bg-[#0284C7] transition-all duration-150"
         >
-          + Herramienta
+          + Recurso
         </button>
       </div>
 
       {tools.length === 0 ? (
         <p className="text-sm text-zinc-500 text-center py-16">
-          Registra tu primera herramienta y empieza a guardar conocimiento.
+          Aún no hay recursos registrados.
         </p>
       ) : (
         <div className="grid grid-cols-2 gap-3">
