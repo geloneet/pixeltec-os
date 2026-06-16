@@ -38,6 +38,14 @@ export const metadata: Metadata = {
   description: 'Transformamos procesos complejos en ecosistemas web y automatizaciones escalables para empresas que buscan rentabilidad y control absoluto.',
   keywords: ['desarrollo web México', 'automatización de procesos', 'CRM personalizado', 'consultoría tecnológica Puerto Vallarta', 'ecosistemas digitales', 'software a medida'],
   authors: [{ name: 'PixelTEC' }],
+  icons: {
+    icon: '/ptlogox.png',
+    shortcut: '/ptlogox.png',
+    apple: '/ptlogox.png',
+  },
+  other: {
+    'theme-color': '#030303',
+  },
 };
 
 export default function RootLayout({
