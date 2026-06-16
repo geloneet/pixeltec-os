@@ -1,7 +1,7 @@
 'use client';
 
 import { memo, useState, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Lock, Mail, LoaderCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -80,7 +80,6 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
 
-  const router = useRouter();
   const searchParams = useSearchParams();
   const redirectParam = searchParams.get('redirect');
   const auth = useAuth();
@@ -95,14 +94,14 @@ export default function LoginPage() {
 
     if (userProfile) {
         if (redirectParam) {
-            router.push(redirectParam);
+            window.location.assign(redirectParam);
         } else if (userProfile.role === 'admin' || userProfile.role === 'editor') {
-            router.push('/hoy');
+            window.location.assign('/hoy');
         } else if (userProfile.role === 'client') {
-            router.push('/portal');
+            window.location.assign('/portal');
         }
     }
-  }, [userProfile, profileLoading, isLoading, isRedirecting, router, redirectParam]);
+  }, [userProfile, profileLoading, isLoading, isRedirecting, redirectParam]);
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -156,7 +155,7 @@ export default function LoginPage() {
                 }
 
                 setIsRedirecting(true);
-                router.push(redirectTo);
+                window.location.assign(redirectTo);
             } else {
                 await signOut(auth);
                 setError('Tu rol no está definido. Contacta al administrador.');
