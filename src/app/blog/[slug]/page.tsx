@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import { buildMetadata } from '@/lib/seo';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { blogPosts } from '@/lib/blog-data';
-import { BlogPostingStructuredData } from '@/components/seo/structured-data';
+import { BlogPostingStructuredData, BreadcrumbStructuredData } from '@/components/seo/structured-data';
 import BlogPostClient from './blog-post-client';
 import BlogPostFirestoreClient from './blog-post-firestore-client';
 import type { BlogPostSerialized } from '@/lib/blog/types';
@@ -78,6 +78,11 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
   if (firestorePost) {
     return (
       <>
+        <BreadcrumbStructuredData items={[
+          { name: 'PixelTEC', url: 'https://pixeltec.mx' },
+          { name: 'Blog', url: 'https://pixeltec.mx/blog' },
+          { name: firestorePost.title, url: `https://pixeltec.mx/blog/${firestorePost.slug}` },
+        ]} />
         <BlogPostingStructuredData
           slug={firestorePost.slug}
           title={firestorePost.title}
@@ -98,6 +103,11 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
   const imageUrl = PlaceHolderImages.find((img) => img.id === post.imageId)?.imageUrl ?? '';
   return (
     <>
+      <BreadcrumbStructuredData items={[
+        { name: 'PixelTEC', url: 'https://pixeltec.mx' },
+        { name: 'Blog', url: 'https://pixeltec.mx/blog' },
+        { name: post.title, url: `https://pixeltec.mx/blog/${post.slug}` },
+      ]} />
       <BlogPostingStructuredData
         slug={post.slug}
         title={post.title}
