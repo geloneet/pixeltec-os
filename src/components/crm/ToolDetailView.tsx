@@ -31,7 +31,7 @@ export function ToolDetailView({ tool, onBack, onEditTool, onDeleteTool, onAddTi
     <div>
       {/* Header */}
       <button onClick={onBack} className="text-[13px] text-zinc-500 hover:text-zinc-300 mb-4">
-        ← Herramientas
+        ← Accesos
       </button>
       <div className="flex items-center gap-3 mb-6">
         <span

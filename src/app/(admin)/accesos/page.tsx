@@ -1,16 +1,29 @@
-import type { Metadata } from "next";
+"use client";
 
-export const metadata: Metadata = {
-  title: "Accesos — PixelTEC OS",
-};
+import { useRouter } from "next/navigation";
+import { LoaderCircle } from "lucide-react";
+import { useCRM } from "@/components/crm/CRMContext";
+import { useCRMShell } from "@/components/crm/CRMShellProvider";
+import { ToolsView } from "@/components/crm/ToolsView";
 
 export default function AccesosPage() {
+  const crm = useCRM();
+  const shell = useCRMShell();
+  const router = useRouter();
+
+  if (crm.loading) {
+    return (
+      <div className="flex h-full w-full items-center justify-center">
+        <LoaderCircle className="h-8 w-8 animate-spin text-cyan-400" />
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3 text-center px-4">
-      <h1 className="text-2xl font-semibold text-zinc-100">Accesos</h1>
-      <p className="text-zinc-500 text-sm max-w-xs">
-        Próximamente · llega en Semana 5
-      </p>
-    </div>
+    <ToolsView
+      tools={crm.tools}
+      onSelectTool={(id) => router.push(`/accesos/${id}`)}
+      onAddTool={() => shell.setModal({ type: "addTool" })}
+    />
   );
 }

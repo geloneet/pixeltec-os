@@ -30,7 +30,7 @@ const nextConfig: NextConfig = {
       { source: '/asistente/:path*', destination: '/tareas/:path*', permanent: false },
       // /herramientas → /accesos (credentials + docs unified)
       { source: '/herramientas', destination: '/accesos', permanent: false },
-      { source: '/herramientas/:path*', destination: '/accesos', permanent: false },
+      { source: '/herramientas/:path*', destination: '/accesos/:path*', permanent: false },
     ];
   },
   async headers() {
