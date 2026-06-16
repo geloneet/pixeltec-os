@@ -82,6 +82,8 @@
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "@types/ws": "^8.18.1",
+    "beasties": "^0.4.2",
+    "critters": "^0.0.23",
     "eslint": "^8.57.1",
     "eslint-config-next": "^15.5.18",
     "genkit-cli": "^0.0.2",

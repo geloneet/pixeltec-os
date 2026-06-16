@@ -1,15 +1,25 @@
 import type { Metadata } from 'next';
+import dynamic from 'next/dynamic';
 import { buildMetadata } from '@/lib/seo';
 import Header from '@/components/header';
-import BenefitsSection from '@/components/sections/benefits';
-import TestimonialsSection from '@/components/sections/testimonials';
-import { Footer } from '@/components/ui/footer-section';
 import { HeroGeometric } from '@/components/ui/shape-landing-hero';
-import { NewsletterSection } from '@/components/ui/newsletter-section';
-import { AboutWaveSection } from '@/components/ui/about-wave-section';
-import { LandingAccordionItem } from '@/components/ui/interactive-image-accordion';
-import ContactSection from '@/components/sections/contact';
+import { LazyWaveSection } from '@/components/ui/lazy-wave-section';
 import { subscribeToNewsletterAction } from '@/app/actions';
+
+// Below-fold sections: code-split into separate chunks.
+// SSR is kept (no ssr:false) so text content stays in the server HTML for SEO.
+const LandingAccordionItem = dynamic(() =>
+  import('@/components/ui/interactive-image-accordion').then((m) => m.LandingAccordionItem)
+);
+const BenefitsSection = dynamic(() => import('@/components/sections/benefits'));
+const TestimonialsSection = dynamic(() => import('@/components/sections/testimonials'));
+const ContactSection = dynamic(() => import('@/components/sections/contact'));
+const NewsletterSection = dynamic(() =>
+  import('@/components/ui/newsletter-section').then((m) => m.NewsletterSection)
+);
+const Footer = dynamic(() =>
+  import('@/components/ui/footer-section').then((m) => m.Footer)
+);
 
 export const metadata: Metadata = buildMetadata({
   path: '/',
@@ -22,12 +32,12 @@ export default function Home() {
     <div className="flex flex-col min-h-dvh bg-background">
       <Header />
       <main className="flex-1">
-        <HeroGeometric 
+        <HeroGeometric
           badge="Innovación & Desarrollo"
           title1="Diseñamos el Futuro"
           title2="Digital de tu Empresa"
         />
-        <AboutWaveSection />
+        <LazyWaveSection />
         <LandingAccordionItem />
         <BenefitsSection />
         <TestimonialsSection />
