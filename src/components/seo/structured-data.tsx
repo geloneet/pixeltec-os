@@ -22,7 +22,6 @@ const organizationSchema = {
     "@type": "Person",
     name: "Miguel Robles Sánchez",
   },
-  sameAs: ["https://pixeltec.mx"],
 };
 
 const webSiteSchema = {
@@ -30,11 +29,6 @@ const webSiteSchema = {
   "@type": "WebSite",
   name: "PixelTEC",
   url: "https://pixeltec.mx",
-  potentialAction: {
-    "@type": "SearchAction",
-    target: "https://pixeltec.mx/blog?q={search_term_string}",
-    "query-input": "required name=search_term_string",
-  },
 };
 
 export function OrganizationStructuredData() {
