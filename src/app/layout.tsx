@@ -36,7 +36,7 @@ export const metadata: Metadata = {
     template: '%s | PixelTEC',
   },
   description: 'Transformamos procesos complejos en ecosistemas web y automatizaciones escalables para empresas que buscan rentabilidad y control absoluto.',
-  keywords: ['automatización', 'desarrollo web', 'agencias', 'nextjs', 'firebase', 'consultoría tecnológica'],
+  keywords: ['desarrollo web México', 'automatización de procesos', 'CRM personalizado', 'consultoría tecnológica Puerto Vallarta', 'ecosistemas digitales', 'software a medida'],
   authors: [{ name: 'PixelTEC' }],
 };
 
