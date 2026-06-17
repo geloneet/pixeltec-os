@@ -123,3 +123,13 @@ export function buildActivityFeed(client: CRMClient, limit = 8): ActivityEvent[]
     .sort((a, b) => (a.at > b.at ? -1 : 1))
     .slice(0, limit);
 }
+
+export function buildProjectActivityFeed(project: CRMProject, limit = 6): ActivityEvent[] {
+  const events: ActivityEvent[] = [
+    { type: "project", label: project.name, at: project.createdAt },
+  ];
+  for (const task of project.tasks) {
+    events.push({ type: "task", label: task.name, at: task.createdAt });
+  }
+  return events.sort((a, b) => (a.at > b.at ? -1 : 1)).slice(0, limit);
+}

@@ -290,6 +290,7 @@ export function CRMShellProvider({ children }: { children: ReactNode }) {
     const inputClass =
       "w-full bg-[#18181B] border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-[#0EA5E9] transition-colors duration-150";
     const labelClass = "block text-xs text-zinc-500 mb-1";
+    const sectionLabel = "text-[10px] font-semibold uppercase tracking-widest text-zinc-600 pt-2 pb-0.5";
 
     let title = "";
     let subtitle: string | undefined;
@@ -349,6 +350,7 @@ export function CRMShellProvider({ children }: { children: ReactNode }) {
         title = modal.type === "addProject" ? "Nuevo proyecto" : "Editar proyecto";
         content = (
           <div className="space-y-3">
+            <p className={sectionLabel}>General</p>
             <div>
               <label className={labelClass}>Nombre *</label>
               <input
@@ -366,6 +368,7 @@ export function CRMShellProvider({ children }: { children: ReactNode }) {
                 defaultValue={modal.data?.domain || ""}
               />
             </div>
+            <p className={sectionLabel}>Finanzas</p>
             <div>
               <label className={labelClass}>Presupuesto</label>
               <input
@@ -382,6 +385,7 @@ export function CRMShellProvider({ children }: { children: ReactNode }) {
                 defaultValue={modal.data?.annual || ""}
               />
             </div>
+            <p className={sectionLabel}>Recursos</p>
             <div>
               <label className={labelClass}>Tecnologías</label>
               <input
