@@ -641,11 +641,15 @@ export function CRMShellProvider({ children }: { children: ReactNode }) {
               <label className={labelClass}>Contenido</label>
               <textarea
                 ref={ref("content")}
-                className={inputClass + " min-h-[200px] resize-none font-mono text-xs"}
-                style={{ minHeight: "200px" }}
+                className={inputClass + " min-h-[300px] resize-y font-mono text-xs"}
+                style={{ minHeight: "300px" }}
                 placeholder="Detalle completo del tip, comandos, explicación..."
                 defaultValue={modal.data?.content || ""}
               />
+              <div className="mt-1.5 rounded-lg border border-white/[0.04] bg-zinc-900/40 px-3 py-2 text-[11px] text-zinc-600">
+                <p className="mb-1 font-medium text-zinc-500">Soporta Markdown y bloques de código</p>
+                <pre className="font-mono leading-relaxed">{`# Título\n- Lista\n\`\`\`bash\nnpm install\n\`\`\``}</pre>
+              </div>
             </div>
             <div>
               <label className={labelClass}>Tags</label>
