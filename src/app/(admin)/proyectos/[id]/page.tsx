@@ -48,7 +48,13 @@ export default function ProyectoDetailPage() {
     );
   }
 
-  const projectTab = searchParams.get("tab") || "tareas";
+  const TAB_MIGRATION: Record<string, string> = {
+    notas: "resumen", info: "resumen",
+    llaves: "recursos", readme: "recursos", prompt: "recursos",
+    cobros: "finanzas",
+  };
+  const rawTab = searchParams.get("tab") ?? "resumen";
+  const projectTab = TAB_MIGRATION[rawTab] ?? rawTab;
   const setProjectTab = (t: string) => {
     const qs = new URLSearchParams(searchParams.toString());
     qs.set("tab", t);
