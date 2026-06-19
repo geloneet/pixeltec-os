@@ -89,19 +89,45 @@ export default function LoginPage() {
 
   // Redirect if user is already logged in and profile is loaded.
   // Skip during active login to avoid racing with session cookie creation.
+  // IMPORTANT: must create the __session cookie before redirecting — middleware
+  // requires it on every protected route. Without this, Firebase-authenticated
+  // users enter an infinite /login ↔ /hoy redirect loop.
   useEffect(() => {
-    if (isLoading || isRedirecting || profileLoading) return;
+    if (isLoading || isRedirecting || profileLoading || !userProfile || !user) return;
 
-    if (userProfile) {
-        if (redirectParam) {
-            window.location.assign(redirectParam);
-        } else if (userProfile.role === 'admin' || userProfile.role === 'editor') {
-            window.location.assign('/hoy');
-        } else if (userProfile.role === 'client') {
-            window.location.assign('/portal');
-        }
+    let target: string | null = null;
+    if (redirectParam) {
+        target = redirectParam;
+    } else if (userProfile.role === 'admin' || userProfile.role === 'editor') {
+        target = '/hoy';
+    } else if (userProfile.role === 'client') {
+        target = '/portal';
     }
-  }, [userProfile, profileLoading, isLoading, isRedirecting, redirectParam]);
+
+    if (!target) return;
+
+    setIsRedirecting(true);
+
+    (async () => {
+      try {
+        const idToken = await user.getIdToken();
+        const sessionRes = await fetch('/api/auth/session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ idToken, rememberMe: false }),
+        });
+        if (!sessionRes.ok) {
+          await signOut(auth);
+          setError('Error al restaurar la sesión. Por favor, inicia sesión de nuevo.');
+          setIsRedirecting(false);
+          return;
+        }
+        window.location.assign(target!);
+      } catch {
+        setIsRedirecting(false);
+      }
+    })();
+  }, [userProfile, profileLoading, isLoading, isRedirecting, redirectParam, user, auth]);
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
