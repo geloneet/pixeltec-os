@@ -414,6 +414,11 @@ export function CRMShellProvider({ children }: { children: ReactNode }) {
                     inputMode="numeric"
                     placeholder="50000"
                     defaultValue={modal.data?.budget && modal.data.budget !== "0" ? modal.data.budget : ""}
+                    onInput={(e) => {
+                      const digits = e.currentTarget.value.replace(/[^\d]/g, "");
+                      const num = parseInt(digits, 10);
+                      e.currentTarget.value = isNaN(num) ? "" : num.toLocaleString("es-MX");
+                    }}
                   />
                   <select
                     ref={ref("budgetIva")}
@@ -435,6 +440,11 @@ export function CRMShellProvider({ children }: { children: ReactNode }) {
                     inputMode="numeric"
                     placeholder="6000"
                     defaultValue={modal.data?.annual && modal.data.annual !== "0" ? modal.data.annual : ""}
+                    onInput={(e) => {
+                      const digits = e.currentTarget.value.replace(/[^\d]/g, "");
+                      const num = parseInt(digits, 10);
+                      e.currentTarget.value = isNaN(num) ? "" : num.toLocaleString("es-MX");
+                    }}
                   />
                   <select
                     ref={ref("annualIva")}
