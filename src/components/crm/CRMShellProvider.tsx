@@ -460,25 +460,84 @@ export function CRMShellProvider({ children }: { children: ReactNode }) {
       }
       case "addTask": {
         title = "Nueva tarea";
+        submitLabel = "Crear tarea";
         content = (
           <div className="space-y-3">
+            {modal.data?.clientName && (
+              <div className="flex items-center gap-2 rounded-lg bg-zinc-900/60 px-3 py-2 text-xs text-zinc-500">
+                <span>
+                  Cliente:{" "}
+                  <span className="font-medium text-zinc-300">{modal.data.clientName}</span>
+                </span>
+                <span className="text-zinc-700">·</span>
+                <span>
+                  Proyecto:{" "}
+                  <span className="font-medium text-zinc-300">{modal.data.projectName}</span>
+                </span>
+              </div>
+            )}
             <div>
               <label className={labelClass}>Nombre *</label>
-              <input ref={ref("name")} className={inputClass} autoFocus />
+              <input
+                ref={ref("name")}
+                className={inputClass}
+                placeholder="Configurar webhook Stripe"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleModalSubmit();
+                  }
+                }}
+              />
             </div>
             <div>
               <label className={labelClass}>Descripción</label>
-              <textarea ref={ref("desc")} className={inputClass + " h-20 resize-none"} />
+              <textarea
+                ref={ref("desc")}
+                className={inputClass + " h-16 resize-none"}
+                placeholder="Pasos, contexto o enlaces necesarios para completar la tarea."
+              />
             </div>
             <div>
               <label className={labelClass}>Prioridad</label>
-              <select ref={ref("prio")} className={inputClass} defaultValue="important">
-                {Object.entries(PRIORITIES).map(([k, v]) => (
-                  <option key={k} value={k}>
-                    {v.label}
-                  </option>
+              <input type="hidden" ref={ref("prio")} defaultValue="important" />
+              <div className="grid grid-cols-4 gap-1.5 mt-1">
+                {(
+                  [
+                    { value: "urgent_important", emoji: "🔴", label: "Crítica" },
+                    { value: "important", emoji: "🟠", label: "Importante" },
+                    { value: "urgent", emoji: "🟡", label: "Normal" },
+                    { value: "low", emoji: "🟢", label: "Baja" },
+                  ] as const
+                ).map(({ value, emoji, label }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    data-prio-btn={value}
+                    onClick={() => {
+                      const el = formRefs.current["prio"] as HTMLInputElement | null;
+                      if (el) el.value = value;
+                      document.querySelectorAll("[data-prio-btn]").forEach((btn) => {
+                        (btn as HTMLElement).style.outline = "none";
+                        (btn as HTMLElement).style.background = "";
+                      });
+                      const target = document.querySelector(
+                        `[data-prio-btn="${value}"]`,
+                      ) as HTMLElement | null;
+                      if (target) target.style.outline = "2px solid rgba(14,165,233,0.7)";
+                    }}
+                    className="flex flex-col items-center gap-0.5 px-1 py-2 rounded-lg text-xs text-zinc-300 bg-zinc-800/60 hover:bg-zinc-700/60 transition-all"
+                    style={{
+                      outline: value === "important" ? "2px solid rgba(14,165,233,0.7)" : "none",
+                      outlineOffset: "2px",
+                    }}
+                  >
+                    <span className="text-base">{emoji}</span>
+                    <span className="text-[10px] text-zinc-400">{label}</span>
+                  </button>
                 ))}
-              </select>
+              </div>
             </div>
           </div>
         );
