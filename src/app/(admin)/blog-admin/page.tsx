@@ -99,7 +99,7 @@ export default async function BlogAdminPage() {
     fetchError = err instanceof Error ? err.message : "Error al cargar datos";
   }
 
-  const totalPosts = posts.length;
+  const totalPosts = posts.filter((p) => p.status !== "archived").length;
   const publishedCount = posts.filter((p) => p.status === "published").length;
   const needsReviewCount = posts.filter((p) => p.status === "needs-review").length;
 

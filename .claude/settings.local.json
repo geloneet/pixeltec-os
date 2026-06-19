@@ -160,7 +160,13 @@
       "Bash(docker info *)",
       "Bash(docker network *)",
       "Bash(rtk git *)",
-      "Bash(npx --yes tsx /tmp/defaults-smoke.ts)"
+      "Bash(npx --yes tsx /tmp/defaults-smoke.ts)",
+      "Bash(grep -v \"^$\")",
+      "Bash(host barrostock.com)",
+      "Bash(getent hosts *)",
+      "Bash(awk *)",
+      "Bash(rtk tree *)",
+      "Bash(bash *)"
     ]
   }
 }
