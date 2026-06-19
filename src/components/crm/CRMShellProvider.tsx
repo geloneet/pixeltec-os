@@ -301,44 +301,58 @@ export function CRMShellProvider({ children }: { children: ReactNode }) {
       case "addClient":
       case "editClient": {
         title = modal.type === "addClient" ? "Nuevo cliente" : "Editar cliente";
+        if (modal.type === "addClient") {
+          subtitle = "Crea una nueva cuenta para gestionar proyectos, tareas y recursos.";
+          submitLabel = "Crear cliente";
+        }
         content = (
           <div className="space-y-3">
-            <div>
-              <label className={labelClass}>Nombre *</label>
-              <input
-                ref={ref("name")}
-                className={inputClass}
-                defaultValue={modal.data?.name || ""}
-                autoFocus
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-zinc-300 mb-1">Nombre *</label>
+                <input
+                  ref={ref("name")}
+                  className={inputClass + " font-medium"}
+                  defaultValue={modal.data?.name || ""}
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Teléfono</label>
+                <input
+                  ref={ref("phone")}
+                  className={inputClass}
+                  placeholder="+52 55 1234 5678"
+                  defaultValue={modal.data?.phone || ""}
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Email</label>
+                <input
+                  ref={ref("email")}
+                  type="email"
+                  className={inputClass}
+                  placeholder="cliente@empresa.com"
+                  defaultValue={modal.data?.email || ""}
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Ubicación</label>
+                <input
+                  ref={ref("location")}
+                  className={inputClass}
+                  placeholder="Ciudad de México"
+                  defaultValue={modal.data?.location || ""}
+                />
+              </div>
             </div>
             <div>
-              <label className={labelClass}>Teléfono</label>
-              <input ref={ref("phone")} className={inputClass} defaultValue={modal.data?.phone || ""} />
-            </div>
-            <div>
-              <label className={labelClass}>Email</label>
-              <input
-                ref={ref("email")}
-                type="email"
-                className={inputClass}
-                placeholder="cliente@empresa.com"
-                defaultValue={modal.data?.email || ""}
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Ubicación</label>
-              <input
-                ref={ref("location")}
-                className={inputClass}
-                defaultValue={modal.data?.location || ""}
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Notas</label>
+              <label className={labelClass}>
+                Notas <span className="text-zinc-600">(opcional)</span>
+              </label>
               <textarea
                 ref={ref("notes")}
-                className={inputClass + " h-20 resize-none"}
+                className={inputClass + " h-16 resize-none"}
                 defaultValue={modal.data?.notes || ""}
               />
             </div>
