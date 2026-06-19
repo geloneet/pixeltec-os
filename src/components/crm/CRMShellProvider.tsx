@@ -545,15 +545,59 @@ export function CRMShellProvider({ children }: { children: ReactNode }) {
       }
       case "addKey": {
         title = "Nueva llave";
+        submitLabel = "Guardar credencial";
         content = (
           <div className="space-y-3">
-            <div>
-              <label className={labelClass}>Etiqueta</label>
-              <input ref={ref("label")} className={inputClass} autoFocus />
+            <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-[11px] text-zinc-500 leading-relaxed">
+              Guarda tokens, API keys, contraseñas o datos técnicos relevantes para este proyecto.
             </div>
             <div>
-              <label className={labelClass}>Valor</label>
-              <input ref={ref("value")} className={inputClass} />
+              <label className={labelClass}>Etiqueta</label>
+              <input
+                ref={ref("label")}
+                className={inputClass}
+                placeholder="OPENAI_API_KEY"
+                autoFocus
+              />
+              <div className="flex gap-1.5 mt-1.5">
+                {["OPENAI_API_KEY", "Token WhatsApp Cloud", "Stripe Secret Key"].map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => {
+                      const el = formRefs.current["label"] as HTMLInputElement | null;
+                      if (el) { el.value = s; el.focus(); }
+                    }}
+                    className="px-2 py-0.5 text-[10px] text-zinc-500 bg-zinc-800/60 hover:bg-zinc-700 rounded-md transition-colors whitespace-nowrap"
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className={labelClass}>
+                Valor <span className="text-zinc-600">(dato sensible)</span>
+              </label>
+              <div className="relative">
+                <input
+                  ref={ref("value")}
+                  type="password"
+                  className={inputClass + " pr-10"}
+                  placeholder="sk-proj-xxxx..."
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const el = formRefs.current["value"] as HTMLInputElement | null;
+                    if (el) el.type = el.type === "password" ? "text" : "password";
+                  }}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors text-sm"
+                  title="Mostrar / ocultar"
+                >
+                  👁
+                </button>
+              </div>
             </div>
           </div>
         );
