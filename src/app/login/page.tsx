@@ -93,7 +93,7 @@ export default function LoginPage() {
   // requires it on every protected route. Without this, Firebase-authenticated
   // users enter an infinite /login ↔ /hoy redirect loop.
   useEffect(() => {
-    if (isLoading || isRedirecting || profileLoading || !userProfile || !user) return;
+    if (isLoading || isRedirecting || profileLoading || !userProfile || !user || !auth) return;
 
     let target: string | null = null;
     if (redirectParam) {
