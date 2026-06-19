@@ -268,7 +268,7 @@ export function ClientsView({ clients, navigateToClient, setModal }: ClientsView
     }
 
     if (filter === "con-tareas") result = result.filter(({ stats }) => stats.openTasks > 0);
-    else if (filter === "sin-tareas") result = result.filter(({ stats }) => stats.totalTasks === 0);
+    else if (filter === "sin-tareas") result = result.filter(({ stats }) => stats.openTasks === 0);
     else if (filter === "activos") result = result.filter(({ stats }) => stats.projectsCount > 0);
 
     const sorted = [...result];
