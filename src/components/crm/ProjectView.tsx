@@ -473,7 +473,7 @@ export function ProjectView({
               </div>
             </div>
             <button
-              onClick={() => setModal({ type: "addTask" })}
+              onClick={() => setModal({ type: "addTask", data: { clientName: client.name, projectName: project.name } })}
               className="rounded-lg border border-cyan-500/20 bg-cyan-500/10 px-3 py-1.5 text-xs font-medium text-cyan-300 transition-all hover:bg-cyan-500/20"
             >
               + Tarea
