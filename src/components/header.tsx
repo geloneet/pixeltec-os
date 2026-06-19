@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Phone } from 'lucide-react';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
@@ -47,8 +48,26 @@ const AnimatedHamburger = ({ isOpen, onClick, className }: { isOpen: boolean; on
   );
 
 export default function Header() {
+  const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+
+  const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    e.preventDefault();
+    if (window.scrollY === 0) {
+      router.push(href);
+      return;
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    const checkScroll = () => {
+      if (window.scrollY === 0) {
+        router.push(href);
+      } else {
+        requestAnimationFrame(checkScroll);
+      }
+    };
+    requestAnimationFrame(checkScroll);
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -92,13 +111,14 @@ export default function Header() {
             
             <nav className="hidden lg:flex items-center gap-8">
             {navLinks.map((link) => (
-                <Link 
+                <a
                 key={link.href}
                 href={link.href}
+                onClick={(e) => handleNavClick(e, link.href)}
                 className="text-base font-bold tracking-wide text-gray-300 transition-colors hover:text-primary"
                 >
                 <AnimatedTextLink>{link.label}</AnimatedTextLink>
-                </Link>
+                </a>
             ))}
             </nav>
 
