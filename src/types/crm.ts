@@ -18,8 +18,10 @@ export interface CRMProject {
   id: string;
   name: string;
   domain: string;
-  budget: string;
-  annual: string;
+  budget: number;
+  annual: number;
+  budgetIva: "none" | "plus" | "included";
+  annualIva: "none" | "plus" | "included";
   tech: string;
   keys: CRMKey[];
   guides: string;

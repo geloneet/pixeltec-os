@@ -11,8 +11,10 @@ export const clientSchema = z.object({
 export const projectSchema = z.object({
   name: z.string().min(1, "Nombre requerido").max(200),
   domain: z.string().max(200).optional().default(""),
-  budget: z.string().max(100).optional().default(""),
-  annual: z.string().max(100).optional().default(""),
+  budget: z.number().min(0).default(0),
+  annual: z.number().min(0).default(0),
+  budgetIva: z.enum(["none", "plus", "included"]).default("none"),
+  annualIva: z.enum(["none", "plus", "included"]).default("none"),
   tech: z.string().max(500).optional().default(""),
 });
 

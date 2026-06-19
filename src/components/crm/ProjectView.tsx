@@ -38,7 +38,7 @@ import {
 } from "@/lib/crm/client-stats";
 import { formatDistanceToNow, format } from "date-fns";
 import { es } from "date-fns/locale";
-import { cn } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -261,7 +261,7 @@ export function ProjectView({
           <button
             onClick={() => setModal({
               type: "editProject",
-              data: { id: project.id, name: project.name, domain: project.domain, budget: project.budget, annual: project.annual, tech: project.tech, accounts: project.accounts, guides: project.guides },
+              data: { id: project.id, name: project.name, domain: project.domain, budget: project.budget.toString(), annual: project.annual.toString(), budgetIva: project.budgetIva, annualIva: project.annualIva, tech: project.tech, accounts: project.accounts, guides: project.guides },
             })}
             className="rounded-lg border border-white/[0.06] bg-zinc-900/40 px-3 py-1.5 text-xs font-medium text-zinc-400 transition-all hover:border-white/[0.10] hover:text-zinc-200"
           >
@@ -664,7 +664,7 @@ export function ProjectView({
               <button
                 onClick={() => setModal({
                   type: "editProject",
-                  data: { id: project.id, name: project.name, domain: project.domain, budget: project.budget, annual: project.annual, tech: project.tech, accounts: project.accounts, guides: project.guides },
+                  data: { id: project.id, name: project.name, domain: project.domain, budget: project.budget.toString(), annual: project.annual.toString(), budgetIva: project.budgetIva, annualIva: project.annualIva, tech: project.tech, accounts: project.accounts, guides: project.guides },
                 })}
                 className="text-xs text-cyan-400 transition-colors hover:text-cyan-300"
               >
@@ -674,11 +674,11 @@ export function ProjectView({
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-xl border border-white/[0.06] bg-zinc-900/20 p-4">
                 <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Presupuesto</p>
-                <p className="text-sm text-zinc-200">{project.budget || "—"}</p>
+                <p className="text-sm text-zinc-200">{project.budget ? `${formatCurrency(project.budget)}${project.budgetIva === "plus" ? " + IVA" : project.budgetIva === "included" ? " IVA incl." : ""}` : "—"}</p>
               </div>
               <div className="rounded-xl border border-white/[0.06] bg-zinc-900/20 p-4">
                 <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Costos anuales</p>
-                <p className="text-sm text-zinc-200">{project.annual || "—"}</p>
+                <p className="text-sm text-zinc-200">{project.annual ? `${formatCurrency(project.annual)}${project.annualIva === "plus" ? " + IVA" : project.annualIva === "included" ? " IVA incl." : ""}` : "—"}</p>
               </div>
             </div>
           </div>

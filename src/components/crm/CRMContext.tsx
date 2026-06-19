@@ -80,7 +80,14 @@ export function CRMProvider({ children }: { children: ReactNode }) {
             const loadedClients = (d.clients || []).map((c: any) => ({
               ...c,
               email: c.email || "",
-              projects: (c.projects || []).map((p: any) => ({ ...p, charges: p.charges || [] })),
+              projects: (c.projects || []).map((p: any) => ({
+                ...p,
+                charges: p.charges || [],
+                budget: Number(p.budget) || 0,
+                annual: Number(p.annual) || 0,
+                budgetIva: p.budgetIva || "none",
+                annualIva: p.annualIva || "none",
+              })),
             }));
             setClients(loadedClients);
             setTools(d.tools || []);
