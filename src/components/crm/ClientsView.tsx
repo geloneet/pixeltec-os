@@ -126,17 +126,10 @@ function ClientRow({ item, navigateToClient, setModal }: ClientRowProps) {
 
       {/* Tasks */}
       <div className="w-28 flex-shrink-0 px-3 py-3 text-center">
-        {stats.totalTasks > 0 ? (
-          <>
-            <p className="tabular-nums text-sm font-semibold text-zinc-100">{stats.openTasks}</p>
-            <p className="mt-0.5 text-[10px] text-zinc-600">abiertas / {stats.totalTasks}</p>
-          </>
-        ) : (
-          <>
-            <p className="text-sm text-zinc-700">—</p>
-            <p className="mt-0.5 text-[10px] text-zinc-700">tareas</p>
-          </>
-        )}
+        <p className="tabular-nums text-sm font-semibold text-zinc-100">
+          {stats.totalTasks > 0 ? stats.openTasks : "—"}
+        </p>
+        <p className="mt-0.5 text-[10px] text-zinc-600">abiertas</p>
       </div>
 
       <div className="my-2 w-px self-stretch bg-white/[0.06]" />
