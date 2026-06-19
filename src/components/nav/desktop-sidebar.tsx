@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { ChevronRight, LogOut, PanelLeftClose, PanelLeftOpen, Search } from "lucide-react";
 import { signOut } from "firebase/auth";
 import { useAuth } from "@/firebase";
+import { useCRM } from "@/components/crm/CRMContext";
 import { cn } from "@/lib/utils";
 import {
   Tooltip,
@@ -33,14 +34,12 @@ interface BadgeMeta {
 }
 
 /**
- * Static placeholders so the badge UI is testable today.
- * TODO: wire each entry to a real data source:
+ * VPS warning placeholder (static).
+ * TODO: wire remaining entries to real data sources:
  *   - "/asistente"    → useCRM() pending tasks for the week
- *   - "/vps"          → fetch to vps-api status → boolean alert flag
  *   - "/crypto-intel" → count of alertEvents triggered in the last 24h
  */
 const BADGE_PLACEHOLDERS: Record<string, BadgeMeta> = {
-  "/tareas": { count: 3, severity: "info" },
   "/vps": { severity: "warning" },
 };
 
@@ -205,6 +204,7 @@ export function DesktopSidebar() {
   const router = useRouter();
   const auth = useAuth();
   const { setOpen: setCmdKOpen } = useCmdK();
+  const { clients } = useCRM();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [collapsedSections, setCollapsedSections] = useState<Set<NavSection>>(
     () => new Set<NavSection>(["sistema"]),
@@ -218,6 +218,12 @@ export function DesktopSidebar() {
     });
 
   const activeHref = resolveActiveHref(PALETTE_NAV_ITEMS, pathname);
+
+  // Derive open tasks count from useCRM()
+  const openTasksCount = clients
+    .flatMap(c => c.projects)
+    .flatMap(p => p.tasks)
+    .filter(t => t.status === "pendiente" || t.status === "proceso").length;
 
   const handleLogout = async () => {
     if (!auth) return;
@@ -341,7 +347,9 @@ export function DesktopSidebar() {
                   {(isCollapsed || !collapsedSections.has(section)) && sectionItems.map((item) => {
                     const active = item.href === activeHref;
                     const Icon = item.icon;
-                    const badge = BADGE_PLACEHOLDERS[item.href];
+                    const badge = item.href === "/tareas" && openTasksCount > 0
+                      ? { count: openTasksCount, severity: "info" as const }
+                      : BADGE_PLACEHOLDERS[item.href];
 
                     return (
                       <Tooltip key={item.href} open={isCollapsed ? undefined : false}>
