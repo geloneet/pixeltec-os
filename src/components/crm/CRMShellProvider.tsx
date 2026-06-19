@@ -604,14 +604,22 @@ export function CRMShellProvider({ children }: { children: ReactNode }) {
         break;
       }
       case "editReadme": {
-        title = "Editar README";
+        title = "Documentación del proyecto";
+        submitLabel = "Actualizar documentación";
+        const readmeTemplate = `# Descripción\n\n## Objetivo\n\n## Tecnologías\n\n## Configuración\n\n## Notas importantes`;
         content = (
-          <textarea
-            ref={ref("content")}
-            className={inputClass + " h-64 resize-none font-mono text-xs"}
-            defaultValue={modal.data?.content || ""}
-            autoFocus
-          />
+          <div className="space-y-2">
+            <textarea
+              ref={ref("content")}
+              className={inputClass + " h-80 resize-y font-mono text-xs leading-relaxed"}
+              defaultValue={modal.data?.content || readmeTemplate}
+              autoFocus
+            />
+            <div className="rounded-lg border border-white/[0.04] bg-zinc-900/40 px-3 py-2 text-[11px] text-zinc-600">
+              <p className="mb-1 font-medium text-zinc-500">Soporta Markdown</p>
+              <pre className="font-mono leading-relaxed whitespace-pre-wrap">{`# Títulos  ## Secciones  - Listas\n\`\`\`bash\nnpm install\n\`\`\``}</pre>
+            </div>
+          </div>
         );
         break;
       }
