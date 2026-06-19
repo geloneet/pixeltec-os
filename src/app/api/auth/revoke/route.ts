@@ -56,6 +56,13 @@ export async function POST(request: NextRequest) {
     return response;
   } catch (error) {
     console.error('[auth/revoke] failed:', error);
+    const code = (error as { code?: string })?.code ?? "";
+    if (code.startsWith("auth/")) {
+      return NextResponse.json(
+        { error: "Sesión inválida o expirada" },
+        { status: 401, headers: SECURITY_HEADERS }
+      );
+    }
     return NextResponse.json(
       { error: 'Failed to revoke sessions' },
       { status: 500, headers: SECURITY_HEADERS }
