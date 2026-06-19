@@ -14,6 +14,7 @@ import {
   toolTopTags,
 } from "@/lib/crm/knowledge-stats";
 import { useFavorites } from "@/lib/crm/use-favorites";
+import { getNavLabel } from "@/components/nav/command-palette-items";
 
 interface ToolsViewProps {
   tools: Tool[];
@@ -124,7 +125,7 @@ export function ToolsView({ tools, onSelectTool, onAddTool }: ToolsViewProps) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-[20px] font-semibold text-zinc-100">
-            Knowledge Hub
+            {getNavLabel("/accesos")}
           </h2>
           <p className="text-[12px] text-zinc-500">
             Base de conocimiento interna y recursos operativos
