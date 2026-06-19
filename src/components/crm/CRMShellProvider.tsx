@@ -295,6 +295,7 @@ export function CRMShellProvider({ children }: { children: ReactNode }) {
     let title = "";
     let subtitle: string | undefined;
     let content: ReactNode = null;
+    let submitLabel = "Guardar";
 
     switch (modal.type) {
       case "addClient":
@@ -680,7 +681,7 @@ export function CRMShellProvider({ children }: { children: ReactNode }) {
             onClick={handleModalSubmit}
             className="px-4 py-2 text-sm bg-[#0EA5E9] text-white rounded-lg hover:bg-[#0284C7] transition-all duration-150"
           >
-            Guardar
+            {submitLabel}
           </button>
         </div>
       </Modal>
