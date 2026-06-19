@@ -423,6 +423,7 @@ export function ProjectView({
                 {(noteValue || "").length} ch
               </span>
             </div>
+            <p className="mt-1 text-[11px] text-zinc-600">No guardes tokens ni contraseñas aquí — usa <span className="text-zinc-500">Recursos</span>.</p>
           </div>
         </div>
       )}
