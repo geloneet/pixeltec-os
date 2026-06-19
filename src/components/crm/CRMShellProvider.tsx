@@ -363,42 +363,50 @@ export function CRMShellProvider({ children }: { children: ReactNode }) {
       case "addProject":
       case "editProject": {
         title = modal.type === "addProject" ? "Nuevo proyecto" : "Editar proyecto";
+        if (modal.type === "editProject") submitLabel = "Actualizar proyecto";
         content = (
           <div className="space-y-3">
             <p className={sectionLabel}>General</p>
-            <div>
-              <label className={labelClass}>Nombre *</label>
-              <input
-                ref={ref("name")}
-                className={inputClass}
-                defaultValue={modal.data?.name || ""}
-                autoFocus
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Dominio</label>
-              <input
-                ref={ref("domain")}
-                className={inputClass}
-                defaultValue={modal.data?.domain || ""}
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={labelClass}>Nombre *</label>
+                <input
+                  ref={ref("name")}
+                  className={inputClass}
+                  defaultValue={modal.data?.name || ""}
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Dominio</label>
+                <input
+                  ref={ref("domain")}
+                  className={inputClass}
+                  placeholder="midominio.com"
+                  defaultValue={modal.data?.domain || ""}
+                />
+              </div>
             </div>
             <p className={sectionLabel}>Finanzas</p>
-            <div>
-              <label className={labelClass}>Presupuesto</label>
-              <input
-                ref={ref("budget")}
-                className={inputClass}
-                defaultValue={modal.data?.budget || ""}
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Costos anuales</label>
-              <input
-                ref={ref("annual")}
-                className={inputClass}
-                defaultValue={modal.data?.annual || ""}
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={labelClass}>Presupuesto</label>
+                <input
+                  ref={ref("budget")}
+                  className={inputClass}
+                  placeholder="$50,000 MXN"
+                  defaultValue={modal.data?.budget || ""}
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Costos anuales</label>
+                <input
+                  ref={ref("annual")}
+                  className={inputClass}
+                  placeholder="$6,000 MXN / año"
+                  defaultValue={modal.data?.annual || ""}
+                />
+              </div>
             </div>
             <p className={sectionLabel}>Recursos</p>
             <div>
@@ -406,8 +414,25 @@ export function CRMShellProvider({ children }: { children: ReactNode }) {
               <input
                 ref={ref("tech")}
                 className={inputClass}
+                placeholder="React, Node.js, Firebase"
                 defaultValue={modal.data?.tech || ""}
               />
+              {modal.data?.tech && modal.data.tech.trim() && (
+                <div className="flex flex-wrap gap-1 mt-1.5">
+                  {modal.data.tech
+                    .split(",")
+                    .map((t) => t.trim())
+                    .filter(Boolean)
+                    .map((t) => (
+                      <span
+                        key={t}
+                        className="px-2 py-0.5 text-[11px] text-zinc-300 bg-zinc-800 rounded-full border border-zinc-700"
+                      >
+                        {t}
+                      </span>
+                    ))}
+                </div>
+              )}
             </div>
             {modal.type === "editProject" && (
               <>
