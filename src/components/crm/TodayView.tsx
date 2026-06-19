@@ -2,6 +2,7 @@
 
 import { PRIORITIES, STATUS_CONFIG } from "@/types/crm";
 import type { CRMClient, CRMTask, RecurringCharge } from "@/types/crm";
+import { getNextChargeDate } from "@/lib/crm/next-charge-date";
 
 interface TaskWithContext {
   task: CRMTask;
@@ -185,13 +186,7 @@ export function TodayView({ clients, navigateToClient, navigateToProject, setMod
         clients.forEach(c => c.projects.forEach(p => {
           (p.charges || []).forEach(ch => {
             if (!ch.active) return;
-            const start = new Date(ch.startDate);
-            const next = new Date(start);
-            if (ch.frequency === "monthly") {
-              while (next <= now) next.setMonth(next.getMonth() + 1);
-            } else {
-              while (next <= now) next.setFullYear(next.getFullYear() + 1);
-            }
+            const next = getNextChargeDate(ch.startDate, ch.frequency);
             const days = Math.ceil((next.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
             if (days <= 30) {
               upcoming.push({ charge: ch, clientName: c.name, projectName: p.name, nextDate: next, daysUntil: days });

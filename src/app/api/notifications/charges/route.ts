@@ -3,18 +3,7 @@ import { sendWhatsApp } from "@/lib/whatsapp/sender";
 import { sendEmail } from "@/lib/email";
 import { getAdminApp } from "@/lib/firebase-admin";
 import { getFirestore } from "firebase-admin/firestore";
-
-function getNextChargeDate(startDate: string, frequency: string): Date {
-  const start = new Date(startDate);
-  const now = new Date();
-  const next = new Date(start);
-  if (frequency === "monthly") {
-    while (next <= now) next.setMonth(next.getMonth() + 1);
-  } else {
-    while (next <= now) next.setFullYear(next.getFullYear() + 1);
-  }
-  return next;
-}
+import { getNextChargeDate } from "@/lib/crm/next-charge-date";
 
 export async function GET(req: NextRequest) {
   const secret = req.nextUrl.searchParams.get("secret");

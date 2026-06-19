@@ -39,6 +39,7 @@ import {
 import { formatDistanceToNow, format } from "date-fns";
 import { es } from "date-fns/locale";
 import { cn, formatCurrency } from "@/lib/utils";
+import { getNextChargeDate } from "@/lib/crm/next-charge-date";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -46,18 +47,6 @@ function formatTime(s: number) {
   const m = Math.floor(s / 60);
   const sec = s % 60;
   return `${m.toString().padStart(2, "0")}:${sec.toString().padStart(2, "0")}`;
-}
-
-function getNextChargeDate(startDate: string, frequency: string): Date {
-  const start = new Date(startDate);
-  const now = new Date();
-  const next = new Date(start);
-  if (frequency === "monthly") {
-    while (next <= now) next.setMonth(next.getMonth() + 1);
-  } else {
-    while (next <= now) next.setFullYear(next.getFullYear() + 1);
-  }
-  return next;
 }
 
 function formatDateES(d: Date): string {
