@@ -5,6 +5,7 @@ import { getFirestore } from "firebase-admin/firestore";
 import { getSessionUid } from "@/lib/crypto-intel/auth";
 import { AvatarUploader } from "@/components/profile/avatar-uploader";
 import { ProfileForm } from "@/components/profile/profile-form";
+import { SecuritySettings } from "@/components/perfil/security-settings";
 
 export const metadata: Metadata = {
   title: "Perfil · PixelTEC OS",
@@ -58,24 +59,10 @@ export default async function PerfilPage() {
         <ProfileForm initialValues={initialValues} />
       </section>
 
-      {/* Seguridad — stub */}
+      {/* Seguridad */}
       <section className="rounded-xl border border-white/5 bg-white/[0.03] p-6">
         <h2 className="mb-4 text-base font-semibold text-zinc-100">Seguridad</h2>
-        <div className="space-y-3">
-          <button
-            disabled
-            className="w-full rounded-lg border border-white/5 bg-white/[0.03] px-4 py-3 text-left text-sm text-zinc-500 cursor-not-allowed opacity-60"
-          >
-            Cambiar contraseña
-          </button>
-          <button
-            disabled
-            className="w-full rounded-lg border border-white/5 bg-white/[0.03] px-4 py-3 text-left text-sm text-zinc-500 cursor-not-allowed opacity-60"
-          >
-            Cerrar sesión en todos los dispositivos
-          </button>
-          <p className="text-xs text-zinc-600">Funcionalidad próximamente disponible.</p>
-        </div>
+        <SecuritySettings />
       </section>
     </div>
   );
