@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { AlertCircle, RefreshCw } from "lucide-react";
+import { AlertCircle, RefreshCw, Server } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useVpsStatus } from "@/lib/vps-swr";
@@ -41,6 +41,7 @@ function ProjectCardSkeleton() {
 
 export function VpsDashboard() {
   const { data, error, isLoading, mutate, isValidating } = useVpsStatus();
+  const vpsError = error as (Error & { status?: number }) | undefined;
   const [logsProject, setLogsProject] = useState<VpsProject | null>(null);
   const [logsOpen, setLogsOpen] = useState(false);
 
@@ -75,7 +76,21 @@ export function VpsDashboard() {
         </Button>
       </header>
 
-      {error && (
+      {vpsError && (vpsError.status === 401 || vpsError.status === 403) ? (
+        <div className="mb-6 flex items-start gap-4 rounded-2xl border border-zinc-800/50 bg-zinc-900/40 p-6 backdrop-blur-xl">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-zinc-800/60">
+            <Server className="h-5 w-5 text-zinc-400" />
+          </div>
+          <div>
+            <p className="font-poppins font-semibold text-zinc-200">
+              Conecta tu VPS
+            </p>
+            <p className="mt-1 font-roboto text-sm text-zinc-500">
+              Para ver el estado de tu infraestructura, configura el acceso al VPS en las variables de entorno.
+            </p>
+          </div>
+        </div>
+      ) : vpsError ? (
         <div className="mb-6 flex items-start gap-3 rounded-2xl border border-red-500/30 bg-red-500/5 p-5 backdrop-blur-xl">
           <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-400" />
           <div className="flex-1">
@@ -83,7 +98,7 @@ export function VpsDashboard() {
               VPS no responde
             </p>
             <p className="mt-1 font-roboto text-sm text-red-300/80">
-              {error instanceof Error ? error.message : String(error)}
+              {vpsError.message}
             </p>
           </div>
           <Button
@@ -95,48 +110,52 @@ export function VpsDashboard() {
             Reintentar
           </Button>
         </div>
+      ) : null}
+
+      {!vpsError && (
+        <>
+          <section className="mb-8">
+            {isLoading && !data ? (
+              <div className="grid gap-4 md:grid-cols-3">
+                <StatCardSkeleton />
+                <StatCardSkeleton />
+                <StatCardSkeleton />
+              </div>
+            ) : data ? (
+              <ServerStatsHeader server={data.server} />
+            ) : null}
+          </section>
+
+          <section>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="font-poppins text-lg font-semibold text-zinc-200">
+                Proyectos
+              </h2>
+              {data && (
+                <span className="font-roboto text-xs text-zinc-500">
+                  {data.projects.length} total ·{" "}
+                  {data.projects.filter((p) => p.active).length} activos
+                </span>
+              )}
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+              {isLoading && !data
+                ? Array.from({ length: 6 }).map((_, i) => (
+                    <ProjectCardSkeleton key={i} />
+                  ))
+                : data?.projects.map((project) => (
+                    <ProjectCard
+                      key={project.id}
+                      project={project}
+                      onOpenLogs={openLogs}
+                      onMutated={() => mutate()}
+                    />
+                  ))}
+            </div>
+          </section>
+        </>
       )}
-
-      <section className="mb-8">
-        {isLoading || !data ? (
-          <div className="grid gap-4 md:grid-cols-3">
-            <StatCardSkeleton />
-            <StatCardSkeleton />
-            <StatCardSkeleton />
-          </div>
-        ) : (
-          <ServerStatsHeader server={data.server} />
-        )}
-      </section>
-
-      <section>
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="font-poppins text-lg font-semibold text-zinc-200">
-            Proyectos
-          </h2>
-          {data && (
-            <span className="font-roboto text-xs text-zinc-500">
-              {data.projects.length} total ·{" "}
-              {data.projects.filter((p) => p.active).length} activos
-            </span>
-          )}
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-          {isLoading && !data
-            ? Array.from({ length: 6 }).map((_, i) => (
-                <ProjectCardSkeleton key={i} />
-              ))
-            : data?.projects.map((project) => (
-                <ProjectCard
-                  key={project.id}
-                  project={project}
-                  onOpenLogs={openLogs}
-                  onMutated={() => mutate()}
-                />
-              ))}
-        </div>
-      </section>
 
       <LogsSheet
         project={logsProject}

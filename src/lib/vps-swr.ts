@@ -29,7 +29,9 @@ const statusFetcher = async (url: string): Promise<VpsStatusResponse> => {
     const err = (await res.json().catch(() => ({ error: res.statusText }))) as {
       error?: string;
     };
-    throw new Error(err.error || `HTTP ${res.status}`);
+    const e = new Error(err.error || `HTTP ${res.status}`) as Error & { status: number };
+    e.status = res.status;
+    throw e;
   }
   const raw = (await res.json()) as RawStatusResponse;
   return {
