@@ -709,6 +709,25 @@ export function CRMShellProvider({ children }: { children: ReactNode }) {
       case "addCharge":
       case "editCharge": {
         title = modal.type === "addCharge" ? "Nuevo cobro recurrente" : "Editar cobro";
+        if (modal.type === "addCharge") {
+          subtitle = "Programa recordatorios automáticos para servicios recurrentes.";
+          submitLabel = "Crear cobro recurrente";
+        }
+        const updateChargeDate = () => {
+          const freqEl = formRefs.current["frequency"] as HTMLSelectElement | null;
+          const dateEl = formRefs.current["startDate"] as HTMLInputElement | null;
+          const span = document.getElementById("charge-next-date");
+          if (!freqEl || !dateEl || !span || !dateEl.value) {
+            if (span) span.textContent = "—";
+            return;
+          }
+          const d = new Date(dateEl.value + "T12:00:00");
+          if (isNaN(d.getTime())) { span.textContent = "—"; return; }
+          if (freqEl.value === "monthly") d.setMonth(d.getMonth() + 1);
+          else d.setFullYear(d.getFullYear() + 1);
+          const months = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+          span.textContent = `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+        };
         content = (
           <div className="space-y-3">
             <div>
@@ -720,39 +739,71 @@ export function CRMShellProvider({ children }: { children: ReactNode }) {
                 defaultValue={modal.data?.concept || ""}
                 autoFocus
               />
+              <div className="flex flex-wrap gap-1.5 mt-1.5">
+                {["Hosting", "Dominio", "VPS", "Mantenimiento", "Licencia", "Otro"].map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => {
+                      const el = formRefs.current["concept"] as HTMLInputElement | null;
+                      if (el) { el.value = s; el.focus(); }
+                    }}
+                    className="px-2 py-1 text-[11px] text-zinc-400 bg-zinc-800/60 hover:bg-zinc-700 rounded-md transition-colors"
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
             </div>
             <div>
               <label className={labelClass}>Monto (MXN) *</label>
-              <input
-                ref={ref("amount")}
-                type="number"
-                className={inputClass}
-                placeholder="15000"
-                defaultValue={modal.data?.amount || ""}
-              />
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-zinc-500 pointer-events-none">
+                  $
+                </span>
+                <input
+                  ref={ref("amount")}
+                  type="number"
+                  className={inputClass + " pl-6"}
+                  placeholder="15000"
+                  defaultValue={modal.data?.amount || ""}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={labelClass}>Frecuencia *</label>
+                <select
+                  ref={ref("frequency")}
+                  className={inputClass}
+                  defaultValue={modal.data?.frequency || "annual"}
+                  onChange={updateChargeDate}
+                >
+                  <option value="monthly">Mensual</option>
+                  <option value="annual">Anual</option>
+                </select>
+              </div>
+              <div>
+                <label className={labelClass}>Fecha de inicio *</label>
+                <input
+                  ref={ref("startDate")}
+                  type="date"
+                  className={inputClass}
+                  defaultValue={modal.data?.startDate || ""}
+                  onChange={updateChargeDate}
+                />
+              </div>
+            </div>
+            <div className="rounded-lg bg-zinc-900/60 px-3 py-2 text-xs text-zinc-500">
+              Próximo cobro estimado:{" "}
+              <span id="charge-next-date" className="font-medium text-zinc-300">
+                —
+              </span>
             </div>
             <div>
-              <label className={labelClass}>Frecuencia *</label>
-              <select
-                ref={ref("frequency")}
-                className={inputClass}
-                defaultValue={modal.data?.frequency || "annual"}
-              >
-                <option value="monthly">Mensual</option>
-                <option value="annual">Anual</option>
-              </select>
-            </div>
-            <div>
-              <label className={labelClass}>Fecha de inicio *</label>
-              <input
-                ref={ref("startDate")}
-                type="date"
-                className={inputClass}
-                defaultValue={modal.data?.startDate || ""}
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Email del cliente</label>
+              <label className={labelClass}>
+                Email del cliente <span className="text-zinc-600">(opcional)</span>
+              </label>
               <input
                 ref={ref("clientEmail")}
                 type="email"
