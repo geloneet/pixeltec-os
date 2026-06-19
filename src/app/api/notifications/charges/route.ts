@@ -4,6 +4,7 @@ import { sendEmail } from "@/lib/email";
 import { getAdminApp } from "@/lib/firebase-admin";
 import { getFirestore } from "firebase-admin/firestore";
 import { getNextChargeDate } from "@/lib/crm/next-charge-date";
+import { createNotification } from "@/lib/notifications/actions";
 
 export async function GET(req: NextRequest) {
   const secret = req.nextUrl.searchParams.get("secret");
@@ -105,7 +106,30 @@ export async function GET(req: NextRequest) {
             await sendWhatsApp(whatsappMsg);
             notifications.push(`WhatsApp sent for ${charge.concept} (${client.name})`);
 
-            // 3. Marcar como notificado
+            // 3. In-app notification
+            try {
+              const frequencyLabel =
+                charge.frequency === "monthly" ? "mensual" : "anual";
+              const body =
+                `${charge.concept} — $${Number(charge.amount).toLocaleString("es-MX")} MXN (${frequencyLabel}). Cobro el ${dateStr}.`;
+              await createNotification({
+                userId: doc.id,
+                type: "warning",
+                title: "Cobro próximo",
+                body,
+                href: `/cobros`,
+                source: "charges-cron",
+                metadata: {
+                  clientId: client.id ?? null,
+                  projectId: project.id ?? null,
+                  chargeId: charge.id ?? null,
+                },
+              });
+            } catch (e) {
+              notifications.push(`In-app notification FAILED for ${charge.concept}: ${e}`);
+            }
+
+            // 4. Marcar como notificado
             charge.lastNotified = notifKey;
             updated = true;
           }

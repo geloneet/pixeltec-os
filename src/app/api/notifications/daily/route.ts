@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { sendWhatsApp } from "@/lib/whatsapp/sender";
 import { getAdminApp } from "@/lib/firebase-admin";
 import { getFirestore } from "firebase-admin/firestore";
+import { createNotification } from "@/lib/notifications/actions";
 
 export async function GET(req: NextRequest) {
   const secret = req.nextUrl.searchParams.get("secret");
@@ -92,6 +93,21 @@ export async function GET(req: NextRequest) {
       msg += `\n\n👉 pixeltec.mx/crm`;
 
       await sendWhatsApp(msg);
+
+      // In-app daily summary notification
+      const summaryBody = `Progreso general: ${pct}% — ${completed}/${totalTasks} tareas completadas. En proceso: ${inProgress}. Detenidas: ${stopped}. Pendientes: ${pendiente}.`;
+      try {
+        await createNotification({
+          userId: doc.id,
+          type: "info",
+          title: "Resumen diario",
+          body: summaryBody,
+          href: "/tareas",
+          source: "daily-cron",
+        });
+      } catch (e) {
+        console.error("In-app daily notification FAILED:", e);
+      }
     }
 
     return NextResponse.json({ success: true, message: "Notifications sent" });
