@@ -173,25 +173,41 @@ export function CRMShellProvider({ children }: { children: ReactNode }) {
         break;
       case "addProject":
         if (!urlClientId || !val("name").trim()) return;
-        crm.addProject(urlClientId, {
-          name: val("name"),
-          domain: val("domain"),
-          budget: val("budget"),
-          annual: val("annual"),
-          tech: val("tech"),
-        });
+        {
+          const budget = Number(val("budget").replace(/[^\d]/g, "")) || 0;
+          const annual = Number(val("annual").replace(/[^\d]/g, "")) || 0;
+          const budgetIva = (val("budgetIva") || "none") as "none" | "plus" | "included";
+          const annualIva = (val("annualIva") || "none") as "none" | "plus" | "included";
+          crm.addProject(urlClientId, {
+            name: val("name"),
+            domain: val("domain"),
+            budget,
+            annual,
+            budgetIva,
+            annualIva,
+            tech: val("tech"),
+          });
+        }
         break;
       case "editProject":
         if (!urlClientId || !modal.data?.id) return;
-        crm.updateProject(urlClientId, modal.data.id, {
-          name: val("name"),
-          domain: val("domain"),
-          budget: val("budget"),
-          annual: val("annual"),
-          tech: val("tech"),
-          accounts: val("accounts"),
-          guides: val("guides"),
-        });
+        {
+          const budget = Number(val("budget").replace(/[^\d]/g, "")) || 0;
+          const annual = Number(val("annual").replace(/[^\d]/g, "")) || 0;
+          const budgetIva = (val("budgetIva") || "none") as "none" | "plus" | "included";
+          const annualIva = (val("annualIva") || "none") as "none" | "plus" | "included";
+          crm.updateProject(urlClientId, modal.data.id, {
+            name: val("name"),
+            domain: val("domain"),
+            budget,
+            annual,
+            budgetIva,
+            annualIva,
+            tech: val("tech"),
+            accounts: val("accounts"),
+            guides: val("guides"),
+          });
+        }
         break;
       case "addTask":
         if (!urlClientId || !urlProjectId || !val("name").trim()) return;
@@ -391,21 +407,45 @@ export function CRMShellProvider({ children }: { children: ReactNode }) {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className={labelClass}>Presupuesto</label>
-                <input
-                  ref={ref("budget")}
-                  className={inputClass}
-                  placeholder="$50,000 MXN"
-                  defaultValue={modal.data?.budget || ""}
-                />
+                <div className="grid grid-cols-[1fr_auto] gap-1.5">
+                  <input
+                    ref={ref("budget")}
+                    className={inputClass}
+                    inputMode="numeric"
+                    placeholder="50000"
+                    defaultValue={modal.data?.budget && modal.data.budget !== "0" ? modal.data.budget : ""}
+                  />
+                  <select
+                    ref={ref("budgetIva")}
+                    className="w-32 bg-[#18181B] border border-zinc-800 rounded-lg px-2 py-2 text-sm text-zinc-200 focus:outline-none focus:border-[#0EA5E9] transition-colors duration-150"
+                    defaultValue={modal.data?.budgetIva || "none"}
+                  >
+                    <option value="none">Sin IVA</option>
+                    <option value="plus">+ IVA</option>
+                    <option value="included">IVA incl.</option>
+                  </select>
+                </div>
               </div>
               <div>
                 <label className={labelClass}>Costos anuales</label>
-                <input
-                  ref={ref("annual")}
-                  className={inputClass}
-                  placeholder="$6,000 MXN / año"
-                  defaultValue={modal.data?.annual || ""}
-                />
+                <div className="grid grid-cols-[1fr_auto] gap-1.5">
+                  <input
+                    ref={ref("annual")}
+                    className={inputClass}
+                    inputMode="numeric"
+                    placeholder="6000"
+                    defaultValue={modal.data?.annual && modal.data.annual !== "0" ? modal.data.annual : ""}
+                  />
+                  <select
+                    ref={ref("annualIva")}
+                    className="w-32 bg-[#18181B] border border-zinc-800 rounded-lg px-2 py-2 text-sm text-zinc-200 focus:outline-none focus:border-[#0EA5E9] transition-colors duration-150"
+                    defaultValue={modal.data?.annualIva || "none"}
+                  >
+                    <option value="none">Sin IVA</option>
+                    <option value="plus">+ IVA</option>
+                    <option value="included">IVA incl.</option>
+                  </select>
+                </div>
               </div>
             </div>
             <p className={sectionLabel}>Recursos</p>
