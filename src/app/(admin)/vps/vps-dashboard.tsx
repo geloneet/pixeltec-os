@@ -9,6 +9,7 @@ import type { VpsProject } from "@/lib/vps-types";
 import { ServerStatsHeader } from "./components/server-stats-header";
 import { ProjectCard } from "./components/project-card";
 import { LogsSheet } from "./components/logs-sheet";
+import { getNavLabel } from "@/components/nav/command-palette-items";
 
 function StatCardSkeleton() {
   return (
@@ -55,7 +56,7 @@ export function VpsDashboard() {
       <header className="mb-8 flex items-end justify-between gap-4">
         <div>
           <h1 className="font-poppins text-3xl font-bold tracking-tight text-zinc-50">
-            DevOps
+            {getNavLabel("/vps")}
           </h1>
           <p className="mt-1 font-roboto text-sm text-zinc-500">
             Infraestructura VPS · auto-refresh 15 s

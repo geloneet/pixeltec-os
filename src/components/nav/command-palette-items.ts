@@ -69,8 +69,8 @@ export const PALETTE_NAV_ITEMS: PaletteNavItem[] = [
   },
   {
     href: "/accesos",
-    label: "Accesos",
-    description: "Credenciales, documentación técnica y links por proyecto",
+    label: "Conocimiento",
+    description: "Base de conocimiento, tips y documentación técnica",
     icon: KeyRound,
     section: "gestion",
   },
@@ -116,3 +116,11 @@ export const NAV_SECTION_LABELS: Record<NavSection, string> = {
 
 export const MAX_RECENT_ROUTES = 5;
 export const RECENT_ROUTES_KEY = "pixeltec_recent_routes";
+
+/**
+ * Look up the display label for a nav route by its href.
+ * Returns the href itself as a fallback so callers never get undefined.
+ */
+export function getNavLabel(href: string): string {
+  return PALETTE_NAV_ITEMS.find((item) => item.href === href)?.label ?? href;
+}

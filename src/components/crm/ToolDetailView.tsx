@@ -15,6 +15,7 @@ import {
 import { toolLastModified, toolTopTags } from "@/lib/crm/knowledge-stats";
 import { useFavorites } from "@/lib/crm/use-favorites";
 import { KnowledgeMarkdown } from "@/components/crm/KnowledgeMarkdown";
+import { getNavLabel } from "@/components/nav/command-palette-items";
 
 interface ToolDetailViewProps {
   tool: Tool;
@@ -73,7 +74,7 @@ export function ToolDetailView({
           onClick={onBack}
           className="text-[13px] text-zinc-500 transition-colors hover:text-zinc-300"
         >
-          ← Knowledge Hub
+          ← {getNavLabel("/accesos")}
         </button>
 
         {/* ── Header ── */}

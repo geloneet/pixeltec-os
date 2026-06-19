@@ -6,6 +6,7 @@ import { getSessionUid } from "@/lib/crypto-intel/auth";
 import { AvatarUploader } from "@/components/profile/avatar-uploader";
 import { ProfileForm } from "@/components/profile/profile-form";
 import { SecuritySettings } from "@/components/perfil/security-settings";
+import { getNavLabel } from "@/components/nav/command-palette-items";
 
 export const metadata: Metadata = {
   title: "Perfil · PixelTEC OS",
@@ -41,7 +42,7 @@ export default async function PerfilPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6 pb-16">
       <div>
-        <h1 className="text-2xl font-bold text-zinc-100">Mi perfil</h1>
+        <h1 className="text-2xl font-bold text-zinc-100">{getNavLabel("/perfil")}</h1>
         <p className="mt-1 text-sm text-zinc-500">
           Gestiona tu foto, información personal y seguridad.
         </p>
