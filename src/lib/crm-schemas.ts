@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PROJECT_LOG_CATEGORIES } from "@/types/crm";
 
 export const clientSchema = z.object({
   name: z.string().min(1, "Nombre requerido").max(200),
@@ -17,6 +18,15 @@ export const projectSchema = z.object({
   budgetIva: z.enum(["none", "plus", "included"]).default("none"),
   annualIva: z.enum(["none", "plus", "included"]).default("none"),
   tech: z.string().max(500).optional().default(""),
+  notesLog: z.array(
+    z.object({
+      id: z.string(),
+      category: z.enum(PROJECT_LOG_CATEGORIES),
+      content: z.string(),
+      authorName: z.string(),
+      createdAt: z.string(),
+    })
+  ).optional(),
 });
 
 export const taskSchema = z.object({
