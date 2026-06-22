@@ -155,7 +155,7 @@ export function CRMShellProvider({ children }: { children: ReactNode }) {
         if (!val("name").trim()) return;
         crm.addClient({
           name: val("name"),
-          contactName: val("contactName"),
+          contactName: val("contactName") || undefined,
           email: val("email"),
           phone: val("phone"),
           location: val("location"),
@@ -166,7 +166,7 @@ export function CRMShellProvider({ children }: { children: ReactNode }) {
         if (!modal.data?.id) return;
         crm.updateClient(modal.data.id, {
           name: val("name"),
-          contactName: val("contactName"),
+          contactName: val("contactName") || undefined,
           email: val("email"),
           phone: val("phone"),
           location: val("location"),
@@ -328,7 +328,9 @@ export function CRMShellProvider({ children }: { children: ReactNode }) {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm font-semibold text-zinc-200 mb-1">Empresa / Razón social *</label>
-                <p className="text-[10px] text-zinc-600 mb-1.5">Ej: Villa Nogal, Smile More</p>
+                {modal.type === "addClient" && (
+                  <p className="text-[10px] text-zinc-600 mb-1.5">Ej: Villa Nogal, Smile More</p>
+                )}
                 <input
                   ref={ref("name")}
                   className={inputClass + " font-medium"}
