@@ -250,6 +250,11 @@ export function ClientDetail({ client, setView, navigateToProject, setModal, del
             </span>
           </div>
           {contact && <p className="mt-0.5 text-sm text-zinc-500">{contact}</p>}
+          {client.contactName && (
+            <p className="mt-0.5 text-sm text-zinc-400">
+              Contacto: <span className="text-zinc-300">{client.contactName}</span>
+            </p>
+          )}
         </div>
 
         <div className="flex flex-shrink-0 items-center gap-2">
@@ -260,6 +265,7 @@ export function ClientDetail({ client, setView, navigateToProject, setModal, del
                 data: {
                   id: client.id,
                   name: client.name,
+                  contactName: client.contactName ?? "",
                   email: client.email,
                   phone: client.phone,
                   location: client.location,
