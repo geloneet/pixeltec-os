@@ -37,6 +37,7 @@ export interface CRMProject {
 export interface CRMClient {
   id: string;
   name: string;
+  contactName?: string;
   email: string;
   phone: string;
   location: string;
