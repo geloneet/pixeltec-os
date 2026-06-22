@@ -81,7 +81,7 @@ interface ClientRowProps {
 function ClientRow({ item, navigateToClient, setModal }: ClientRowProps) {
   const { client: c, stats, badge, since } = item;
   const color = avatarColor(c.name);
-  const contact = [c.location, c.phone].filter(Boolean).join(" · ");
+  const meta = [c.contactName, c.location, c.phone].filter(Boolean).join(" · ");
 
   return (
     <div
@@ -102,7 +102,7 @@ function ClientRow({ item, navigateToClient, setModal }: ClientRowProps) {
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium leading-snug text-zinc-100">{c.name}</p>
           <p className="truncate text-[11px] leading-snug text-zinc-500">
-            {contact || <span className="italic text-zinc-700">Sin datos de contacto</span>}
+            {meta || <span className="italic text-zinc-700">Sin datos de contacto</span>}
           </p>
         </div>
       </div>
@@ -194,6 +194,7 @@ function ClientRow({ item, navigateToClient, setModal }: ClientRowProps) {
                   data: {
                     id: c.id,
                     name: c.name,
+                    contactName: c.contactName ?? "",
                     email: c.email,
                     phone: c.phone,
                     location: c.location,
@@ -254,6 +255,7 @@ export function ClientsView({ clients, navigateToClient, setModal }: ClientsView
     if (q) {
       result = result.filter(({ client: c }) =>
         c.name.toLowerCase().includes(q) ||
+        (c.contactName?.toLowerCase().includes(q) ?? false) ||
         c.location.toLowerCase().includes(q) ||
         c.phone.toLowerCase().includes(q) ||
         c.email.toLowerCase().includes(q)
