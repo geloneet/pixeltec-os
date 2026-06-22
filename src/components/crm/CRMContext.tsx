@@ -5,7 +5,9 @@ import { useUser, useFirestore } from "@/firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { toast } from "sonner";
 import { clientSchema, projectSchema, taskSchema } from "@/lib/crm-schemas";
-import type { CRMClient, CRMProject, CRMTask, CRMKey, Tool, KnowledgeTip, ServerClientLink, RecurringCharge } from "@/types/crm";
+import type { CRMClient, CRMProject, CRMTask, CRMKey, Tool, KnowledgeTip, ServerClientLink, RecurringCharge, ProjectLogEntry } from "@/types/crm";
+
+const MAX_LOG_ENTRIES = 500;
 
 function uid(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -43,6 +45,7 @@ interface CRMContextValue {
   addCharge: (clientId: string, projectId: string, data: Partial<RecurringCharge>) => void;
   updateCharge: (clientId: string, projectId: string, chargeId: string, data: Partial<RecurringCharge>) => void;
   deleteCharge: (clientId: string, projectId: string, chargeId: string) => void;
+  addProjectLogEntry: (clientId: string, projectId: string, entry: Omit<ProjectLogEntry, "id">) => void;
 }
 
 const CRMCtx = createContext<CRMContextValue | null>(null);
@@ -87,6 +90,21 @@ export function CRMProvider({ children }: { children: ReactNode }) {
                 annual: Number(p.annual) || 0,
                 budgetIva: p.budgetIva || "none",
                 annualIva: p.annualIva || "none",
+                notesLog: (() => {
+                  const existing: ProjectLogEntry[] = p.notesLog || [];
+                  if (existing.length === 0 && p.quickNotes?.trim()) {
+                    return [{
+                      id: `legacy-${p.id}`,
+                      category: "General" as const,
+                      content: p.quickNotes.trim(),
+                      authorName: "Sistema",
+                      createdAt: typeof p.createdAt === "string"
+                        ? p.createdAt
+                        : new Date().toISOString(),
+                    }];
+                  }
+                  return existing;
+                })(),
               })),
             }));
             setClients(loadedClients);
@@ -188,7 +206,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       });
       return;
     }
-    const p: CRMProject = { ...data, id: uid(), keys: [], tasks: [], charges: [], guides: "", accounts: "", readme: "", prompt: "", quickNotes: "", createdAt: new Date().toISOString() };
+    const p: CRMProject = { ...data, id: uid(), keys: [], tasks: [], charges: [], guides: "", accounts: "", readme: "", prompt: "", quickNotes: "", notesLog: [], createdAt: new Date().toISOString() };
     const next = dataRef.current.clients.map(c =>
       c.id === clientId ? { ...c, projects: [...c.projects, p] } : c
     );
@@ -283,6 +301,28 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     );
     update(next);
   }, [update]);
+
+  const addProjectLogEntry = useCallback(
+    (clientId: string, projectId: string, entry: Omit<ProjectLogEntry, "id">) => {
+      const newEntry: ProjectLogEntry = { ...entry, id: uid() };
+      const next = dataRef.current.clients.map(c =>
+        c.id !== clientId ? c : {
+          ...c,
+          projects: c.projects.map(p =>
+            p.id !== projectId ? p : {
+              ...p,
+              notesLog: [
+                newEntry,
+                ...(p.notesLog ?? []),
+              ].slice(0, MAX_LOG_ENTRIES),
+            }
+          ),
+        }
+      );
+      update(next);
+    },
+    [update]
+  );
 
   const incrementStreak = useCallback(() => {
     bumpStreak();
@@ -389,6 +429,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       addTip, updateTip, deleteTip,
       serverLinks, linkProjectToClient, unlinkProject,
       addCharge, updateCharge, deleteCharge,
+      addProjectLogEntry,
     }}>
       {children}
     </CRMCtx.Provider>
