@@ -1,6 +1,9 @@
 "use client";
 
-import { useState, useRef, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo } from "react";
+import { ProjectBitacora } from "./ProjectBitacora";
+import { useCRM } from "./CRMContext";
+import type { ProjectLogEntry } from "@/types/crm";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -154,15 +157,14 @@ const TABS = [
 
 export function ProjectView({
   client, project, projectTab, setProjectTab, setView, setModal,
-  cycleTaskStatus, deleteTask, deleteKey, deleteProject, saveQuickNote,
+  cycleTaskStatus, deleteTask, deleteKey, deleteProject,
   startPomo, pomoRunning, pomoTaskRef, pomoSeconds, pomoMode, pomoSessions,
   stopPomo, resetPomo, deleteCharge, updateCharge,
 }: ProjectViewProps) {
+  const crm = useCRM();
   const [revealedKeys, setRevealedKeys] = useState<Set<string>>(new Set());
-  const [noteValue, setNoteValue] = useState(project.quickNotes);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [taskView, setTaskView] = useState<"lista" | "kanban">("lista");
-  const noteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Derived data
   const projectStats = useMemo(() => deriveProjectStats(project), [project]);
@@ -190,13 +192,12 @@ export function ProjectView({
     setView("client");
   };
 
-  const handleNoteChange = useCallback((value: string) => {
-    setNoteValue(value);
-    if (noteTimer.current) clearTimeout(noteTimer.current);
-    noteTimer.current = setTimeout(() => {
-      saveQuickNote(client.id, project.id, value);
-    }, 500);
-  }, [client.id, project.id, saveQuickNote]);
+  const handleAddLogEntry = useCallback(
+    (entry: Omit<ProjectLogEntry, "id">) => {
+      crm.addProjectLogEntry(client.id, project.id, entry);
+    },
+    [crm, client.id, project.id]
+  );
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-6">
@@ -357,6 +358,13 @@ export function ProjectView({
             )}
           </div>
 
+          {/* Bitácora del proyecto */}
+          <ProjectBitacora
+            project={project}
+            clientId={client.id}
+            onAddEntry={handleAddLogEntry}
+          />
+
           {/* Actividad reciente */}
           {feed.length > 0 && (
             <div className="mb-5">
@@ -396,24 +404,6 @@ export function ProjectView({
               </div>
             </div>
           )}
-
-          {/* Notas del proyecto */}
-          <div>
-            <h3 className="mb-2 text-sm font-semibold text-zinc-300">Notas del proyecto</h3>
-            <div className="relative">
-              <textarea
-                value={noteValue}
-                onChange={e => handleNoteChange(e.target.value)}
-                placeholder="Notas rápidas, ideas, recordatorios..."
-                className="w-full resize-none rounded-xl border border-white/[0.06] bg-zinc-900/20 px-4 py-3 text-sm text-zinc-200 placeholder:text-zinc-600 focus:border-cyan-500/40 focus:outline-none transition-colors"
-                rows={5}
-              />
-              <span className="absolute bottom-3 right-3 text-[10px] text-zinc-600">
-                {(noteValue || "").length} ch
-              </span>
-            </div>
-            <p className="mt-1 text-[11px] text-zinc-600">No guardes tokens ni contraseñas aquí — usa <span className="text-zinc-500">Recursos</span>.</p>
-          </div>
         </div>
       )}
 
