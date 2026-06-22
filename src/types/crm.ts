@@ -14,6 +14,24 @@ export interface CRMTask {
   pomoSessions: number;
 }
 
+export const PROJECT_LOG_CATEGORIES = [
+  "General",
+  "Cliente",
+  "Desarrollo",
+  "Infraestructura",
+  "Cobros",
+] as const;
+
+export type ProjectLogCategory = typeof PROJECT_LOG_CATEGORIES[number];
+
+export interface ProjectLogEntry {
+  id: string;
+  category: ProjectLogCategory;
+  content: string;
+  authorName: string;   // persisted at creation — never recalculate
+  createdAt: string;    // always ISO: new Date().toISOString()
+}
+
 export interface CRMProject {
   id: string;
   name: string;
@@ -29,6 +47,7 @@ export interface CRMProject {
   readme: string;
   prompt: string;
   quickNotes: string;
+  notesLog?: ProjectLogEntry[];
   tasks: CRMTask[];
   charges: RecurringCharge[];
   createdAt: string;
