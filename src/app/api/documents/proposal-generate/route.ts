@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import Anthropic from "@anthropic-ai/sdk";
+import { requireSession } from "@/lib/vpsClient";
 
 const client = new Anthropic();
 
@@ -18,6 +20,13 @@ interface GeneratedProposal {
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
+    const cookieStore = await cookies();
+    const sessionCookie = cookieStore.get("__session")?.value ?? "";
+    const session = await requireSession(sessionCookie);
+    if (!session.ok) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+
     const body: RequestBody = await req.json();
     const { clientName, scope, budget, timeline } = body;
 

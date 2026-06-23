@@ -61,7 +61,7 @@ export function ContratosTab({ clientId }: Props) {
   // ── Data loading ─────────────────────────────────────────────────────────────
 
   const loadContracts = useCallback(async () => {
-    if (!firestore || !user) return;
+    if (!firestore || !user) { setLoading(false); return; }
     setLoading(true);
     try {
       const data = await getContracts(firestore, user.uid, clientId);
