@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { LoaderCircle } from "lucide-react";
 import { useCRM } from "@/components/crm/CRMContext";
 import { WorkspaceLayout } from "@/components/workspace/WorkspaceLayout";
@@ -82,6 +82,18 @@ function SesionPageInner({
     }
   }, [activeSession]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const handleSessionEnd = useCallback(
+    (bitacoraEntry: string) => {
+      crm.addProjectLogEntry(client.id, project.id, {
+        category: "Desarrollo",
+        content: bitacoraEntry,
+        authorName: crm.userEmail ?? "Miguel",
+        createdAt: new Date().toISOString(),
+      });
+    },
+    [crm, client.id, project.id]
+  );
+
   if (!activeSession) {
     return (
       <div className="flex h-full w-full items-center justify-center">
@@ -90,5 +102,5 @@ function SesionPageInner({
     );
   }
 
-  return <WorkspaceLayout sessionId={activeSession.id} project={project} />;
+  return <WorkspaceLayout sessionId={activeSession.id} project={project} onSessionEnd={handleSessionEnd} />;
 }

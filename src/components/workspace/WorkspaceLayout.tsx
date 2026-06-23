@@ -19,9 +19,10 @@ import type { CoachResponse } from "@/types/session";
 interface Props {
   sessionId: string;
   project: CRMProject;
+  onSessionEnd?: (bitacoraEntry: string) => void; // NEW — called after session is persisted
 }
 
-export function WorkspaceLayout({ sessionId, project }: Props) {
+export function WorkspaceLayout({ sessionId, project, onSessionEnd }: Props) {
   const router = useRouter();
   const [showEndDialog, setShowEndDialog] = useState(false);
   const [coachResponses, setCoachResponses] = useState<CoachResponse[]>([]);
@@ -46,9 +47,10 @@ export function WorkspaceLayout({ sessionId, project }: Props) {
   ) => {
     ws.handleEndSession(deployStatus, commitStatus);
     setShowEndDialog(false);
+    if (bitacoraEntry.trim()) {
+      onSessionEnd?.(bitacoraEntry);
+    }
     router.push(`/proyectos/${project.id}?tab=tareas`);
-    // bitacoraEntry is available here — Task 3 will wire it to addProjectLogEntry
-    void bitacoraEntry;
   };
 
   return (
