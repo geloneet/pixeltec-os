@@ -3,15 +3,18 @@
 import { useState } from 'react';
 import { Copy, Check, ExternalLink, Image as ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { PublishButton } from '@/components/growth/publisher/PublishButton';
 import type { ContentPost } from '@/types/growth/post';
+import type { SocialAccountClient } from '@/lib/growth/actions/social-accounts';
 import { cn } from '@/lib/utils';
 
 interface Props {
   post: ContentPost;
   onReset: () => void;
+  accounts?: SocialAccountClient[];
 }
 
-export function GeneratedPostView({ post, onReset }: Props) {
+export function GeneratedPostView({ post, onReset, accounts = [] }: Props) {
   const [copied, setCopied] = useState(false);
   const [editedCaption, setEditedCaption] = useState(post.caption);
 
@@ -119,6 +122,17 @@ export function GeneratedPostView({ post, onReset }: Props) {
           </Button>
         )}
       </div>
+
+      {accounts.length > 0 && (
+        <div className="border-t border-zinc-800/60 pt-4">
+          <p className="mb-3 font-roboto text-xs font-medium text-zinc-500">Publicar directamente</p>
+          <PublishButton
+            postId={post.id}
+            accounts={accounts}
+            hasImage={!!post.imageUrl}
+          />
+        </div>
+      )}
     </div>
   );
 }
