@@ -21,7 +21,13 @@ import { CommandPalette } from "@/components/nav/command-palette";
 
 // ─── Shell ────────────────────────────────────────────────────────────────────
 
-function Shell({ children }: { children: ReactNode }) {
+function Shell({
+  children,
+  isSessionRoute,
+}: {
+  children: ReactNode;
+  isSessionRoute: boolean;
+}) {
   return (
     <div className="h-screen w-full flex bg-[#030303] text-zinc-100 font-sans overflow-hidden">
       {/* Ambient gradient */}
@@ -38,7 +44,14 @@ function Shell({ children }: { children: ReactNode }) {
       {/* Main column */}
       <div className="relative z-10 flex-1 flex flex-col h-full min-w-0">
         <GlobalHeader />
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+        <main
+          className={cn(
+            "flex-1",
+            isSessionRoute
+              ? "overflow-hidden"
+              : "overflow-y-auto p-4 sm:p-6 lg:p-8"
+          )}
+        >
           {children}
         </main>
       </div>
@@ -87,7 +100,9 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       <CmdKProvider>
         <CRMProvider>
           <CRMShellProvider>
-            <Shell>{children}</Shell>
+            <Shell isSessionRoute={!!pathname?.includes("/sesion")}>
+              {children}
+            </Shell>
             <CommandPalette />
           </CRMShellProvider>
         </CRMProvider>
