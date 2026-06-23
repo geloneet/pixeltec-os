@@ -6,6 +6,7 @@ import { doc, getDoc, setDoc } from "firebase/firestore";
 import { toast } from "sonner";
 import { clientSchema, projectSchema, taskSchema } from "@/lib/crm-schemas";
 import type { CRMClient, CRMProject, CRMTask, CRMKey, Tool, KnowledgeTip, ServerClientLink, RecurringCharge, ProjectLogEntry } from "@/types/crm";
+import type { WorkSession, BlockerType } from "@/types/session";
 
 const MAX_LOG_ENTRIES = 500;
 
@@ -46,6 +47,14 @@ interface CRMContextValue {
   updateCharge: (clientId: string, projectId: string, chargeId: string, data: Partial<RecurringCharge>) => void;
   deleteCharge: (clientId: string, projectId: string, chargeId: string) => void;
   addProjectLogEntry: (clientId: string, projectId: string, entry: Omit<ProjectLogEntry, "id">) => void;
+  sessions: WorkSession[];
+  startSession: (clientId: string, projectId: string, taskId: string, clientName: string, projectName: string, taskName: string) => WorkSession;
+  updateCurrentActivity: (sessionId: string, description: string) => void;
+  completeActivity: (sessionId: string) => void;
+  addSessionNote: (sessionId: string, content: string) => void;
+  addSessionBlocker: (sessionId: string, type: BlockerType, description: string) => void;
+  endSession: (sessionId: string, deployStatus: "yes" | "no" | "na", commitStatus: boolean) => void;
+  getProjectSessions: (projectId: string) => WorkSession[];
 }
 
 const CRMCtx = createContext<CRMContextValue | null>(null);
@@ -63,9 +72,10 @@ export function CRMProvider({ children }: { children: ReactNode }) {
   const [tools, setTools] = useState<Tool[]>([]);
   const [streak, setStreak] = useState(0);
   const [serverLinks, setServerLinks] = useState<ServerClientLink>({});
+  const [sessions, setSessions] = useState<WorkSession[]>([]);
   const [loading, setLoading] = useState(true);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const dataRef = useRef<{ clients: CRMClient[]; tools: Tool[]; streak: number; serverLinks: ServerClientLink }>({ clients: [], tools: [], streak: 0, serverLinks: {} });
+  const dataRef = useRef<{ clients: CRMClient[]; tools: Tool[]; streak: number; serverLinks: ServerClientLink; sessions: WorkSession[] }>({ clients: [], tools: [], streak: 0, serverLinks: {}, sessions: [] });
 
   const userEmail = user?.email || "";
   const userUid = user?.uid;
@@ -92,6 +102,8 @@ export function CRMProvider({ children }: { children: ReactNode }) {
                 annualIva: p.annualIva || "none",
                 notesLog: (() => {
                   const existing: ProjectLogEntry[] = p.notesLog || [];
+                  // Guard: only migrate once. If entry-deletion is added later,
+                  // clear quickNotes (or add a migrated flag) to prevent re-injection.
                   if (existing.length === 0 && p.quickNotes?.trim()) {
                     return [{
                       id: `legacy-${p.id}`,
@@ -107,11 +119,13 @@ export function CRMProvider({ children }: { children: ReactNode }) {
                 })(),
               })),
             }));
+            const loadedSessions: WorkSession[] = d.sessions || [];
             setClients(loadedClients);
             setTools(d.tools || []);
             setStreak(d.streak || 0);
             setServerLinks(d.serverLinks || {});
-            dataRef.current = { clients: loadedClients, tools: d.tools || [], streak: d.streak || 0, serverLinks: d.serverLinks || {} };
+            setSessions(loadedSessions);
+            dataRef.current = { clients: loadedClients, tools: d.tools || [], streak: d.streak || 0, serverLinks: d.serverLinks || {}, sessions: loadedSessions };
           }
           setLoading(false);
         }
@@ -146,6 +160,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
           tools: dataRef.current.tools,
           streak: dataRef.current.streak,
           serverLinks: dataRef.current.serverLinks,
+          sessions: dataRef.current.sessions,
           lastActivity: new Date().toISOString(),
         });
       } catch (error) {
@@ -402,6 +417,104 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     update(next);
   }, [update]);
 
+  // Sessions
+  const updateSessions = useCallback((newSessions: WorkSession[]) => {
+    setSessions(newSessions);
+    dataRef.current.sessions = newSessions;
+    persist();
+  }, [persist]);
+
+  const startSession = useCallback((
+    clientId: string, projectId: string, taskId: string,
+    clientName: string, projectName: string, taskName: string
+  ): WorkSession => {
+    // Return existing active session for same project+task if one exists
+    const existing = dataRef.current.sessions.find(
+      s => s.projectId === projectId && s.taskId === taskId && s.status === "active"
+    );
+    if (existing) return existing;
+
+    const session: WorkSession = {
+      id: uid(),
+      clientId, projectId, taskId,
+      clientName, projectName, taskName,
+      startedAt: new Date().toISOString(),
+      status: "active",
+      activities: [],
+      notes: [],
+      blockers: [],
+      createdBy: userEmail,
+    };
+    updateSessions([...dataRef.current.sessions, session]);
+    return session;
+  }, [updateSessions, userEmail]);
+
+  const updateCurrentActivity = useCallback((sessionId: string, description: string) => {
+    const updated = dataRef.current.sessions.map(s => {
+      if (s.id !== sessionId) return s;
+      const hasOpen = s.activities.some(a => !a.completedAt);
+      let activities: typeof s.activities;
+      if (hasOpen) {
+        activities = s.activities.map(a =>
+          !a.completedAt ? { ...a, description } : a
+        );
+      } else {
+        activities = [...s.activities, { id: uid(), description, startedAt: new Date().toISOString() }];
+      }
+      return { ...s, currentActivity: description, activities };
+    });
+    updateSessions(updated);
+  }, [updateSessions]);
+
+  const completeActivity = useCallback((sessionId: string) => {
+    const now = new Date().toISOString();
+    const updated = dataRef.current.sessions.map(s => {
+      if (s.id !== sessionId) return s;
+      return {
+        ...s,
+        currentActivity: undefined,
+        activities: s.activities.map(a =>
+          !a.completedAt ? { ...a, completedAt: now } : a
+        ),
+      };
+    });
+    updateSessions(updated);
+  }, [updateSessions]);
+
+  const addSessionNote = useCallback((sessionId: string, content: string) => {
+    const note = { id: uid(), content, createdAt: new Date().toISOString() };
+    const updated = dataRef.current.sessions.map(s =>
+      s.id === sessionId ? { ...s, notes: [...s.notes, note] } : s
+    );
+    updateSessions(updated);
+  }, [updateSessions]);
+
+  const addSessionBlocker = useCallback((sessionId: string, type: BlockerType, description: string) => {
+    const blocker = { id: uid(), type, description, createdAt: new Date().toISOString(), resolved: false };
+    const updated = dataRef.current.sessions.map(s =>
+      s.id === sessionId ? { ...s, blockers: [...s.blockers, blocker] } : s
+    );
+    updateSessions(updated);
+  }, [updateSessions]);
+
+  const endSession = useCallback((sessionId: string, deployStatus: "yes" | "no" | "na", commitStatus: boolean) => {
+    const now = new Date().toISOString();
+    const updated = dataRef.current.sessions.map(s => {
+      if (s.id !== sessionId) return s;
+      const durationSeconds = Math.floor((Date.now() - new Date(s.startedAt).getTime()) / 1000);
+      // Mark any open activity as completed
+      const activities = s.activities.map(a =>
+        !a.completedAt ? { ...a, completedAt: now } : a
+      );
+      return { ...s, status: "completed" as const, endedAt: now, durationSeconds, deployStatus, commitStatus, currentActivity: undefined, activities };
+    });
+    updateSessions(updated);
+  }, [updateSessions]);
+
+  const getProjectSessions = useCallback((projectId: string): WorkSession[] => {
+    return dataRef.current.sessions.filter(s => s.projectId === projectId);
+  }, []);
+
   const linkProjectToClient = useCallback((projectId: string, clientId: string) => {
     const next = { ...dataRef.current.serverLinks, [projectId]: clientId };
     setServerLinks(next);
@@ -430,6 +543,9 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       serverLinks, linkProjectToClient, unlinkProject,
       addCharge, updateCharge, deleteCharge,
       addProjectLogEntry,
+      sessions,
+      startSession, updateCurrentActivity, completeActivity,
+      addSessionNote, addSessionBlocker, endSession, getProjectSessions,
     }}>
       {children}
     </CRMCtx.Provider>
