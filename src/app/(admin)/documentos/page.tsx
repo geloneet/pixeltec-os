@@ -7,6 +7,7 @@ import { getInvoices } from "@/lib/documents/invoices";
 import { getContracts } from "@/lib/documents/contracts";
 import { getProposals } from "@/lib/documents/proposals";
 import type { Invoice, Contract, Proposal } from "@/types/documents";
+import { BienvenidaGenerator } from "@/components/ia/BienvenidaGenerator";
 
 type StatCard = { label: string; value: number; icon: React.ElementType; color: string };
 
@@ -170,6 +171,9 @@ export default function DocumentosPage() {
           )}
         </section>
       </div>
+
+      {/* Bienvenida generator */}
+      <BienvenidaGenerator />
     </div>
   );
 }
