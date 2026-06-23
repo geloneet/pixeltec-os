@@ -106,9 +106,10 @@ export function CommandPalette() {
   );
 
   const filteredNavItems = useMemo<PaletteNavItem[]>(() => {
-    if (!query) return PALETTE_NAV_ITEMS;
+    const visible = PALETTE_NAV_ITEMS.filter((item) => !item.hidden);
+    if (!query) return visible;
     const q = normalize(query);
-    return PALETTE_NAV_ITEMS.filter(
+    return visible.filter(
       (item) =>
         normalize(item.label).includes(q) ||
         normalize(item.description).includes(q)
@@ -119,7 +120,7 @@ export function CommandPalette() {
     () =>
       recentRoutes
         .map((href) => PALETTE_NAV_ITEMS.find((item) => item.href === href))
-        .filter((item): item is PaletteNavItem => !!item)
+        .filter((item): item is PaletteNavItem => !!item && !item.hidden)
         .filter((item) => item.href !== pathname),
     [recentRoutes, pathname]
   );
