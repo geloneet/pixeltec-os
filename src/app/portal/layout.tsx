@@ -36,12 +36,20 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
 
     // Authentication and Authorization check
     useEffect(() => {
+        // Skip auth for public token-based portal
+        const isPublicPortal = /^\/portal\/[a-f0-9]{32}/.test(pathname);
         // user is undefined during initial load, null if not logged in, object if logged in.
-        if (user === null) {
+        if (!isPublicPortal && user === null) {
             router.push('/login');
         }
-    }, [user, router]);
+    }, [user, router, pathname]);
 
+
+    // Public token-based portal — bypass auth checks entirely
+    const isPublicPortal = /^\/portal\/[a-f0-9]{32}/.test(pathname);
+    if (isPublicPortal) {
+        return <>{children}</>;
+    }
 
     // Loading state
     if (user === undefined || profileLoading) {
