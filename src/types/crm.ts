@@ -62,6 +62,9 @@ export interface CRMClient {
   location: string;
   notes: string;
   projects: CRMProject[];
+  portalToken?: string;        // token único para /portal/[token]
+  portalEnabled?: boolean;     // si el portal está activo para este cliente
+  strategyId?: string;         // referencia al doc en strategies/ Firestore collection
   createdAt: string;
 }
 
