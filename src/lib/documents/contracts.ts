@@ -65,13 +65,12 @@ export async function createContractVersion(
 ): Promise<string> {
   const existing = await getContract(firestore, contractId);
   if (!existing) throw new Error(`Contract ${contractId} not found`);
+  const { id: _id, pdfUrl: _pdfUrl, ...rest } = existing;
   const now = new Date().toISOString();
   const ref = await addDoc(collection(firestore, COL), {
-    ...existing,
-    id: undefined,
+    ...rest,
     version: existing.version + 1,
     status: "borrador",
-    pdfUrl: undefined,
     createdAt: now,
     updatedAt: now,
   });
