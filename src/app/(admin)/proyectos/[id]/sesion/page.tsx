@@ -5,13 +5,13 @@ import { useEffect, useRef } from "react";
 import { LoaderCircle } from "lucide-react";
 import { useCRM } from "@/components/crm/CRMContext";
 import { WorkspaceLayout } from "@/components/workspace/WorkspaceLayout";
+import type { CRMClient, CRMProject, CRMTask } from "@/types/crm";
 
 export default function SesionPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const searchParams = useSearchParams();
   const crm = useCRM();
-  const sessionStarted = useRef(false);
 
   const taskId = searchParams.get("taskId") ?? "";
 
@@ -23,10 +23,9 @@ export default function SesionPage() {
     );
   }
 
-  // Find project + client + task
-  let client = null;
-  let project = null;
-  let task = null;
+  let client: CRMClient | null = null;
+  let project: CRMProject | null = null;
+  let task: CRMTask | null = null;
   for (const c of crm.clients) {
     const p = c.projects.find(pp => pp.id === params.id);
     if (p) {
@@ -51,20 +50,37 @@ export default function SesionPage() {
     );
   }
 
-  // Find or create active session
+  return (
+    <SesionPageInner
+      client={client}
+      project={project}
+      task={task}
+    />
+  );
+}
+
+function SesionPageInner({
+  client,
+  project,
+  task,
+}: {
+  client: CRMClient;
+  project: CRMProject;
+  task: CRMTask;
+}) {
+  const crm = useCRM();
+  const sessionStarted = useRef(false);
+
   const activeSession = crm.sessions.find(
-    s => s.projectId === project!.id && s.taskId === task!.id && s.status === "active"
+    s => s.projectId === project.id && s.taskId === task.id && s.status === "active"
   );
 
-  // Start session on first render if none active
-  // eslint-disable-next-line react-hooks/rules-of-hooks
   useEffect(() => {
-    if (!sessionStarted.current && !activeSession && client && project && task) {
+    if (!sessionStarted.current && !activeSession) {
       sessionStarted.current = true;
       crm.startSession(client.id, project.id, task.id, client.name, project.name, task.name);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeSession]);
+  }, [activeSession]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!activeSession) {
     return (
@@ -74,7 +90,5 @@ export default function SesionPage() {
     );
   }
 
-  return (
-    <WorkspaceLayout sessionId={activeSession.id} project={project} />
-  );
+  return <WorkspaceLayout sessionId={activeSession.id} project={project} />;
 }

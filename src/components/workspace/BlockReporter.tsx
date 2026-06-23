@@ -101,8 +101,8 @@ export function BlockReporter({ blockers, onAddBlocker }: Props) {
         </div>
       )}
 
-      {blockers.length === 0 && (
-        <p className="text-center py-2 text-xs text-zinc-600">Sin bloqueos reportados</p>
+      {openBlockers.length === 0 && (
+        <p className="text-center py-2 text-xs text-zinc-600">No hay bloqueos activos</p>
       )}
     </div>
   );

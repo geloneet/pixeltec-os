@@ -35,7 +35,7 @@ export function FocusGuard({ open, onContinue, onChangeActivity, onPause }: Prop
             onClick={onPause}
             className="w-full rounded-lg border border-white/[0.06] bg-zinc-900/40 py-2.5 text-sm font-medium text-zinc-500 transition-all hover:text-zinc-300"
           >
-            Pausar sesión
+            Sigo trabajando, cierra esto
           </button>
         </div>
       </div>
