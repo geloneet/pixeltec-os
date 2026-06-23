@@ -8,15 +8,15 @@ export async function generatePortalToken(
 ): Promise<string> {
   const db = getAdminFirestore();
 
-  // Check if client already has a token — revoke it first
+  // Single read — derive old token and new clients array from one snapshot (avoids TOCTOU)
   const crmSnap = await db.collection("crm_data").doc(uid).get();
-  if (crmSnap.exists) {
-    const clients = (crmSnap.data()?.clients ?? []) as Array<{ id: string; portalToken?: string }>;
-    const existing = clients.find(c => c.id === clientId);
-    if (existing?.portalToken) {
-      // Delete old token doc (fire-and-forget, ignore errors)
-      await db.collection(TOKENS_COL).doc(existing.portalToken).delete().catch(() => {});
-    }
+  const existingClients = crmSnap.exists
+    ? ((crmSnap.data()?.clients ?? []) as Array<{ id: string; portalToken?: string; [key: string]: unknown }>)
+    : [];
+
+  const oldToken = existingClients.find(c => c.id === clientId)?.portalToken;
+  if (oldToken) {
+    await db.collection(TOKENS_COL).doc(oldToken).delete().catch(() => {});
   }
 
   // Generate 32-char hex token
@@ -29,15 +29,10 @@ export async function generatePortalToken(
   // Write to auxiliary lookup collection
   await db.collection(TOKENS_COL).doc(token).set({ uid, clientId, createdAt: now });
 
-  // Update client record in crm_data
-  const snap = await db.collection("crm_data").doc(uid).get();
-  if (snap.exists) {
-    const data = snap.data()!;
-    const clients = (data.clients ?? []) as Array<{ id: string; [key: string]: unknown }>;
-    const updated = clients.map(c =>
-      c.id === clientId
-        ? { ...c, portalToken: token, portalEnabled: true }
-        : c,
+  // Update client record using the same snapshot (no second read)
+  if (crmSnap.exists) {
+    const updated = existingClients.map(c =>
+      c.id === clientId ? { ...c, portalToken: token, portalEnabled: true } : c,
     );
     await db.collection("crm_data").doc(uid).update({ clients: updated });
   }
