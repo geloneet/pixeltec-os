@@ -75,6 +75,7 @@ export function DiscoveryTab({ clientId, clientName }: Props) {
         body: JSON.stringify({ industry, clientName }),
       });
       const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       if (!data.questions?.length) throw new Error("No questions returned");
       const id = await createDiscoverySession(firestore, user.uid, clientId, {
         industry,

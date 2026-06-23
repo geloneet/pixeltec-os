@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Plus, Pencil, Trash2, Check, X, ChevronUp, ChevronDown } from "lucide-react";
 import { useFirestore, useUser } from "@/firebase";
 import type { Strategy, StrategyObjective, StrategyKPI, RoadmapItem } from "@/types/documents";
@@ -31,6 +31,7 @@ export function EstrategiaTab({ clientId }: Props) {
   const [strategy, setStrategy] = useState<Strategy | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const creatingStrategyRef = useRef<Promise<Strategy> | null>(null);
 
   // Objectives inline editing
   const [editingObj, setEditingObj] = useState<string | null>(null);
@@ -74,15 +75,21 @@ export function EstrategiaTab({ clientId }: Props) {
   const ensureStrategy = useCallback(async (): Promise<Strategy> => {
     if (strategy) return strategy;
     if (!firestore || !user) throw new Error("Not ready");
-    const id = await createStrategy(firestore, user.uid, clientId);
-    const newStrategy: Strategy = {
-      id, uid: user.uid, clientId,
-      objectives: [], kpis: [], roadmap: [],
-      priorities: [], channels: [], automations: [],
-      lastUpdated: new Date().toISOString(),
-    };
-    setStrategy(newStrategy);
-    return newStrategy;
+    // Deduplicate concurrent calls — only one Firestore createStrategy runs at a time
+    if (creatingStrategyRef.current) return creatingStrategyRef.current;
+    const p = createStrategy(firestore, user.uid, clientId).then((id) => {
+      const newStrategy: Strategy = {
+        id, uid: user.uid, clientId,
+        objectives: [], kpis: [], roadmap: [],
+        priorities: [], channels: [], automations: [],
+        lastUpdated: new Date().toISOString(),
+      };
+      setStrategy(newStrategy);
+      creatingStrategyRef.current = null;
+      return newStrategy;
+    });
+    creatingStrategyRef.current = p;
+    return p;
   }, [strategy, firestore, user, clientId]);
 
   const saveStrategy = useCallback(async (updated: Strategy) => {
