@@ -56,7 +56,7 @@ export function PropuestaTab({ clientId, clientName }: Props) {
   // ── Data loading ─────────────────────────────────────────────────────────────
 
   const loadProposals = useCallback(async () => {
-    if (!firestore || !user) return;
+    if (!firestore || !user) { setLoading(false); return; }
     setLoading(true);
     try {
       const data = await getProposals(firestore, user.uid, clientId);
@@ -123,7 +123,7 @@ export function PropuestaTab({ clientId, clientName }: Props) {
         selected.timeline && `\nTIMELINE: ${selected.timeline}`,
       ].filter(Boolean).join("\n");
 
-      await createContract(firestore, user.uid, clientId, {
+      const newContractId = await createContract(firestore, user.uid, clientId, {
         title: selected.title,
         content,
         status: "borrador",
@@ -131,9 +131,9 @@ export function PropuestaTab({ clientId, clientName }: Props) {
         variables: {},
         proposalId: selected.id,
       });
-      // Mark proposal as aceptada after conversion
-      await updateProposal(firestore, selected.id, { status: "aceptada" });
-      setSelected(prev => prev ? { ...prev, status: "aceptada" } : prev);
+      // Mark proposal as aceptada and record the contractId
+      await updateProposal(firestore, selected.id, { status: "aceptada", contractId: newContractId });
+      setSelected(prev => prev ? { ...prev, status: "aceptada", contractId: newContractId } : prev);
       await loadProposals();
     } finally {
       setConverting(false);
