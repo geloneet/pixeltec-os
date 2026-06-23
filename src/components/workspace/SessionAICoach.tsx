@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import type { WorkSession } from "@/types/session";
 import type { CoachResponse } from "@/types/session";
 import { MessageCircle, ChevronRight } from "lucide-react";
@@ -29,13 +29,12 @@ export function SessionAICoach({ session, onResponseAdded }: Props) {
   const lastTriggerTime = useRef<number>(Date.now());
   const lastActivityCount = useRef<number>(session.activities.length);
 
-  function triggerNextQuestion() {
+  const triggerNextQuestion = useCallback(() => {
     const unseen = COACH_QUESTIONS.filter((q) => !shownQuestions.includes(q));
     if (unseen.length === 0) return;
     if (currentQuestion !== null) return;
-    const next = unseen[0]; // first unseen (deterministic)
-    setCurrentQuestion(next);
-  }
+    setCurrentQuestion(unseen[0]);
+  }, [shownQuestions, currentQuestion]);
 
   // Trigger on new activity
   useEffect(() => {
@@ -43,8 +42,7 @@ export function SessionAICoach({ session, onResponseAdded }: Props) {
       lastActivityCount.current = session.activities.length;
       triggerNextQuestion();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session.activities.length]);
+  }, [session.activities.length, triggerNextQuestion]);
 
   // Timer trigger — check every 60s, fire if 20+ minutes since last trigger
   useEffect(() => {
@@ -53,11 +51,10 @@ export function SessionAICoach({ session, onResponseAdded }: Props) {
         lastTriggerTime.current = Date.now();
         triggerNextQuestion();
       }
-    }, 60 * 1000);
+    }, 60_000);
 
     return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shownQuestions, currentQuestion]);
+  }, [triggerNextQuestion]);
 
   const handleSubmit = () => {
     if (!currentQuestion || !answerText.trim()) return;

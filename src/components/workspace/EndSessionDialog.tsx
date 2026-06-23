@@ -81,7 +81,7 @@ export function EndSessionDialog({ open, session, elapsed, coachResponses, onCon
       const res = await fetch("/api/workspace/session-summary", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ session, coachResponses }),
+        body: JSON.stringify({ session, coachResponses, elapsed }),
       });
       if (!res.ok) throw new Error("fetch failed");
       const data = await res.json();
@@ -293,6 +293,12 @@ export function EndSessionDialog({ open, session, elapsed, coachResponses, onCon
               <div className="mb-4 rounded-xl border border-white/[0.06] bg-zinc-900/20 p-3">
                 <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-zinc-500">Se escribirá en Bitácora</p>
                 <p className="text-xs text-zinc-500 leading-relaxed line-clamp-3">{summaryData.bitacoraEntry}</p>
+              </div>
+            )}
+
+            {summaryError && !summaryData && (
+              <div className="mb-4 rounded-xl border border-amber-500/20 bg-amber-500/5 p-3">
+                <p className="text-xs text-amber-400">No se generó la entrada de Bitácora automáticamente. Puedes agregarla manualmente.</p>
               </div>
             )}
 

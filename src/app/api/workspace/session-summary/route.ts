@@ -7,6 +7,7 @@ const client = new Anthropic();
 interface RequestBody {
   session: WorkSession;
   coachResponses: CoachResponse[];
+  elapsed?: number;
 }
 
 interface SummaryResponse {
@@ -37,7 +38,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       ? coachResponses.map((r) => `P: ${r.question}\nR: ${r.answer}`).join("\n\n")
       : "Sin respuestas del coach";
 
-    const durationMin = session.durationSeconds
+    const durationMin = body.elapsed != null
+      ? Math.round(body.elapsed / 60)
+      : session.durationSeconds != null
       ? Math.round(session.durationSeconds / 60)
       : "desconocida";
 
