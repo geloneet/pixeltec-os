@@ -4,6 +4,7 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import type { CRMClient } from "@/types/crm";
 import { ClientDetail } from "./ClientDetail";
+import { ContratosTab } from "@/components/crm/workspace-tabs/ContratosTab";
 
 export type WorkspaceTab =
   | "resumen"
@@ -93,7 +94,11 @@ export function ClientWorkspace({ client, onBack, navigateToProject, setModal, d
           <WorkspaceEmptyTab label="Proyectos" sprint="Sprint 3" />
         )}
         {activeTab === "propuesta"  && <WorkspaceEmptyTab label="Propuesta Comercial" sprint="Sprint 3" />}
-        {activeTab === "contratos"  && <WorkspaceEmptyTab label="Contratos" sprint="Sprint 3" />}
+        {activeTab === "contratos"  && (
+          <div className="p-6">
+            <ContratosTab clientId={client.id} clientName={client.name} />
+          </div>
+        )}
         {activeTab === "documentos" && <WorkspaceEmptyTab label="Documentos" sprint="Sprint 6" />}
         {activeTab === "discovery"  && <WorkspaceEmptyTab label="Discovery" sprint="Sprint 4" />}
         {activeTab === "estrategia" && <WorkspaceEmptyTab label="Estrategia" sprint="Sprint 4" />}
