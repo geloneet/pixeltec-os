@@ -42,10 +42,13 @@ export function WorkspaceLayout({ sessionId, project }: Props) {
   const handleFinalizeConfirmed = (
     deployStatus: "yes" | "no" | "na",
     commitStatus: boolean,
+    bitacoraEntry: string,
   ) => {
     ws.handleEndSession(deployStatus, commitStatus);
     setShowEndDialog(false);
     router.push(`/proyectos/${project.id}?tab=tareas`);
+    // bitacoraEntry is available here — Task 3 will wire it to addProjectLogEntry
+    void bitacoraEntry;
   };
 
   return (
@@ -97,6 +100,7 @@ export function WorkspaceLayout({ sessionId, project }: Props) {
         open={showEndDialog}
         session={ws.session}
         elapsed={ws.elapsed}
+        coachResponses={coachResponses}
         onConfirm={handleFinalizeConfirmed}
         onCancel={() => setShowEndDialog(false)}
       />
