@@ -4,6 +4,7 @@ import { useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { ProjectBitacora } from "./ProjectBitacora";
 import { useCRM } from "./CRMContext";
+import { SessionHistory } from "@/components/workspace/SessionHistory";
 import type { ProjectLogEntry } from "@/types/crm";
 import {
   AlertDialog,
@@ -151,6 +152,7 @@ const TABS = [
   { key: "resumen", label: "Resumen" },
   { key: "tareas", label: "Tareas" },
   { key: "recursos", label: "Recursos" },
+  { key: "sesiones", label: "Sesiones" },
   { key: "finanzas", label: "Finanzas" },
 ];
 
@@ -637,6 +639,11 @@ export function ProjectView({
             </div>
           </div>
         </div>
+      )}
+
+      {/* ══════════════════ SESIONES ═════════════════════════════════════════ */}
+      {projectTab === "sesiones" && (
+        <SessionHistory sessions={crm.getProjectSessions(project.id)} />
       )}
 
       {/* ══════════════════ FINANZAS ═════════════════════════════════════════ */}
