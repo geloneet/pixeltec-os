@@ -47,7 +47,7 @@ export async function updateTemplate(
   data: Partial<Omit<IATemplate, "id" | "uid" | "createdAt">>,
 ): Promise<void> {
   const updates = { ...data, updatedAt: new Date().toISOString() };
-  if (data.content) {
+  if (data.content !== undefined) {
     updates.variables = extractVariables(data.content);
   }
   await updateDoc(doc(firestore, COL, id), updates);
