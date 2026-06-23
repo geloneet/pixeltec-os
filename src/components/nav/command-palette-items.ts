@@ -11,10 +11,14 @@ import {
   Bitcoin,
   FolderOpen,
   Sparkles,
+  Brain,
+  Megaphone,
+  CalendarDays,
+  BarChart3,
   type LucideIcon,
 } from "lucide-react";
 
-export type NavSection = "trabajo" | "finanzas" | "produccion" | "sistema";
+export type NavSection = "trabajo" | "finanzas" | "produccion" | "sistema" | "crecimiento";
 
 export interface PaletteNavItem {
   href: string;
@@ -117,14 +121,52 @@ export const PALETTE_NAV_ITEMS: PaletteNavItem[] = [
     icon: Settings2,
     section: "sistema",
   },
+  // ── Crecimiento (Growth Suite) ────────────────────────────────────────────
+  {
+    href: "/crecimiento/brand-brain",
+    label: "Brand Brain",
+    description: "Memoria de negocio: servicios, cliente ideal, voz y diferenciadores",
+    icon: Brain,
+    section: "crecimiento",
+  },
+  {
+    href: "/crecimiento/contenido",
+    label: "Content Studio",
+    description: "Genera posts con IA usando el contexto de tu marca",
+    icon: Sparkles,
+    section: "crecimiento",
+  },
+  {
+    href: "/crecimiento/campanas",
+    label: "Campañas",
+    description: "Crea campañas completas desde un objetivo de negocio",
+    icon: Megaphone,
+    section: "crecimiento",
+  },
+  {
+    href: "/crecimiento/calendario",
+    label: "Calendario",
+    description: "Organiza y programa tus publicaciones por semana o mes",
+    icon: CalendarDays,
+    section: "crecimiento",
+  },
+  {
+    href: "/crecimiento/analytics",
+    label: "Analytics",
+    description: "Métricas de engagement y rendimiento de contenido",
+    icon: BarChart3,
+    section: "crecimiento",
+    hidden: true,
+  },
 ];
 
-export const NAV_SECTION_ORDER: NavSection[] = ["trabajo", "finanzas", "produccion", "sistema"];
+export const NAV_SECTION_ORDER: NavSection[] = ["trabajo", "finanzas", "produccion", "crecimiento", "sistema"];
 
 export const NAV_SECTION_LABELS: Record<NavSection, string> = {
   trabajo: "Trabajo",
   finanzas: "Finanzas",
   produccion: "Producción",
+  crecimiento: "Crecimiento",
   sistema: "Sistema",
 };
 

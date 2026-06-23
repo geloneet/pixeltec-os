@@ -69,6 +69,7 @@ function groupBySection(items: PaletteNavItem[]): Record<NavSection, PaletteNavI
     trabajo: [],
     finanzas: [],
     produccion: [],
+    crecimiento: [],
     sistema: [],
   };
   for (const item of items) acc[item.section].push(item);
