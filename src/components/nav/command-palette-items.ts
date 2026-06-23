@@ -15,6 +15,7 @@ import {
   Megaphone,
   CalendarDays,
   BarChart3,
+  Send,
   type LucideIcon,
 } from "lucide-react";
 
@@ -130,7 +131,7 @@ export const PALETTE_NAV_ITEMS: PaletteNavItem[] = [
     section: "crecimiento",
   },
   {
-    href: "/crecimiento/contenido",
+    href: "/crecimiento/content-studio",
     label: "Content Studio",
     description: "Genera posts con IA usando el contexto de tu marca",
     icon: Sparkles,
@@ -148,6 +149,13 @@ export const PALETTE_NAV_ITEMS: PaletteNavItem[] = [
     label: "Calendario",
     description: "Organiza y programa tus publicaciones por semana o mes",
     icon: CalendarDays,
+    section: "crecimiento",
+  },
+  {
+    href: "/crecimiento/publisher",
+    label: "Publisher",
+    description: "Conecta Instagram y Facebook para publicar directamente",
+    icon: Send,
     section: "crecimiento",
   },
   {
