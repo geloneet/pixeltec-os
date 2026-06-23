@@ -114,12 +114,25 @@ export function FacturacionTab({ clientId }: Props) {
     }
   };
 
+  const [statusError, setStatusError] = useState<string>("");
+
   const handleStatusChange = async (invoice: Invoice, status: Invoice["status"]) => {
     if (!firestore) return;
-    await updateInvoice(firestore, invoice.id, { status });
-    setInvoices(prev =>
-      prev.map(inv => (inv.id === invoice.id ? { ...inv, status } : inv)),
-    );
+    try {
+      await updateInvoice(firestore, invoice.id, { status });
+      setInvoices(prev =>
+        prev.map(inv => (inv.id === invoice.id ? { ...inv, status } : inv)),
+      );
+      setStatusError("");
+    } catch {
+      setStatusError("Error al actualizar estado. Intenta de nuevo.");
+    }
+  };
+
+  const resetCreate = () => {
+    setItems([{ description: "", qty: 1, unitPrice: 0 }]);
+    setDueDate("");
+    setNotes("");
   };
 
   if (loading) {
@@ -137,7 +150,7 @@ export function FacturacionTab({ clientId }: Props) {
           <h2 className="text-lg font-semibold text-white">Nueva factura</h2>
           <button
             type="button"
-            onClick={() => setView("list")}
+            onClick={() => { resetCreate(); setView("list"); }}
             className="text-xs text-zinc-400 hover:text-zinc-200 transition-colors"
           >
             Cancelar
@@ -257,6 +270,9 @@ export function FacturacionTab({ clientId }: Props) {
   // LIST view
   return (
     <div className="space-y-4">
+      {statusError && (
+        <p className="text-xs text-red-400">{statusError}</p>
+      )}
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-white">Facturas</h2>
         <button
