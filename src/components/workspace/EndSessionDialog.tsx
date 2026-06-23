@@ -48,6 +48,8 @@ export function EndSessionDialog({ open, session, elapsed, onConfirm, onCancel }
   useEffect(() => {
     if (open) {
       setStep("checklist");
+      setDeployStatus(null);
+      setCommitStatus(null);
     }
   }, [open]);
 

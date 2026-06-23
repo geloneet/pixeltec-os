@@ -80,12 +80,11 @@ interface KanbanCardProps {
   clientId: string;
   projectId: string;
   cycleTaskStatus: (cid: string, pid: string, tid: string) => void;
-  startPomo: (cid: string, pid: string, tid: string) => void;
   deleteTask: (cid: string, pid: string, tid: string) => void;
   onStartSession: (taskId: string) => void;
 }
 
-function KanbanCard({ task, clientId, projectId, cycleTaskStatus, startPomo, deleteTask, onStartSession }: KanbanCardProps) {
+function KanbanCard({ task, clientId, projectId, cycleTaskStatus, deleteTask, onStartSession }: KanbanCardProps) {
   const st = STATUS_CONFIG[task.status];
   const isCompleted = task.status === "completado";
 
@@ -529,7 +528,6 @@ export function ProjectView({
                           clientId={client.id}
                           projectId={project.id}
                           cycleTaskStatus={cycleTaskStatus}
-                          startPomo={startPomo}
                           deleteTask={deleteTask}
                           onStartSession={handleStartSession}
                         />
