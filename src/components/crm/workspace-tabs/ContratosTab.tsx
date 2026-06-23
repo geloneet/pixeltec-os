@@ -30,7 +30,6 @@ const STATUS_CONFIG: Record<Contract["status"], { label: string; classes: string
 
 interface Props {
   clientId: string;
-  clientName: string;
 }
 
 // ── Component ──────────────────────────────────────────────────────────────────
