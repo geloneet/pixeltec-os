@@ -3,9 +3,10 @@ import type { Contract } from "@/types/documents";
 
 interface Props {
   contracts: Contract[];
+  token: string;
 }
 
-export default function PortalDocumentos({ contracts }: Props) {
+export default function PortalDocumentos({ contracts, token }: Props) {
   return (
     <div className="space-y-6">
       {/* Contratos firmados */}
@@ -36,7 +37,7 @@ export default function PortalDocumentos({ contracts }: Props) {
                   </span>
                 </div>
                 <a
-                  href={`/api/documents/contract-pdf?contractId=${contract.id}`}
+                  href={`/api/documents/contract-pdf?contractId=${contract.id}&token=${token}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="ml-4 shrink-0 text-xs px-3 py-1.5 rounded-md bg-zinc-700 hover:bg-zinc-600 text-zinc-200 transition-colors"

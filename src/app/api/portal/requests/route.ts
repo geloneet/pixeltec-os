@@ -29,8 +29,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     let linkedTaskId: string | undefined;
     if (crmSnap.exists) {
       const data = crmSnap.data()!;
-      const clients = data.clients as Array<{ id: string; projects?: Array<{ id: string; tasks?: unknown[] }> }>;
+      const clients = data.clients as Array<{ id: string; portalEnabled?: boolean; projects?: Array<{ id: string; tasks?: unknown[] }> }>;
       const client = clients.find(c => c.id === clientId);
+      // Respect portalEnabled gate
+      if (!client?.portalEnabled) {
+        return NextResponse.json({ error: "Portal disabled" }, { status: 403 });
+      }
       const project = client?.projects?.[0];
       if (project) {
         const taskId = `task_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -80,6 +84,17 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
     const resolved = await resolveToken(token);
     if (!resolved) return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+
+    // Check portalEnabled
+    const db = getAdminFirestore();
+    const crmSnap = await db.collection("crm_data").doc(resolved.uid).get();
+    if (crmSnap.exists) {
+      const clients = (crmSnap.data()?.clients ?? []) as Array<{ id: string; portalEnabled?: boolean }>;
+      const client = clients.find(c => c.id === resolved.clientId);
+      if (!client?.portalEnabled) {
+        return NextResponse.json({ error: "Portal disabled" }, { status: 403 });
+      }
+    }
 
     const requests = await getPortalRequests(resolved.uid, resolved.clientId);
     return NextResponse.json({ requests });

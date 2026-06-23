@@ -68,7 +68,7 @@ export default async function PortalTokenPage({ params }: PageProps) {
 
       <PortalDashboard project={project} strategy={strategy} />
       <PortalProyecto project={project} />
-      <PortalDocumentos contracts={signedContracts} />
+      <PortalDocumentos contracts={signedContracts} token={token} />
       <PortalSolicitudes token={token} initialRequests={portalRequests} />
     </div>
   );

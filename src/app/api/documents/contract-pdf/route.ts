@@ -3,21 +3,30 @@ import { cookies } from "next/headers";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import { requireSession } from "@/lib/vpsClient";
 import { getAdminFirestore } from "@/lib/firebase-admin";
+import { resolveToken } from "@/lib/portal/token";
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
   try {
-    // Auth
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get("__session")?.value ?? "";
-    const session = await requireSession(sessionCookie);
-    if (!session.ok) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
-
-    // Get contractId from query
     const contractId = req.nextUrl.searchParams.get("contractId");
     if (!contractId) {
       return new NextResponse("Missing contractId", { status: 400 });
+    }
+
+    // Auth — session cookie (admin) OR portal token (public portal)
+    const cookieStore = await cookies();
+    const sessionCookie = cookieStore.get("__session")?.value ?? "";
+    const session = await requireSession(sessionCookie);
+
+    let ownerUid: string;
+    if (session.ok) {
+      ownerUid = session.uid;
+    } else {
+      // Fallback: portal token auth
+      const portalToken = req.nextUrl.searchParams.get("token");
+      if (!portalToken) return new NextResponse("Unauthorized", { status: 401 });
+      const resolved = await resolveToken(portalToken);
+      if (!resolved) return new NextResponse("Unauthorized", { status: 401 });
+      ownerUid = resolved.uid;
     }
 
     // Fetch contract from Firestore
@@ -40,7 +49,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     };
 
     // Verify ownership
-    if (contract.uid !== session.uid) {
+    if (contract.uid !== ownerUid) {
       return new NextResponse("Forbidden", { status: 403 });
     }
 
