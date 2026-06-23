@@ -8,7 +8,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   try {
     // Auth
     const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get("session")?.value ?? "";
+    const sessionCookie = cookieStore.get("__session")?.value ?? "";
     const session = await requireSession(sessionCookie);
     if (!session.ok) {
       return new NextResponse("Unauthorized", { status: 401 });
@@ -54,20 +54,19 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const margin = 60;
     const lineHeight = 16;
 
-    // Title
-    page.drawText(contract.title, {
-      x: margin,
-      y: height - margin - 20,
-      size: 18,
-      font: boldFont,
-      color: rgb(0.05, 0.05, 0.1),
-    });
+    // Title — word-wrapped for long titles
+    const titleLines = wrapText(toWinAnsi(contract.title), boldFont, 18, width - margin * 2);
+    let titleY = height - margin - 20;
+    for (const tLine of titleLines) {
+      page.drawText(tLine, { x: margin, y: titleY, size: 18, font: boldFont, color: rgb(0.05, 0.05, 0.1) });
+      titleY -= 22;
+    }
 
     // Meta line
-    const metaLine = `Versión ${contract.version} · ${new Date(contract.createdAt).toLocaleDateString("es-MX")} · Estado: ${contract.status}`;
+    const metaLine = toWinAnsi(`Version ${contract.version} · ${new Date(contract.createdAt).toLocaleDateString("es-MX")} · Estado: ${contract.status}`);
     page.drawText(metaLine, {
       x: margin,
-      y: height - margin - 45,
+      y: titleY - 5,
       size: 9,
       font,
       color: rgb(0.45, 0.45, 0.45),
@@ -75,15 +74,15 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
     // Divider
     page.drawLine({
-      start: { x: margin, y: height - margin - 58 },
-      end: { x: width - margin, y: height - margin - 58 },
+      start: { x: margin, y: titleY - 18 },
+      end: { x: width - margin, y: titleY - 18 },
       thickness: 0.5,
       color: rgb(0.8, 0.8, 0.8),
     });
 
     // Content — word-wrapped text, multi-page
-    const contentLines = wrapText(contract.content ?? "", font, 11, width - margin * 2);
-    let y = height - margin - 80;
+    const contentLines = wrapText(toWinAnsi(contract.content ?? ""), font, 11, width - margin * 2);
+    let y = titleY - 35;
     let currentPage = page;
     for (const line of contentLines) {
       if (y < margin + lineHeight) {
@@ -96,10 +95,11 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
     const pdfBytes = await pdfDoc.save();
 
-    const safeName = contract.title
+    const safeName = (contract.title
       .replace(/[^a-zA-Z0-9_\- ]/g, "")
       .trim()
-      .replace(/\s+/g, "_");
+      .replace(/\s+/g, "_")
+      .slice(0, 100)) || "contrato";
     return new NextResponse(Buffer.from(pdfBytes), {
       headers: {
         "Content-Type": "application/pdf",
@@ -111,6 +111,18 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     console.error("[contract-pdf]", err);
     return new NextResponse("Internal error", { status: 500 });
   }
+}
+
+/** Replaces common non-WinAnsi characters; strips the rest to prevent pdf-lib errors. */
+function toWinAnsi(text: string): string {
+  return text
+    .replace(/[‘’]/g, "'")
+    .replace(/[“”]/g, '"')
+    .replace(/–/g, "-")
+    .replace(/—/g, "--")
+    .replace(/…/g, "...")
+    // eslint-disable-next-line no-control-regex
+    .replace(/[^\x00-\xFF]/g, "?");
 }
 
 /**
