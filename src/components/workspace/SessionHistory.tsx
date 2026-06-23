@@ -1,6 +1,6 @@
 "use client";
 
-import { Clock, Activity, CheckCircle2, GitCommit, Rocket } from "lucide-react";
+import { Clock, Activity, GitCommit, Rocket } from "lucide-react";
 import type { WorkSession } from "@/types/session";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -25,12 +25,13 @@ function formatDate(iso: string): string {
 }
 
 export function SessionHistory({ sessions }: Props) {
-  const completed = sessions
+  const allCompleted = sessions
     .filter((s) => s.status === "completed")
-    .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
-    .slice(0, 10);
+    .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime());
 
-  const totalSeconds = completed.reduce((sum, s) => sum + (s.durationSeconds ?? 0), 0);
+  const totalSeconds = allCompleted.reduce((sum, s) => sum + (s.durationSeconds ?? 0), 0);
+
+  const completed = allCompleted.slice(0, 10);
 
   if (completed.length === 0) {
     return (
@@ -59,6 +60,7 @@ export function SessionHistory({ sessions }: Props) {
       <div className="divide-y divide-white/[0.04] overflow-hidden rounded-xl border border-white/[0.06] bg-zinc-900/20">
         {completed.map((session) => {
           const completedActivities = session.activities.filter((a) => a.completedAt).length;
+          const openBlockerCount = session.blockers.filter((b) => !b.resolved).length;
           return (
             <div key={session.id} className="px-4 py-3">
               <div className="mb-1 flex items-center justify-between">
@@ -85,9 +87,9 @@ export function SessionHistory({ sessions }: Props) {
                     Deploy
                   </span>
                 )}
-                {session.blockers.filter((b) => !b.resolved).length > 0 && (
+                {openBlockerCount > 0 && (
                   <span className="text-red-500">
-                    {session.blockers.filter((b) => !b.resolved).length} bloqueo{session.blockers.filter((b) => !b.resolved).length !== 1 ? "s" : ""}
+                    {openBlockerCount} bloqueo{openBlockerCount !== 1 ? "s" : ""}
                   </span>
                 )}
               </div>
