@@ -1,15 +1,17 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import type { WorkSession } from "@/types/session";
+import type { WorkSession, CoachResponse } from "@/types/session";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { LoaderCircle, Sparkles } from "lucide-react";
 
 interface Props {
   open: boolean;
   session: WorkSession;
   elapsed: number; // seconds
-  onConfirm: (deployStatus: "yes" | "no" | "na", commitStatus: boolean) => void;
+  coachResponses: CoachResponse[]; // NEW
+  onConfirm: (deployStatus: "yes" | "no" | "na", commitStatus: boolean, bitacoraEntry: string) => void; // CHANGED — added bitacoraEntry
   onCancel: () => void;
 }
 
@@ -40,16 +42,26 @@ const DEPLOY_DISPLAY: Record<"yes" | "no" | "na", string> = {
   na: "No aplica",
 };
 
-export function EndSessionDialog({ open, session, elapsed, onConfirm, onCancel }: Props) {
+export function EndSessionDialog({ open, session, elapsed, coachResponses, onConfirm, onCancel }: Props) {
   const [deployStatus, setDeployStatus] = useState<"yes" | "no" | "na" | null>(null);
   const [commitStatus, setCommitStatus] = useState<boolean | null>(null);
-  const [step, setStep] = useState<"checklist" | "summary">("checklist");
+  const [step, setStep] = useState<"checklist" | "ai-summary" | "summary">("checklist");
+  const [summaryData, setSummaryData] = useState<{
+    summary: string;
+    bitacoraEntry: string;
+    nextStep: string;
+  } | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [summaryError, setSummaryError] = useState(false);
 
   useEffect(() => {
     if (open) {
       setStep("checklist");
       setDeployStatus(null);
       setCommitStatus(null);
+      setSummaryData(null);
+      setSummaryLoading(false);
+      setSummaryError(false);
     }
   }, [open]);
 
@@ -60,14 +72,30 @@ export function EndSessionDialog({ open, session, elapsed, onConfirm, onCancel }
 
   const canProceed = deployStatus !== null && commitStatus !== null;
 
-  const handleProceed = () => {
+  const handleProceed = async () => {
     if (!canProceed) return;
-    setStep("summary");
+    setStep("ai-summary");
+    setSummaryLoading(true);
+    setSummaryError(false);
+    try {
+      const res = await fetch("/api/workspace/session-summary", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session, coachResponses }),
+      });
+      if (!res.ok) throw new Error("fetch failed");
+      const data = await res.json();
+      setSummaryData(data);
+    } catch {
+      setSummaryError(true);
+    } finally {
+      setSummaryLoading(false);
+    }
   };
 
   const handleConfirm = () => {
     if (deployStatus === null || commitStatus === null) return;
-    onConfirm(deployStatus, commitStatus);
+    onConfirm(deployStatus, commitStatus, summaryData?.bitacoraEntry ?? "");
   };
 
   return (
@@ -142,6 +170,61 @@ export function EndSessionDialog({ open, session, elapsed, onConfirm, onCancel }
           </div>
         )}
 
+        {step === "ai-summary" && (
+          <div className="p-6">
+            <div className="mb-4 flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-cyan-400" />
+              <h2 className="text-sm font-bold text-zinc-100">Resumen IA</h2>
+            </div>
+
+            {summaryLoading && (
+              <div className="flex flex-col items-center justify-center py-8 gap-3">
+                <LoaderCircle className="h-6 w-6 animate-spin text-cyan-400" />
+                <p className="text-xs text-zinc-500">Generando resumen...</p>
+              </div>
+            )}
+
+            {summaryError && (
+              <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/5 p-4">
+                <p className="text-xs text-red-400">No se pudo generar el resumen. Puedes continuar sin él.</p>
+              </div>
+            )}
+
+            {summaryData && !summaryLoading && (
+              <div className="mb-4 space-y-3">
+                <div className="rounded-xl border border-white/[0.06] bg-zinc-900/20 p-4">
+                  <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-zinc-500">Resumen</p>
+                  <p className="text-xs text-zinc-300 leading-relaxed">{summaryData.summary}</p>
+                </div>
+                <div className="rounded-xl border border-white/[0.06] bg-zinc-900/20 p-4">
+                  <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-zinc-500">Entrada para Bitácora</p>
+                  <p className="text-xs text-zinc-300 leading-relaxed whitespace-pre-line">{summaryData.bitacoraEntry}</p>
+                </div>
+                <div className="rounded-xl border border-cyan-500/10 bg-cyan-500/[0.03] p-3">
+                  <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-cyan-600">Siguiente paso</p>
+                  <p className="text-xs text-cyan-300">{summaryData.nextStep}</p>
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => setStep("summary")}
+                disabled={summaryLoading}
+                className="flex-1 rounded-lg bg-zinc-800 py-2.5 text-sm font-medium text-zinc-200 transition-all hover:bg-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {summaryLoading ? "Generando..." : "Continuar"}
+              </button>
+              <button
+                onClick={onCancel}
+                className="rounded-lg border border-white/[0.06] px-4 py-2.5 text-sm text-zinc-500 hover:text-zinc-300 transition-all"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
+
         {step === "summary" && (
           <div className="p-6">
             <div className="mb-4 flex items-center gap-2">
@@ -205,6 +288,13 @@ export function EndSessionDialog({ open, session, elapsed, onConfirm, onCancel }
                 </span>
               </div>
             </div>
+
+            {summaryData?.bitacoraEntry && (
+              <div className="mb-4 rounded-xl border border-white/[0.06] bg-zinc-900/20 p-3">
+                <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-zinc-500">Se escribirá en Bitácora</p>
+                <p className="text-xs text-zinc-500 leading-relaxed line-clamp-3">{summaryData.bitacoraEntry}</p>
+              </div>
+            )}
 
             <button
               onClick={handleConfirm}
