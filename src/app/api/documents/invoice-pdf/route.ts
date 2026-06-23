@@ -102,12 +102,21 @@ async function buildInvoicePdf(invoice: Invoice): Promise<Uint8Array> {
   });
 
   let y = height - 110;
+  let currentPage = page;
+
+  // Page-break helper: adds a new page when y is too close to the bottom
+  const ensureSpace = (needed = 16) => {
+    if (y < margin + needed) {
+      currentPage = pdfDoc.addPage([595.28, 841.89]);
+      y = currentPage.getSize().height - margin;
+    }
+  };
 
   // Column headers
   const cols = { desc: margin, qty: 300, price: 380, subtotal: 460 };
   const headerY = y;
 
-  page.drawRectangle({
+  currentPage.drawRectangle({
     x: margin - 4,
     y: headerY - 4,
     width: width - margin * 2 + 8,
@@ -115,30 +124,33 @@ async function buildInvoicePdf(invoice: Invoice): Promise<Uint8Array> {
     color: rgb(0.1, 0.1, 0.15),
   });
 
-  page.drawText("Descripción", { x: cols.desc, y: headerY, size: 9, font: boldFont, color: rgb(0.7, 0.7, 0.7) });
-  page.drawText("Cant.", { x: cols.qty, y: headerY, size: 9, font: boldFont, color: rgb(0.7, 0.7, 0.7) });
-  page.drawText("Precio unit.", { x: cols.price, y: headerY, size: 9, font: boldFont, color: rgb(0.7, 0.7, 0.7) });
-  page.drawText("Subtotal", { x: cols.subtotal, y: headerY, size: 9, font: boldFont, color: rgb(0.7, 0.7, 0.7) });
+  currentPage.drawText("Descripción", { x: cols.desc, y: headerY, size: 9, font: boldFont, color: rgb(0.7, 0.7, 0.7) });
+  currentPage.drawText("Cant.", { x: cols.qty, y: headerY, size: 9, font: boldFont, color: rgb(0.7, 0.7, 0.7) });
+  currentPage.drawText("Precio unit.", { x: cols.price, y: headerY, size: 9, font: boldFont, color: rgb(0.7, 0.7, 0.7) });
+  currentPage.drawText("Subtotal", { x: cols.subtotal, y: headerY, size: 9, font: boldFont, color: rgb(0.7, 0.7, 0.7) });
 
   y = headerY - 20;
 
   // Line items
   for (const item of invoice.items as InvoiceItem[]) {
+    ensureSpace(16);
     const descLines = wrapText(safe(item.description), font, 9, cols.qty - cols.desc - 8);
-    page.drawText(descLines[0] ?? "", { x: cols.desc, y, size: 9, font, color: rgb(0.85, 0.85, 0.85) });
-    page.drawText(String(item.qty), { x: cols.qty, y, size: 9, font, color: rgb(0.85, 0.85, 0.85) });
-    page.drawText(formatMXN(item.unitPrice), { x: cols.price, y, size: 9, font, color: rgb(0.85, 0.85, 0.85) });
-    page.drawText(formatMXN(item.subtotal), { x: cols.subtotal, y, size: 9, font, color: rgb(0.85, 0.85, 0.85) });
+    currentPage.drawText(descLines[0] ?? "", { x: cols.desc, y, size: 9, font, color: rgb(0.85, 0.85, 0.85) });
+    currentPage.drawText(String(item.qty), { x: cols.qty, y, size: 9, font, color: rgb(0.85, 0.85, 0.85) });
+    currentPage.drawText(formatMXN(item.unitPrice), { x: cols.price, y, size: 9, font, color: rgb(0.85, 0.85, 0.85) });
+    currentPage.drawText(formatMXN(item.subtotal), { x: cols.subtotal, y, size: 9, font, color: rgb(0.85, 0.85, 0.85) });
     y -= 16;
     for (let li = 1; li < descLines.length; li++) {
-      page.drawText(descLines[li], { x: cols.desc, y, size: 9, font, color: rgb(0.7, 0.7, 0.7) });
+      ensureSpace(14);
+      currentPage.drawText(descLines[li], { x: cols.desc, y, size: 9, font, color: rgb(0.7, 0.7, 0.7) });
       y -= 14;
     }
   }
 
   // Divider
+  ensureSpace(30);
   y -= 8;
-  page.drawLine({
+  currentPage.drawLine({
     start: { x: cols.subtotal - 8, y },
     end: { x: width - margin, y },
     thickness: 0.5,
@@ -152,14 +164,16 @@ async function buildInvoicePdf(invoice: Invoice): Promise<Uint8Array> {
     [`IVA (${Math.round(invoice.ivaRate * 100)}%)`, invoice.ivaAmount],
   ];
   for (const [label, amount] of totals) {
-    page.drawText(label, { x: cols.price, y, size: 9, font, color: rgb(0.65, 0.65, 0.65) });
-    page.drawText(formatMXN(amount), { x: cols.subtotal, y, size: 9, font, color: rgb(0.65, 0.65, 0.65) });
+    ensureSpace(14);
+    currentPage.drawText(label, { x: cols.price, y, size: 9, font, color: rgb(0.65, 0.65, 0.65) });
+    currentPage.drawText(formatMXN(amount), { x: cols.subtotal, y, size: 9, font, color: rgb(0.65, 0.65, 0.65) });
     y -= 14;
   }
 
+  ensureSpace(24);
   const totalW = boldFont.widthOfTextAtSize(formatMXN(invoice.total), 12);
-  page.drawText("Total", { x: cols.price, y, size: 12, font: boldFont, color: rgb(0.9, 0.9, 0.9) });
-  page.drawText(formatMXN(invoice.total), {
+  currentPage.drawText("Total", { x: cols.price, y, size: 12, font: boldFont, color: rgb(0.9, 0.9, 0.9) });
+  currentPage.drawText(formatMXN(invoice.total), {
     x: width - margin - totalW,
     y,
     size: 12,
@@ -170,10 +184,12 @@ async function buildInvoicePdf(invoice: Invoice): Promise<Uint8Array> {
 
   // Notes
   if (invoice.notes) {
-    page.drawText("Notas:", { x: margin, y, size: 9, font: boldFont, color: rgb(0.6, 0.6, 0.6) });
+    ensureSpace(30);
+    currentPage.drawText("Notas:", { x: margin, y, size: 9, font: boldFont, color: rgb(0.6, 0.6, 0.6) });
     y -= 14;
     for (const line of wrapText(safe(invoice.notes), font, 9, width - margin * 2)) {
-      page.drawText(line, { x: margin, y, size: 9, font, color: rgb(0.6, 0.6, 0.6) });
+      ensureSpace(13);
+      currentPage.drawText(line, { x: margin, y, size: 9, font, color: rgb(0.6, 0.6, 0.6) });
       y -= 13;
     }
   }
