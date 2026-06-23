@@ -4,20 +4,15 @@ export interface Proposal {
   id: string;
   uid: string;
   clientId: string;
-  templateId?: string;
-  status: "borrador" | "enviada" | "aceptada" | "rechazada" | "vencida";
   title: string;
-  scope: string;
-  solution: string;
-  deliverables: string[];
-  timeline: string;
-  price: number;
-  currency: "MXN";
-  benefits: string[];
-  validUntil?: string;
-  pdfUrl?: string;
-  convertedToContractId?: string;
-  notes?: string;
+  scope: string;          // what the client needs (user fills this)
+  solution?: string;      // AI generated
+  deliverables?: string;  // AI generated (markdown list)
+  benefits?: string;      // AI generated
+  budget?: string;        // optional user input
+  timeline?: string;      // optional user input
+  status: "borrador" | "enviada" | "aceptada" | "rechazada" | "vencida";
+  contractId?: string;    // set when converted to contract
   createdAt: string;
   updatedAt: string;
 }
