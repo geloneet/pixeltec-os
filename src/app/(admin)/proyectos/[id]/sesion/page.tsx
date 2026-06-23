@@ -4,6 +4,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { LoaderCircle } from "lucide-react";
 import { useCRM } from "@/components/crm/CRMContext";
+import { WorkspaceLayout } from "@/components/workspace/WorkspaceLayout";
 
 export default function SesionPage() {
   const params = useParams<{ id: string }>();
@@ -73,18 +74,7 @@ export default function SesionPage() {
     );
   }
 
-  // WorkspaceLayout will be imported in Task 10
   return (
-    <div className="p-6 text-zinc-300 text-sm">
-      {/* Placeholder until WorkspaceLayout is built */}
-      <p>Sesión activa: {activeSession.id}</p>
-      <p>Tarea: {task.name}</p>
-      <button
-        onClick={() => router.push(`/proyectos/${params.id}?tab=tareas`)}
-        className="mt-4 text-xs text-zinc-500 hover:text-zinc-300"
-      >
-        ← Volver
-      </button>
-    </div>
+    <WorkspaceLayout sessionId={activeSession.id} project={project} />
   );
 }
