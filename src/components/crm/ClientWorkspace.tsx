@@ -96,7 +96,7 @@ export function ClientWorkspace({ client, onBack, navigateToProject, setModal, d
         {activeTab === "propuesta"  && <WorkspaceEmptyTab label="Propuesta Comercial" sprint="Sprint 3" />}
         {activeTab === "contratos"  && (
           <div className="p-6">
-            <ContratosTab clientId={client.id} clientName={client.name} />
+            <ContratosTab clientId={client.id} />
           </div>
         )}
         {activeTab === "documentos" && <WorkspaceEmptyTab label="Documentos" sprint="Sprint 6" />}
