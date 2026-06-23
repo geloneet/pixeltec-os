@@ -80,7 +80,7 @@ export function ClientWorkspace({ client, onBack, navigateToProject, setModal, d
 
       {/* Tab content */}
       <div className="flex-1 overflow-auto">
-        {(activeTab === "resumen" || activeTab === "proyectos") && (
+        {activeTab === "resumen" && (
           <ClientDetail
             client={client}
             setView={(v) => { if (v === "clients") onBack(); }}
@@ -88,6 +88,9 @@ export function ClientWorkspace({ client, onBack, navigateToProject, setModal, d
             setModal={setModal}
             deleteClient={deleteClient}
           />
+        )}
+        {activeTab === "proyectos" && (
+          <WorkspaceEmptyTab label="Proyectos" sprint="Sprint 3" />
         )}
         {activeTab === "propuesta"  && <WorkspaceEmptyTab label="Propuesta Comercial" sprint="Sprint 3" />}
         {activeTab === "contratos"  && <WorkspaceEmptyTab label="Contratos" sprint="Sprint 3" />}
