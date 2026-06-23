@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import type { CRMProject } from "@/types/crm";
 import { useWorkSession } from "@/hooks/use-work-session";
@@ -13,6 +13,8 @@ import { QuickNotepad } from "./QuickNotepad";
 import { BlockReporter } from "./BlockReporter";
 import { EndSessionDialog } from "./EndSessionDialog";
 import { SmartSidebar } from "./SmartSidebar";
+import { SessionAICoach } from "./SessionAICoach";
+import type { CoachResponse } from "@/types/session";
 
 interface Props {
   sessionId: string;
@@ -22,7 +24,12 @@ interface Props {
 export function WorkspaceLayout({ sessionId, project }: Props) {
   const router = useRouter();
   const [showEndDialog, setShowEndDialog] = useState(false);
+  const [coachResponses, setCoachResponses] = useState<CoachResponse[]>([]);
   const ws = useWorkSession(sessionId);
+
+  const handleCoachResponse = useCallback((response: CoachResponse) => {
+    setCoachResponses((prev) => [...prev, response]);
+  }, []);
 
   if (!ws.session) {
     return (
@@ -69,8 +76,9 @@ export function WorkspaceLayout({ sessionId, project }: Props) {
         </div>
 
         {/* Smart sidebar — 30% */}
-        <div className="w-[30%] flex-shrink-0 overflow-y-auto border-l border-white/[0.04] p-4">
+        <div className="w-[30%] flex-shrink-0 overflow-y-auto border-l border-white/[0.04] p-4 space-y-4">
           <SmartSidebar tech={project.tech ?? ""} />
+          <SessionAICoach session={ws.session} onResponseAdded={handleCoachResponse} />
         </div>
       </div>
 

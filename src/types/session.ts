@@ -52,3 +52,9 @@ export interface WorkSession {
   commitStatus?: boolean;
   createdBy: string; // user uid or email
 }
+
+export interface CoachResponse {
+  question: string;
+  answer: string;
+  timestamp: string; // ISO
+}
