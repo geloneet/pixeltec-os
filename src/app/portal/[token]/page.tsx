@@ -1,10 +1,13 @@
 import { notFound } from "next/navigation";
 import { resolveToken } from "@/lib/portal/token";
 import { getAdminFirestore } from "@/lib/firebase-admin";
+import { getPortalRequests } from "@/lib/portal/requests";
 import PortalDashboard from "@/components/portal/PortalDashboard";
 import PortalProyecto from "@/components/portal/PortalProyecto";
+import PortalDocumentos from "@/components/portal/PortalDocumentos";
+import PortalSolicitudes from "@/components/portal/PortalSolicitudes";
 import type { CRMClient } from "@/types/crm";
-import type { Strategy } from "@/types/documents";
+import type { Contract, Strategy } from "@/types/documents";
 
 interface PageProps {
   params: Promise<{ token: string }>;
@@ -42,6 +45,20 @@ export default async function PortalTokenPage({ params }: PageProps) {
   // Active project = first project (or could be latest)
   const project = client.projects[0] ?? null;
 
+  // Fetch signed contracts
+  const contractsSnap = await db
+    .collection("contracts")
+    .where("uid", "==", uid)
+    .where("clientId", "==", clientId)
+    .where("status", "==", "firmado")
+    .get();
+  const signedContracts: Contract[] = contractsSnap.docs.map(
+    d => ({ id: d.id, ...d.data() } as Contract),
+  );
+
+  // Fetch portal requests
+  const portalRequests = await getPortalRequests(uid, clientId);
+
   return (
     <div className="space-y-8">
       <div>
@@ -51,6 +68,8 @@ export default async function PortalTokenPage({ params }: PageProps) {
 
       <PortalDashboard project={project} strategy={strategy} />
       <PortalProyecto project={project} />
+      <PortalDocumentos contracts={signedContracts} />
+      <PortalSolicitudes token={token} initialRequests={portalRequests} />
     </div>
   );
 }
