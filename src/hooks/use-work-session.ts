@@ -39,9 +39,13 @@ export function useWorkSession(sessionId: string) {
   }, [sessionId, activityText, crm]);
 
   const handleActivityDone = useCallback(() => {
+    if (!sessionId) return;
+    if (activityText.trim()) {
+      crm.updateCurrentActivity(sessionId, activityText.trim());
+    }
     crm.completeActivity(sessionId);
     setActivityText("");
-  }, [sessionId, crm]);
+  }, [sessionId, activityText, crm]);
 
   // ── Notes ──────────────────────────────────────────────────────────────────
   const handleAddNote = useCallback(
