@@ -22,6 +22,7 @@ export const ADMIN_ROUTES = [
   'perfil',
   'notificaciones',
   'blog-admin',
+  'crecimiento',
 ] as const;
 
 export type AdminRoute = typeof ADMIN_ROUTES[number];
