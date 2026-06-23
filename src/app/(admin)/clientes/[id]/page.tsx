@@ -4,9 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import { LoaderCircle } from "lucide-react";
 import { useCRM } from "@/components/crm/CRMContext";
 import { useCRMShell } from "@/components/crm/CRMShellProvider";
-import { ClientDetail } from "@/components/crm/ClientDetail";
-
-type LegacyView = "asistente" | "clients" | "client" | "project" | "search";
+import { ClientWorkspace } from "@/components/crm/ClientWorkspace";
 
 export default function ClienteDetailPage() {
   const params = useParams<{ id: string }>();
@@ -38,16 +36,10 @@ export default function ClienteDetailPage() {
     );
   }
 
-  const setView = (v: LegacyView) => {
-    if (v === "clients") router.push("/clientes");
-    else if (v === "asistente") router.push("/tareas");
-    else if (v === "client") router.push(`/clientes/${client.id}`);
-  };
-
   return (
-    <ClientDetail
+    <ClientWorkspace
       client={client}
-      setView={setView}
+      onBack={() => router.push("/clientes")}
       navigateToProject={(_cid, pid) => router.push(`/proyectos/${pid}`)}
       setModal={shell.setModal}
       deleteClient={crm.deleteClient}
