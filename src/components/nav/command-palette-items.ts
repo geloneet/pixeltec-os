@@ -78,7 +78,7 @@ export const PALETTE_NAV_ITEMS: PaletteNavItem[] = [
     description: "Plantillas maestras para contratos, facturas, discovery y documentos",
     icon: Sparkles,
     section: "produccion",
-    hidden: true,
+    hidden: false,
   },
   {
     href: "/accesos",
