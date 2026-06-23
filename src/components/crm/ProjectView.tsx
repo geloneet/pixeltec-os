@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { ProjectBitacora } from "./ProjectBitacora";
 import { useCRM } from "./CRMContext";
 import type { ProjectLogEntry } from "@/types/crm";
@@ -81,9 +82,10 @@ interface KanbanCardProps {
   cycleTaskStatus: (cid: string, pid: string, tid: string) => void;
   startPomo: (cid: string, pid: string, tid: string) => void;
   deleteTask: (cid: string, pid: string, tid: string) => void;
+  onStartSession: (taskId: string) => void;
 }
 
-function KanbanCard({ task, clientId, projectId, cycleTaskStatus, startPomo, deleteTask }: KanbanCardProps) {
+function KanbanCard({ task, clientId, projectId, cycleTaskStatus, startPomo, deleteTask, onStartSession }: KanbanCardProps) {
   const st = STATUS_CONFIG[task.status];
   const isCompleted = task.status === "completado";
 
@@ -103,10 +105,10 @@ function KanbanCard({ task, clientId, projectId, cycleTaskStatus, startPomo, del
         </button>
         <div className="flex items-center gap-1">
           <button
-            onClick={() => startPomo(clientId, projectId, task.id)}
-            className="rounded px-1.5 py-0.5 text-[10px] text-zinc-500 transition-colors hover:bg-cyan-500/10 hover:text-cyan-400"
+            onClick={() => onStartSession(task.id)}
+            className="rounded px-1.5 py-0.5 text-[10px] text-cyan-400 transition-colors hover:bg-cyan-500/10"
           >
-            ▶
+            ▶ Sesión
           </button>
           <button
             onClick={() => deleteTask(clientId, projectId, task.id)}
@@ -162,9 +164,14 @@ export function ProjectView({
   stopPomo, resetPomo, deleteCharge, updateCharge,
 }: ProjectViewProps) {
   const crm = useCRM();
+  const router = useRouter();
   const [revealedKeys, setRevealedKeys] = useState<Set<string>>(new Set());
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [taskView, setTaskView] = useState<"lista" | "kanban">("lista");
+
+  const handleStartSession = (taskId: string) => {
+    router.push(`/proyectos/${project.id}/sesion?taskId=${taskId}`);
+  };
 
   // Derived data
   const projectStats = useMemo(() => deriveProjectStats(project), [project]);
@@ -487,10 +494,10 @@ export function ProjectView({
                       {st.label}
                     </button>
                     <button
-                      onClick={() => startPomo(client.id, project.id, task.id)}
-                      className="rounded-lg border border-white/[0.06] bg-zinc-900/40 px-2 py-1 text-[11px] text-zinc-400 transition-all hover:border-cyan-500/20 hover:bg-cyan-500/10 hover:text-cyan-400"
+                      onClick={() => handleStartSession(task.id)}
+                      className="rounded-lg border border-cyan-500/20 bg-cyan-500/[0.08] px-2.5 py-1 text-[11px] font-medium text-cyan-400 transition-all hover:bg-cyan-500/20 whitespace-nowrap"
                     >
-                      ▶
+                      ▶ Iniciar sesión
                     </button>
                     <button
                       onClick={() => deleteTask(client.id, project.id, task.id)}
@@ -524,6 +531,7 @@ export function ProjectView({
                           cycleTaskStatus={cycleTaskStatus}
                           startPomo={startPomo}
                           deleteTask={deleteTask}
+                          onStartSession={handleStartSession}
                         />
                       ))}
                       {col.tasks.length === 0 && (
