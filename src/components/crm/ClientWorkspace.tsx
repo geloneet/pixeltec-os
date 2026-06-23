@@ -7,6 +7,7 @@ import { ClientDetail } from "./ClientDetail";
 import { ContratosTab } from "@/components/crm/workspace-tabs/ContratosTab";
 import { PropuestaTab } from "@/components/crm/workspace-tabs/PropuestaTab";
 import { DiscoveryTab } from "@/components/crm/workspace-tabs/DiscoveryTab";
+import { EstrategiaTab } from "@/components/crm/workspace-tabs/EstrategiaTab";
 
 export type WorkspaceTab =
   | "resumen"
@@ -111,7 +112,11 @@ export function ClientWorkspace({ client, onBack, navigateToProject, setModal, d
             <DiscoveryTab clientId={client.id} clientName={client.name} />
           </div>
         )}
-        {activeTab === "estrategia" && <WorkspaceEmptyTab label="Estrategia" sprint="Sprint 4" />}
+        {activeTab === "estrategia" && (
+          <div className="p-6">
+            <EstrategiaTab clientId={client.id} />
+          </div>
+        )}
         {activeTab === "portal"     && <WorkspaceEmptyTab label="Portal Cliente" sprint="Sprint 5" />}
       </div>
     </div>
