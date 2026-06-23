@@ -84,10 +84,12 @@ export function VpsDashboard() {
           </div>
           <div>
             <p className="font-poppins font-semibold text-zinc-200">
-              Conecta tu VPS
+              Sesión no autorizada
             </p>
             <p className="mt-1 font-roboto text-sm text-zinc-500">
-              Para ver el estado de tu infraestructura, configura el acceso al VPS en las variables de entorno.
+              {vpsError.status === 403
+                ? "Tu cuenta no tiene permisos para ver la infraestructura. Contacta al administrador."
+                : "Tu sesión expiró o no es válida. Cierra sesión y vuelve a entrar para continuar."}
             </p>
           </div>
         </div>
