@@ -60,7 +60,7 @@ export function SessionHistory({ sessions }: Props) {
       <div className="divide-y divide-white/[0.04] overflow-hidden rounded-xl border border-white/[0.06] bg-zinc-900/20">
         {completed.map((session) => {
           const completedActivities = session.activities.filter((a) => a.completedAt).length;
-          const openBlockerCount = session.blockers.filter((b) => !b.resolved).length;
+          const openBlockerCount = session.blockers.filter((b) => b.status !== "resolved").length;
           return (
             <div key={session.id} className="px-4 py-3">
               <div className="mb-1 flex items-center justify-between">
