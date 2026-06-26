@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import type { WorkSession, CoachResponse } from "@/types/session";
+import type { WorkSession } from "@/types/session";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { LoaderCircle, Sparkles } from "lucide-react";
@@ -10,8 +10,7 @@ interface Props {
   open: boolean;
   session: WorkSession;
   elapsed: number; // seconds
-  coachResponses: CoachResponse[]; // NEW
-  onConfirm: (deployStatus: "yes" | "no" | "na", commitStatus: boolean, bitacoraEntry: string) => void; // CHANGED — added bitacoraEntry
+  onConfirm: (deployStatus: "yes" | "no" | "na", commitStatus: boolean, bitacoraEntry: string) => void;
   onCancel: () => void;
 }
 
@@ -42,10 +41,10 @@ const DEPLOY_DISPLAY: Record<"yes" | "no" | "na", string> = {
   na: "No aplica",
 };
 
-export function EndSessionDialog({ open, session, elapsed, coachResponses, onConfirm, onCancel }: Props) {
+export function EndSessionDialog({ open, session, elapsed, onConfirm, onCancel }: Props) {
   const [deployStatus, setDeployStatus] = useState<"yes" | "no" | "na" | null>(null);
   const [commitStatus, setCommitStatus] = useState<boolean | null>(null);
-  const [step, setStep] = useState<"checklist" | "ai-summary" | "summary">("checklist");
+  const [step, setStep] = useState<"blockers-review" | "checklist" | "ai-summary" | "summary">("checklist");
   const [summaryData, setSummaryData] = useState<{
     summary: string;
     bitacoraEntry: string;
@@ -56,19 +55,20 @@ export function EndSessionDialog({ open, session, elapsed, coachResponses, onCon
 
   useEffect(() => {
     if (open) {
-      setStep("checklist");
+      const hasActiveBlockers = session.blockers.filter(b => b.status === "active").length > 0;
+      setStep(hasActiveBlockers ? "blockers-review" : "checklist");
       setDeployStatus(null);
       setCommitStatus(null);
       setSummaryData(null);
       setSummaryLoading(false);
       setSummaryError(false);
     }
-  }, [open]);
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!open) return null;
 
   const completedActivities = session.activities.filter((a) => a.completedAt !== undefined);
-  const openBlockers = session.blockers.filter((b) => b.status !== "resolved");
+  const openBlockers = session.blockers.filter((b) => b.status === "active" || b.status === "waiting");
 
   const canProceed = deployStatus !== null && commitStatus !== null;
 
@@ -81,7 +81,7 @@ export function EndSessionDialog({ open, session, elapsed, coachResponses, onCon
       const res = await fetch("/api/workspace/session-summary", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ session, coachResponses, elapsed }),
+        body: JSON.stringify({ session, elapsed }),
       });
       if (!res.ok) throw new Error("fetch failed");
       const data = await res.json();
@@ -101,6 +101,43 @@ export function EndSessionDialog({ open, session, elapsed, coachResponses, onCon
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
       <div className="w-full max-w-md rounded-2xl border border-white/[0.08] bg-[#0F0F12] shadow-2xl overflow-hidden">
+        {step === "blockers-review" && (
+          <div className="p-6">
+            <h2 className="mb-1 text-base font-bold text-zinc-100">Bloqueos sin resolver</h2>
+            <p className="mb-4 text-sm text-zinc-500">
+              Tienes {session.blockers.filter(b => b.status === "active").length} bloqueo(s) activo(s). ¿Qué deseas hacer?
+            </p>
+            <div className="mb-4 space-y-2">
+              {session.blockers.filter(b => b.status === "active").map(b => (
+                <div key={b.id} className="rounded-lg border border-red-500/10 bg-red-500/[0.04] px-3 py-2">
+                  <p className="text-xs font-medium text-red-400">🔴 {b.description}</p>
+                </div>
+              ))}
+            </div>
+            <div className="space-y-2 mb-4">
+              <p className="text-xs text-zinc-500">Puedes:</p>
+              <ul className="text-xs text-zinc-400 space-y-1 list-disc list-inside">
+                <li>Dejarlos abiertos para la siguiente sesión</li>
+                <li>Resolverlos desde el panel de bloqueos antes de finalizar</li>
+              </ul>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setStep("checklist")}
+                className="flex-1 rounded-lg bg-zinc-800 py-2.5 text-sm font-medium text-zinc-200 hover:bg-zinc-700 transition-all"
+              >
+                Continuar de todas formas
+              </button>
+              <button
+                onClick={onCancel}
+                className="rounded-lg border border-white/[0.06] px-4 py-2.5 text-sm text-zinc-500 hover:text-zinc-300 transition-all"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
+
         {step === "checklist" && (
           <div className="p-6">
             <h2 className="mb-1 text-base font-bold text-zinc-100">Finalizar sesión</h2>
