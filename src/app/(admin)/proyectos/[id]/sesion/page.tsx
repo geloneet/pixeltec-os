@@ -102,5 +102,5 @@ function SesionPageInner({
     );
   }
 
-  return <WorkspaceLayout sessionId={activeSession.id} project={project} onSessionEnd={handleSessionEnd} />;
+  return <WorkspaceLayout sessionId={activeSession.id} project={project} task={task} onSessionEnd={handleSessionEnd} />;
 }
