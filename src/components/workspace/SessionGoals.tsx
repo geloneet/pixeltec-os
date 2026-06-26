@@ -14,8 +14,7 @@ const MAX_ACTIVE = 3;
 
 export function SessionGoals({ goals, onAdd, onToggle, onRemove }: Props) {
   const [text, setText] = useState("");
-  const activeCount = goals.filter(g => !g.completed).length;
-  const atLimit = activeCount >= MAX_ACTIVE;
+  const atLimit = goals.length >= MAX_ACTIVE;
 
   const handleSubmit = () => {
     if (!text.trim()) return;
