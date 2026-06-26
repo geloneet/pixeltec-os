@@ -9,7 +9,7 @@ import { WorkspaceHeader } from "./WorkspaceHeader";
 import { ActivityWorkspace } from "./ActivityWorkspace";
 import { FocusGuard } from "./FocusGuard";
 import { SessionObservations } from "./SessionObservations";
-import { BlockReporter } from "./BlockReporter";
+import { BlockTracker } from "./BlockTracker";
 import { EndSessionDialog } from "./EndSessionDialog";
 import { SmartSidebar } from "./SmartSidebar";
 import { SessionAICoach } from "./SessionAICoach";
@@ -78,9 +78,10 @@ export function WorkspaceLayout({ sessionId, project, onSessionEnd }: Props) {
             onUpdateText={(description) => crm.updateCurrentActivity(sessionId, description)}
           />
           <SessionObservations notes={ws.session.notes} onAdd={ws.handleAddNote} onMarkForSummary={ws.handleMarkNoteForSummary} />
-          <BlockReporter
+          <BlockTracker
             blockers={ws.session.blockers}
-            onAddBlocker={ws.handleAddBlocker}
+            onAdd={ws.handleAddBlocker}
+            onUpdateStatus={ws.handleUpdateBlockerStatus}
           />
         </div>
 
