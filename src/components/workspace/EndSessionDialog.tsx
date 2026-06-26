@@ -68,7 +68,7 @@ export function EndSessionDialog({ open, session, elapsed, coachResponses, onCon
   if (!open) return null;
 
   const completedActivities = session.activities.filter((a) => a.completedAt !== undefined);
-  const openBlockers = session.blockers.filter((b) => !b.resolved);
+  const openBlockers = session.blockers.filter((b) => b.status !== "resolved");
 
   const canProceed = deployStatus !== null && commitStatus !== null;
 
