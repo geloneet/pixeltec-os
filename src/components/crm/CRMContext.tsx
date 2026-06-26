@@ -6,7 +6,7 @@ import { doc, getDoc, setDoc } from "firebase/firestore";
 import { toast } from "sonner";
 import { clientSchema, projectSchema, taskSchema } from "@/lib/crm-schemas";
 import type { CRMClient, CRMProject, CRMTask, CRMKey, Tool, KnowledgeTip, ServerClientLink, RecurringCharge, ProjectLogEntry } from "@/types/crm";
-import type { WorkSession, BlockerType } from "@/types/session";
+import type { WorkSession, BlockerType, BlockerStatus, BlockerImpact, BlockerSource, ObservationType, SessionGoal } from "@/types/session";
 
 const MAX_LOG_ENTRIES = 500;
 
@@ -49,10 +49,16 @@ interface CRMContextValue {
   addProjectLogEntry: (clientId: string, projectId: string, entry: Omit<ProjectLogEntry, "id">) => void;
   sessions: WorkSession[];
   startSession: (clientId: string, projectId: string, taskId: string, clientName: string, projectName: string, taskName: string) => WorkSession;
+  startActivity: (sessionId: string, description: string, estimatedMinutes?: number) => void;
   updateCurrentActivity: (sessionId: string, description: string) => void;
   completeActivity: (sessionId: string) => void;
-  addSessionNote: (sessionId: string, content: string) => void;
-  addSessionBlocker: (sessionId: string, type: BlockerType, description: string) => void;
+  addSessionGoal: (sessionId: string, text: string) => void;
+  toggleSessionGoal: (sessionId: string, goalId: string) => void;
+  removeSessionGoal: (sessionId: string, goalId: string) => void;
+  addSessionNote: (sessionId: string, type: ObservationType, content: string) => void;
+  markNoteForSummary: (sessionId: string, noteId: string) => void;
+  addSessionBlocker: (sessionId: string, type: BlockerType, description: string, impact: BlockerImpact, source: BlockerSource) => void;
+  updateBlockerStatus: (sessionId: string, blockerId: string, status: BlockerStatus) => void;
   endSession: (sessionId: string, deployStatus: "yes" | "no" | "na", commitStatus: boolean) => void;
   getProjectSessions: (projectId: string) => WorkSession[];
 }
@@ -443,25 +449,39 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       activities: [],
       notes: [],
       blockers: [],
+      sessionGoals: [],
       createdBy: userEmail,
     };
     updateSessions([...dataRef.current.sessions, session]);
     return session;
   }, [updateSessions, userEmail]);
 
-  const updateCurrentActivity = useCallback((sessionId: string, description: string) => {
+  const startActivity = useCallback((sessionId: string, description: string, estimatedMinutes?: number) => {
     const updated = dataRef.current.sessions.map(s => {
       if (s.id !== sessionId) return s;
       const hasOpen = s.activities.some(a => !a.completedAt);
-      let activities: typeof s.activities;
-      if (hasOpen) {
-        activities = s.activities.map(a =>
+      if (hasOpen) return s;
+      const activity = {
+        id: uid(),
+        description,
+        startedAt: new Date().toISOString(),
+        ...(estimatedMinutes != null ? { estimatedMinutes } : {}),
+      };
+      return { ...s, currentActivity: description, activities: [...s.activities, activity] };
+    });
+    updateSessions(updated);
+  }, [updateSessions]);
+
+  const updateCurrentActivity = useCallback((sessionId: string, description: string) => {
+    const updated = dataRef.current.sessions.map(s => {
+      if (s.id !== sessionId) return s;
+      return {
+        ...s,
+        currentActivity: description,
+        activities: s.activities.map(a =>
           !a.completedAt ? { ...a, description } : a
-        );
-      } else {
-        activities = [...s.activities, { id: uid(), description, startedAt: new Date().toISOString() }];
-      }
-      return { ...s, currentActivity: description, activities };
+        ),
+      };
     });
     updateSessions(updated);
   }, [updateSessions]);
@@ -481,19 +501,92 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     updateSessions(updated);
   }, [updateSessions]);
 
-  const addSessionNote = useCallback((sessionId: string, content: string) => {
-    const note = { id: uid(), content, createdAt: new Date().toISOString() };
+  const addSessionGoal = useCallback((sessionId: string, text: string) => {
+    const goal: SessionGoal = {
+      id: uid(), text, completed: false, createdAt: new Date().toISOString(),
+    };
+    const updated = dataRef.current.sessions.map(s =>
+      s.id === sessionId ? { ...s, sessionGoals: [...(s.sessionGoals ?? []), goal] } : s
+    );
+    updateSessions(updated);
+  }, [updateSessions]);
+
+  const toggleSessionGoal = useCallback((sessionId: string, goalId: string) => {
+    const now = new Date().toISOString();
+    const updated = dataRef.current.sessions.map(s => {
+      if (s.id !== sessionId) return s;
+      return {
+        ...s,
+        sessionGoals: (s.sessionGoals ?? []).map(g =>
+          g.id === goalId
+            ? { ...g, completed: !g.completed, completedAt: !g.completed ? now : undefined }
+            : g
+        ),
+      };
+    });
+    updateSessions(updated);
+  }, [updateSessions]);
+
+  const removeSessionGoal = useCallback((sessionId: string, goalId: string) => {
+    const updated = dataRef.current.sessions.map(s =>
+      s.id === sessionId
+        ? { ...s, sessionGoals: (s.sessionGoals ?? []).filter(g => g.id !== goalId) }
+        : s
+    );
+    updateSessions(updated);
+  }, [updateSessions]);
+
+  const addSessionNote = useCallback((sessionId: string, type: ObservationType, content: string) => {
+    const note = {
+      id: uid(), type, content, createdAt: new Date().toISOString(),
+    };
     const updated = dataRef.current.sessions.map(s =>
       s.id === sessionId ? { ...s, notes: [...s.notes, note] } : s
     );
     updateSessions(updated);
   }, [updateSessions]);
 
-  const addSessionBlocker = useCallback((sessionId: string, type: BlockerType, description: string) => {
-    const blocker = { id: uid(), type, description, createdAt: new Date().toISOString(), resolved: false };
+  const markNoteForSummary = useCallback((sessionId: string, noteId: string) => {
+    const updated = dataRef.current.sessions.map(s => {
+      if (s.id !== sessionId) return s;
+      return {
+        ...s,
+        notes: s.notes.map(n => n.id === noteId ? { ...n, markedForSummary: true } : n),
+      };
+    });
+    updateSessions(updated);
+  }, [updateSessions]);
+
+  const addSessionBlocker = useCallback((
+    sessionId: string,
+    type: BlockerType,
+    description: string,
+    impact: BlockerImpact,
+    source: BlockerSource,
+  ) => {
+    const blocker = {
+      id: uid(), type, description, status: "active" as const, impact, source,
+      createdAt: new Date().toISOString(),
+    };
     const updated = dataRef.current.sessions.map(s =>
       s.id === sessionId ? { ...s, blockers: [...s.blockers, blocker] } : s
     );
+    updateSessions(updated);
+  }, [updateSessions]);
+
+  const updateBlockerStatus = useCallback((sessionId: string, blockerId: string, status: BlockerStatus) => {
+    const now = new Date().toISOString();
+    const updated = dataRef.current.sessions.map(s => {
+      if (s.id !== sessionId) return s;
+      return {
+        ...s,
+        blockers: s.blockers.map(b =>
+          b.id === blockerId
+            ? { ...b, status, ...(status === "resolved" ? { resolvedAt: now } : {}) }
+            : b
+        ),
+      };
+    });
     updateSessions(updated);
   }, [updateSessions]);
 
@@ -544,8 +637,11 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       addCharge, updateCharge, deleteCharge,
       addProjectLogEntry,
       sessions,
-      startSession, updateCurrentActivity, completeActivity,
-      addSessionNote, addSessionBlocker, endSession, getProjectSessions,
+      startSession, startActivity, updateCurrentActivity, completeActivity,
+      addSessionGoal, toggleSessionGoal, removeSessionGoal,
+      addSessionNote, markNoteForSummary,
+      addSessionBlocker, updateBlockerStatus,
+      endSession, getProjectSessions,
     }}>
       {children}
     </CRMCtx.Provider>
