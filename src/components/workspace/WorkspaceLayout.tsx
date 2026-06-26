@@ -8,7 +8,7 @@ import { useCRM } from "@/components/crm/CRMContext";
 import { WorkspaceHeader } from "./WorkspaceHeader";
 import { ActivityWorkspace } from "./ActivityWorkspace";
 import { FocusGuard } from "./FocusGuard";
-import { QuickNotepad } from "./QuickNotepad";
+import { SessionObservations } from "./SessionObservations";
 import { BlockReporter } from "./BlockReporter";
 import { EndSessionDialog } from "./EndSessionDialog";
 import { SmartSidebar } from "./SmartSidebar";
@@ -77,7 +77,7 @@ export function WorkspaceLayout({ sessionId, project, onSessionEnd }: Props) {
             onDone={ws.handleActivityDone}
             onUpdateText={(description) => crm.updateCurrentActivity(sessionId, description)}
           />
-          <QuickNotepad notes={ws.session.notes} onAddNote={ws.handleAddNote} />
+          <SessionObservations notes={ws.session.notes} onAdd={ws.handleAddNote} onMarkForSummary={ws.handleMarkNoteForSummary} />
           <BlockReporter
             blockers={ws.session.blockers}
             onAddBlocker={ws.handleAddBlocker}
