@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useCRM } from "@/components/crm/CRMContext";
-import type { BlockerType } from "@/types/session";
+import type { BlockerType, BlockerImpact, BlockerSource, ObservationType } from "@/types/session";
 
 export function useWorkSession(sessionId: string) {
   const crm = useCRM();
@@ -17,14 +17,13 @@ export function useWorkSession(sessionId: string) {
   useEffect(() => {
     if (!session) return;
     const start = new Date(session.startedAt).getTime();
-    const tick = () =>
-      setElapsed(Math.floor((Date.now() - start) / 1000));
+    const tick = () => setElapsed(Math.floor((Date.now() - start) / 1000));
     tick();
     const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
   }, [session?.startedAt]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Activity text (local state, synced from session.currentActivity) ───────
+  // ── Activities ─────────────────────────────────────────────────────────────
   const [activityText, setActivityText] = useState(
     () => session?.currentActivity ?? ""
   );
@@ -33,13 +32,21 @@ export function useWorkSession(sessionId: string) {
     setActivityText(session?.currentActivity ?? "");
   }, [session?.currentActivity]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const handleStartActivity = useCallback(
+    (description: string, estimatedMinutes?: number) => {
+      if (!description.trim()) return;
+      crm.startActivity(sessionId, description.trim(), estimatedMinutes);
+      setActivityText(description.trim());
+    },
+    [sessionId, crm]
+  );
+
   const handleActivityUpdate = useCallback(() => {
     if (!activityText.trim()) return;
     crm.updateCurrentActivity(sessionId, activityText.trim());
   }, [sessionId, activityText, crm]);
 
   const handleActivityDone = useCallback(() => {
-    if (!sessionId) return;
     if (activityText.trim()) {
       crm.updateCurrentActivity(sessionId, activityText.trim());
     }
@@ -47,19 +54,56 @@ export function useWorkSession(sessionId: string) {
     setActivityText("");
   }, [sessionId, activityText, crm]);
 
-  // ── Notes ──────────────────────────────────────────────────────────────────
+  // ── Goals ──────────────────────────────────────────────────────────────────
+  const handleAddGoal = useCallback(
+    (text: string) => {
+      if (!text.trim()) return;
+      crm.addSessionGoal(sessionId, text.trim());
+    },
+    [sessionId, crm]
+  );
+
+  const handleToggleGoal = useCallback(
+    (goalId: string) => {
+      crm.toggleSessionGoal(sessionId, goalId);
+    },
+    [sessionId, crm]
+  );
+
+  const handleRemoveGoal = useCallback(
+    (goalId: string) => {
+      crm.removeSessionGoal(sessionId, goalId);
+    },
+    [sessionId, crm]
+  );
+
+  // ── Notes (Observations) ───────────────────────────────────────────────────
   const handleAddNote = useCallback(
-    (content: string) => {
+    (type: ObservationType, content: string) => {
       if (!content.trim()) return;
-      crm.addSessionNote(sessionId, content.trim());
+      crm.addSessionNote(sessionId, type, content.trim());
+    },
+    [sessionId, crm]
+  );
+
+  const handleMarkNoteForSummary = useCallback(
+    (noteId: string) => {
+      crm.markNoteForSummary(sessionId, noteId);
     },
     [sessionId, crm]
   );
 
   // ── Blockers ───────────────────────────────────────────────────────────────
   const handleAddBlocker = useCallback(
-    (type: BlockerType, description: string) => {
-      crm.addSessionBlocker(sessionId, type, description);
+    (type: BlockerType, description: string, impact: BlockerImpact, source: BlockerSource) => {
+      crm.addSessionBlocker(sessionId, type, description, impact, source);
+    },
+    [sessionId, crm]
+  );
+
+  const handleUpdateBlockerStatus = useCallback(
+    (blockerId: string, status: import("@/types/session").BlockerStatus) => {
+      crm.updateBlockerStatus(sessionId, blockerId, status);
     },
     [sessionId, crm]
   );
@@ -79,21 +123,15 @@ export function useWorkSession(sessionId: string) {
 
   useEffect(() => {
     if (!session || session.status !== "active") return;
-
-    const reset = () => {
-      lastActivityRef.current = Date.now();
-    };
-
+    const reset = () => { lastActivityRef.current = Date.now(); };
     window.addEventListener("mousemove", reset, { passive: true });
     window.addEventListener("keydown", reset, { passive: true });
     window.addEventListener("click", reset, { passive: true });
-
     const check = setInterval(() => {
       if (Date.now() - lastActivityRef.current >= INACTIVE_MS) {
         setShowInactiveAlert(true);
       }
     }, 60_000);
-
     return () => {
       window.removeEventListener("mousemove", reset);
       window.removeEventListener("keydown", reset);
@@ -107,10 +145,16 @@ export function useWorkSession(sessionId: string) {
     elapsed,
     activityText,
     setActivityText,
+    handleStartActivity,
     handleActivityUpdate,
     handleActivityDone,
+    handleAddGoal,
+    handleToggleGoal,
+    handleRemoveGoal,
     handleAddNote,
+    handleMarkNoteForSummary,
     handleAddBlocker,
+    handleUpdateBlockerStatus,
     handleEndSession,
     showInactiveAlert,
     setShowInactiveAlert,
