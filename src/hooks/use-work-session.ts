@@ -46,6 +46,15 @@ export function useWorkSession(sessionId: string) {
     crm.updateCurrentActivity(sessionId, activityText.trim());
   }, [sessionId, activityText, crm]);
 
+  const handleUpdateActivityText = useCallback(
+    (description: string) => {
+      if (!description.trim()) return;
+      crm.updateCurrentActivity(sessionId, description.trim());
+      setActivityText(description.trim());
+    },
+    [sessionId, crm]
+  );
+
   const handleActivityDone = useCallback(() => {
     if (activityText.trim()) {
       crm.updateCurrentActivity(sessionId, activityText.trim());
@@ -147,6 +156,7 @@ export function useWorkSession(sessionId: string) {
     setActivityText,
     handleStartActivity,
     handleActivityUpdate,
+    handleUpdateActivityText,
     handleActivityDone,
     handleAddGoal,
     handleToggleGoal,
