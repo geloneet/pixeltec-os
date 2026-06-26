@@ -89,7 +89,7 @@ export function WorkspaceLayout({ sessionId, project, task, onSessionEnd }: Prop
             activities={ws.session.activities}
             onStart={ws.handleStartActivity}
             onDone={ws.handleActivityDone}
-            onUpdateText={ws.handleActivityUpdate}
+            onUpdateText={ws.handleUpdateActivityText}
           />
           <SessionObservations
             notes={ws.session.notes}
