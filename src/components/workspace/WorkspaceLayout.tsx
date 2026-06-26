@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import type { CRMProject } from "@/types/crm";
 import { useWorkSession } from "@/hooks/use-work-session";
 import { WorkspaceHeader } from "./WorkspaceHeader";
-import { SessionTimer } from "./SessionTimer";
 import { CurrentActivity } from "./CurrentActivity";
 import { ActivityTimeline } from "./ActivityTimeline";
 import { FocusGuard } from "./FocusGuard";
@@ -53,19 +52,24 @@ export function WorkspaceLayout({ sessionId, project, onSessionEnd }: Props) {
     router.push(`/proyectos/${project.id}?tab=tareas`);
   };
 
+  const task = ws.session ? project.tasks.find(t => t.id === ws.session!.taskId) : null;
+
   return (
     <div className="flex h-full flex-col bg-[#0F0F12]">
       {/* Header */}
-      <WorkspaceHeader
-        session={ws.session}
-        onFinalize={() => setShowEndDialog(true)}
-      />
+      {ws.session && task && (
+        <WorkspaceHeader
+          session={ws.session}
+          task={task}
+          elapsed={ws.elapsed}
+          onFinalize={() => setShowEndDialog(true)}
+        />
+      )}
 
       {/* Body: main (70%) + sidebar (30%) */}
       <div className="flex flex-1 overflow-hidden">
         {/* Main zone — 70% */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4 min-w-0" style={{ maxWidth: "70%" }}>
-          <SessionTimer session={ws.session} elapsed={ws.elapsed} />
           <CurrentActivity
             activityText={ws.activityText}
             onChange={ws.setActivityText}
