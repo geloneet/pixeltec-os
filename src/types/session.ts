@@ -11,25 +11,80 @@ export const BLOCKER_LABELS: Record<BlockerType, string> = {
   dependencia_externa: "Dependencia externa",
 };
 
+export type BlockerStatus = "active" | "waiting" | "resolved";
+export type BlockerImpact = "low" | "medium" | "high";
+export type BlockerSource =
+  | "technical"
+  | "client"
+  | "infrastructure"
+  | "third_party"
+  | "internal";
+
+export const BLOCKER_STATUS_LABELS: Record<BlockerStatus, string> = {
+  active: "Activo",
+  waiting: "Esperando",
+  resolved: "Resuelto",
+};
+
+export const BLOCKER_IMPACT_LABELS: Record<BlockerImpact, string> = {
+  low: "Bajo",
+  medium: "Medio",
+  high: "Alto",
+};
+
+export const BLOCKER_SOURCE_LABELS: Record<BlockerSource, string> = {
+  technical: "Técnico",
+  client: "Cliente",
+  infrastructure: "Infraestructura",
+  third_party: "Tercero",
+  internal: "Interno",
+};
+
+export type ObservationType = "observacion" | "riesgo" | "bug" | "decision";
+
+export const OBSERVATION_META: Record<
+  ObservationType,
+  { emoji: string; label: string; border: string }
+> = {
+  observacion: { emoji: "💡", label: "Observación", border: "border-zinc-600" },
+  riesgo:      { emoji: "⚠️", label: "Riesgo",      border: "border-amber-500" },
+  bug:         { emoji: "🐞", label: "Bug",          border: "border-red-500"   },
+  decision:    { emoji: "✅", label: "Decisión",     border: "border-green-500" },
+};
+
+export interface SessionGoal {
+  id: string;
+  text: string;
+  completed: boolean;
+  createdAt: string;
+  completedAt?: string;
+}
+
 export interface SessionActivity {
   id: string;
   description: string;
-  startedAt: string;    // ISO
-  completedAt?: string; // ISO — undefined means current open activity
+  startedAt: string;
+  completedAt?: string;
+  estimatedMinutes?: number;
 }
 
 export interface SessionNote {
   id: string;
+  type: ObservationType;
   content: string;
-  createdAt: string; // ISO
+  createdAt: string;
+  markedForSummary?: boolean;
 }
 
 export interface SessionBlocker {
   id: string;
   type: BlockerType;
   description: string;
-  createdAt: string; // ISO
-  resolved: boolean;
+  status: BlockerStatus;
+  impact: BlockerImpact;
+  source: BlockerSource;
+  createdAt: string;
+  resolvedAt?: string;
 }
 
 export interface WorkSession {
@@ -37,24 +92,25 @@ export interface WorkSession {
   clientId: string;
   projectId: string;
   taskId: string;
-  clientName: string;   // denormalized at creation
-  projectName: string;  // denormalized at creation
-  taskName: string;     // denormalized at creation
-  startedAt: string;    // ISO
-  endedAt?: string;     // ISO
+  clientName: string;
+  projectName: string;
+  taskName: string;
+  startedAt: string;
+  endedAt?: string;
   durationSeconds?: number;
   status: "active" | "completed";
-  currentActivity?: string;      // text of the activity currently in progress
+  currentActivity?: string;
   activities: SessionActivity[];
   notes: SessionNote[];
   blockers: SessionBlocker[];
+  sessionGoals?: SessionGoal[];
   deployStatus?: "yes" | "no" | "na";
   commitStatus?: boolean;
-  createdBy: string; // user uid or email
+  createdBy: string;
 }
 
 export interface CoachResponse {
   question: string;
   answer: string;
-  timestamp: string; // ISO
+  timestamp: string;
 }
