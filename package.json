@@ -70,7 +70,7 @@
     "rehype-highlight": "^7.0.2",
     "rehype-raw": "^7.0.0",
     "remark-gfm": "^4.0.1",
-    "resend": "^6.9.4",
+    "resend": "^6.12.3",
     "rrule": "^2.8.1",
     "sharp": "^0.35.2",
     "sonner": "^2.0.7",
