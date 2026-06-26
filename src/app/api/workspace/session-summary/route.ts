@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import Anthropic from "@anthropic-ai/sdk";
+import { requireSession } from "@/lib/vpsClient";
 import type { WorkSession } from "@/types/session";
 
 const client = new Anthropic();
@@ -17,6 +19,13 @@ interface SummaryResponse {
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
+    const cookieStore = await cookies();
+    const sessionCookie = cookieStore.get("__session")?.value ?? "";
+    const authSession = await requireSession(sessionCookie);
+    if (!authSession.ok) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+
     const body: RequestBody = await req.json();
     const { session } = body;
 
@@ -34,7 +43,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       : "Sin observaciones";
 
     const blockersText = session.blockers.length > 0
-      ? session.blockers.map((b) => `- [${b.status}][${b.impact}] ${b.description}`).join("\n")
+      ? session.blockers.map((b) => `- [${b.status}][${b.impact}][${b.source}] ${b.description}`).join("\n")
       : "Sin bloqueos";
 
     const durationMin = body.elapsed != null
@@ -74,7 +83,7 @@ Responde SOLO con JSON válido en este formato exacto:
 
     const message = await client.messages.create({
       model: process.env.ANTHROPIC_MODEL ?? "claude-haiku-4-5-20251001",
-      max_tokens: 512,
+      max_tokens: 600,
       messages: [{ role: "user", content: prompt }],
     });
 

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import Anthropic from "@anthropic-ai/sdk";
+import { requireSession } from "@/lib/vpsClient";
 import type { WorkSession } from "@/types/session";
 
 const client = new Anthropic();
@@ -37,7 +39,7 @@ function buildContext(session: WorkSession, elapsed?: number): string {
     : "Sin observaciones";
 
   const blockers = session.blockers.length > 0
-    ? session.blockers.map(b => `[${b.status}][${b.impact}] ${b.description}`).join("\n")
+    ? session.blockers.map(b => `[${b.status}][${b.impact}][${b.source}] ${b.description}`).join("\n")
     : "Sin bloqueos";
 
   return `PROYECTO: ${session.projectName}
@@ -89,6 +91,13 @@ ${custom ?? "Resume la sesión."}`,
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
+    const cookieStore = await cookies();
+    const sessionCookie = cookieStore.get("__session")?.value ?? "";
+    const authSession = await requireSession(sessionCookie);
+    if (!authSession.ok) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+
     const body: RequestBody = await req.json();
     const { session, elapsed, promptKey, customPrompt } = body;
 
@@ -98,7 +107,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     const message = await client.messages.create({
       model: process.env.ANTHROPIC_MODEL ?? "claude-haiku-4-5-20251001",
-      max_tokens: 512,
+      max_tokens: 400,
       messages: [{ role: "user", content: prompt }],
     });
 
