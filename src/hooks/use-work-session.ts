@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useCRM } from "@/components/crm/CRMContext";
-import type { BlockerType, BlockerImpact, BlockerSource, ObservationType } from "@/types/session";
+import type { BlockerType, BlockerImpact, BlockerSource, ObservationType, BlockerStatus } from "@/types/session";
 
 export function useWorkSession(sessionId: string) {
   const crm = useCRM();
@@ -102,7 +102,7 @@ export function useWorkSession(sessionId: string) {
   );
 
   const handleUpdateBlockerStatus = useCallback(
-    (blockerId: string, status: import("@/types/session").BlockerStatus) => {
+    (blockerId: string, status: BlockerStatus) => {
       crm.updateBlockerStatus(sessionId, blockerId, status);
     },
     [sessionId, crm]
