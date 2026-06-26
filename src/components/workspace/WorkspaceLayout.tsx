@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { CRMProject } from "@/types/crm";
 import { useWorkSession } from "@/hooks/use-work-session";
@@ -11,9 +11,7 @@ import { FocusGuard } from "./FocusGuard";
 import { SessionObservations } from "./SessionObservations";
 import { BlockTracker } from "./BlockTracker";
 import { EndSessionDialog } from "./EndSessionDialog";
-import { SmartSidebar } from "./SmartSidebar";
-import { SessionAICoach } from "./SessionAICoach";
-import type { CoachResponse } from "@/types/session";
+import { ExecutionAssistant } from "./ExecutionAssistant";
 
 interface Props {
   sessionId: string;
@@ -24,13 +22,9 @@ interface Props {
 export function WorkspaceLayout({ sessionId, project, onSessionEnd }: Props) {
   const router = useRouter();
   const [showEndDialog, setShowEndDialog] = useState(false);
-  const [coachResponses, setCoachResponses] = useState<CoachResponse[]>([]);
+  const [bitacoraAI, setBitacoraAI] = useState("");
   const crm = useCRM();
   const ws = useWorkSession(sessionId);
-
-  const handleCoachResponse = useCallback((response: CoachResponse) => {
-    setCoachResponses((prev) => [...prev, response]);
-  }, []);
 
   if (!ws.session) {
     return (
@@ -85,10 +79,15 @@ export function WorkspaceLayout({ sessionId, project, onSessionEnd }: Props) {
           />
         </div>
 
-        {/* Smart sidebar — 30% */}
-        <div className="w-[30%] flex-shrink-0 overflow-y-auto border-l border-white/[0.04] p-4 space-y-4">
-          <SmartSidebar tech={project.tech ?? ""} />
-          <SessionAICoach session={ws.session} onResponseAdded={handleCoachResponse} />
+        {/* Dev Assistant — 30% */}
+        <div className="w-[30%] flex-shrink-0 overflow-y-auto border-l border-white/[0.04]">
+          <ExecutionAssistant
+            session={ws.session}
+            project={project}
+            elapsed={ws.elapsed}
+            onSaveAsObservation={(content) => ws.handleAddNote("observacion", content)}
+            onSaveToBitacora={(content) => setBitacoraAI(prev => prev ? `${prev}\n\n${content}` : content)}
+          />
         </div>
       </div>
 
@@ -107,7 +106,7 @@ export function WorkspaceLayout({ sessionId, project, onSessionEnd }: Props) {
         open={showEndDialog}
         session={ws.session}
         elapsed={ws.elapsed}
-        coachResponses={coachResponses}
+        coachResponses={[]}
         onConfirm={handleFinalizeConfirmed}
         onCancel={() => setShowEndDialog(false)}
       />
