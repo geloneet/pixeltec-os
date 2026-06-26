@@ -4,9 +4,9 @@ import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import type { CRMProject } from "@/types/crm";
 import { useWorkSession } from "@/hooks/use-work-session";
+import { useCRM } from "@/components/crm/CRMContext";
 import { WorkspaceHeader } from "./WorkspaceHeader";
-import { CurrentActivity } from "./CurrentActivity";
-import { ActivityTimeline } from "./ActivityTimeline";
+import { ActivityWorkspace } from "./ActivityWorkspace";
 import { FocusGuard } from "./FocusGuard";
 import { QuickNotepad } from "./QuickNotepad";
 import { BlockReporter } from "./BlockReporter";
@@ -25,6 +25,7 @@ export function WorkspaceLayout({ sessionId, project, onSessionEnd }: Props) {
   const router = useRouter();
   const [showEndDialog, setShowEndDialog] = useState(false);
   const [coachResponses, setCoachResponses] = useState<CoachResponse[]>([]);
+  const crm = useCRM();
   const ws = useWorkSession(sessionId);
 
   const handleCoachResponse = useCallback((response: CoachResponse) => {
@@ -70,13 +71,12 @@ export function WorkspaceLayout({ sessionId, project, onSessionEnd }: Props) {
       <div className="flex flex-1 overflow-hidden">
         {/* Main zone — 70% */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4 min-w-0" style={{ maxWidth: "70%" }}>
-          <CurrentActivity
-            activityText={ws.activityText}
-            onChange={ws.setActivityText}
-            onUpdate={ws.handleActivityUpdate}
+          <ActivityWorkspace
+            activities={ws.session.activities}
+            onStart={ws.handleStartActivity}
             onDone={ws.handleActivityDone}
+            onUpdateText={(description) => crm.updateCurrentActivity(sessionId, description)}
           />
-          <ActivityTimeline activities={ws.session.activities} />
           <QuickNotepad notes={ws.session.notes} onAddNote={ws.handleAddNote} />
           <BlockReporter
             blockers={ws.session.blockers}
