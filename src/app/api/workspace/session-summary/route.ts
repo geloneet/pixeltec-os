@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
-import type { WorkSession, CoachResponse } from "@/types/session";
+import type { WorkSession } from "@/types/session";
 
 const client = new Anthropic();
 
 interface RequestBody {
   session: WorkSession;
-  coachResponses: CoachResponse[];
   elapsed?: number;
 }
 
@@ -19,24 +18,24 @@ interface SummaryResponse {
 export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
     const body: RequestBody = await req.json();
-    const { session, coachResponses } = body;
+    const { session } = body;
 
     const activitiesText = session.activities
       .filter((a) => a.completedAt)
       .map((a) => `- ${a.description}`)
       .join("\n") || "Sin actividades registradas";
 
-    const notesText = session.notes
-      .map((n) => `- ${n.content}`)
-      .join("\n") || "Sin notas";
+    const goalsText = (session.sessionGoals ?? [])
+      .map(g => `${g.completed ? "✓" : "☐"} ${g.text}`)
+      .join("\n") || "Sin objetivos definidos";
+
+    const observationsText = session.notes.length > 0
+      ? session.notes.map(n => `[${n.type}] ${n.content}`).join("\n")
+      : "Sin observaciones";
 
     const blockersText = session.blockers.length > 0
-      ? session.blockers.map((b) => `- [${b.resolved ? "resuelto" : "abierto"}] ${b.description}`).join("\n")
+      ? session.blockers.map((b) => `- [${b.status}][${b.impact}] ${b.description}`).join("\n")
       : "Sin bloqueos";
-
-    const coachText = coachResponses.length > 0
-      ? coachResponses.map((r) => `P: ${r.question}\nR: ${r.answer}`).join("\n\n")
-      : "Sin respuestas del coach";
 
     const durationMin = body.elapsed != null
       ? Math.round(body.elapsed / 60)
@@ -50,17 +49,17 @@ PROYECTO: ${session.projectName}
 TAREA: ${session.taskName}
 DURACIÓN: ${durationMin} minutos
 
+OBJETIVOS:
+${goalsText}
+
 ACTIVIDADES COMPLETADAS:
 ${activitiesText}
 
-NOTAS:
-${notesText}
+OBSERVACIONES:
+${observationsText}
 
 BLOQUEOS:
 ${blockersText}
-
-RESPUESTAS AL COACH:
-${coachText}
 
 DEPLOY: ${session.deployStatus === "yes" ? "Sí" : session.deployStatus === "no" ? "No" : "No aplica"}
 COMMIT: ${session.commitStatus ? "Sí" : "No"}
