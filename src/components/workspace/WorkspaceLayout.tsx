@@ -106,7 +106,6 @@ export function WorkspaceLayout({ sessionId, project, onSessionEnd }: Props) {
         open={showEndDialog}
         session={ws.session}
         elapsed={ws.elapsed}
-        coachResponses={[]}
         onConfirm={handleFinalizeConfirmed}
         onCancel={() => setShowEndDialog(false)}
       />
