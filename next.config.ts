@@ -32,13 +32,13 @@ const nextConfig: NextConfig = {
   },
   async headers() {
     return [
-      {
-        // Assets estáticos con hash en el nombre → inmutables por 1 año
+      ...(process.env.NODE_ENV === 'production' ? [{
+        // Production only: static assets have content hashes → safe to cache for 1 year
         source: '/_next/static/:path*',
         headers: [
           { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
         ],
-      },
+      }] : []),
       {
         source: '/(.*)',
         headers: [

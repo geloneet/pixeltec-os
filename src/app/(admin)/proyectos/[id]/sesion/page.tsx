@@ -3,7 +3,7 @@
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef } from "react";
 import { LoaderCircle } from "lucide-react";
-import { useCRM } from "@/components/crm/CRMContext";
+import { useCRM } from "@/components/crm/CRMContextCore";
 import { WorkspaceLayout } from "@/components/workspace/WorkspaceLayout";
 import type { CRMClient, CRMProject, CRMTask } from "@/types/crm";
 

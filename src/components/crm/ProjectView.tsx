@@ -3,7 +3,7 @@
 import { useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { ProjectBitacora } from "./ProjectBitacora";
-import { useCRM } from "./CRMContext";
+import { useCRM } from "./CRMContextCore";
 import { SessionHistory } from "@/components/workspace/SessionHistory";
 import type { ProjectLogEntry } from "@/types/crm";
 import {

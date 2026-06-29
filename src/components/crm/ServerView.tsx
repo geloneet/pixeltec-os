@@ -11,7 +11,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useCRM } from "./CRMContext";
+import { useCRM } from "./CRMContextCore";
 
 interface ServerInfo {
   diskTotal: string;

@@ -13,7 +13,7 @@ import {
   CommandSeparator,
 } from "@/components/ui/command";
 import { useCmdK } from "./CmdKProvider";
-import { useCRM } from "@/components/crm/CRMContext";
+import { useCRM } from "@/components/crm/CRMContextCore";
 import { useVpsStatus } from "@/lib/vps-swr";
 import { normalize, searchAcrossCRM } from "@/lib/cmdk-search";
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useCRM } from "@/components/crm/CRMContext";
+import { useCRM } from "@/components/crm/CRMContextCore";
 import type { BlockerType, BlockerImpact, BlockerSource, ObservationType, BlockerStatus } from "@/types/session";
 
 export function useWorkSession(sessionId: string) {

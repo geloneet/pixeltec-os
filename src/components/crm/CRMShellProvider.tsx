@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { usePathname } from "next/navigation";
-import { useCRM } from "./CRMContext";
+import { useCRM } from "./CRMContextCore";
 import { Modal } from "./Modal";
 import { PRIORITIES } from "@/types/crm";
 import type { CRMTask } from "@/types/crm";

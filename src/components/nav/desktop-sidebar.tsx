@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { ChevronRight, LogOut, PanelLeftClose, PanelLeftOpen, Search } from "lucide-react";
 import { signOut } from "firebase/auth";
 import { useAuth } from "@/firebase";
-import { useCRM } from "@/components/crm/CRMContext";
+import { useCRM } from "@/components/crm/CRMContextCore";
 import { cn } from "@/lib/utils";
 import {
   Tooltip,

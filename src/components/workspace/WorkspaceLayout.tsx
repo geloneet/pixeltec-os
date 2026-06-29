@@ -4,7 +4,7 @@ import { useCallback } from "react";
 import { useRouter } from "next/navigation";
 import type { CRMProject, CRMTask } from "@/types/crm";
 import { useWorkSession } from "@/hooks/use-work-session";
-import { useCRM } from "@/components/crm/CRMContext";
+import { useCRM } from "@/components/crm/CRMContextCore";
 import { WorkspaceHeader } from "./WorkspaceHeader";
 import { SessionGoals } from "./SessionGoals";
 import { ActivityWorkspace } from "./ActivityWorkspace";

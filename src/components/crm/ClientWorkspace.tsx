@@ -10,6 +10,7 @@ import { DiscoveryTab } from "@/components/crm/workspace-tabs/DiscoveryTab";
 import { EstrategiaTab } from "@/components/crm/workspace-tabs/EstrategiaTab";
 import { PortalTab } from "@/components/crm/workspace-tabs/PortalTab";
 import { FacturacionTab } from "@/components/crm/workspace-tabs/FacturacionTab";
+import { ProyectosTab } from "@/components/crm/workspace-tabs/ProyectosTab";
 
 export type WorkspaceTab =
   | "resumen"
@@ -96,7 +97,11 @@ export function ClientWorkspace({ client, onBack, navigateToProject, setModal, d
           />
         )}
         {activeTab === "proyectos" && (
-          <WorkspaceEmptyTab label="Proyectos" sprint="Sprint 3" />
+          <ProyectosTab
+            client={client}
+            navigateToProject={navigateToProject}
+            setModal={setModal}
+          />
         )}
         {activeTab === "propuesta"  && (
           <div className="p-6">

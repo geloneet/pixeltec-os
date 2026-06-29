@@ -14,7 +14,7 @@ import {
   Users,
 } from "lucide-react";
 import { useCmdK } from "@/components/cmd-k/CmdKProvider";
-import { useCRM } from "@/components/crm/CRMContext";
+import { useCRM } from "@/components/crm/CRMContextCore";
 import { useVpsStatus } from "@/lib/vps-swr";
 import { normalize, searchAcrossCRM } from "@/lib/cmdk-search";
 import {

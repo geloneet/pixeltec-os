@@ -13,7 +13,7 @@ import {
   PresentationModeProvider,
 } from "@/context/PresentationModeContext";
 import { CmdKProvider } from "@/components/cmd-k/CmdKProvider";
-import { CRMProvider } from "@/components/crm/CRMContext";
+import { CRMProvider } from "@/components/crm/CRMContextCore";
 import { CRMShellProvider } from "@/components/crm/CRMShellProvider";
 import { GlobalHeader } from "@/components/nav/global-header";
 import { DesktopSidebar } from "@/components/nav/desktop-sidebar";

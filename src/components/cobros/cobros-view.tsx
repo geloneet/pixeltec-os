@@ -1,7 +1,7 @@
 "use client";
 
 import { LoaderCircle } from "lucide-react";
-import { useCRM } from "@/components/crm/CRMContext";
+import { useCRM } from "@/components/crm/CRMContextCore";
 import { getNextChargeDate } from "@/lib/crm/next-charge-date";
 import { formatCurrency } from "@/lib/utils";
 import type { RecurringCharge } from "@/types/crm";

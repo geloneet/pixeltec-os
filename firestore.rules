@@ -60,6 +60,46 @@ service cloud.firestore {
         && request.auth.uid == userId;
     }
 
+    // ── CRM document collections (scoped to owning user) ────────────
+    // All share the same uid-based pattern: proposals, contracts,
+    // invoices, strategies, ia_templates, discovery_sessions.
+    match /proposals/{docId} {
+      allow read, write: if request.auth != null
+        && resource.data.uid == request.auth.uid;
+      allow create: if request.auth != null
+        && request.resource.data.uid == request.auth.uid;
+    }
+    match /contracts/{docId} {
+      allow read, write: if request.auth != null
+        && resource.data.uid == request.auth.uid;
+      allow create: if request.auth != null
+        && request.resource.data.uid == request.auth.uid;
+    }
+    match /invoices/{docId} {
+      allow read, write: if request.auth != null
+        && resource.data.uid == request.auth.uid;
+      allow create: if request.auth != null
+        && request.resource.data.uid == request.auth.uid;
+    }
+    match /strategies/{docId} {
+      allow read, write: if request.auth != null
+        && resource.data.uid == request.auth.uid;
+      allow create: if request.auth != null
+        && request.resource.data.uid == request.auth.uid;
+    }
+    match /ia_templates/{docId} {
+      allow read, write: if request.auth != null
+        && resource.data.uid == request.auth.uid;
+      allow create: if request.auth != null
+        && request.resource.data.uid == request.auth.uid;
+    }
+    match /discovery_sessions/{docId} {
+      allow read, write: if request.auth != null
+        && resource.data.uid == request.auth.uid;
+      allow create: if request.auth != null
+        && request.resource.data.uid == request.auth.uid;
+    }
+
     // ── Notifications ─────────────────────────────────────────────────────
     match /notifications/{notificationId} {
       allow read: if request.auth != null

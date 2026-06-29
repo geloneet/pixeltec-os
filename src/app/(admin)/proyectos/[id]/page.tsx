@@ -2,7 +2,7 @@
 
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { LoaderCircle } from "lucide-react";
-import { useCRM } from "@/components/crm/CRMContext";
+import { useCRM } from "@/components/crm/CRMContextCore";
 import { useCRMShell } from "@/components/crm/CRMShellProvider";
 import { ProjectView } from "@/components/crm/ProjectView";
 

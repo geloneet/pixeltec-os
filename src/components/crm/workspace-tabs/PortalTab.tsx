@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Copy, Check, ExternalLink, RefreshCw, ShieldOff } from "lucide-react";
-import { useCRM } from "@/components/crm/CRMContext";
+import { useCRM } from "@/components/crm/CRMContextCore";
 import type { PortalRequest } from "@/types/portal";
 
 // ── Type labels ────────────────────────────────────────────────────────────────
