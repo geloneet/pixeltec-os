@@ -36,6 +36,7 @@ export const AssistantTaskCreateSchema = z.object({
   date:        AssistantDateString,
   time:        AssistantTimeString,
   durationMin: z.number().int().min(15).max(480).default(60),
+  important:   z.boolean().optional().default(false),
 });
 export type AssistantTaskCreateInput = z.infer<typeof AssistantTaskCreateSchema>;
 

@@ -1,6 +1,5 @@
 import {
   collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc,
-  orderBy,
 } from "firebase/firestore";
 import type { Firestore } from "firebase/firestore";
 import type { IATemplate, IATemplateType } from "@/types/documents";
@@ -19,10 +18,11 @@ export async function getTemplates(
 ): Promise<IATemplate[]> {
   const ref = collection(firestore, COL);
   const constraints = type
-    ? [where("uid", "==", uid), where("type", "==", type), orderBy("createdAt", "desc")]
-    : [where("uid", "==", uid), orderBy("createdAt", "desc")];
+    ? [where("uid", "==", uid), where("type", "==", type)]
+    : [where("uid", "==", uid)];
   const snap = await getDocs(query(ref, ...constraints));
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as IATemplate));
+  const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as IATemplate));
+  return docs.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
 export async function createTemplate(

@@ -1,12 +1,30 @@
-import Link from 'next/link';
-import { Instagram, Facebook, Plus, Terminal } from 'lucide-react';
+import { Instagram, Facebook, Plus, Terminal, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getSocialAccounts } from '@/lib/growth/actions/social-accounts';
 import { ConnectedAccountCard } from '@/components/growth/publisher/ConnectedAccountCard';
 
-export default async function PublisherPage() {
-  const accounts = await getSocialAccounts();
+interface Props {
+  searchParams: Promise<{ meta_connected?: string; meta_error?: string; meta_desc?: string }>;
+}
+
+export default async function PublisherPage({ searchParams }: Props) {
+  const [accounts, params] = await Promise.all([
+    getSocialAccounts(),
+    searchParams,
+  ]);
   const hasAccounts = accounts.length > 0;
+
+  const metaError = params.meta_error;
+  const metaDesc = params.meta_desc;
+  const metaConnected = params.meta_connected ? parseInt(params.meta_connected, 10) : null;
+
+  const errorMessages: Record<string, string> = {
+    no_pages: 'Tu cuenta de Facebook no tiene Páginas de negocio. Crea una Página en Facebook primero.',
+    invalid_state: 'Error de seguridad en el flujo OAuth. Inténtalo de nuevo.',
+    oauth_failed: metaDesc ? `Error de Meta API: ${metaDesc}` : 'Error al conectar con Meta. Revisa los logs del servidor.',
+    meta_denied: 'Cancelaste la autorización de Meta.',
+    missing_params: 'Meta no devolvió los parámetros esperados.',
+  };
 
   return (
     <div className="mx-auto max-w-[1400px] px-6 py-8 lg:px-10">
@@ -18,12 +36,40 @@ export default async function PublisherPage() {
           </p>
         </div>
         <Button asChild className="gap-2">
-          <Link href="/api/auth/meta">
+          <a href="/api/auth/meta">
             <Plus className="h-4 w-4" />
             Conectar cuenta Meta
-          </Link>
+          </a>
         </Button>
       </header>
+
+      {/* Feedback banner */}
+      {metaConnected !== null && metaConnected > 0 && (
+        <div className="mb-6 flex items-center gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3">
+          <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
+          <p className="font-roboto text-sm text-emerald-300">
+            {metaConnected === 1
+              ? '1 cuenta conectada correctamente.'
+              : `${metaConnected} cuentas conectadas correctamente.`}
+          </p>
+        </div>
+      )}
+
+      {metaError && (
+        <div className="mb-6 flex items-start gap-3 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3">
+          <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-red-400" />
+          <div>
+            <p className="font-roboto text-sm text-red-300">
+              {errorMessages[metaError] ?? `Error: ${metaError}`}
+            </p>
+            {metaError === 'no_pages' && (
+              <p className="mt-1 font-roboto text-xs text-red-400/70">
+                Asegúrate de que tu cuenta de Facebook tenga al menos una Página de negocio y que hayas aceptado el permiso <code>pages_show_list</code>.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
 
       {!hasAccounts ? (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-800 py-20 text-center">
@@ -41,10 +87,10 @@ export default async function PublisherPage() {
             Instagram Business Accounts vinculadas.
           </p>
           <Button asChild className="mt-6 gap-2">
-            <Link href="/api/auth/meta">
+            <a href="/api/auth/meta">
               <Plus className="h-4 w-4" />
               Conectar con Meta
-            </Link>
+            </a>
           </Button>
         </div>
       ) : (
@@ -56,10 +102,10 @@ export default async function PublisherPage() {
           </div>
 
           <Button asChild variant="outline" className="gap-2">
-            <Link href="/api/auth/meta">
+            <a href="/api/auth/meta">
               <Plus className="h-4 w-4" />
               Agregar otra cuenta
-            </Link>
+            </a>
           </Button>
         </div>
       )}

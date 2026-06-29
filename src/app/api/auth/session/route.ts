@@ -37,8 +37,9 @@ const FIREBASE_MAX_SESSION = 60 * 60 * 24 * 14;   // 14 days — Firebase hard c
 const ALLOWED_ORIGINS: string[] = [
   'https://pixeltec.mx',
   'https://www.pixeltec.mx',
+  'https://dev.pixeltec.mx',
   ...(process.env.NODE_ENV === 'development'
-    ? ['http://localhost:3000', 'http://localhost:9002']
+    ? ['http://localhost:3000', 'http://localhost:9002', 'http://198.100.155.231:9002']
     : []),
 ];
 

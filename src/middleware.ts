@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminAuth, getAdminFirestore } from '@/lib/firebase-admin';
 import { PROTECTED_PATHS, KNOWN_ROUTES } from '@/lib/routes/admin-routes';
-import crypto from 'crypto';
 
 export const runtime = 'nodejs';
+
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const crypto = require('crypto') as typeof import('crypto');
 
 const SESSION_COOKIE_NAME = '__session';
 
@@ -52,9 +54,12 @@ const NOT_FOUND_HTML = `<!DOCTYPE html>
 const FIREBASE_AUTH_DOMAIN = 'studio-1487114664-78b63.firebaseapp.com';
 
 function buildCsp(nonce: string): string {
+  const scriptSrc = process.env.NODE_ENV === 'development'
+    ? `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'unsafe-eval'`
+    : `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`;
   return [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
+    scriptSrc,
     "style-src 'self' 'unsafe-inline'",
     [
       "connect-src 'self'",

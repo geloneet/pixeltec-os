@@ -39,9 +39,10 @@ export async function getSocialAccounts(): Promise<SocialAccountClient[]> {
   const snap = await db()
     .collection('growthSocialAccounts')
     .where('uid', '==', uid)
-    .orderBy('createdAt', 'desc')
     .get();
-  return snap.docs.map(serialize);
+  return snap.docs
+    .map(serialize)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
 export async function disconnectSocialAccount(accountId: string): Promise<{ ok: boolean; error?: string }> {
@@ -64,20 +65,27 @@ export async function getAccessToken(accountId: string, uid: string): Promise<st
 
 export async function upsertSocialAccount(data: Omit<SocialAccount, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
   const db_ = db();
+
+  // Firestore no acepta undefined — eliminar campos opcionales no presentes
+  const clean = Object.fromEntries(
+    Object.entries(data).filter(([, v]) => v !== undefined)
+  ) as typeof data;
+
   const existing = await db_
     .collection('growthSocialAccounts')
     .where('uid', '==', data.uid)
     .where('facebookPageId', '==', data.facebookPageId)
+    .where('platform', '==', data.platform)
     .limit(1)
     .get();
 
   if (!existing.empty) {
     const ref = existing.docs[0].ref;
-    await ref.update({ ...data, updatedAt: FieldValue.serverTimestamp() });
+    await ref.update({ ...clean, updatedAt: FieldValue.serverTimestamp() });
     return ref.id;
   }
 
   const ref = db_.collection('growthSocialAccounts').doc();
-  await ref.set({ ...data, createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() });
+  await ref.set({ ...clean, createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() });
   return ref.id;
 }

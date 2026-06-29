@@ -23,6 +23,8 @@ export const ADMIN_ROUTES = [
   'notificaciones',
   'blog-admin',
   'crecimiento',
+  'documentos',
+  'ia-factory',
 ] as const;
 
 export type AdminRoute = typeof ADMIN_ROUTES[number];

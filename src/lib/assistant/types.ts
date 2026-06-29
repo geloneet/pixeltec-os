@@ -14,6 +14,7 @@ export interface AssistantTaskDoc {
   status:      AssistantTaskStatus;
   weekKey:     string;
   templateId?: string | null;
+  important:   boolean;
   createdAt:   Timestamp;
   updatedAt:   Timestamp;
 }
@@ -29,6 +30,7 @@ export interface AssistantTaskSerialized {
   status:      AssistantTaskStatus;
   weekKey:     string;
   templateId?: string | null;
+  important:   boolean;
   createdAt:   string;
   updatedAt:   string;
 }
@@ -48,6 +50,7 @@ export function serializeTask(
     status:      doc.status,
     weekKey:     doc.weekKey,
     templateId:  doc.templateId ?? null,
+    important:   doc.important ?? false,
     createdAt:   doc.createdAt.toDate().toISOString(),
     updatedAt:   doc.updatedAt.toDate().toISOString(),
   };

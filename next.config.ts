@@ -2,6 +2,7 @@ import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
   output: 'standalone',
+  allowedDevOrigins: ['198.100.155.231', 'dev.pixeltec.mx'],
   // grammy, ws y firebase-admin NO deben ser bundleados por webpack.
   serverExternalPackages: ['grammy', 'ws', 'firebase-admin', '@anthropic-ai/sdk'],
   eslint: {

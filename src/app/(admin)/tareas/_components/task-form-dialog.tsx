@@ -22,6 +22,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { Star } from 'lucide-react';
 import { CATEGORIES } from '@/lib/assistant/constants';
 import { formatDateMX, formatTimeMX } from '@/lib/assistant/week-helpers';
 import { formatInAssistantTZ } from '@/lib/assistant/timezone';
@@ -86,6 +88,7 @@ export function TaskFormDialog({ open, task, onClose, onSave }: Props) {
         date:        formatDateMX(startsAt),
         time:        formatTimeMX(startsAt),
         durationMin: task.durationMin,
+        important:   task.important,
       });
     } else {
       reset(getCreateDefaults());
@@ -113,9 +116,10 @@ export function TaskFormDialog({ open, task, onClose, onSave }: Props) {
     onClose();
   }
 
-  const categoryValue = watch('category');
-  const dateValue = watch('date');
-  const timeValue = watch('time');
+  const categoryValue  = watch('category');
+  const dateValue      = watch('date');
+  const timeValue      = watch('time');
+  const importantValue = watch('important');
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -215,6 +219,20 @@ export function TaskFormDialog({ open, task, onClose, onSave }: Props) {
             {errors.durationMin && (
               <p className="text-xs text-red-400">{errors.durationMin.message}</p>
             )}
+          </div>
+
+          <div className="flex items-center justify-between rounded-lg border border-zinc-700 bg-zinc-800/50 px-3 py-2.5">
+            <div className="flex items-center gap-2">
+              <Star className={`h-4 w-4 ${importantValue ? 'fill-amber-400 text-amber-400' : 'text-zinc-500'}`} />
+              <Label htmlFor="tf-important" className="cursor-pointer font-normal text-sm text-zinc-300">
+                Tarea importante
+              </Label>
+            </div>
+            <Switch
+              id="tf-important"
+              checked={!!importantValue}
+              onCheckedChange={(v) => setValue('important', v)}
+            />
           </div>
 
           <DialogFooter>

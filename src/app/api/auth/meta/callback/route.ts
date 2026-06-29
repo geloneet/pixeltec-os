@@ -15,31 +15,48 @@ export async function GET(req: NextRequest) {
   const code = searchParams.get('code');
   const state = searchParams.get('state'); // uid
   const error = searchParams.get('error');
+  const errorDescription = searchParams.get('error_description');
 
   const redirectBase = `${process.env.NEXT_PUBLIC_APP_URL}/crecimiento/publisher`;
 
+  console.log('[meta/callback] received', { code: !!code, state: !!state, error, errorDescription });
+
   if (error || !code || !state) {
-    return NextResponse.redirect(`${redirectBase}?error=meta_denied`);
+    console.error('[meta/callback] denied or missing params:', { error, errorDescription });
+    return NextResponse.redirect(
+      `${redirectBase}?meta_error=${encodeURIComponent(error ?? 'missing_params')}&meta_desc=${encodeURIComponent(errorDescription ?? '')}`
+    );
   }
 
   try {
     const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/meta/callback`;
 
-    // Verify uid exists in Firestore (basic validation that state is legitimate)
-    const db = getFirestore(getAdminApp());
-    // We use the state as uid — verify it's a real user by checking they have a session doc or credits doc
-    // (simple check: uid must be non-empty and not contain suspicious chars)
     if (!/^[a-zA-Z0-9_-]{10,128}$/.test(state)) {
-      return NextResponse.redirect(`${redirectBase}?error=invalid_state`);
+      console.error('[meta/callback] invalid state:', state);
+      return NextResponse.redirect(`${redirectBase}?meta_error=invalid_state`);
     }
 
+    console.log('[meta/callback] exchanging code for token...');
     const shortToken = await exchangeCodeForToken(code, redirectUri);
-    const longToken = await getLongLivedToken(shortToken.access_token);
+    console.log('[meta/callback] short token ok, getting long-lived...');
 
-    const tokenExpiresAt = new Date(Date.now() + longToken.expires_in * 1000).toISOString();
+    const longToken = await getLongLivedToken(shortToken.access_token);
+    console.log('[meta/callback] long-lived token ok, expires_in:', longToken.expires_in);
+
+    // expires_in puede ser undefined en apps de desarrollo; default 60 días
+    const expiresIn = longToken.expires_in ?? 60 * 24 * 60 * 60;
+    const tokenExpiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
 
     const fbUser = await getFacebookUser(longToken.access_token);
+    console.log('[meta/callback] fb user:', fbUser.id, fbUser.name);
+
     const pages = await getFacebookPages(longToken.access_token);
+    console.log('[meta/callback] pages found:', pages.length, pages.map(p => ({ id: p.id, name: p.name })));
+
+    if (pages.length === 0) {
+      console.warn('[meta/callback] no pages returned — user may have no FB Pages or permissions missing');
+      return NextResponse.redirect(`${redirectBase}?meta_error=no_pages`);
+    }
 
     let accountsCreated = 0;
 
@@ -49,32 +66,47 @@ export async function GET(req: NextRequest) {
 
       if (igId) {
         igUsername = await getInstagramUsername(igId, page.access_token);
+        console.log('[meta/callback] IG linked:', igId, igUsername);
+      } else {
+        console.log('[meta/callback] page', page.name, 'has no IG linked');
       }
 
-      await upsertSocialAccount({
+      const base = {
         uid: state,
-        platform: igId ? 'instagram' : 'facebook',
-        status: 'connected',
+        status: 'connected' as const,
         facebookUserId: fbUser.id,
         facebookPageId: page.id,
         facebookPageName: page.name,
         accessToken: page.access_token,
         tokenExpiresAt,
-        instagramBusinessId: igId,
-        instagramUsername: igUsername,
-      });
+      };
 
+      // Siempre guarda el Facebook Page
+      await upsertSocialAccount({ ...base, platform: 'facebook' });
       accountsCreated++;
+      console.log('[meta/callback] saved FB page:', page.name);
+
+      // Si tiene Instagram vinculado, también guarda la cuenta de IG
+      if (igId) {
+        await upsertSocialAccount({
+          ...base,
+          platform: 'instagram',
+          instagramBusinessId: igId,
+          instagramUsername: igUsername,
+        });
+        accountsCreated++;
+        console.log('[meta/callback] saved IG account:', igUsername);
+      }
     }
 
-    // Also save a Facebook-only account if no pages had IG
-    if (accountsCreated === 0) {
-      return NextResponse.redirect(`${redirectBase}?error=no_pages`);
-    }
+    console.log('[meta/callback] done, accounts saved:', accountsCreated);
+    return NextResponse.redirect(`${redirectBase}?meta_connected=${accountsCreated}`);
 
-    return NextResponse.redirect(`${redirectBase}?success=1&accounts=${accountsCreated}`);
   } catch (err) {
-    console.error('Meta OAuth callback error:', err);
-    return NextResponse.redirect(`${redirectBase}?error=oauth_failed`);
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[meta/callback] error:', message);
+    return NextResponse.redirect(
+      `${redirectBase}?meta_error=oauth_failed&meta_desc=${encodeURIComponent(message)}`
+    );
   }
 }

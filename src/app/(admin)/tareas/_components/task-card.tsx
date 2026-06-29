@@ -20,7 +20,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Star } from 'lucide-react';
 import { CATEGORIES, STATUSES } from '@/lib/assistant/constants';
 import { formatTimeMX } from '@/lib/assistant/week-helpers';
 import { setTaskStatus, deleteTask } from '@/lib/assistant/actions/tasks';
@@ -86,16 +86,21 @@ export function TaskCard({ task, onStatusChange, onDelete, onEdit }: Props) {
           >
             <p className="text-[10px] text-zinc-500 leading-none mb-1">{timeMX}</p>
 
-            <p
-              className="text-[12px] font-medium leading-tight"
-              style={{
-                color:          isCompleted || isCancelled ? '#71717a' : '#e4e4e7',
-                textDecoration: isCompleted || isCancelled ? 'line-through' : 'none',
-                opacity:        isCancelled ? 0.5 : isCompleted ? 0.6 : 1,
-              }}
-            >
-              {task.title}
-            </p>
+            <div className="flex items-start gap-1">
+              {task.important && !isCompleted && !isCancelled && (
+                <Star className="mt-px h-3 w-3 shrink-0 fill-amber-400 text-amber-400" />
+              )}
+              <p
+                className="text-[12px] font-medium leading-tight"
+                style={{
+                  color:          isCompleted || isCancelled ? '#71717a' : '#e4e4e7',
+                  textDecoration: isCompleted || isCancelled ? 'line-through' : 'none',
+                  opacity:        isCancelled ? 0.5 : isCompleted ? 0.6 : 1,
+                }}
+              >
+                {task.title}
+              </p>
+            </div>
 
             {isInProgress && (
               <div className="flex items-center gap-1 mt-1">

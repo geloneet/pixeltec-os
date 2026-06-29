@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { FieldValue } from 'firebase-admin/firestore';
 import { getSessionUid } from '@/lib/crypto-intel/auth';
+import { sendWhatsApp } from '@/lib/whatsapp/sender';
 import { db, COL } from '../firebase-admin';
 import {
   AssistantTaskCreateSchema,
@@ -18,6 +19,23 @@ import {
   type AssistantTaskSerialized,
   type AssistantTaskStatus,
 } from '../types';
+
+function buildCompletionMessage(task: AssistantTaskDoc): string {
+  const now = new Intl.DateTimeFormat('es-MX', {
+    weekday: 'short', hour: 'numeric', minute: '2-digit',
+    hour12: true, timeZone: 'America/Mexico_City',
+  }).format(new Date());
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://pixeltec.mx';
+  return [
+    '✅ Tarea importante completada',
+    '',
+    `Tarea: ${task.title}`,
+    `Categoría: ${task.category}`,
+    `Completada: ${now}`,
+    '',
+    `${appUrl}/tareas`,
+  ].join('\n');
+}
 
 const VALID_TRANSITIONS: Partial<Record<AssistantTaskStatus, AssistantTaskStatus[]>> = {
   pending:     ['in_progress', 'completed', 'cancelled', 'postponed'],
@@ -42,7 +60,7 @@ export async function createTask(
   const parsed = AssistantTaskCreateSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.errors[0].message };
 
-  const { title, description, category, date, time, durationMin } = parsed.data;
+  const { title, description, category, date, time, durationMin, important } = parsed.data;
   const startsAt = parseDateTimeToUTC(date, time);
   const weekKey  = getWeekKeyFromDate(startsAt);
   const now      = FieldValue.serverTimestamp();
@@ -56,6 +74,7 @@ export async function createTask(
     durationMin,
     status:    'pending',
     weekKey,
+    important: important ?? false,
     createdAt: now,
     updatedAt: now,
   });
@@ -83,12 +102,13 @@ export async function updateTask(
   if (!owns) return { ok: false, error: 'Tarea no encontrada' };
 
   const updates: Record<string, unknown> = { updatedAt: FieldValue.serverTimestamp() };
-  const { title, description, category, date, time, durationMin } = parsed.data;
+  const { title, description, category, date, time, durationMin, important } = parsed.data;
 
   if (title       !== undefined) updates.title       = title;
   if (description !== undefined) updates.description = description;
   if (category    !== undefined) updates.category    = category;
   if (durationMin !== undefined) updates.durationMin = durationMin;
+  if (important   !== undefined) updates.important   = important;
 
   if (date !== undefined || time !== undefined) {
     const doc = await db().collection(COL.assistantTasks).doc(taskId).get();
@@ -137,6 +157,13 @@ export async function setTaskStatus(
     status:    parsed.data,
     updatedAt: FieldValue.serverTimestamp(),
   });
+
+  // Notificación WhatsApp cuando se completa una tarea importante (best-effort)
+  if (parsed.data === 'completed' && data.important) {
+    sendWhatsApp(buildCompletionMessage(data)).catch((err) =>
+      console.error('[tasks] completion notification failed:', err),
+    );
+  }
 
   revalidatePath('/tareas');
   return { ok: true };
