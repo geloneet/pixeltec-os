@@ -128,7 +128,6 @@ export function WorkspaceLayout({ sessionId, project, task, onSessionEnd }: Prop
         session={ws.session}
         task={task}
         elapsed={ws.elapsed}
-        onFinalize={() => setShowEndDialog(true)}
       />
 
       <div className="flex flex-1 overflow-hidden">
@@ -174,6 +173,7 @@ export function WorkspaceLayout({ sessionId, project, task, onSessionEnd }: Prop
             elapsed={ws.elapsed}
             onSaveAsObservation={handleSaveAsObservation}
             onSaveToBitacora={handleSaveToBitacora}
+            onFinalize={() => setShowEndDialog(true)}
           />
         </div>
       </div>

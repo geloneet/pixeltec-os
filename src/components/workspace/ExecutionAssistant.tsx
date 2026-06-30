@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { ChevronDown, ChevronRight, LoaderCircle, Copy, Check, CornerDownLeft } from "lucide-react";
+import { ChevronDown, ChevronRight, LoaderCircle, Copy, Check, CornerDownLeft, AlertTriangle } from "lucide-react";
 import { motion } from "framer-motion";
 import type { WorkSession } from "@/types/session";
 import type { CRMProject } from "@/types/crm";
+import { getFinalizeState } from "./WorkspaceHeader";
 
 interface Props {
   session: WorkSession;
@@ -12,6 +13,7 @@ interface Props {
   elapsed: number;
   onSaveAsObservation: (content: string) => void;
   onSaveToBitacora: (content: string) => void;
+  onFinalize: () => void;
 }
 
 type PromptKey = "resumen" | "commit" | "siguiente" | "riesgos" | "bitacora" | "libre";
@@ -65,6 +67,13 @@ function formatElapsed(seconds: number): string {
   return `${m}m`;
 }
 
+function formatTimer(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+}
+
 function CollapsibleSection({ title, children, defaultOpen = true }: {
   title: string; children: React.ReactNode; defaultOpen?: boolean;
 }) {
@@ -114,7 +123,7 @@ const DEPLOY_CHECKLIST = [
   "Commit realizado",
 ];
 
-export function ExecutionAssistant({ session, project, elapsed, onSaveAsObservation, onSaveToBitacora }: Props) {
+export function ExecutionAssistant({ session, project, elapsed, onSaveAsObservation, onSaveToBitacora, onFinalize }: Props) {
   const health = computeHealth(session, elapsed);
   const score = computeHealthScore(session, elapsed);
   const hConf = HEALTH_CONFIG[health];
@@ -168,8 +177,46 @@ export function ExecutionAssistant({ session, project, elapsed, onSaveAsObservat
   const totalGoals = (session.sessionGoals ?? []).length;
   const inProgressActivity = session.activities.find(a => !a.completedAt);
 
+  const fs = getFinalizeState(session);
+  const completedCount = session.activities.filter(a => !!a.completedAt).length;
+  const productivityLbl = (() => {
+    if (elapsed < 600) return "";
+    if (completedCount === 0) return "Empezando";
+    const rate = completedCount / Math.max(elapsed / 3600, 0.25);
+    if (rate >= 3) return "Alta";
+    if (rate >= 1.5) return "Media";
+    return "Pausado";
+  })();
+
   return (
     <div className="flex flex-col gap-0 h-full overflow-y-auto pb-6">
+      {/* Timer + finalize */}
+      <div className="px-4 pt-4 pb-3 border-b border-white/[0.04]">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <span className="font-mono text-[1.5rem] font-bold tabular-nums text-zinc-100 leading-none">
+              {formatTimer(elapsed)}
+            </span>
+            <div className="flex items-center gap-2 mt-0.5">
+              <span className="flex items-center gap-1 text-[0.65rem] font-medium text-green-400">
+                <span className="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse" />
+                Activa
+              </span>
+              {productivityLbl && (
+                <span className="text-[0.65rem] text-zinc-600">{productivityLbl}</span>
+              )}
+            </div>
+          </div>
+          <button
+            onClick={fs.disabled ? undefined : onFinalize}
+            disabled={fs.disabled}
+            className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-all flex-shrink-0 ${fs.className}`}
+          >
+            {fs.label}
+          </button>
+        </div>
+      </div>
+
       {/* Session health with numeric score */}
       <div className={`flex items-center justify-between px-4 py-2.5 border-b border-white/[0.04] ${hConf.text}`}>
         <div className="flex items-center gap-2">

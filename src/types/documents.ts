@@ -1,18 +1,46 @@
 // ── Propuesta Comercial ───────────────────────────────────────────────────────
 
+export interface ProposalViewEvent {
+  timestamp: string;
+  ip?: string;
+  userAgent?: string;
+}
+
+export interface ProposalVersion {
+  version: number;
+  savedAt: string;
+  title: string;
+  scope: string;
+  solution?: string;
+  deliverables?: string;
+  benefits?: string;
+  budget?: string;
+  timeline?: string;
+}
+
 export interface Proposal {
   id: string;
   uid: string;
   clientId: string;
+  clientName: string;
+  reference?: string;         // PT-YYYY-XXXXXX — generated on create
   title: string;
-  scope: string;          // what the client needs (user fills this)
-  solution?: string;      // AI generated
-  deliverables?: string;  // AI generated (markdown list)
-  benefits?: string;      // AI generated
-  budget?: string;        // optional user input
-  timeline?: string;      // optional user input
-  status: "borrador" | "enviada" | "aceptada" | "rechazada" | "vencida";
-  contractId?: string;    // set when converted to contract
+  scope: string;              // what the client needs (user fills this)
+  solution?: string;          // AI generated
+  deliverables?: string;      // AI generated (markdown list)
+  benefits?: string;          // AI generated
+  budget?: string;            // optional user input
+  timeline?: string;          // optional user input
+  status: "borrador" | "enviada" | "vista" | "aceptada" | "rechazada" | "vencida";
+  contractId?: string;        // set when converted to contract
+  publicToken?: string;       // random token for public URL /p/[token]
+  viewCount?: number;
+  viewEvents?: ProposalViewEvent[];  // capped at last 20
+  currentVersion?: number;
+  versions?: ProposalVersion[];      // version history (capped at 10)
+  sentAt?: string;            // first time published
+  viewedAt?: string;          // first client view
+  acceptedAt?: string;
   createdAt: string;
   updatedAt: string;
 }

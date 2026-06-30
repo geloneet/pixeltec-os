@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronUp, ChevronDown, Check, Play, Pen, X } from "lucide-react";
+import { ChevronUp, ChevronDown, Check, ChevronRight, Pen, X, ListTodo } from "lucide-react";
 import type { SessionGoal } from "@/types/session";
 
 interface Props {
@@ -82,7 +82,7 @@ export function SessionGoals({ goals, onAdd, onToggle, onRemove, onUpdate, onReo
       {goals.length === 0 ? (
         <div className="flex items-center gap-3 py-2 mb-2">
           <div className="h-7 w-7 rounded-lg bg-zinc-800/60 flex items-center justify-center flex-shrink-0">
-            <span className="text-sm">🎯</span>
+            <ListTodo className="h-4 w-4 text-zinc-600" />
           </div>
           <div>
             <p className="text-xs text-zinc-400 font-medium">Sin objetivos definidos</p>
@@ -158,7 +158,7 @@ export function SessionGoals({ goals, onAdd, onToggle, onRemove, onUpdate, onReo
                     )}
                     {isActive && !goal.completed && !isEditing && (
                       <p className="text-[0.6rem] text-cyan-500/70 mt-0.5 flex items-center gap-1">
-                        <Play className="h-2.5 w-2.5 flex-shrink-0" /> Actualmente trabajando
+                        <ChevronRight className="h-2.5 w-2.5 flex-shrink-0" /> Actualmente trabajando
                       </p>
                     )}
                   </div>
