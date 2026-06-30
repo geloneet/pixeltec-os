@@ -525,7 +525,7 @@ export function ProjectView({
           {/* Kanban view */}
           {taskView === "kanban" && (
             <div className="overflow-x-auto pb-2">
-              <div className="grid min-w-[640px] grid-cols-4 gap-3">
+              <div className="grid min-w-[960px] grid-cols-6 gap-3">
                 {kanbanColumns.map(col => (
                   <div key={col.key} className="flex flex-col gap-2">
                     <div className="flex items-center justify-between rounded-lg border border-white/[0.06] bg-zinc-900/30 px-3 py-2">
