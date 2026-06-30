@@ -5,7 +5,11 @@ import { useRouter } from "next/navigation";
 import { ProjectBitacora } from "./ProjectBitacora";
 import { useCRM } from "./CRMContextCore";
 import { SessionHistory } from "@/components/workspace/SessionHistory";
+import { ProjectTaskCard } from "./ProjectTaskCard";
+import { TaskStatusDropdown } from "./TaskStatusDropdown";
+import { TaskContextCapsule } from "./TaskContextCapsule";
 import type { ProjectLogEntry } from "@/types/crm";
+import type { WorkSession } from "@/types/session";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -80,43 +84,57 @@ interface KanbanCardProps {
   task: CRMTask;
   clientId: string;
   projectId: string;
+  sessions: WorkSession[];
   cycleTaskStatus: (cid: string, pid: string, tid: string) => void;
   deleteTask: (cid: string, pid: string, tid: string) => void;
   onStartSession: (taskId: string) => void;
+  setModal: (m: { type: string; data?: Record<string, string> } | null) => void;
 }
 
-function KanbanCard({ task, clientId, projectId, cycleTaskStatus, deleteTask, onStartSession }: KanbanCardProps) {
-  const st = STATUS_CONFIG[task.status];
+function KanbanCard({ task, clientId, projectId, sessions, cycleTaskStatus, deleteTask, onStartSession, setModal }: KanbanCardProps) {
   const isCompleted = task.status === "completado";
+  const isBlocked = task.status === "bloqueado";
+  const activeSession = sessions.find((s) => s.taskId === task.id && s.status === "active");
 
   return (
-    <div className={cn("rounded-lg border border-white/[0.06] bg-zinc-900/30 p-3 space-y-2 transition-colors hover:border-white/[0.10]", isCompleted && "opacity-40")}>
+    <div
+      className={cn(
+        "rounded-lg border border-white/[0.06] bg-zinc-900/30 p-3 space-y-2.5 transition-colors hover:border-white/[0.10]",
+        isCompleted && "opacity-40"
+      )}
+    >
       <div className="flex items-start gap-2">
-        <span className="mt-1 h-1.5 w-1.5 flex-shrink-0 rounded-full" style={{ backgroundColor: PRIORITIES[task.prio].color }} />
-        <p className={cn("flex-1 text-xs font-medium text-zinc-200 leading-snug", isCompleted && "line-through")}>{task.name}</p>
+        <span
+          className="mt-1 h-1.5 w-1.5 flex-shrink-0 rounded-full"
+          style={{ backgroundColor: PRIORITIES[task.prio].color }}
+        />
+        <p className={cn("flex-1 text-xs font-medium text-zinc-200 leading-snug", isCompleted && "line-through")}>
+          {task.name}
+        </p>
       </div>
       {task.desc && <p className="truncate pl-3.5 text-[10px] text-zinc-500">{task.desc}</p>}
+
+      <div className="pl-3.5">
+        <TaskContextCapsule task={task} sessions={sessions} />
+      </div>
+
       <div className="flex items-center justify-between pl-3.5">
-        <button
-          onClick={() => cycleTaskStatus(clientId, projectId, task.id)}
-          className={cn("flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium active:scale-95 transition-all", st.bg, st.text)}
-        >
-          {st.label}
-        </button>
-        <div className="flex items-center gap-1">
+        <TaskStatusDropdown
+          status={task.status}
+          onChange={() => {/* status change handled via cycleTaskStatus */}}
+          disabled
+        />
+        {!isCompleted && !isBlocked && (
           <button
             onClick={() => onStartSession(task.id)}
-            className="rounded px-1.5 py-0.5 text-[10px] text-cyan-400 transition-colors hover:bg-cyan-500/10"
+            className={cn(
+              "rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors whitespace-nowrap",
+              activeSession ? "text-green-400 hover:bg-green-500/10" : "text-cyan-400 hover:bg-cyan-500/10"
+            )}
           >
-            ▶ Sesión
+            {activeSession ? "Abrir →" : "▶ Sesión"}
           </button>
-          <button
-            onClick={() => deleteTask(clientId, projectId, task.id)}
-            className="rounded px-1.5 py-0.5 text-[10px] text-zinc-600 transition-colors hover:text-red-400"
-          >
-            ✕
-          </button>
-        </div>
+        )}
       </div>
     </div>
   );
@@ -347,8 +365,8 @@ export function ProjectView({
                       {PRIORITIES[nextTask.prio].label}
                     </span>
                     <span className="text-zinc-700">·</span>
-                    <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium", STATUS_CONFIG[nextTask.status].bg, STATUS_CONFIG[nextTask.status].text)}>
-                      {STATUS_CONFIG[nextTask.status].label}
+                    <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium", (STATUS_CONFIG[nextTask.status] ?? STATUS_CONFIG["pendiente"]).bg, (STATUS_CONFIG[nextTask.status] ?? STATUS_CONFIG["pendiente"]).text)}>
+                      {(STATUS_CONFIG[nextTask.status] ?? STATUS_CONFIG["pendiente"]).label}
                     </span>
                   </div>
                 </div>
@@ -472,45 +490,35 @@ export function ProjectView({
 
           {/* Lista view */}
           {taskView === "lista" && (
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               {sortedTasks.length === 0 && (
                 <p className="py-10 text-center text-sm text-zinc-500">No hay tareas</p>
               )}
-              {sortedTasks.map(task => {
-                const st = STATUS_CONFIG[task.status];
-                const isCompleted = task.status === "completado";
-                return (
-                  <div
-                    key={task.id}
-                    className={cn("flex items-center gap-3 rounded-xl border border-white/[0.06] bg-zinc-900/20 px-4 py-3 transition-all hover:border-white/[0.10]", isCompleted && "opacity-40")}
-                  >
-                    <span className="h-2 w-2 flex-shrink-0 rounded-full" style={{ backgroundColor: PRIORITIES[task.prio].color }} />
-                    <div className="min-w-0 flex-1">
-                      <p className={cn("text-sm text-zinc-200", isCompleted && "line-through")}>{task.name}</p>
-                      {task.desc && <p className="truncate text-[11px] text-zinc-500">{task.desc}</p>}
-                    </div>
-                    <button
-                      onClick={() => cycleTaskStatus(client.id, project.id, task.id)}
-                      className={cn("flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-medium active:scale-95 transition-all", st.bg, st.text)}
-                    >
-                      <span className="h-1.5 w-1.5 rounded-full bg-current opacity-70" />
-                      {st.label}
-                    </button>
-                    <button
-                      onClick={() => handleStartSession(task.id)}
-                      className="rounded-lg border border-cyan-500/20 bg-cyan-500/[0.08] px-2.5 py-1 text-[11px] font-medium text-cyan-400 transition-all hover:bg-cyan-500/20 whitespace-nowrap"
-                    >
-                      ▶ Iniciar sesión
-                    </button>
-                    <button
-                      onClick={() => deleteTask(client.id, project.id, task.id)}
-                      className="text-[11px] text-zinc-600 transition-colors hover:text-red-400"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                );
-              })}
+              {sortedTasks.map((task) => (
+                <ProjectTaskCard
+                  key={task.id}
+                  task={task}
+                  clientId={client.id}
+                  projectId={project.id}
+                  sessions={crm.sessions}
+                  onUpdateStatus={(s) => crm.updateTask(client.id, project.id, task.id, { status: s })}
+                  onStartSession={() => handleStartSession(task.id)}
+                  onEdit={() =>
+                    setModal({
+                      type: "editTask",
+                      data: {
+                        taskId: task.id,
+                        taskName: task.name,
+                        taskDesc: task.desc,
+                        taskPrio: task.prio,
+                        clientId: client.id,
+                        projectId: project.id,
+                      } as Record<string, string>,
+                    })
+                  }
+                  onDelete={() => deleteTask(client.id, project.id, task.id)}
+                />
+              ))}
             </div>
           )}
 
@@ -531,9 +539,11 @@ export function ProjectView({
                           task={task}
                           clientId={client.id}
                           projectId={project.id}
+                          sessions={crm.sessions}
                           cycleTaskStatus={cycleTaskStatus}
                           deleteTask={deleteTask}
                           onStartSession={handleStartSession}
+                          setModal={setModal}
                         />
                       ))}
                       {col.tasks.length === 0 && (
