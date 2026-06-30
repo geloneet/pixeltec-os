@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronUp, ChevronDown } from "lucide-react";
+import { ChevronUp, ChevronDown, Check, Play, Pen, X } from "lucide-react";
 import type { SessionGoal } from "@/types/session";
 
 interface Props {
@@ -120,7 +120,7 @@ export function SessionGoals({ goals, onAdd, onToggle, onRemove, onUpdate, onReo
                     aria-label={goal.completed ? "Marcar como pendiente" : "Marcar como completado"}
                   >
                     {goal.completed && (
-                      <span className="flex h-full items-center justify-center text-[9px] text-green-400">✓</span>
+                      <Check className="h-2.5 w-2.5 text-green-400 m-auto" />
                     )}
                   </motion.button>
 
@@ -150,7 +150,7 @@ export function SessionGoals({ goals, onAdd, onToggle, onRemove, onUpdate, onReo
                     )}
                     {isActive && !goal.completed && !isEditing && (
                       <p className="text-[0.6rem] text-cyan-500/70 mt-0.5 flex items-center gap-1">
-                        <span>▶</span> Actualmente trabajando
+                        <Play className="h-2.5 w-2.5 flex-shrink-0" /> Actualmente trabajando
                       </p>
                     )}
                   </div>
@@ -181,18 +181,18 @@ export function SessionGoals({ goals, onAdd, onToggle, onRemove, onUpdate, onReo
                       {/* Edit */}
                       <button
                         onClick={() => startEdit(goal)}
-                        className="text-[10px] text-zinc-600 hover:text-zinc-400 transition-colors px-1"
+                        className="text-zinc-600 hover:text-zinc-400 transition-colors"
                         aria-label="Editar"
                       >
-                        ✎
+                        <Pen className="h-3 w-3" />
                       </button>
                       {/* Remove */}
                       <button
                         onClick={() => onRemove(goal.id)}
-                        className="text-zinc-600 hover:text-zinc-400 text-[10px] transition-colors"
+                        className="text-zinc-600 hover:text-zinc-400 transition-colors"
                         aria-label="Eliminar objetivo"
                       >
-                        ×
+                        <X className="h-3 w-3" />
                       </button>
                     </div>
                   )}

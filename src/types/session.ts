@@ -44,12 +44,12 @@ export type ObservationType = "observacion" | "riesgo" | "bug" | "decision";
 
 export const OBSERVATION_META: Record<
   ObservationType,
-  { emoji: string; label: string; border: string; tint: string }
+  { label: string; border: string; tint: string; iconColor: string }
 > = {
-  observacion: { emoji: "💡", label: "Observación", border: "border-zinc-600",   tint: "bg-blue-500/[0.04]"   },
-  riesgo:      { emoji: "⚠️", label: "Riesgo",      border: "border-amber-500",  tint: "bg-amber-500/[0.05]"  },
-  bug:         { emoji: "🐞", label: "Bug",          border: "border-red-500",    tint: "bg-red-500/[0.05]"    },
-  decision:    { emoji: "✅", label: "Decisión",     border: "border-green-500",  tint: "bg-green-500/[0.05]"  },
+  observacion: { label: "Observación", border: "border-zinc-600",   tint: "bg-blue-500/[0.04]",   iconColor: "text-blue-400/70"  },
+  riesgo:      { label: "Riesgo",      border: "border-amber-500",  tint: "bg-amber-500/[0.05]",  iconColor: "text-amber-400/80" },
+  bug:         { label: "Bug",         border: "border-red-500",    tint: "bg-red-500/[0.05]",    iconColor: "text-red-400/80"   },
+  decision:    { label: "Decisión",    border: "border-green-500",  tint: "bg-green-500/[0.05]",  iconColor: "text-green-400/80" },
 };
 
 export interface SessionGoal {

@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { AnimatePresence, motion } from "framer-motion";
-import { Pencil } from "lucide-react";
+import { Pencil, Play, Check, CornerDownLeft } from "lucide-react";
 import type { SessionActivity } from "@/types/session";
 
 interface Props {
@@ -162,7 +162,7 @@ export function ActivityWorkspace({ activities, onStart, onDone, onUpdateText }:
             className="group mb-3 rounded-lg border border-cyan-500/20 bg-cyan-500/[0.04] p-3"
           >
             <div className="flex items-start gap-2">
-              <span className="text-cyan-400 text-xs mt-0.5 flex-shrink-0">▶</span>
+              <Play className="h-3 w-3 text-cyan-400 flex-shrink-0 mt-0.5" />
               <div className="flex-1 min-w-0">
                 <input
                   ref={inputRef}
@@ -196,7 +196,7 @@ export function ActivityWorkspace({ activities, onStart, onDone, onUpdateText }:
                   onClick={handleDone}
                   className="rounded-lg border border-green-500/20 bg-green-500/[0.06] px-2.5 py-1 text-[0.65rem] font-medium text-green-400 hover:bg-green-500/10 transition-all"
                 >
-                  ✓ Finalizar
+                  <Check className="h-3 w-3" /> Finalizar
                 </button>
               </div>
             </div>
@@ -302,7 +302,7 @@ export function ActivityWorkspace({ activities, onStart, onDone, onUpdateText }:
                           {formatTime(activity.startedAt)}
                         </span>
                         <p className="text-xs text-zinc-400 leading-snug">
-                          <span className="text-green-500/70 mr-1">✓</span>
+                          <Check className="h-3 w-3 text-green-500/70 flex-shrink-0 inline-block mr-1 -mb-0.5" />
                           {activity.description}
                         </p>
                       </div>

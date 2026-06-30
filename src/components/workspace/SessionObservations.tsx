@@ -4,7 +4,11 @@ import { useState } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { AnimatePresence, motion } from "framer-motion";
-import { Copy, Check, Layers, AlertTriangle } from "lucide-react";
+import {
+  Copy, Check, Layers, AlertTriangle,
+  Lightbulb, ShieldAlert, Bug, GitMerge,
+  CornerDownLeft, BookmarkPlus,
+} from "lucide-react";
 import type { SessionNote, ObservationType } from "@/types/session";
 import { OBSERVATION_META } from "@/types/session";
 
@@ -17,6 +21,14 @@ interface Props {
 }
 
 const TYPES: ObservationType[] = ["observacion", "riesgo", "bug", "decision"];
+
+// Map to lucide components — unique, intentional icons vs generic emoji
+const OBS_ICONS: Record<ObservationType, React.ComponentType<{ className?: string }>> = {
+  observacion: Lightbulb,
+  riesgo:      ShieldAlert,
+  bug:         Bug,
+  decision:    GitMerge,
+};
 
 export function SessionObservations({ notes, onAdd, onMarkForSummary, onConvertToTask, onCreateBlocker }: Props) {
   const [selectedType, setSelectedType] = useState<ObservationType>("observacion");
@@ -43,21 +55,25 @@ export function SessionObservations({ notes, onAdd, onMarkForSummary, onConvertT
       <div className="flex gap-1.5 mb-2">
         {TYPES.map(t => {
           const meta = OBSERVATION_META[t];
+          const Icon = OBS_ICONS[t];
           return (
             <button
               key={t}
               onClick={() => setSelectedType(t)}
               title={meta.label}
-              className={`rounded-lg px-2 py-1 text-sm transition-all ${
+              className={`rounded-lg px-2.5 py-1.5 transition-all ${
                 selectedType === t
-                  ? "bg-zinc-800 border border-white/[0.1] scale-105"
+                  ? `bg-zinc-800 border border-white/[0.1] ${meta.iconColor}`
                   : "text-zinc-600 hover:text-zinc-400 border border-transparent"
               }`}
             >
-              {meta.emoji}
+              <Icon className="h-3.5 w-3.5" />
             </button>
           );
         })}
+        <span className="text-[0.65rem] text-zinc-600 self-center ml-1">
+          {OBSERVATION_META[selectedType].label}
+        </span>
       </div>
 
       {/* Input */}
@@ -73,9 +89,10 @@ export function SessionObservations({ notes, onAdd, onMarkForSummary, onConvertT
         <button
           onClick={handleSubmit}
           disabled={!text.trim()}
-          className="rounded-lg border border-white/[0.06] bg-zinc-900/40 px-3 py-2 text-xs text-zinc-400 hover:text-zinc-200 transition-all disabled:opacity-40"
+          title="Agregar (Enter)"
+          className="rounded-lg border border-white/[0.06] bg-zinc-900/40 px-3 py-2 text-zinc-500 hover:text-zinc-200 transition-all disabled:opacity-40"
         >
-          ↵
+          <CornerDownLeft className="h-3.5 w-3.5" />
         </button>
       </div>
 
@@ -89,6 +106,7 @@ export function SessionObservations({ notes, onAdd, onMarkForSummary, onConvertT
           <AnimatePresence initial={false}>
             {[...notes].reverse().map(note => {
               const meta = OBSERVATION_META[note.type];
+              const Icon = OBS_ICONS[note.type];
               const isCopied = copiedId === note.id;
               return (
                 <motion.div
@@ -101,7 +119,7 @@ export function SessionObservations({ notes, onAdd, onMarkForSummary, onConvertT
                   className={`group relative rounded-lg border border-white/[0.04] pl-3 pr-3 py-2 border-l-2 ${meta.border} ${meta.tint}`}
                 >
                   <div className="flex items-start gap-2">
-                    <span className="text-sm flex-shrink-0 mt-0.5">{meta.emoji}</span>
+                    <Icon className={`h-3.5 w-3.5 flex-shrink-0 mt-0.5 ${meta.iconColor}`} />
                     <div className="flex-1 min-w-0">
                       <p className="text-xs text-zinc-300 leading-relaxed">{note.content}</p>
                       <p className="text-[0.65rem] text-zinc-600 mt-0.5">
@@ -113,7 +131,6 @@ export function SessionObservations({ notes, onAdd, onMarkForSummary, onConvertT
 
                   {/* Hover action bar */}
                   <div className="flex items-center gap-1 mt-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {/* Convert to task */}
                     <button
                       onClick={() => onConvertToTask(note.content)}
                       className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[0.6rem] border border-white/[0.06] text-zinc-500 hover:text-zinc-200 hover:border-zinc-600 transition-all"
@@ -122,7 +139,6 @@ export function SessionObservations({ notes, onAdd, onMarkForSummary, onConvertT
                       <Layers className="h-2.5 w-2.5" />
                       Convertir en tarea
                     </button>
-                    {/* Create blocker */}
                     <button
                       onClick={() => onCreateBlocker(note.content)}
                       className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[0.6rem] border border-white/[0.06] text-zinc-500 hover:text-red-400 hover:border-red-500/30 transition-all"
@@ -131,7 +147,6 @@ export function SessionObservations({ notes, onAdd, onMarkForSummary, onConvertT
                       <AlertTriangle className="h-2.5 w-2.5" />
                       Crear bloqueo
                     </button>
-                    {/* Copy */}
                     <button
                       onClick={() => handleCopy(note)}
                       className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[0.6rem] border border-white/[0.06] text-zinc-500 hover:text-zinc-200 hover:border-zinc-600 transition-all"
@@ -139,14 +154,14 @@ export function SessionObservations({ notes, onAdd, onMarkForSummary, onConvertT
                       {isCopied ? <Check className="h-2.5 w-2.5 text-green-400" /> : <Copy className="h-2.5 w-2.5" />}
                       {isCopied ? "Copiado" : "Copiar"}
                     </button>
-                    {/* Mark for summary */}
                     {!note.markedForSummary && (
                       <button
                         onClick={() => onMarkForSummary(note.id)}
-                        className="ml-auto rounded px-1.5 py-0.5 text-[0.6rem] text-zinc-600 hover:text-cyan-400 transition-colors"
+                        className="ml-auto flex items-center gap-1 rounded px-1.5 py-0.5 text-[0.6rem] text-zinc-600 hover:text-cyan-400 transition-colors"
                         title="Añadir al resumen final"
                       >
-                        ➜ Resumen
+                        <BookmarkPlus className="h-2.5 w-2.5" />
+                        Resumen
                       </button>
                     )}
                   </div>

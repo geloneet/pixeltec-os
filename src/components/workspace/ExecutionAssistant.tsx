@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { ChevronDown, ChevronRight, LoaderCircle, Copy, Check } from "lucide-react";
+import { ChevronDown, ChevronRight, LoaderCircle, Copy, Check, CornerDownLeft } from "lucide-react";
 import type { WorkSession } from "@/types/session";
 import type { CRMProject } from "@/types/crm";
 
@@ -244,7 +244,7 @@ export function ExecutionAssistant({ session, project, elapsed, onSaveAsObservat
                 <span className={`h-3.5 w-3.5 flex-shrink-0 rounded border transition-all ${
                   deployChecks.has(i) ? "border-green-500 bg-green-500/20" : "border-zinc-700"
                 }`}>
-                  {deployChecks.has(i) && <span className="flex h-full items-center justify-center text-[9px] text-green-400">✓</span>}
+                  {deployChecks.has(i) && <Check className="h-2.5 w-2.5 text-green-400 m-auto" />}
                 </span>
                 <span className={deployChecks.has(i) ? "line-through text-zinc-600" : ""}>{item}</span>
               </button>
@@ -307,9 +307,9 @@ export function ExecutionAssistant({ session, project, elapsed, onSaveAsObservat
               <button
                 onClick={() => { runPrompt("libre", freeText); setFreeText(""); }}
                 disabled={!freeText.trim() || aiLoading}
-                className="rounded-lg border border-white/[0.06] bg-zinc-900/40 px-2.5 py-1.5 text-xs text-zinc-500 hover:text-zinc-200 transition-all disabled:opacity-40"
+                className="rounded-lg border border-white/[0.06] bg-zinc-900/40 px-2.5 py-1.5 text-zinc-500 hover:text-zinc-200 transition-all disabled:opacity-40"
               >
-                ↵
+                <CornerDownLeft className="h-3.5 w-3.5" />
               </button>
             </div>
 

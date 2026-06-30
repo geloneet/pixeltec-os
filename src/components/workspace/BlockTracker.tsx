@@ -4,6 +4,7 @@ import { useState } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { AnimatePresence, motion } from "framer-motion";
+import { AlertCircle, Clock, CheckCircle2 } from "lucide-react";
 import type { SessionBlocker, BlockerType, BlockerStatus, BlockerImpact, BlockerSource } from "@/types/session";
 import {
   BLOCKER_LABELS, BLOCKER_STATUS_LABELS, BLOCKER_IMPACT_LABELS, BLOCKER_SOURCE_LABELS,
@@ -31,10 +32,10 @@ const STATUS_COLORS: Record<BlockerStatus, string> = {
   resolved: "text-green-400 border-green-500/10 bg-green-500/[0.03]",
 };
 
-const STATUS_DOT: Record<BlockerStatus, string> = {
-  active:   "🔴",
-  waiting:  "🟡",
-  resolved: "🟢",
+const STATUS_ICON: Record<BlockerStatus, { Icon: React.ComponentType<{ className?: string }>; cls: string }> = {
+  active:   { Icon: AlertCircle,   cls: "text-red-400"   },
+  waiting:  { Icon: Clock,         cls: "text-amber-400" },
+  resolved: { Icon: CheckCircle2,  cls: "text-green-400" },
 };
 
 function formatDuration(startIso: string, endIso?: string): string {
@@ -66,7 +67,7 @@ function BlockerCard({
       className={`group rounded-lg border p-3 ${colorClass}`}
     >
       <div className="flex items-start gap-2 mb-1.5">
-        <span className="text-sm flex-shrink-0">{STATUS_DOT[blocker.status]}</span>
+        {(() => { const { Icon, cls } = STATUS_ICON[blocker.status]; return <Icon className={`h-3.5 w-3.5 flex-shrink-0 mt-0.5 ${cls}`} />; })()}
         <div className="flex-1 min-w-0">
           <p className="text-xs font-medium text-zinc-300">{blocker.description}</p>
           <p className="text-[0.65rem] text-zinc-600 mt-0.5">
@@ -234,7 +235,7 @@ export function BlockTracker({ blockers, onAdd, onUpdateStatus, stats }: Props) 
       {isEmpty && !open && (
         <div className="py-2">
           <div className="flex items-center gap-1.5 mb-1">
-            <span className="text-[0.65rem] text-green-400">✓</span>
+            <CheckCircle2 className="h-3.5 w-3.5 text-green-400/70 flex-shrink-0" />
             <span className="text-xs text-zinc-500">Sin bloqueos activos</span>
           </div>
           {stats ? (
