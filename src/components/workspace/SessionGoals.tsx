@@ -80,14 +80,14 @@ export function SessionGoals({ goals, onAdd, onToggle, onRemove, onUpdate, onReo
       </div>
 
       {goals.length === 0 ? (
-        <div className="flex flex-col items-center text-center py-4 mb-2 gap-2">
-          <div className="h-8 w-8 rounded-xl bg-zinc-800/60 flex items-center justify-center">
-            <span className="text-base">🎯</span>
+        <div className="flex items-center gap-3 py-2 mb-2">
+          <div className="h-7 w-7 rounded-lg bg-zinc-800/60 flex items-center justify-center flex-shrink-0">
+            <span className="text-sm">🎯</span>
           </div>
           <div>
             <p className="text-xs text-zinc-400 font-medium">Sin objetivos definidos</p>
-            <p className="text-[0.65rem] text-zinc-600 mt-0.5 max-w-[180px] leading-relaxed">
-              Agrega hasta {MAX_ACTIVE} para mantener el foco de esta sesión.
+            <p className="text-[0.65rem] text-zinc-600 leading-relaxed">
+              Agrega hasta {MAX_ACTIVE} para mantener el foco.
             </p>
           </div>
         </div>

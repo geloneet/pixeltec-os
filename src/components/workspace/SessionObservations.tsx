@@ -105,13 +105,11 @@ export function SessionObservations({ notes, onAdd, onMarkForSummary, onConvertT
 
       {/* Notes feed */}
       {notes.length === 0 ? (
-        <div className="flex flex-col items-center text-center py-4 gap-2">
-          <Lightbulb className="h-6 w-6 text-zinc-700" />
+        <div className="flex items-center gap-3 py-1">
+          <Lightbulb className="h-5 w-5 text-zinc-700 flex-shrink-0" />
           <div>
             <p className="text-xs text-zinc-400 font-medium">Anota lo que descubres</p>
-            <p className="text-[0.65rem] text-zinc-600 mt-1 leading-relaxed max-w-[200px]">
-              Decisiones · Errores · Descubrimientos · Riesgos
-            </p>
+            <p className="text-[0.65rem] text-zinc-600">Decisiones · Bugs · Riesgos · Descubrimientos</p>
           </div>
         </div>
       ) : (

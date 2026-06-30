@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Check, AlertTriangle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { WorkSession } from "@/types/session";
 import type { CRMTask } from "@/types/crm";
@@ -55,6 +55,50 @@ function formatStartTime(iso: string): string {
   } catch {
     return iso;
   }
+}
+
+type FinalizeState = {
+  label: React.ReactNode;
+  className: string;
+  disabled: boolean;
+};
+
+function getFinalizeState(session: WorkSession): FinalizeState {
+  const activeBlockers = session.blockers.filter(b => b.status === "active");
+  if (activeBlockers.length > 0) {
+    return {
+      label: "Resolver bloqueos primero",
+      className: "opacity-50 cursor-not-allowed border-zinc-700/40 bg-zinc-800/20 text-zinc-600",
+      disabled: true,
+    };
+  }
+  const goals = session.sessionGoals ?? [];
+  const pendingGoals = goals.filter(g => !g.completed).length;
+  if (pendingGoals > 0) {
+    return {
+      label: (
+        <span className="flex items-center gap-1.5">
+          Finalizar
+          <span className="flex items-center gap-0.5 text-amber-400/80">
+            <AlertTriangle className="h-3 w-3" />
+            {pendingGoals} pendiente{pendingGoals !== 1 ? "s" : ""}
+          </span>
+        </span>
+      ),
+      className: "border-red-500/20 bg-red-500/[0.06] text-red-400 hover:bg-red-500/10 hover:border-red-500/30",
+      disabled: false,
+    };
+  }
+  // All clear
+  return {
+    label: (
+      <span className="flex items-center gap-1.5">
+        <Check className="h-3 w-3" /> Listo para cerrar
+      </span>
+    ),
+    className: "border-green-500/20 bg-green-500/[0.06] text-green-400 hover:bg-green-500/10 hover:border-green-500/30",
+    disabled: false,
+  };
 }
 
 function SessionHealth({ session }: { session: WorkSession }) {
@@ -155,12 +199,18 @@ export function WorkspaceHeader({ session, task, elapsed, onFinalize }: Props) {
             );
           })()}
         </div>
-        <button
-          onClick={onFinalize}
-          className="rounded-lg border border-red-500/20 bg-red-500/[0.06] px-3 py-1.5 text-xs font-medium text-red-400 transition-all hover:bg-red-500/10 hover:border-red-500/30 flex-shrink-0"
-        >
-          Finalizar sesión
-        </button>
+        {(() => {
+          const fs = getFinalizeState(session);
+          return (
+            <button
+              onClick={fs.disabled ? undefined : onFinalize}
+              disabled={fs.disabled}
+              className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-all flex-shrink-0 ${fs.className}`}
+            >
+              {fs.label}
+            </button>
+          );
+        })()}
       </div>
     </div>
   );

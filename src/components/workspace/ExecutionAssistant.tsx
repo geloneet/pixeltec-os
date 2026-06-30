@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { ChevronDown, ChevronRight, LoaderCircle, Copy, Check, CornerDownLeft } from "lucide-react";
+import { motion } from "framer-motion";
 import type { WorkSession } from "@/types/session";
 import type { CRMProject } from "@/types/crm";
 
@@ -72,7 +73,7 @@ function CollapsibleSection({ title, children, defaultOpen = true }: {
     <div>
       <button
         onClick={() => setOpen(o => !o)}
-        className="flex w-full items-center gap-1.5 py-1.5 text-[0.65rem] font-medium uppercase tracking-wider text-zinc-600 hover:text-zinc-400 transition-colors"
+        className="flex w-full items-center gap-1.5 py-1.5 text-[0.65rem] font-medium uppercase tracking-normal text-zinc-600 hover:text-zinc-400 transition-colors"
       >
         {open ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
         {title}
@@ -177,11 +178,19 @@ export function ExecutionAssistant({ session, project, elapsed, onSaveAsObservat
         </div>
         <div className="flex items-center gap-1.5">
           <span className="text-[0.6rem] text-zinc-700">Health Score</span>
-          <span className="text-xs font-mono font-semibold tabular-nums">{score}/100</span>
+          <motion.span
+            key={score}
+            initial={{ opacity: 0.3 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.25 }}
+            className="text-xs font-mono font-semibold tabular-nums"
+          >
+            {score}/100
+          </motion.span>
         </div>
       </div>
 
-      <div className="px-4 py-3 space-y-0 divide-y divide-white/[0.04]">
+      <div className="px-4 py-3 space-y-0 divide-y divide-white/[0.03]">
 
         {/* Contexto */}
         <CollapsibleSection title="Contexto">
@@ -211,15 +220,29 @@ export function ExecutionAssistant({ session, project, elapsed, onSaveAsObservat
             {totalGoals > 0 && (
               <div className="flex justify-between text-xs">
                 <span className="text-zinc-600">Objetivos</span>
-                <span className={completedGoals === totalGoals ? "text-green-400" : "text-zinc-400"}>
+                <motion.span
+                  key={completedGoals}
+                  initial={{ opacity: 0.3 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.2 }}
+                  className={completedGoals === totalGoals ? "text-green-400" : "text-zinc-400"}
+                >
                   {completedGoals}/{totalGoals} completados
-                </span>
+                </motion.span>
               </div>
             )}
             {inProgressActivity && (
               <div className="flex justify-between text-xs gap-2">
                 <span className="text-zinc-600 flex-shrink-0">Actividad</span>
-                <span className="text-zinc-400 text-right truncate">{inProgressActivity.description}</span>
+                <motion.span
+                  key={inProgressActivity.id}
+                  initial={{ opacity: 0.3 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.2 }}
+                  className="text-zinc-400 text-right truncate"
+                >
+                  {inProgressActivity.description}
+                </motion.span>
               </div>
             )}
           </div>

@@ -340,13 +340,13 @@ export function ActivityWorkspace({ activities, onStart, onDone, onUpdateText }:
         </div>
       )}
 
-      {/* Start button */}
+      {/* Start button — protagonista */}
       {!showStartForm && (
         <button
           onClick={() => setShowStartForm(true)}
-          className="w-full rounded-lg border border-dashed border-white/[0.08] py-2 text-xs text-zinc-600 hover:text-zinc-400 hover:border-white/[0.12] transition-all"
+          className="w-full rounded-lg border border-cyan-500/20 bg-cyan-500/[0.03] hover:bg-cyan-500/[0.08] hover:border-cyan-500/30 py-2.5 text-xs font-medium text-cyan-600/80 hover:text-cyan-400 transition-all"
         >
-          + Iniciar nueva actividad
+          + Nueva actividad
         </button>
       )}
     </div>
