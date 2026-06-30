@@ -3,6 +3,8 @@
 import { useState, useRef, useEffect } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { AnimatePresence, motion } from "framer-motion";
+import { Pencil } from "lucide-react";
 import type { SessionActivity } from "@/types/session";
 
 interface Props {
@@ -35,6 +37,52 @@ function formatDuration(startIso: string, endIso?: string): string {
   } catch { return "—"; }
 }
 
+function getActivityMinutes(startIso: string, endIso?: string): number {
+  try {
+    const start = new Date(startIso).getTime();
+    const end = endIso ? new Date(endIso).getTime() : Date.now();
+    return Math.floor((end - start) / 60000);
+  } catch { return 0; }
+}
+
+/** Energy bar for the in-progress activity */
+function EnergyBar({ startedAt, estimatedMinutes }: { startedAt: string; estimatedMinutes?: number }) {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick(t => t + 1), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  const mins = getActivityMinutes(startedAt);
+  const cap = estimatedMinutes ?? 90;
+  const pct = Math.min((mins / cap) * 100, 100);
+
+  let barColor = "bg-green-500/70";
+  let label = "";
+  if (mins >= 150) { barColor = "bg-red-500/70"; label = "Muy larga"; }
+  else if (mins >= 90) { barColor = "bg-amber-500/70"; label = "Larga"; }
+
+  return (
+    <div className="mt-1.5">
+      <div className="flex items-center justify-between mb-0.5">
+        <span className="text-[0.6rem] text-zinc-700">Energía</span>
+        {label && (
+          <span className={`text-[0.6rem] ${mins >= 150 ? "text-red-400/80" : "text-amber-400/80"}`}>
+            {label}
+          </span>
+        )}
+      </div>
+      <div className="h-0.5 rounded-full bg-zinc-800 overflow-hidden">
+        <motion.div
+          className={`h-full rounded-full ${barColor}`}
+          animate={{ width: `${pct}%` }}
+          transition={{ duration: 1, ease: "easeOut" }}
+        />
+      </div>
+    </div>
+  );
+}
+
 function LiveDuration({ startedAt }: { startedAt: string }) {
   const [, setTick] = useState(0);
   useEffect(() => {
@@ -53,7 +101,6 @@ export function ActivityWorkspace({ activities, onStart, onDone, onUpdateText }:
   const [estimate, setEstimate] = useState<number | undefined>(undefined);
   const [showConfirm, setShowConfirm] = useState(false);
   const [editText, setEditText] = useState(inProgress?.description ?? "");
-  const [completing, setCompleting] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -73,26 +120,16 @@ export function ActivityWorkspace({ activities, onStart, onDone, onUpdateText }:
   };
 
   const handleConfirmReplace = () => {
-    setCompleting(inProgress?.id ?? null);
-    setTimeout(() => {
-      onDone();
-      onStart(newText.trim(), estimate);
-      setNewText("");
-      setEstimate(undefined);
-      setShowStartForm(false);
-      setShowConfirm(false);
-      setCompleting(null);
-    }, 200);
+    onDone();
+    onStart(newText.trim(), estimate);
+    setNewText("");
+    setEstimate(undefined);
+    setShowStartForm(false);
+    setShowConfirm(false);
   };
 
   const handleDone = () => {
-    if (inProgress) {
-      setCompleting(inProgress.id);
-      setTimeout(() => {
-        onDone();
-        setCompleting(null);
-      }, 200);
-    }
+    if (inProgress) onDone();
   };
 
   const totalCount = activities.length;
@@ -113,40 +150,59 @@ export function ActivityWorkspace({ activities, onStart, onDone, onUpdateText }:
       </div>
 
       {/* In-progress (pinned) */}
-      {inProgress && (
-        <div
-          className={`mb-3 rounded-lg border border-cyan-500/20 bg-cyan-500/[0.04] p-3 transition-opacity duration-200 ${
-            completing === inProgress.id ? "opacity-0" : "opacity-100"
-          }`}
-        >
-          <div className="flex items-start gap-2">
-            <span className="text-cyan-400 text-xs mt-0.5 flex-shrink-0">▶</span>
-            <div className="flex-1 min-w-0">
-              <input
-                ref={inputRef}
-                type="text"
-                value={editText}
-                onChange={e => setEditText(e.target.value)}
-                onBlur={() => { if (editText.trim()) onUpdateText(editText.trim()); }}
-                onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); if (editText.trim()) onUpdateText(editText.trim()); inputRef.current?.blur(); }}}
-                className="w-full bg-transparent text-sm text-zinc-200 focus:outline-none"
-              />
-              <p className="text-[0.65rem] text-zinc-600 mt-0.5">
-                En progreso · <LiveDuration startedAt={inProgress.startedAt} />
-                {inProgress.estimatedMinutes && (
-                  <span className="ml-1.5">· Est: {inProgress.estimatedMinutes >= 60 ? `${inProgress.estimatedMinutes / 60}h` : `${inProgress.estimatedMinutes} min`}</span>
-                )}
-              </p>
+      <AnimatePresence>
+        {inProgress && (
+          <motion.div
+            key={inProgress.id}
+            layout
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, height: 0, marginBottom: 0, paddingTop: 0, paddingBottom: 0 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="group mb-3 rounded-lg border border-cyan-500/20 bg-cyan-500/[0.04] p-3"
+          >
+            <div className="flex items-start gap-2">
+              <span className="text-cyan-400 text-xs mt-0.5 flex-shrink-0">▶</span>
+              <div className="flex-1 min-w-0">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={editText}
+                  onChange={e => setEditText(e.target.value)}
+                  onBlur={() => { if (editText.trim()) onUpdateText(editText.trim()); }}
+                  onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); if (editText.trim()) onUpdateText(editText.trim()); inputRef.current?.blur(); }}}
+                  className="w-full bg-transparent text-sm text-zinc-200 focus:outline-none"
+                />
+                <p className="text-[0.65rem] text-zinc-600 mt-0.5">
+                  En progreso · <LiveDuration startedAt={inProgress.startedAt} />
+                  {inProgress.estimatedMinutes && (
+                    <span className="ml-1.5">· Est: {inProgress.estimatedMinutes >= 60 ? `${inProgress.estimatedMinutes / 60}h` : `${inProgress.estimatedMinutes} min`}</span>
+                  )}
+                </p>
+                <EnergyBar startedAt={inProgress.startedAt} estimatedMinutes={inProgress.estimatedMinutes} />
+              </div>
+
+              {/* Hover actions */}
+              <div className="flex items-center gap-1 flex-shrink-0">
+                {/* Edit (pencil) — reveals input focus */}
+                <button
+                  onClick={() => inputRef.current?.focus()}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity text-zinc-600 hover:text-zinc-400"
+                  title="Editar"
+                >
+                  <Pencil className="h-3 w-3" />
+                </button>
+                <button
+                  onClick={handleDone}
+                  className="rounded-lg border border-green-500/20 bg-green-500/[0.06] px-2.5 py-1 text-[0.65rem] font-medium text-green-400 hover:bg-green-500/10 transition-all"
+                >
+                  ✓ Finalizar
+                </button>
+              </div>
             </div>
-            <button
-              onClick={handleDone}
-              className="flex-shrink-0 rounded-lg border border-green-500/20 bg-green-500/[0.06] px-2.5 py-1 text-[0.65rem] font-medium text-green-400 hover:bg-green-500/10 transition-all"
-            >
-              ✓ Finalizar
-            </button>
-          </div>
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Confirm replace dialog */}
       {showConfirm && (
@@ -215,41 +271,55 @@ export function ActivityWorkspace({ activities, onStart, onDone, onUpdateText }:
         </div>
       )}
 
-      {/* Completed timeline */}
+      {/* Completed timeline — compact */}
       {completed.length > 0 && (
         <div className="mb-3">
-          <p className="text-[0.65rem] font-medium text-zinc-600 mb-2 uppercase tracking-wider">Hoy</p>
+          <p className="text-[0.65rem] font-medium text-zinc-600 mb-1.5 uppercase tracking-wider">Hoy</p>
           <div className="space-y-0">
-            {completed.map((activity, i) => {
-              const real = formatDuration(activity.startedAt, activity.completedAt);
-              const est = activity.estimatedMinutes;
-              return (
-                <div key={activity.id} className="flex gap-2.5">
-                  <div className="flex flex-col items-center">
-                    <div className="h-2 w-2 flex-shrink-0 rounded-full bg-zinc-600 mt-1.5" />
-                    {i < completed.length - 1 && (
-                      <div className="w-px flex-1 bg-white/[0.04] mt-1" style={{ minHeight: "16px" }} />
-                    )}
-                  </div>
-                  <div className="pb-2.5 min-w-0">
-                    <p className="text-xs text-zinc-400 leading-snug">
-                      <span className="text-green-500/70 mr-1.5">✓</span>
-                      {activity.description}
-                    </p>
-                    <p className="text-[0.65rem] text-zinc-600">
-                      {real}
-                      {activity.completedAt && ` · completada ${formatTime(activity.completedAt)}`}
-                      {est && ` · Est: ${est >= 60 ? `${est / 60}h` : `${est}m`}`}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-            <div className="flex gap-2.5">
+            <AnimatePresence initial={false}>
+              {completed.map((activity, i) => {
+                const real = formatDuration(activity.startedAt, activity.completedAt);
+                const est = activity.estimatedMinutes;
+                return (
+                  <motion.div
+                    key={activity.id}
+                    layout
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.18, ease: "easeOut" }}
+                    className="flex gap-2"
+                  >
+                    {/* Timeline rail */}
+                    <div className="flex flex-col items-center flex-shrink-0">
+                      <div className="h-2 w-2 rounded-full bg-zinc-600 mt-1" />
+                      {i < completed.length - 1 && (
+                        <div className="w-px flex-1 bg-white/[0.04] mt-1" style={{ minHeight: "14px" }} />
+                      )}
+                    </div>
+                    <div className="pb-2 min-w-0 flex-1">
+                      <div className="flex items-baseline gap-1.5 flex-wrap">
+                        <span className="text-[0.65rem] text-zinc-600 tabular-nums flex-shrink-0">
+                          {formatTime(activity.startedAt)}
+                        </span>
+                        <p className="text-xs text-zinc-400 leading-snug">
+                          <span className="text-green-500/70 mr-1">✓</span>
+                          {activity.description}
+                        </p>
+                      </div>
+                      <p className="text-[0.65rem] text-zinc-700 pl-[calc(2.75rem)]">
+                        {real}{est && ` · Est: ${est >= 60 ? `${est / 60}h` : `${est}m`}`}
+                      </p>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
+            {/* Session start */}
+            <div className="flex gap-2">
               <div className="flex flex-col items-center">
-                <div className="h-2 w-2 flex-shrink-0 rounded-full border border-zinc-700 mt-1.5" />
+                <div className="h-2 w-2 rounded-full border border-zinc-700 mt-1" />
               </div>
-              <p className="text-[0.65rem] text-zinc-700 pb-2">Sesión iniciada</p>
+              <p className="text-[0.65rem] text-zinc-700 pb-1.5">Sesión iniciada</p>
             </div>
           </div>
         </div>

@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { AnimatePresence, motion } from "framer-motion";
+import { Copy, Check, Layers, AlertTriangle } from "lucide-react";
 import type { SessionNote, ObservationType } from "@/types/session";
 import { OBSERVATION_META } from "@/types/session";
 
@@ -10,18 +12,27 @@ interface Props {
   notes: SessionNote[];
   onAdd: (type: ObservationType, content: string) => void;
   onMarkForSummary: (noteId: string) => void;
+  onConvertToTask: (content: string) => void;
+  onCreateBlocker: (content: string) => void;
 }
 
 const TYPES: ObservationType[] = ["observacion", "riesgo", "bug", "decision"];
 
-export function SessionObservations({ notes, onAdd, onMarkForSummary }: Props) {
+export function SessionObservations({ notes, onAdd, onMarkForSummary, onConvertToTask, onCreateBlocker }: Props) {
   const [selectedType, setSelectedType] = useState<ObservationType>("observacion");
   const [text, setText] = useState("");
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const handleSubmit = () => {
     if (!text.trim()) return;
     onAdd(selectedType, text.trim());
     setText("");
+  };
+
+  const handleCopy = (note: SessionNote) => {
+    navigator.clipboard.writeText(note.content);
+    setCopiedId(note.id);
+    setTimeout(() => setCopiedId(null), 1500);
   };
 
   return (
@@ -75,35 +86,74 @@ export function SessionObservations({ notes, onAdd, onMarkForSummary }: Props) {
         </p>
       ) : (
         <div className="space-y-2">
-          {[...notes].reverse().map(note => {
-            const meta = OBSERVATION_META[note.type];
-            return (
-              <div
-                key={note.id}
-                className={`group relative rounded-lg border border-white/[0.04] bg-zinc-900/30 pl-3 pr-3 py-2 border-l-2 ${meta.border}`}
-              >
-                <div className="flex items-start gap-2">
-                  <span className="text-sm flex-shrink-0 mt-0.5">{meta.emoji}</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs text-zinc-300 leading-relaxed">{note.content}</p>
-                    <p className="text-[0.65rem] text-zinc-600 mt-0.5">
-                      {format(new Date(note.createdAt), "HH:mm", { locale: es })}
-                      {note.markedForSummary && <span className="ml-1.5 text-cyan-600">· en resumen</span>}
-                    </p>
+          <AnimatePresence initial={false}>
+            {[...notes].reverse().map(note => {
+              const meta = OBSERVATION_META[note.type];
+              const isCopied = copiedId === note.id;
+              return (
+                <motion.div
+                  key={note.id}
+                  layout
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.18, ease: "easeOut" }}
+                  className={`group relative rounded-lg border border-white/[0.04] pl-3 pr-3 py-2 border-l-2 ${meta.border} ${meta.tint}`}
+                >
+                  <div className="flex items-start gap-2">
+                    <span className="text-sm flex-shrink-0 mt-0.5">{meta.emoji}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-zinc-300 leading-relaxed">{note.content}</p>
+                      <p className="text-[0.65rem] text-zinc-600 mt-0.5">
+                        {format(new Date(note.createdAt), "HH:mm", { locale: es })}
+                        {note.markedForSummary && <span className="ml-1.5 text-cyan-600">· en resumen</span>}
+                      </p>
+                    </div>
                   </div>
-                  {!note.markedForSummary && (
+
+                  {/* Hover action bar */}
+                  <div className="flex items-center gap-1 mt-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {/* Convert to task */}
                     <button
-                      onClick={() => onMarkForSummary(note.id)}
-                      className="opacity-0 group-hover:opacity-100 text-[0.65rem] text-zinc-600 hover:text-cyan-400 transition-all flex-shrink-0"
-                      title="Añadir al resumen final"
+                      onClick={() => onConvertToTask(note.content)}
+                      className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[0.6rem] border border-white/[0.06] text-zinc-500 hover:text-zinc-200 hover:border-zinc-600 transition-all"
+                      title="Convertir en tarea"
                     >
-                      ➜ Resumen
+                      <Layers className="h-2.5 w-2.5" />
+                      Convertir en tarea
                     </button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+                    {/* Create blocker */}
+                    <button
+                      onClick={() => onCreateBlocker(note.content)}
+                      className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[0.6rem] border border-white/[0.06] text-zinc-500 hover:text-red-400 hover:border-red-500/30 transition-all"
+                      title="Crear bloqueo"
+                    >
+                      <AlertTriangle className="h-2.5 w-2.5" />
+                      Crear bloqueo
+                    </button>
+                    {/* Copy */}
+                    <button
+                      onClick={() => handleCopy(note)}
+                      className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[0.6rem] border border-white/[0.06] text-zinc-500 hover:text-zinc-200 hover:border-zinc-600 transition-all"
+                    >
+                      {isCopied ? <Check className="h-2.5 w-2.5 text-green-400" /> : <Copy className="h-2.5 w-2.5" />}
+                      {isCopied ? "Copiado" : "Copiar"}
+                    </button>
+                    {/* Mark for summary */}
+                    {!note.markedForSummary && (
+                      <button
+                        onClick={() => onMarkForSummary(note.id)}
+                        className="ml-auto rounded px-1.5 py-0.5 text-[0.6rem] text-zinc-600 hover:text-cyan-400 transition-colors"
+                        title="Añadir al resumen final"
+                      >
+                        ➜ Resumen
+                      </button>
+                    )}
+                  </div>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
         </div>
       )}
     </div>

@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import type { CRMProject, CRMTask } from "@/types/crm";
+import type { BlockerType, BlockerImpact, BlockerSource } from "@/types/session";
 import { useWorkSession } from "@/hooks/use-work-session";
 import { useCRM } from "@/components/crm/CRMContextCore";
 import { WorkspaceHeader } from "./WorkspaceHeader";
@@ -10,6 +11,7 @@ import { SessionGoals } from "./SessionGoals";
 import { ActivityWorkspace } from "./ActivityWorkspace";
 import { SessionObservations } from "./SessionObservations";
 import { BlockTracker } from "./BlockTracker";
+import { SessionTimeline } from "./SessionTimeline";
 import { FocusGuard } from "./FocusGuard";
 import { EndSessionDialog } from "./EndSessionDialog";
 import { ExecutionAssistant } from "./ExecutionAssistant";
@@ -28,6 +30,37 @@ export function WorkspaceLayout({ sessionId, project, task, onSessionEnd }: Prop
   const [showEndDialog, setShowEndDialog] = useState(false);
   const ws = useWorkSession(sessionId);
 
+  // ── Blocker stats from historical project sessions ─────────────────────────
+  const blockerStats = useMemo(() => {
+    if (!ws.session) return undefined;
+    const projectSessions = crm.getProjectSessions(project.id).filter(
+      s => s.id !== sessionId // exclude current session
+    );
+    const allBlockers = projectSessions.flatMap(s => s.blockers);
+    if (allBlockers.length === 0) return { lastBlockerDaysAgo: null, avgBlockMinutes: null };
+
+    // Last blocker date
+    const lastTs = allBlockers.reduce((max, b) => {
+      const t = new Date(b.createdAt).getTime();
+      return t > max ? t : max;
+    }, 0);
+    const daysDiff = Math.floor((Date.now() - lastTs) / 86_400_000);
+
+    // Average block time (resolved only)
+    const resolved = allBlockers.filter(b => b.status === "resolved" && b.resolvedAt);
+    const avg = resolved.length > 0
+      ? Math.round(
+          resolved.reduce((sum, b) => {
+            const mins = Math.floor((new Date(b.resolvedAt!).getTime() - new Date(b.createdAt).getTime()) / 60000);
+            return sum + mins;
+          }, 0) / resolved.length
+        )
+      : null;
+
+    return { lastBlockerDaysAgo: daysDiff, avgBlockMinutes: avg };
+  }, [crm, project.id, sessionId, ws.session]);
+
+  // ── Handlers ───────────────────────────────────────────────────────────────
   const handleFinalizeConfirmed = (
     deployStatus: "yes" | "no" | "na",
     commitStatus: boolean,
@@ -59,6 +92,28 @@ export function WorkspaceLayout({ sessionId, project, task, onSessionEnd }: Prop
     );
   }, [ws.session, crm]);
 
+  // Observations → convert to task
+  const handleConvertToTask = useCallback((content: string) => {
+    if (!ws.session) return;
+    crm.addTask(ws.session.clientId, ws.session.projectId, {
+      name: content.length > 60 ? content.slice(0, 58).trimEnd() + "…" : content,
+      desc: content,
+      prio: "low",
+    });
+  }, [ws.session, crm]);
+
+  // Observations → create blocker from content
+  const handleObservationToBlocker = useCallback((content: string) => {
+    if (!ws.session) return;
+    const desc = content.length > 120 ? content.slice(0, 118).trimEnd() + "…" : content;
+    ws.handleAddBlocker(
+      "error_api" as BlockerType,
+      desc,
+      "medium" as BlockerImpact,
+      "technical" as BlockerSource,
+    );
+  }, [ws]);
+
   if (!ws.session) {
     return (
       <div className="flex h-full items-center justify-center text-sm text-zinc-500">
@@ -79,11 +134,16 @@ export function WorkspaceLayout({ sessionId, project, task, onSessionEnd }: Prop
       <div className="flex flex-1 overflow-hidden">
         {/* Left panel — 70% */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4 min-w-0" style={{ maxWidth: "70%" }}>
+          {/* Mini-timeline — only renders once there is at least one activity */}
+          <SessionTimeline session={ws.session} />
+
           <SessionGoals
             goals={ws.session.sessionGoals ?? []}
             onAdd={ws.handleAddGoal}
             onToggle={ws.handleToggleGoal}
             onRemove={ws.handleRemoveGoal}
+            onUpdate={(goalId, text) => crm.updateSessionGoal(sessionId, goalId, text)}
+            onReorder={(goalId, dir) => crm.reorderSessionGoal(sessionId, goalId, dir)}
           />
           <ActivityWorkspace
             activities={ws.session.activities}
@@ -95,11 +155,14 @@ export function WorkspaceLayout({ sessionId, project, task, onSessionEnd }: Prop
             notes={ws.session.notes}
             onAdd={ws.handleAddNote}
             onMarkForSummary={ws.handleMarkNoteForSummary}
+            onConvertToTask={handleConvertToTask}
+            onCreateBlocker={handleObservationToBlocker}
           />
           <BlockTracker
             blockers={ws.session.blockers}
             onAdd={ws.handleAddBlocker}
             onUpdateStatus={ws.handleUpdateBlockerStatus}
+            stats={blockerStats}
           />
         </div>
 

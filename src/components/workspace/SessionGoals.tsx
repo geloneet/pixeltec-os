@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { ChevronUp, ChevronDown } from "lucide-react";
 import type { SessionGoal } from "@/types/session";
 
 interface Props {
@@ -8,13 +10,24 @@ interface Props {
   onAdd: (text: string) => void;
   onToggle: (goalId: string) => void;
   onRemove: (goalId: string) => void;
+  onUpdate: (goalId: string, text: string) => void;
+  onReorder: (goalId: string, direction: "up" | "down") => void;
 }
 
 const MAX_ACTIVE = 3;
 
-export function SessionGoals({ goals, onAdd, onToggle, onRemove }: Props) {
+export function SessionGoals({ goals, onAdd, onToggle, onRemove, onUpdate, onReorder }: Props) {
   const [text, setText] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
+  const [poppingId, setPoppingId] = useState<string | null>(null);
+  const editInputRef = useRef<HTMLInputElement>(null);
   const atLimit = goals.length >= MAX_ACTIVE;
+
+  const completed = goals.filter(g => g.completed);
+  const pct = goals.length > 0 ? Math.round((completed.length / goals.length) * 100) : 0;
+  // First uncompleted goal = active
+  const activeGoalId = goals.find(g => !g.completed)?.id ?? null;
 
   const handleSubmit = () => {
     if (!text.trim()) return;
@@ -22,14 +35,47 @@ export function SessionGoals({ goals, onAdd, onToggle, onRemove }: Props) {
     setText("");
   };
 
+  const handleToggle = (goalId: string) => {
+    const goal = goals.find(g => g.id === goalId);
+    if (goal && !goal.completed) {
+      // Completing — trigger pop
+      setPoppingId(goalId);
+      setTimeout(() => setPoppingId(null), 300);
+    }
+    onToggle(goalId);
+  };
+
+  const startEdit = (goal: SessionGoal) => {
+    setEditingId(goal.id);
+    setEditText(goal.text);
+    setTimeout(() => editInputRef.current?.focus(), 0);
+  };
+
+  const commitEdit = (goalId: string) => {
+    if (editText.trim()) onUpdate(goalId, editText.trim());
+    setEditingId(null);
+  };
+
   return (
     <div className="rounded-xl border border-white/[0.06] bg-zinc-900/20 p-4">
+      {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <p className="text-xs font-semibold text-zinc-400">Objetivos de esta sesión</p>
         {goals.length > 0 && (
-          <span className="text-[0.65rem] text-zinc-600">
-            {goals.filter(g => g.completed).length}/{goals.length} completados
-          </span>
+          <div className="flex items-center gap-2">
+            {/* Progress bar */}
+            <div className="flex items-center gap-1.5">
+              <div className="w-16 h-1 rounded-full bg-zinc-800 overflow-hidden">
+                <motion.div
+                  className="h-full rounded-full bg-green-500/70"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${pct}%` }}
+                  transition={{ duration: 0.3, ease: "easeOut" }}
+                />
+              </div>
+              <span className="text-[0.65rem] text-zinc-500 tabular-nums">{pct}%</span>
+            </div>
+          </div>
         )}
       </div>
 
@@ -39,36 +85,125 @@ export function SessionGoals({ goals, onAdd, onToggle, onRemove }: Props) {
         </p>
       ) : (
         <ul className="space-y-1.5 mb-3">
-          {goals.map(goal => (
-            <li key={goal.id} className="group flex items-start gap-2">
-              <button
-                onClick={() => onToggle(goal.id)}
-                className={`mt-0.5 h-3.5 w-3.5 flex-shrink-0 rounded border transition-all ${
-                  goal.completed
-                    ? "border-green-500 bg-green-500/20"
-                    : "border-zinc-600 hover:border-zinc-400"
-                }`}
-                aria-label={goal.completed ? "Marcar como pendiente" : "Marcar como completado"}
-              >
-                {goal.completed && (
-                  <span className="flex h-full items-center justify-center text-[9px] text-green-400">✓</span>
-                )}
-              </button>
-              <span className={`text-xs flex-1 leading-relaxed ${goal.completed ? "line-through text-zinc-600" : "text-zinc-300"}`}>
-                {goal.text}
-              </span>
-              <button
-                onClick={() => onRemove(goal.id)}
-                className="opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-zinc-400 text-[10px] transition-opacity flex-shrink-0 mt-0.5"
-                aria-label="Eliminar objetivo"
-              >
-                ×
-              </button>
-            </li>
-          ))}
+          <AnimatePresence initial={false}>
+            {goals.map((goal, i) => {
+              const isActive = goal.id === activeGoalId;
+              const isPopping = goal.id === poppingId;
+              const isEditing = goal.id === editingId;
+
+              return (
+                <motion.li
+                  key={goal.id}
+                  layout
+                  initial={{ opacity: 0, y: -6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.18, ease: "easeOut" }}
+                  className={`group flex items-start gap-2 rounded-lg px-2 py-1.5 -mx-2 transition-colors ${
+                    isActive
+                      ? "border border-cyan-500/20 bg-cyan-500/[0.04]"
+                      : "border border-transparent"
+                  }`}
+                >
+                  {/* Checkbox */}
+                  <motion.button
+                    onClick={() => handleToggle(goal.id)}
+                    animate={isPopping ? { scale: [1, 1.3, 1] } : { scale: 1 }}
+                    transition={{ duration: 0.2, ease: "easeOut" }}
+                    className={`mt-0.5 h-3.5 w-3.5 flex-shrink-0 rounded border transition-all ${
+                      goal.completed
+                        ? "border-green-500 bg-green-500/20"
+                        : isActive
+                          ? "border-cyan-500/50 hover:border-cyan-400"
+                          : "border-zinc-600 hover:border-zinc-400"
+                    }`}
+                    aria-label={goal.completed ? "Marcar como pendiente" : "Marcar como completado"}
+                  >
+                    {goal.completed && (
+                      <span className="flex h-full items-center justify-center text-[9px] text-green-400">✓</span>
+                    )}
+                  </motion.button>
+
+                  {/* Content */}
+                  <div className="flex-1 min-w-0">
+                    {isEditing ? (
+                      <input
+                        ref={editInputRef}
+                        type="text"
+                        value={editText}
+                        onChange={e => setEditText(e.target.value)}
+                        onBlur={() => commitEdit(goal.id)}
+                        onKeyDown={e => {
+                          if (e.key === "Enter") { e.preventDefault(); commitEdit(goal.id); }
+                          if (e.key === "Escape") { setEditingId(null); }
+                        }}
+                        className="w-full bg-transparent text-xs text-zinc-200 focus:outline-none border-b border-cyan-500/30"
+                      />
+                    ) : (
+                      <span
+                        className={`text-xs leading-relaxed ${
+                          goal.completed ? "line-through text-zinc-600" : "text-zinc-300"
+                        }`}
+                      >
+                        {goal.text}
+                      </span>
+                    )}
+                    {isActive && !goal.completed && !isEditing && (
+                      <p className="text-[0.6rem] text-cyan-500/70 mt-0.5 flex items-center gap-1">
+                        <span>▶</span> Actualmente trabajando
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Hover actions */}
+                  {!isEditing && (
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                      {/* Reorder up */}
+                      {i > 0 && (
+                        <button
+                          onClick={() => onReorder(goal.id, "up")}
+                          className="text-zinc-600 hover:text-zinc-400 transition-colors"
+                          aria-label="Mover arriba"
+                        >
+                          <ChevronUp className="h-3 w-3" />
+                        </button>
+                      )}
+                      {/* Reorder down */}
+                      {i < goals.length - 1 && (
+                        <button
+                          onClick={() => onReorder(goal.id, "down")}
+                          className="text-zinc-600 hover:text-zinc-400 transition-colors"
+                          aria-label="Mover abajo"
+                        >
+                          <ChevronDown className="h-3 w-3" />
+                        </button>
+                      )}
+                      {/* Edit */}
+                      <button
+                        onClick={() => startEdit(goal)}
+                        className="text-[10px] text-zinc-600 hover:text-zinc-400 transition-colors px-1"
+                        aria-label="Editar"
+                      >
+                        ✎
+                      </button>
+                      {/* Remove */}
+                      <button
+                        onClick={() => onRemove(goal.id)}
+                        className="text-zinc-600 hover:text-zinc-400 text-[10px] transition-colors"
+                        aria-label="Eliminar objetivo"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  )}
+                </motion.li>
+              );
+            })}
+          </AnimatePresence>
         </ul>
       )}
 
+      {/* Add input */}
       <div className="flex gap-2">
         <input
           type="text"

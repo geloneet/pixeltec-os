@@ -12,6 +12,17 @@ interface Props {
   onFinalize: () => void;
 }
 
+function productivityLabel(completedCount: number, elapsed: number): string {
+  if (elapsed < 600) return ""; // less than 10 min — don't show yet
+  if (completedCount === 0) return "Empezando";
+  // Activities per hour ratio
+  const hours = elapsed / 3600;
+  const rate = completedCount / Math.max(hours, 0.25);
+  if (rate >= 3) return "Productividad alta";
+  if (rate >= 1.5) return "Productividad media";
+  return "Ritmo pausado";
+}
+
 const PRIO_LABELS: Record<CRMTask["prio"], string> = {
   urgent_important: "Urgente e importante",
   important: "Alta",
@@ -101,6 +112,18 @@ export function WorkspaceHeader({ session, task, elapsed, onFinalize }: Props) {
             </span>
             <SessionHealth session={session} />
           </div>
+          {/* Context line */}
+          {(() => {
+            const completedCount = session.activities.filter(a => !!a.completedAt).length;
+            const label = productivityLabel(completedCount, elapsed);
+            if (!label) return null;
+            return (
+              <p className="text-[0.65rem] text-zinc-600 tabular-nums">
+                {completedCount > 0 && `${completedCount} actividad${completedCount !== 1 ? "es" : ""} · `}
+                {label}
+              </p>
+            );
+          })()}
         </div>
         <button
           onClick={onFinalize}

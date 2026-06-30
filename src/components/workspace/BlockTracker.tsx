@@ -3,15 +3,22 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { AnimatePresence, motion } from "framer-motion";
 import type { SessionBlocker, BlockerType, BlockerStatus, BlockerImpact, BlockerSource } from "@/types/session";
 import {
   BLOCKER_LABELS, BLOCKER_STATUS_LABELS, BLOCKER_IMPACT_LABELS, BLOCKER_SOURCE_LABELS,
 } from "@/types/session";
 
+interface BlockerStats {
+  lastBlockerDaysAgo: number | null;   // null = never
+  avgBlockMinutes: number | null;      // null = no resolved blockers
+}
+
 interface Props {
   blockers: SessionBlocker[];
   onAdd: (type: BlockerType, description: string, impact: BlockerImpact, source: BlockerSource) => void;
   onUpdateStatus: (blockerId: string, status: BlockerStatus) => void;
+  stats?: BlockerStats;
 }
 
 const BLOCKER_TYPES: BlockerType[] = ["error_api", "acceso_faltante", "pendiente_cliente", "dependencia_externa"];
@@ -50,7 +57,14 @@ function BlockerCard({
   const isResolved = blocker.status === "resolved";
 
   return (
-    <div className={`rounded-lg border p-3 ${colorClass} ${isResolved ? "opacity-60" : ""}`}>
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: -4 }}
+      animate={{ opacity: isResolved ? 0.6 : 1, y: 0 }}
+      exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+      transition={{ duration: 0.2, ease: "easeOut" }}
+      className={`group rounded-lg border p-3 ${colorClass}`}
+    >
       <div className="flex items-start gap-2 mb-1.5">
         <span className="text-sm flex-shrink-0">{STATUS_DOT[blocker.status]}</span>
         <div className="flex-1 min-w-0">
@@ -69,7 +83,7 @@ function BlockerCard({
       </div>
 
       {!isResolved && (
-        <div className="flex gap-1.5 mt-2">
+        <div className="flex gap-1.5 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
           {blocker.status === "active" && (
             <>
               <button
@@ -82,7 +96,7 @@ function BlockerCard({
                 onClick={() => onUpdateStatus(blocker.id, "resolved")}
                 className="rounded px-2 py-0.5 text-[0.65rem] border border-green-500/20 text-green-400 hover:bg-green-500/10 transition-all"
               >
-                Marcar resuelto
+                Resolver ✓
               </button>
             </>
           )}
@@ -98,17 +112,17 @@ function BlockerCard({
                 onClick={() => onUpdateStatus(blocker.id, "resolved")}
                 className="rounded px-2 py-0.5 text-[0.65rem] border border-green-500/20 text-green-400 hover:bg-green-500/10 transition-all"
               >
-                Marcar resuelto
+                Resolver ✓
               </button>
             </>
           )}
         </div>
       )}
-    </div>
+    </motion.div>
   );
 }
 
-export function BlockTracker({ blockers, onAdd, onUpdateStatus }: Props) {
+export function BlockTracker({ blockers, onAdd, onUpdateStatus, stats }: Props) {
   const [open, setOpen] = useState(false);
   const [type, setType] = useState<BlockerType>("error_api");
   const [description, setDescription] = useState("");
@@ -125,6 +139,7 @@ export function BlockTracker({ blockers, onAdd, onUpdateStatus }: Props) {
   const active = blockers.filter(b => b.status === "active");
   const waiting = blockers.filter(b => b.status === "waiting");
   const resolved = blockers.filter(b => b.status === "resolved");
+  const isEmpty = active.length === 0 && waiting.length === 0 && resolved.length === 0;
 
   return (
     <div className="rounded-xl border border-white/[0.06] bg-zinc-900/20 p-4">
@@ -145,6 +160,7 @@ export function BlockTracker({ blockers, onAdd, onUpdateStatus }: Props) {
         </button>
       </div>
 
+      {/* Report form */}
       {open && (
         <div className="mb-3 rounded-lg border border-white/[0.06] bg-zinc-900/40 p-3 space-y-2">
           <select
@@ -214,24 +230,63 @@ export function BlockTracker({ blockers, onAdd, onUpdateStatus }: Props) {
         </div>
       )}
 
-      {active.length === 0 && waiting.length === 0 && resolved.length === 0 && !open && (
-        <p className="text-xs text-zinc-600 text-center py-2">Sin bloqueos activos.</p>
-      )}
-
-      {(active.length > 0 || waiting.length > 0) && (
-        <div className="space-y-2 mb-2">
-          {[...active, ...waiting].map(b => (
-            <BlockerCard key={b.id} blocker={b} onUpdateStatus={onUpdateStatus} />
-          ))}
+      {/* Empty state with stats */}
+      {isEmpty && !open && (
+        <div className="py-2">
+          <div className="flex items-center gap-1.5 mb-1">
+            <span className="text-[0.65rem] text-green-400">✓</span>
+            <span className="text-xs text-zinc-500">Sin bloqueos activos</span>
+          </div>
+          {stats ? (
+            <div className="space-y-0.5 pl-4">
+              {stats.lastBlockerDaysAgo !== null && (
+                <p className="text-[0.65rem] text-zinc-700">
+                  Último bloqueo:{" "}
+                  <span className="text-zinc-600">
+                    {stats.lastBlockerDaysAgo === 0
+                      ? "hoy (otra sesión)"
+                      : stats.lastBlockerDaysAgo === 1
+                        ? "hace 1 día"
+                        : `hace ${stats.lastBlockerDaysAgo} días`}
+                  </span>
+                </p>
+              )}
+              {stats.avgBlockMinutes !== null && (
+                <p className="text-[0.65rem] text-zinc-700">
+                  Tiempo promedio bloqueado:{" "}
+                  <span className="text-zinc-600">{stats.avgBlockMinutes} min</span>
+                </p>
+              )}
+              {stats.lastBlockerDaysAgo === null && (
+                <p className="text-[0.65rem] text-zinc-700">Sin bloqueos · todo fluido</p>
+              )}
+            </div>
+          ) : (
+            <p className="text-[0.65rem] text-zinc-700 pl-4">Sin bloqueos · todo fluido</p>
+          )}
         </div>
       )}
 
+      {/* Active + waiting */}
+      {(active.length > 0 || waiting.length > 0) && (
+        <div className="space-y-2 mb-2">
+          <AnimatePresence>
+            {[...active, ...waiting].map(b => (
+              <BlockerCard key={b.id} blocker={b} onUpdateStatus={onUpdateStatus} />
+            ))}
+          </AnimatePresence>
+        </div>
+      )}
+
+      {/* Resolved */}
       {resolved.length > 0 && (
         <div className="space-y-1.5 mt-2 border-t border-white/[0.04] pt-2">
           <p className="text-[0.65rem] text-zinc-700 font-medium uppercase tracking-wider">Resueltos</p>
-          {resolved.map(b => (
-            <BlockerCard key={b.id} blocker={b} onUpdateStatus={onUpdateStatus} />
-          ))}
+          <AnimatePresence>
+            {resolved.map(b => (
+              <BlockerCard key={b.id} blocker={b} onUpdateStatus={onUpdateStatus} />
+            ))}
+          </AnimatePresence>
         </div>
       )}
     </div>

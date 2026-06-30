@@ -25,22 +25,29 @@ const PROMPT_LABELS: Record<PromptKey, string> = {
   libre:     "Pregunta libre",
 };
 
-function computeHealth(session: WorkSession, elapsed: number): HealthStatus {
-  const activeBlockers = session.blockers.filter(b => b.status === "active");
-  const riskObs = session.notes.filter(n => (n.type === "riesgo" || n.type === "bug") && n.markedForSummary);
-  if (activeBlockers.length > 0 || riskObs.length > 0) return "risk";
+function computeHealthScore(session: WorkSession, elapsed: number): number {
+  let score = 100;
 
+  const activeBlockers = session.blockers.filter(b => b.status === "active");
   const waitingBlockers = session.blockers.filter(b => b.status === "waiting");
+  const riskObs = session.notes.filter(n => (n.type === "riesgo" || n.type === "bug") && n.markedForSummary);
   const hasActiveActivity = session.activities.some(a => !a.completedAt);
   const completedGoals = (session.sessionGoals ?? []).filter(g => g.completed).length;
   const totalGoals = (session.sessionGoals ?? []).length;
 
-  if (
-    waitingBlockers.length > 0 ||
-    (elapsed > 3600 && !hasActiveActivity) ||
-    (elapsed > 2700 && totalGoals > 0 && completedGoals === 0)
-  ) return "attention";
+  score -= activeBlockers.length * 20;
+  score -= waitingBlockers.length * 8;
+  score -= riskObs.length * 10;
+  if (elapsed > 3600 && !hasActiveActivity) score -= 12;
+  if (elapsed > 2700 && totalGoals > 0 && completedGoals === 0) score -= 8;
 
+  return Math.max(0, Math.min(100, score));
+}
+
+function computeHealth(session: WorkSession, elapsed: number): HealthStatus {
+  const score = computeHealthScore(session, elapsed);
+  if (score < 60) return "risk";
+  if (score < 80) return "attention";
   return "healthy";
 }
 
@@ -108,6 +115,7 @@ const DEPLOY_CHECKLIST = [
 
 export function ExecutionAssistant({ session, project, elapsed, onSaveAsObservation, onSaveToBitacora }: Props) {
   const health = computeHealth(session, elapsed);
+  const score = computeHealthScore(session, elapsed);
   const hConf = HEALTH_CONFIG[health];
   const commands = getCommands(project.tech ?? "");
 
@@ -121,6 +129,7 @@ export function ExecutionAssistant({ session, project, elapsed, onSaveAsObservat
   const [lastPrompt, setLastPrompt] = useState<{ key: PromptKey; label: string; ago: number } | null>(null);
   const [freeText, setFreeText] = useState("");
   const [copied, setCopied] = useState(false);
+  const [copiedCmdIdx, setCopiedCmdIdx] = useState<number | null>(null);
 
   const runPrompt = useCallback(async (key: PromptKey, custom?: string) => {
     setAiLoading(true);
@@ -148,16 +157,25 @@ export function ExecutionAssistant({ session, project, elapsed, onSaveAsObservat
     setTimeout(() => setCopied(false), 1500);
   };
 
+  const handleCopyCmd = (idx: number, cmd: string) => {
+    navigator.clipboard.writeText(cmd);
+    setCopiedCmdIdx(idx);
+    setTimeout(() => setCopiedCmdIdx(null), 1500);
+  };
+
   const completedGoals = (session.sessionGoals ?? []).filter(g => g.completed).length;
   const totalGoals = (session.sessionGoals ?? []).length;
   const inProgressActivity = session.activities.find(a => !a.completedAt);
 
   return (
     <div className="flex flex-col gap-0 h-full overflow-y-auto pb-6">
-      {/* Session health */}
-      <div className={`flex items-center gap-2 px-4 py-2.5 border-b border-white/[0.04] ${hConf.text}`}>
-        <span className={`h-2 w-2 rounded-full flex-shrink-0 ${hConf.dot}`} />
-        <span className="text-xs font-medium">{hConf.label}</span>
+      {/* Session health with numeric score */}
+      <div className={`flex items-center justify-between px-4 py-2.5 border-b border-white/[0.04] ${hConf.text}`}>
+        <div className="flex items-center gap-2">
+          <span className={`h-2 w-2 rounded-full flex-shrink-0 ${hConf.dot}`} />
+          <span className="text-xs font-medium">{hConf.label}</span>
+        </div>
+        <span className="text-xs font-mono font-medium tabular-nums opacity-80">{score}</span>
       </div>
 
       <div className="px-4 py-3 space-y-0 divide-y divide-white/[0.04]">
@@ -234,22 +252,26 @@ export function ExecutionAssistant({ session, project, elapsed, onSaveAsObservat
           </div>
         </CollapsibleSection>
 
-        {/* Comandos */}
+        {/* Comandos — snippet style */}
         <CollapsibleSection title="Comandos" defaultOpen={false}>
           <div className="space-y-2 pt-1">
             {commands.map((c, i) => (
-              <div key={i} className="flex items-center justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="font-mono text-[0.7rem] text-cyan-400 truncate">{c.cmd}</p>
-                  <p className="text-[0.65rem] text-zinc-600">{c.desc}</p>
+              <div key={i} className="group rounded-lg bg-black/40 border border-white/[0.06] px-2.5 py-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-mono text-[0.7rem] text-cyan-400 truncate">{c.cmd}</p>
+                    <p className="text-[0.65rem] text-zinc-600 mt-0.5">{c.desc}</p>
+                  </div>
+                  <button
+                    onClick={() => handleCopyCmd(i, c.cmd)}
+                    className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[0.6rem] border border-white/[0.06] text-zinc-600 hover:text-zinc-300 hover:border-zinc-600 transition-all flex-shrink-0 mt-0.5"
+                  >
+                    {copiedCmdIdx === i
+                      ? <><Check className="h-2.5 w-2.5 text-green-400" /> Copiado</>
+                      : <><Copy className="h-2.5 w-2.5" /> Copiar</>
+                    }
+                  </button>
                 </div>
-                <button
-                  onClick={() => navigator.clipboard.writeText(c.cmd)}
-                  className="text-[0.65rem] text-zinc-600 hover:text-zinc-400 transition-colors flex-shrink-0"
-                  title="Copiar"
-                >
-                  <Copy className="h-3 w-3" />
-                </button>
               </div>
             ))}
           </div>

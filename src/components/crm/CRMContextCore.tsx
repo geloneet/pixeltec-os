@@ -14,6 +14,11 @@ function uid(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 }
 
+// Firestore rejects undefined values — strip them recursively before saving
+function stripUndefined<T>(obj: T): T {
+  return JSON.parse(JSON.stringify(obj));
+}
+
 interface CRMContextValue {
   clients: CRMClient[];
   tools: Tool[];
@@ -55,6 +60,8 @@ interface CRMContextValue {
   addSessionGoal: (sessionId: string, text: string) => void;
   toggleSessionGoal: (sessionId: string, goalId: string) => void;
   removeSessionGoal: (sessionId: string, goalId: string) => void;
+  updateSessionGoal: (sessionId: string, goalId: string, text: string) => void;
+  reorderSessionGoal: (sessionId: string, goalId: string, direction: "up" | "down") => void;
   addSessionNote: (sessionId: string, type: ObservationType, content: string) => void;
   markNoteForSummary: (sessionId: string, noteId: string) => void;
   addSessionBlocker: (sessionId: string, type: BlockerType, description: string, impact: BlockerImpact, source: BlockerSource) => void;
@@ -161,14 +168,14 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(async () => {
       try {
-        await setDoc(doc(firestore, "crm_data", userUid), {
+        await setDoc(doc(firestore, "crm_data", userUid), stripUndefined({
           clients: dataRef.current.clients,
           tools: dataRef.current.tools,
           streak: dataRef.current.streak,
           serverLinks: dataRef.current.serverLinks,
           sessions: dataRef.current.sessions,
           lastActivity: new Date().toISOString(),
-        });
+        }));
       } catch (error) {
         console.error('Error saving CRM data:', error);
         toast.error('Error al guardar cambios', {
@@ -536,6 +543,29 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     updateSessions(updated);
   }, [updateSessions]);
 
+  const updateSessionGoal = useCallback((sessionId: string, goalId: string, text: string) => {
+    const updated = dataRef.current.sessions.map(s =>
+      s.id === sessionId
+        ? { ...s, sessionGoals: (s.sessionGoals ?? []).map(g => g.id === goalId ? { ...g, text } : g) }
+        : s
+    );
+    updateSessions(updated);
+  }, [updateSessions]);
+
+  const reorderSessionGoal = useCallback((sessionId: string, goalId: string, direction: "up" | "down") => {
+    const updated = dataRef.current.sessions.map(s => {
+      if (s.id !== sessionId) return s;
+      const goals = [...(s.sessionGoals ?? [])];
+      const idx = goals.findIndex(g => g.id === goalId);
+      if (idx === -1) return s;
+      const targetIdx = direction === "up" ? idx - 1 : idx + 1;
+      if (targetIdx < 0 || targetIdx >= goals.length) return s;
+      [goals[idx], goals[targetIdx]] = [goals[targetIdx], goals[idx]];
+      return { ...s, sessionGoals: goals };
+    });
+    updateSessions(updated);
+  }, [updateSessions]);
+
   const addSessionNote = useCallback((sessionId: string, type: ObservationType, content: string) => {
     const note = {
       id: uid(), type, content, createdAt: new Date().toISOString(),
@@ -638,7 +668,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       addProjectLogEntry,
       sessions,
       startSession, startActivity, updateCurrentActivity, completeActivity,
-      addSessionGoal, toggleSessionGoal, removeSessionGoal,
+      addSessionGoal, toggleSessionGoal, removeSessionGoal, updateSessionGoal, reorderSessionGoal,
       addSessionNote, markNoteForSummary,
       addSessionBlocker, updateBlockerStatus,
       endSession, getProjectSessions,
