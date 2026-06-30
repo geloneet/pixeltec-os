@@ -139,7 +139,7 @@ export function ProjectTaskCard({
       {/* Row 3: status chip + CTA */}
       <div className="mt-3 flex items-center justify-between pl-[18px]">
         <TaskStatusDropdown status={task.status} onChange={onUpdateStatus} />
-        {!hideCTA && (
+        {(!hideCTA || !!activeSession) && (
           <button
             onClick={onStartSession}
             className={cn(
