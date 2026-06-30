@@ -233,37 +233,39 @@ export function BlockTracker({ blockers, onAdd, onUpdateStatus, stats }: Props) 
 
       {/* Empty state with stats */}
       {isEmpty && !open && (
-        <div className="py-2">
-          <div className="flex items-center gap-1.5 mb-1">
-            <CheckCircle2 className="h-3.5 w-3.5 text-green-400/70 flex-shrink-0" />
-            <span className="text-xs text-zinc-500">Sin bloqueos activos</span>
+        <div className="py-1">
+          {/* Status row */}
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-green-400/80 flex-shrink-0" />
+              <div>
+                <p className="text-xs text-zinc-300 font-medium">Todo despejado</p>
+                <p className="text-[0.65rem] text-zinc-600">0 bloqueos activos</p>
+              </div>
+            </div>
           </div>
-          {stats ? (
-            <div className="space-y-0.5 pl-4">
-              {stats.lastBlockerDaysAgo !== null && (
-                <p className="text-[0.65rem] text-zinc-700">
-                  Último bloqueo:{" "}
-                  <span className="text-zinc-600">
-                    {stats.lastBlockerDaysAgo === 0
-                      ? "hoy (otra sesión)"
-                      : stats.lastBlockerDaysAgo === 1
-                        ? "hace 1 día"
-                        : `hace ${stats.lastBlockerDaysAgo} días`}
-                  </span>
+          {/* Stats grid */}
+          {stats && stats.lastBlockerDaysAgo !== null ? (
+            <div className="grid grid-cols-2 gap-2">
+              <div className="rounded-lg bg-zinc-900/40 border border-white/[0.04] px-3 py-2">
+                <p className="text-[0.6rem] text-zinc-600 uppercase tracking-wider mb-0.5">Último bloqueo</p>
+                <p className="text-xs text-zinc-400">
+                  {stats.lastBlockerDaysAgo === 0
+                    ? "Hoy"
+                    : stats.lastBlockerDaysAgo === 1
+                      ? "Hace 1 día"
+                      : `Hace ${stats.lastBlockerDaysAgo} días`}
                 </p>
-              )}
-              {stats.avgBlockMinutes !== null && (
-                <p className="text-[0.65rem] text-zinc-700">
-                  Tiempo promedio bloqueado:{" "}
-                  <span className="text-zinc-600">{stats.avgBlockMinutes} min</span>
+              </div>
+              <div className="rounded-lg bg-zinc-900/40 border border-white/[0.04] px-3 py-2">
+                <p className="text-[0.6rem] text-zinc-600 uppercase tracking-wider mb-0.5">Promedio bloqueado</p>
+                <p className="text-xs text-zinc-400">
+                  {stats.avgBlockMinutes !== null ? `${stats.avgBlockMinutes} min` : "—"}
                 </p>
-              )}
-              {stats.lastBlockerDaysAgo === null && (
-                <p className="text-[0.65rem] text-zinc-700">Sin bloqueos · todo fluido</p>
-              )}
+              </div>
             </div>
           ) : (
-            <p className="text-[0.65rem] text-zinc-700 pl-4">Sin bloqueos · todo fluido</p>
+            <p className="text-[0.65rem] text-zinc-700">Sin historial de bloqueos · flujo limpio</p>
           )}
         </div>
       )}

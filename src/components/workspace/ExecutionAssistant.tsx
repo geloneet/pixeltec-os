@@ -175,7 +175,10 @@ export function ExecutionAssistant({ session, project, elapsed, onSaveAsObservat
           <span className={`h-2 w-2 rounded-full flex-shrink-0 ${hConf.dot}`} />
           <span className="text-xs font-medium">{hConf.label}</span>
         </div>
-        <span className="text-xs font-mono font-medium tabular-nums opacity-80">{score}</span>
+        <div className="flex items-center gap-1.5">
+          <span className="text-[0.6rem] text-zinc-700">Health Score</span>
+          <span className="text-xs font-mono font-semibold tabular-nums">{score}/100</span>
+        </div>
       </div>
 
       <div className="px-4 py-3 space-y-0 divide-y divide-white/[0.04]">
@@ -184,8 +187,16 @@ export function ExecutionAssistant({ session, project, elapsed, onSaveAsObservat
         <CollapsibleSection title="Contexto">
           <div className="space-y-1 pt-1">
             <div className="flex justify-between text-xs">
+              <span className="text-zinc-600">Cliente</span>
+              <span className="text-zinc-300 text-right truncate max-w-[60%]">{session.clientName}</span>
+            </div>
+            <div className="flex justify-between text-xs">
               <span className="text-zinc-600">Proyecto</span>
-              <span className="text-zinc-300">{session.projectName}</span>
+              <span className="text-zinc-400 text-right truncate max-w-[60%]">{session.projectName}</span>
+            </div>
+            <div className="flex justify-between text-xs gap-2">
+              <span className="text-zinc-600 flex-shrink-0">Tarea</span>
+              <span className="text-zinc-400 text-right truncate">{session.taskName}</span>
             </div>
             {project.tech && (
               <div className="flex justify-between text-xs">

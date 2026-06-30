@@ -133,7 +133,7 @@ export function WorkspaceLayout({ sessionId, project, task, onSessionEnd }: Prop
 
       <div className="flex flex-1 overflow-hidden">
         {/* Left panel — 70% */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4 min-w-0" style={{ maxWidth: "70%" }}>
+        <div className="flex-1 overflow-y-auto p-6 space-y-4 min-w-0" style={{ maxWidth: "73%" }}>
           {/* Mini-timeline — only renders once there is at least one activity */}
           <SessionTimeline session={ws.session} />
 
@@ -166,8 +166,8 @@ export function WorkspaceLayout({ sessionId, project, task, onSessionEnd }: Prop
           />
         </div>
 
-        {/* Right panel — 30% */}
-        <div className="w-[30%] flex-shrink-0 overflow-y-auto border-l border-white/[0.04]">
+        {/* Right panel — 27% */}
+        <div className="w-[27%] flex-shrink-0 overflow-y-auto border-l border-white/[0.04]">
           <ExecutionAssistant
             session={ws.session}
             project={project}

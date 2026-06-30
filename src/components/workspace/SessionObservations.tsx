@@ -56,19 +56,26 @@ export function SessionObservations({ notes, onAdd, onMarkForSummary, onConvertT
         {TYPES.map(t => {
           const meta = OBSERVATION_META[t];
           const Icon = OBS_ICONS[t];
+          const isSelected = selectedType === t;
           return (
-            <button
-              key={t}
-              onClick={() => setSelectedType(t)}
-              title={meta.label}
-              className={`rounded-lg px-2.5 py-1.5 transition-all ${
-                selectedType === t
-                  ? `bg-zinc-800 border border-white/[0.1] ${meta.iconColor}`
-                  : "text-zinc-600 hover:text-zinc-400 border border-transparent"
-              }`}
-            >
-              <Icon className="h-3.5 w-3.5" />
-            </button>
+            <div key={t} className="group/tip relative">
+              <button
+                onClick={() => setSelectedType(t)}
+                className={`rounded-lg px-2.5 py-1.5 transition-all ${
+                  isSelected
+                    ? `bg-zinc-800 border border-white/[0.1] ${meta.iconColor}`
+                    : "text-zinc-600 hover:text-zinc-400 border border-transparent"
+                }`}
+              >
+                <Icon className="h-3.5 w-3.5" />
+              </button>
+              {/* Hover label tooltip */}
+              {!isSelected && (
+                <span className="pointer-events-none absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-zinc-800 px-1.5 py-0.5 text-[0.6rem] text-zinc-400 opacity-0 group-hover/tip:opacity-100 transition-opacity z-10 border border-white/[0.06]">
+                  {meta.label}
+                </span>
+              )}
+            </div>
           );
         })}
         <span className="text-[0.65rem] text-zinc-600 self-center ml-1">
@@ -98,9 +105,15 @@ export function SessionObservations({ notes, onAdd, onMarkForSummary, onConvertT
 
       {/* Notes feed */}
       {notes.length === 0 ? (
-        <p className="text-xs text-zinc-600 text-center py-2">
-          Nada anotado todavía. Las observaciones importantes aparecerán aquí.
-        </p>
+        <div className="flex flex-col items-center text-center py-4 gap-2">
+          <Lightbulb className="h-6 w-6 text-zinc-700" />
+          <div>
+            <p className="text-xs text-zinc-400 font-medium">Anota lo que descubres</p>
+            <p className="text-[0.65rem] text-zinc-600 mt-1 leading-relaxed max-w-[200px]">
+              Decisiones · Errores · Descubrimientos · Riesgos
+            </p>
+          </div>
+        </div>
       ) : (
         <div className="space-y-2">
           <AnimatePresence initial={false}>

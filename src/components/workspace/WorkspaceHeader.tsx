@@ -15,12 +15,23 @@ interface Props {
 function productivityLabel(completedCount: number, elapsed: number): string {
   if (elapsed < 600) return ""; // less than 10 min — don't show yet
   if (completedCount === 0) return "Empezando";
-  // Activities per hour ratio
   const hours = elapsed / 3600;
   const rate = completedCount / Math.max(hours, 0.25);
   if (rate >= 3) return "Productividad alta";
   if (rate >= 1.5) return "Productividad media";
   return "Ritmo pausado";
+}
+
+function focusLabel(session: WorkSession, elapsed: number): string | null {
+  if (elapsed < 300) return null; // first 5 min — don't show
+  const activeBlockers = session.blockers.filter(b => b.status === "active");
+  if (activeBlockers.length > 0) return "Bloqueado";
+  const hasActiveActivity = session.activities.some(a => !a.completedAt);
+  const completedCount = session.activities.filter(a => !!a.completedAt).length;
+  if (elapsed > 2700 && !hasActiveActivity && completedCount === 0) return "Foco bajo";
+  if (completedCount >= 2 || hasActiveActivity) return "Foco alto";
+  if (completedCount >= 1) return "Foco medio";
+  return "Foco alto";
 }
 
 const PRIO_LABELS: Record<CRMTask["prio"], string> = {
@@ -91,12 +102,31 @@ export function WorkspaceHeader({ session, task, elapsed, onFinalize }: Props) {
             <span className="text-zinc-200 font-medium">{session.taskName}</span>
           </p>
         </div>
-        <p className="text-[0.7rem] text-zinc-600 pl-[calc(0.75rem+0.25rem+12px)]">
-          Trabajando desde las {formatStartTime(session.startedAt)}
-          {task.prio !== "low" && (
-            <span className="ml-2">· {PRIO_LABELS[task.prio]}</span>
-          )}
-        </p>
+        <div className="flex items-center gap-2 pl-[calc(0.75rem+0.25rem+12px)]">
+          <p className="text-[0.7rem] text-zinc-600">
+            Trabajando desde las {formatStartTime(session.startedAt)}
+            {task.prio !== "low" && (
+              <span className="ml-2">· {PRIO_LABELS[task.prio]}</span>
+            )}
+          </p>
+          {(() => {
+            const label = focusLabel(session, elapsed);
+            if (!label) return null;
+            const isBlocker = label === "Bloqueado";
+            const isLow = label === "Foco bajo";
+            return (
+              <span className={`text-[0.6rem] font-medium px-1.5 py-0.5 rounded border ${
+                isBlocker
+                  ? "text-red-400 border-red-500/20 bg-red-500/[0.06]"
+                  : isLow
+                    ? "text-amber-400 border-amber-500/20 bg-amber-500/[0.04]"
+                    : "text-cyan-500/80 border-cyan-500/20 bg-cyan-500/[0.04]"
+              }`}>
+                {label}
+              </span>
+            );
+          })()}
+        </div>
       </div>
 
       {/* Right: timer + status + action */}

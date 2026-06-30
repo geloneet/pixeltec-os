@@ -327,7 +327,17 @@ export function ActivityWorkspace({ activities, onStart, onDone, onUpdateText }:
 
       {/* Empty state */}
       {!inProgress && completed.length === 0 && !showStartForm && (
-        <p className="text-xs text-zinc-600 mb-3">Ninguna actividad registrada aún.</p>
+        <div className="flex flex-col items-center text-center py-4 mb-2 gap-2">
+          <div className="h-8 w-8 rounded-xl bg-zinc-800/60 flex items-center justify-center">
+            <Play className="h-4 w-4 text-zinc-600" />
+          </div>
+          <div>
+            <p className="text-xs text-zinc-400 font-medium">Comienza tu primera actividad</p>
+            <p className="text-[0.65rem] text-zinc-600 mt-0.5 max-w-[200px] leading-relaxed">
+              Las actividades registran en qué inviertes tu tiempo durante la sesión.
+            </p>
+          </div>
+        </div>
       )}
 
       {/* Start button */}
