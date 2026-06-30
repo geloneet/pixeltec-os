@@ -53,7 +53,7 @@ export function TaskContextCapsule({ task, sessions, className }: Props) {
   if (task.status === "completado") {
     return (
       <span className={cn("text-[11px] text-zinc-500", className)}>
-        {totalSeconds > 0 ? `Finalizada · ${fmtDuration(totalSeconds)} invertidas` : "Finalizada"}
+        {totalSeconds >= 60 ? `Finalizada · ${fmtDuration(totalSeconds)} invertidas` : "Finalizada"}
       </span>
     );
   }
