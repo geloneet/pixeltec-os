@@ -52,7 +52,8 @@ const nextConfig: NextConfig = {
             value: [
               "default-src 'self'",
               // Next.js requiere unsafe-inline para scripts de hidratación
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com",
+              // Firebase Auth necesita apis.google.com (api.js) y gstatic.com
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com https://apis.google.com https://www.gstatic.com",
               "style-src 'self' 'unsafe-inline'",
               "font-src 'self' data:",
               // Permite imágenes remotas ya whitelistadas en next.config
