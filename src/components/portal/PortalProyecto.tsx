@@ -6,10 +6,12 @@ interface Props {
 }
 
 const TASK_STATUS = {
-  pendiente:  { label: "Pendiente",   classes: "bg-zinc-500/15 text-zinc-400 border-zinc-500/20" },
-  proceso:    { label: "En proceso",  classes: "bg-blue-500/15 text-blue-300 border-blue-500/20" },
-  completado: { label: "Completado",  classes: "bg-green-500/15 text-green-300 border-green-500/20" },
-  detenido:   { label: "Detenido",    classes: "bg-red-500/15 text-red-400 border-red-500/20" },
+  pendiente:    { label: "Pendiente",   classes: "bg-zinc-500/15 text-zinc-400 border-zinc-500/20" },
+  en_progreso:  { label: "En progreso", classes: "bg-blue-500/15 text-blue-300 border-blue-500/20" },
+  en_revision:  { label: "En revisión", classes: "bg-cyan-500/15 text-cyan-300 border-cyan-500/20" },
+  completado:   { label: "Completado",  classes: "bg-green-500/15 text-green-300 border-green-500/20" },
+  pausado:      { label: "Pausada",     classes: "bg-zinc-700/40 text-zinc-400 border-zinc-600/20" },
+  bloqueado:    { label: "Bloqueada",   classes: "bg-red-500/15 text-red-400 border-red-500/20" },
 } satisfies Record<CRMTask["status"], { label: string; classes: string }>;
 
 export default function PortalProyecto({ project }: Props) {

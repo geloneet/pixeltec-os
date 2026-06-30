@@ -8,7 +8,7 @@ export interface CRMTask {
   id: string;
   name: string;
   desc: string;
-  status: "pendiente" | "proceso" | "completado" | "detenido";
+  status: "pendiente" | "en_progreso" | "en_revision" | "completado" | "pausado" | "bloqueado";
   prio: "urgent_important" | "important" | "urgent" | "low";
   createdAt: string;
   pomoSessions: number;
@@ -122,9 +122,14 @@ export interface VPSProject {
   createdAt: string;
 }
 
-export const STATUS_CONFIG: Record<CRMTask["status"], { label: string; bg: string; text: string }> = {
-  pendiente: { label: "Pendiente", bg: "bg-purple-500/12", text: "text-purple-400" },
-  proceso: { label: "En proceso", bg: "bg-amber-500/12", text: "text-amber-400" },
-  completado: { label: "Completado", bg: "bg-green-500/12", text: "text-green-400" },
-  detenido: { label: "Detenido", bg: "bg-red-500/12", text: "text-red-400" },
+export const STATUS_CONFIG: Record<
+  CRMTask["status"],
+  { label: string; bg: string; text: string; dot: string }
+> = {
+  pendiente:    { label: "Pendiente",       bg: "bg-purple-500/12", text: "text-purple-400",  dot: "bg-purple-400"  },
+  en_progreso:  { label: "En progreso",     bg: "bg-amber-500/12",  text: "text-amber-400",   dot: "bg-amber-400"   },
+  en_revision:  { label: "En revisión",     bg: "bg-blue-500/12",   text: "text-blue-400",    dot: "bg-blue-400"    },
+  completado:   { label: "Completada",      bg: "bg-green-500/12",  text: "text-green-400",   dot: "bg-green-400"   },
+  pausado:      { label: "Pausada",         bg: "bg-zinc-800/60",   text: "text-zinc-400",    dot: "bg-zinc-500"    },
+  bloqueado:    { label: "Bloqueada",       bg: "bg-red-500/12",    text: "text-red-400",     dot: "bg-red-400"     },
 };

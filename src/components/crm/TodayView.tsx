@@ -130,7 +130,7 @@ export function TodayView({ clients, navigateToClient, navigateToProject, setMod
         if (t.status === "completado") completed++;
         const ctx: TaskWithContext = { task: t, clientName: c.name, projectName: p.name, cid: c.id, pid: p.id };
         allTasks.push(ctx);
-        if (t.status === "detenido") stopped.push(ctx);
+        if (t.status === "pausado" || t.status === "bloqueado") stopped.push(ctx);
       });
     });
   });

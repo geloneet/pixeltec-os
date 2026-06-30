@@ -183,14 +183,16 @@ export function ProjectView({
     [project]
   );
   const nextTask = useMemo(
-    () => sortedTasks.find(t => t.status === "pendiente" || t.status === "proceso") ?? null,
+    () => sortedTasks.find(t => t.status === "pendiente" || t.status === "en_progreso") ?? null,
     [sortedTasks]
   );
   const kanbanColumns = useMemo(() => [
-    { key: "pendiente", label: "Pendiente", hd: "text-purple-400", tasks: sortedTasks.filter(t => t.status === "pendiente") },
-    { key: "proceso",   label: "En proceso", hd: "text-amber-400",  tasks: sortedTasks.filter(t => t.status === "proceso") },
-    { key: "detenido",  label: "Detenido",   hd: "text-red-400",    tasks: sortedTasks.filter(t => t.status === "detenido") },
-    { key: "completado",label: "Completado", hd: "text-green-400",  tasks: sortedTasks.filter(t => t.status === "completado") },
+    { key: "pendiente",   label: "Pendiente",   hd: "text-purple-400", tasks: sortedTasks.filter(t => t.status === "pendiente") },
+    { key: "en_progreso", label: "En progreso", hd: "text-amber-400",  tasks: sortedTasks.filter(t => t.status === "en_progreso") },
+    { key: "en_revision", label: "En revisión", hd: "text-blue-400",   tasks: sortedTasks.filter(t => t.status === "en_revision") },
+    { key: "completado",  label: "Completado",  hd: "text-green-400",  tasks: sortedTasks.filter(t => t.status === "completado") },
+    { key: "pausado",     label: "Pausada",     hd: "text-zinc-400",   tasks: sortedTasks.filter(t => t.status === "pausado") },
+    { key: "bloqueado",   label: "Bloqueada",   hd: "text-red-400",    tasks: sortedTasks.filter(t => t.status === "bloqueado") },
   ], [sortedTasks]);
 
   const isPomoActive = pomoRunning && pomoTaskRef?.pid === project.id;

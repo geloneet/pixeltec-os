@@ -33,10 +33,10 @@ export async function GET(req: NextRequest) {
           p.tasks?.forEach((t: any) => {
             totalTasks++;
             if (t.status === "completado") completed++;
-            else if (t.status === "proceso") {
+            else if (t.status === "en_progreso" || t.status === "en_revision") {
               inProgress++;
               inProgressNames.push(`${t.name} (${p.name})`);
-            } else if (t.status === "detenido") {
+            } else if (t.status === "pausado" || t.status === "bloqueado") {
               stopped++;
               stoppedNames.push(`${t.name} (${p.name})`);
             } else pendiente++;

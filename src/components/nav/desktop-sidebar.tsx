@@ -225,7 +225,7 @@ export function DesktopSidebar() {
   const openTasksCount = clients
     .flatMap(c => c.projects)
     .flatMap(p => p.tasks)
-    .filter(t => t.status === "pendiente" || t.status === "proceso").length;
+    .filter(t => t.status === "pendiente" || t.status === "en_progreso" || t.status === "en_revision").length;
 
   const handleLogout = async () => {
     if (!auth) return;

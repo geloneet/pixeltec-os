@@ -23,8 +23,8 @@ export function deriveClientStats(client: CRMClient): ClientStats {
   for (const project of client.projects) {
     for (const task of project.tasks) {
       totalTasks++;
-      if (task.status === "pendiente" || task.status === "proceso") openTasks++;
-      if (task.status === "detenido") stopped++;
+      if (task.status === "pendiente" || task.status === "en_progreso" || task.status === "en_revision") openTasks++;
+      if (task.status === "pausado" || task.status === "bloqueado") stopped++;
       if (task.status === "completado") completed++;
     }
   }
@@ -72,8 +72,8 @@ export function deriveProjectStats(project: CRMProject): ProjectStats {
 
   for (const task of project.tasks) {
     totalTasks++;
-    if (task.status === "pendiente" || task.status === "proceso") openTasks++;
-    if (task.status === "detenido") stopped++;
+    if (task.status === "pendiente" || task.status === "en_progreso" || task.status === "en_revision") openTasks++;
+    if (task.status === "pausado" || task.status === "bloqueado") stopped++;
     if (task.status === "completado") completed++;
     if (task.createdAt > lastTaskAt) lastTaskAt = task.createdAt;
   }

@@ -10,6 +10,13 @@ import type { WorkSession, BlockerType, BlockerStatus, BlockerImpact, BlockerSou
 
 const MAX_LOG_ENTRIES = 500;
 
+function migrateTaskStatus(raw: string): CRMTask["status"] {
+  if (raw === "proceso") return "en_progreso";
+  if (raw === "detenido") return "pausado";
+  const valid = ["pendiente", "en_progreso", "en_revision", "completado", "pausado", "bloqueado"];
+  return valid.includes(raw) ? (raw as CRMTask["status"]) : "pendiente";
+}
+
 function uid(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 }
@@ -113,6 +120,10 @@ export function CRMProvider({ children }: { children: ReactNode }) {
                 annual: Number(p.annual) || 0,
                 budgetIva: p.budgetIva || "none",
                 annualIva: p.annualIva || "none",
+                tasks: (p.tasks || []).map((t: any) => ({
+                  ...t,
+                  status: migrateTaskStatus(t.status ?? "pendiente"),
+                })),
                 notesLog: (() => {
                   const existing: ProjectLogEntry[] = p.notesLog || [];
                   // Guard: only migrate once. If entry-deletion is added later,
@@ -288,7 +299,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
   }, [update]);
 
   const cycleTaskStatus = useCallback((clientId: string, projectId: string, taskId: string) => {
-    const order: CRMTask["status"][] = ["pendiente", "proceso", "completado", "detenido"];
+    const order: CRMTask["status"][] = ["pendiente", "en_progreso", "en_revision", "completado", "pausado"];
     const next = dataRef.current.clients.map(c =>
       c.id === clientId ? {
         ...c, projects: c.projects.map(p => p.id === projectId ? {
