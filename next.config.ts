@@ -1,7 +1,11 @@
 import type {NextConfig} from 'next';
+import path from 'path';
 
 const nextConfig: NextConfig = {
   output: 'standalone',
+  turbopack: {
+    root: path.resolve(__dirname),
+  },
   allowedDevOrigins: ['198.100.155.231', 'dev.pixeltec.mx'],
   // grammy, ws y firebase-admin NO deben ser bundleados por webpack.
   serverExternalPackages: ['grammy', 'ws', 'firebase-admin', '@anthropic-ai/sdk'],
