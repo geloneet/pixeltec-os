@@ -219,6 +219,17 @@ export function CRMShellProvider({ children }: { children: ReactNode }) {
           prio: val("prio") as CRMTask["prio"],
         });
         break;
+      case "editTask": {
+        if (!modal.data?.taskId || !modal.data?.clientId || !modal.data?.projectId) return;
+        const name = val("name").trim();
+        if (!name) return;
+        crm.updateTask(modal.data.clientId, modal.data.projectId, modal.data.taskId, {
+          name,
+          desc: val("desc"),
+          prio: val("prio") as CRMTask["prio"],
+        });
+        break;
+      }
       case "addKey":
         if (!urlClientId || !urlProjectId) return;
         crm.addKey(urlClientId, urlProjectId, { label: val("label"), value: val("value") });
@@ -596,6 +607,81 @@ export function CRMShellProvider({ children }: { children: ReactNode }) {
                     className="flex flex-col items-center gap-0.5 px-1 py-2 rounded-lg text-xs text-zinc-300 bg-zinc-800/60 hover:bg-zinc-700/60 transition-all"
                     style={{
                       outline: value === "important" ? "2px solid rgba(14,165,233,0.7)" : "none",
+                      outlineOffset: "2px",
+                    }}
+                  >
+                    <span className="text-base">{emoji}</span>
+                    <span className="text-[10px] text-zinc-400">{label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+        break;
+      }
+      case "editTask": {
+        title = "Editar tarea";
+        submitLabel = "Guardar cambios";
+        const editTaskDefaultPrio = modal.data?.taskPrio || "important";
+        content = (
+          <div className="space-y-3">
+            <div>
+              <label className={labelClass}>Nombre *</label>
+              <input
+                ref={ref("name")}
+                className={inputClass}
+                placeholder="Nombre de la tarea"
+                defaultValue={modal.data?.taskName || ""}
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleModalSubmit();
+                  }
+                }}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>Descripción</label>
+              <textarea
+                ref={ref("desc")}
+                className={inputClass + " h-16 resize-none"}
+                defaultValue={modal.data?.taskDesc || ""}
+                placeholder="Pasos, contexto o enlaces necesarios."
+              />
+            </div>
+            <div>
+              <label className={labelClass}>Prioridad</label>
+              <input type="hidden" ref={ref("prio")} defaultValue={editTaskDefaultPrio} />
+              <div className="grid grid-cols-4 gap-1.5 mt-1">
+                {(
+                  [
+                    { value: "urgent_important", emoji: "🔴", label: "Crítica" },
+                    { value: "important", emoji: "🟠", label: "Importante" },
+                    { value: "urgent", emoji: "🟡", label: "Normal" },
+                    { value: "low", emoji: "🟢", label: "Baja" },
+                  ] as const
+                ).map(({ value, emoji, label }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    data-prio-btn={value}
+                    onClick={() => {
+                      const el = formRefs.current["prio"] as HTMLInputElement | null;
+                      if (el) el.value = value;
+                      document.querySelectorAll("[data-prio-btn]").forEach((btn) => {
+                        (btn as HTMLElement).style.outline = "none";
+                        (btn as HTMLElement).style.background = "";
+                      });
+                      const target = document.querySelector(
+                        `[data-prio-btn="${value}"]`,
+                      ) as HTMLElement | null;
+                      if (target) target.style.outline = "2px solid rgba(14,165,233,0.7)";
+                    }}
+                    className="flex flex-col items-center gap-0.5 px-1 py-2 rounded-lg text-xs text-zinc-300 bg-zinc-800/60 hover:bg-zinc-700/60 transition-all"
+                    style={{
+                      outline: value === editTaskDefaultPrio ? "2px solid rgba(14,165,233,0.7)" : "none",
                       outlineOffset: "2px",
                     }}
                   >
