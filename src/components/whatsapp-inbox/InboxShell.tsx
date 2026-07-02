@@ -17,9 +17,10 @@ interface InboxShellProps {
  */
 export function InboxShell({ tenantId }: InboxShellProps) {
   const [selectedPhone, setSelectedPhone] = useState<string | null>(null);
-  // El panel de contacto se agrega en Task 8; el estado ya vive aquí para
-  // que ese trabajo solo tenga que montar el panel, no cablear el toggle.
-  const [panelOpen] = useState(true);
+  // El panel de contacto se monta en Task 8; el toggle ya vive aquí (botón
+  // PanelRight del header de ChatThread) para que ese trabajo solo tenga
+  // que montar el contenido del panel.
+  const [panelOpen, setPanelOpen] = useState(true);
   const { contactsByPhone } = useWhatsappContacts();
 
   if (!tenantId) {
@@ -62,6 +63,8 @@ export function InboxShell({ tenantId }: InboxShellProps) {
             tenantId={tenantId}
             phone={selectedPhone}
             onBack={() => setSelectedPhone(null)}
+            contact={contactsByPhone.get(selectedPhone)}
+            onOpenPanel={() => setPanelOpen((v) => !v)}
           />
         ) : (
           <div className="flex h-full items-center justify-center text-sm text-zinc-500">
