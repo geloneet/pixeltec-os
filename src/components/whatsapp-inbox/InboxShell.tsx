@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { MessageCircle } from "lucide-react";
+import { useWhatsappContacts } from "@/hooks/use-whatsapp-contacts";
 import { ChatThread } from "./ChatThread";
 import { ConversationList } from "./ConversationList";
 
@@ -16,6 +17,10 @@ interface InboxShellProps {
  */
 export function InboxShell({ tenantId }: InboxShellProps) {
   const [selectedPhone, setSelectedPhone] = useState<string | null>(null);
+  // El panel de contacto se agrega en Task 8; el estado ya vive aquí para
+  // que ese trabajo solo tenga que montar el panel, no cablear el toggle.
+  const [panelOpen] = useState(true);
+  const { contactsByPhone } = useWhatsappContacts();
 
   if (!tenantId) {
     return (
@@ -43,12 +48,13 @@ export function InboxShell({ tenantId }: InboxShellProps) {
       >
         <ConversationList
           tenantId={tenantId}
+          contactsByPhone={contactsByPhone}
           selectedPhone={selectedPhone}
           onSelect={setSelectedPhone}
         />
       </div>
 
-      {/* Panel derecho: hilo activo */}
+      {/* Panel central: hilo activo */}
       <div className={"min-w-0 flex-1 md:block " + (selectedPhone ? "block" : "hidden")}>
         {selectedPhone ? (
           <ChatThread
@@ -63,6 +69,13 @@ export function InboxShell({ tenantId }: InboxShellProps) {
           </div>
         )}
       </div>
+
+      {/* Panel derecho: ficha del contacto */}
+      {panelOpen && selectedPhone && (
+        <div className="hidden w-80 flex-shrink-0 border-l border-zinc-800/60 lg:block">
+          {/* Task 8: ContactPanel */}
+        </div>
+      )}
     </div>
   );
 }
