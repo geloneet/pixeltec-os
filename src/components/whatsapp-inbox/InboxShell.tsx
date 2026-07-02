@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { MessageCircle } from "lucide-react";
+import { ConversationList } from "./ConversationList";
 
 interface InboxShellProps {
   tenantId: string;
@@ -39,8 +40,11 @@ export function InboxShell({ tenantId }: InboxShellProps) {
           (selectedPhone ? "hidden" : "block")
         }
       >
-        {/* Task 8 reemplaza este placeholder por <ConversationList /> */}
-        <div className="p-4 text-sm text-zinc-500">Conversaciones…</div>
+        <ConversationList
+          tenantId={tenantId}
+          selectedPhone={selectedPhone}
+          onSelect={setSelectedPhone}
+        />
       </div>
 
       {/* Panel derecho: hilo activo */}
