@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { MessageCircle } from "lucide-react";
+import { ChatThread } from "./ChatThread";
 import { ConversationList } from "./ConversationList";
 
 interface InboxShellProps {
@@ -49,10 +50,17 @@ export function InboxShell({ tenantId }: InboxShellProps) {
 
       {/* Panel derecho: hilo activo */}
       <div className={"min-w-0 flex-1 md:block " + (selectedPhone ? "block" : "hidden")}>
-        {/* Task 9 reemplaza este placeholder por <ChatThread /> */}
-        <div className="flex h-full items-center justify-center text-sm text-zinc-500">
-          {selectedPhone ?? "Selecciona una conversación"}
-        </div>
+        {selectedPhone ? (
+          <ChatThread
+            tenantId={tenantId}
+            phone={selectedPhone}
+            onBack={() => setSelectedPhone(null)}
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center text-sm text-zinc-500">
+            Selecciona una conversación
+          </div>
+        )}
       </div>
     </div>
   );
