@@ -29,8 +29,11 @@ export function ModeToggle({ phone, mode }: ModeToggleProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone, mode: next }),
       });
-      const data = (await res.json()) as ModeResult & { error?: string };
-      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      const data = (await res.json()) as ModeResult & { error?: string; detail?: string };
+      if (!res.ok) {
+        const detail = data.detail;
+        throw new Error(data.error ?? detail ?? `HTTP ${res.status}`);
+      }
       toast.success(
         next === "HUMAN"
           ? "Tomaste el control — el bot ya no responde en esta conversación"

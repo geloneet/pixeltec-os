@@ -27,8 +27,11 @@ export function Composer({ phone, mode, windowOpen }: ComposerProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone, text: trimmed }),
       });
-      const data = (await res.json()) as SendResult & { error?: string };
-      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      const data = (await res.json()) as SendResult & { error?: string; detail?: string };
+      if (!res.ok) {
+        const detail = data.detail;
+        throw new Error(data.error ?? detail ?? `HTTP ${res.status}`);
+      }
       if (data.status === "persisted_but_send_failed") {
         toast.warning(
           "Meta rechazó el envío (¿ventana de 24h cerrada?). El mensaje quedó registrado en el bot."
