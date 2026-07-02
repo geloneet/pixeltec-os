@@ -4,6 +4,7 @@ import { useState } from "react";
 import { MessageCircle } from "lucide-react";
 import { useWhatsappContacts } from "@/hooks/use-whatsapp-contacts";
 import { ChatThread } from "./ChatThread";
+import { ContactPanel } from "./ContactPanel";
 import { ConversationList } from "./ConversationList";
 
 interface InboxShellProps {
@@ -17,9 +18,6 @@ interface InboxShellProps {
  */
 export function InboxShell({ tenantId }: InboxShellProps) {
   const [selectedPhone, setSelectedPhone] = useState<string | null>(null);
-  // El panel de contacto se monta en Task 8; el toggle ya vive aquí (botón
-  // PanelRight del header de ChatThread) para que ese trabajo solo tenga
-  // que montar el contenido del panel.
   const [panelOpen, setPanelOpen] = useState(true);
   const { contactsByPhone } = useWhatsappContacts();
 
@@ -39,7 +37,7 @@ export function InboxShell({ tenantId }: InboxShellProps) {
   }
 
   return (
-    <div className="flex h-full min-h-0">
+    <div className="relative flex h-full min-h-0">
       {/* Panel izquierdo: lista de conversaciones */}
       <div
         className={
@@ -73,10 +71,15 @@ export function InboxShell({ tenantId }: InboxShellProps) {
         )}
       </div>
 
-      {/* Panel derecho: ficha del contacto */}
+      {/* Panel derecho: ficha del contacto — overlay en <xl, columna normal en xl+ */}
       {panelOpen && selectedPhone && (
-        <div className="hidden w-80 flex-shrink-0 border-l border-zinc-800/60 lg:block">
-          {/* Task 8: ContactPanel */}
+        <div className="absolute inset-y-0 right-0 z-20 w-80 shrink-0 border-l border-zinc-800/60 bg-[#0a0a0b] shadow-2xl xl:static xl:z-auto xl:shadow-none">
+          <ContactPanel
+            tenantId={tenantId}
+            phone={selectedPhone}
+            contact={contactsByPhone.get(selectedPhone)}
+            onClose={() => setPanelOpen(false)}
+          />
         </div>
       )}
     </div>

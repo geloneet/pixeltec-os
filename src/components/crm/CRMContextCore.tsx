@@ -32,7 +32,7 @@ interface CRMContextValue {
   streak: number;
   loading: boolean;
   userEmail: string;
-  addClient: (data: Omit<CRMClient, "id" | "projects" | "createdAt">) => void;
+  addClient: (data: Omit<CRMClient, "id" | "projects" | "createdAt">) => string | null;
   updateClient: (id: string, data: Partial<CRMClient>) => void;
   deleteClient: (id: string) => void;
   addProject: (clientId: string, data: Omit<CRMProject, "id" | "keys" | "tasks" | "charges" | "createdAt" | "guides" | "accounts" | "readme" | "prompt" | "quickNotes">) => void;
@@ -213,18 +213,19 @@ export function CRMProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // CRUD: Clients
-  const addClient = useCallback((data: Omit<CRMClient, "id" | "projects" | "createdAt">) => {
+  const addClient = useCallback((data: Omit<CRMClient, "id" | "projects" | "createdAt">): string | null => {
     const validation = clientSchema.safeParse(data);
     if (!validation.success) {
       toast.error('Datos inválidos', {
         description: validation.error.errors[0]?.message || 'Revisa los campos',
       });
-      return;
+      return null;
     }
     const c: CRMClient = { ...data, id: uid(), projects: [], createdAt: new Date().toISOString() };
     const next = [...dataRef.current.clients, c];
     bumpStreak();
     update(next, dataRef.current.streak);
+    return c.id;
   }, [update, bumpStreak]);
 
   const updateClient = useCallback((id: string, data: Partial<CRMClient>) => {
