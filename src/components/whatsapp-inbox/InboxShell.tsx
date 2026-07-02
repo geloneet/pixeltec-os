@@ -52,6 +52,7 @@ export function InboxShell({ tenantId }: InboxShellProps) {
       <div className={"min-w-0 flex-1 md:block " + (selectedPhone ? "block" : "hidden")}>
         {selectedPhone ? (
           <ChatThread
+            key={selectedPhone}
             tenantId={tenantId}
             phone={selectedPhone}
             onBack={() => setSelectedPhone(null)}
