@@ -35,7 +35,7 @@ export function ModeToggle({ phone, mode }: ModeToggleProps) {
   const [pending, setPending] = useState<WhatsAppMode | null>(null);
 
   async function changeMode(next: WhatsAppMode, pausedUntil?: string, successMsg?: string) {
-    if ((next === mode && !pausedUntil) || pending) return;
+    if ((next === mode && next !== "PAUSED" && !pausedUntil) || pending) return;
     setPending(next);
     try {
       const res = await fetch("/api/whatsapp-inbox/mode", {

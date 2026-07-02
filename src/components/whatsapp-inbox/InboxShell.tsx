@@ -75,6 +75,7 @@ export function InboxShell({ tenantId }: InboxShellProps) {
       {panelOpen && selectedPhone && (
         <div className="absolute inset-y-0 right-0 z-20 w-80 shrink-0 border-l border-zinc-800/60 bg-[#0a0a0b] shadow-2xl xl:static xl:z-auto xl:shadow-none">
           <ContactPanel
+            key={selectedPhone}
             tenantId={tenantId}
             phone={selectedPhone}
             contact={contactsByPhone.get(selectedPhone)}

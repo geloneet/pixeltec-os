@@ -8,7 +8,7 @@ import {
   serverTimestamp,
   type DocumentReference,
 } from "firebase/firestore";
-import { Check, Copy, Plus, Ticket, X } from "lucide-react";
+import { Check, Copy, LoaderCircle, Plus, Ticket, X } from "lucide-react";
 import { toast } from "sonner";
 import { useCollection, useDoc, useFirestore, useUser } from "@/firebase";
 import { useCRM } from "@/components/crm/CRMContextCore";
@@ -105,6 +105,7 @@ export function ContactPanel({ tenantId, phone, contact, onClose }: ContactPanel
   const [ticketProblem, setTicketProblem] = useState("");
   const [ticketOpen, setTicketOpen] = useState(false);
   const [followUpProjectId, setFollowUpProjectId] = useState<string | null>(null);
+  const [pendingAction, setPendingAction] = useState<string | null>(null);
 
   useEffect(() => setName(contact?.name ?? ""), [contact?.name]);
   useEffect(() => setOrigin(contact?.origin ?? ""), [contact?.origin]);
@@ -227,8 +228,10 @@ export function ContactPanel({ tenantId, phone, contact, onClose }: ContactPanel
   }
 
   async function handleSaveContact() {
+    if (pendingAction) return;
     const ctx = requireCtx();
     if (!ctx) return;
+    setPendingAction("saveContact");
     try {
       await upsertContact(
         ctx.fs,
@@ -240,22 +243,26 @@ export function ContactPanel({ tenantId, phone, contact, onClose }: ContactPanel
       toast.success("Contacto guardado");
     } catch (err) {
       toast.error(`No se pudo guardar el contacto: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setPendingAction(null);
     }
   }
 
   async function handleConvertToClient() {
+    if (pendingAction) return;
     const ctx = requireCtx();
     if (!ctx) return;
-    const id = crm.addClient({
-      name: contact?.name || phone,
-      phone,
-      contactName: contact?.name,
-      email: "",
-      location: "",
-      notes: "Origen: WhatsApp Inbox",
-    });
-    if (!id) return; // addClient ya mostró el toast de error
+    setPendingAction("convertToClient");
     try {
+      const id = crm.addClient({
+        name: contact?.name || phone,
+        phone,
+        contactName: contact?.name,
+        email: "",
+        location: "",
+        notes: "Origen: WhatsApp Inbox",
+      });
+      if (!id) return; // addClient ya mostró el toast de error
       await upsertContact(
         ctx.fs,
         phone,
@@ -266,6 +273,8 @@ export function ContactPanel({ tenantId, phone, contact, onClose }: ContactPanel
       toast.success("Cliente creado y vinculado");
     } catch (err) {
       toast.error(`No se pudo vincular el cliente: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setPendingAction(null);
     }
   }
 
@@ -278,17 +287,24 @@ export function ContactPanel({ tenantId, phone, contact, onClose }: ContactPanel
     : linkedClient?.projects.find((p) => p.id === followUpProjectId);
 
   async function handleCreateFollowUp() {
+    if (pendingAction) return;
     const ctx = requireCtx();
     if (!ctx || !linkedClient || !followUpProject) return;
-    crm.addTask(linkedClient.id, followUpProject.id, {
-      name: `Seguimiento WhatsApp — ${contact?.name || phone}`,
-      desc: `Conversación: ${phone}`,
-      prio: "important",
-    });
-    await saveField({}, "Seguimiento creado en CRM", "Seguimiento creado");
+    setPendingAction("createFollowUp");
+    try {
+      crm.addTask(linkedClient.id, followUpProject.id, {
+        name: `Seguimiento WhatsApp — ${contact?.name || phone}`,
+        desc: `Conversación: ${phone}`,
+        prio: "important",
+      });
+      await saveField({}, "Seguimiento creado en CRM", "Seguimiento creado");
+    } finally {
+      setPendingAction(null);
+    }
   }
 
   async function handleCreateTicket() {
+    if (pendingAction) return;
     const ctx = requireCtx();
     if (!ctx) return;
     const problema = ticketProblem.trim();
@@ -297,6 +313,7 @@ export function ContactPanel({ tenantId, phone, contact, onClose }: ContactPanel
       return;
     }
     const ticketId = `WA-${Date.now().toString(36).toUpperCase()}`;
+    setPendingAction("createTicket");
     try {
       await addDoc(collection(ctx.fs, "tickets"), {
         ticketId,
@@ -313,6 +330,8 @@ export function ContactPanel({ tenantId, phone, contact, onClose }: ContactPanel
       setTicketOpen(false);
     } catch (err) {
       toast.error(`No se pudo crear el ticket: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setPendingAction(null);
     }
   }
 
@@ -500,8 +519,10 @@ export function ContactPanel({ tenantId, phone, contact, onClose }: ContactPanel
               <Button
                 type="button"
                 onClick={handleSaveContact}
+                disabled={pendingAction !== null}
                 className="h-8 w-full bg-cyan-600 text-xs text-white hover:bg-cyan-500"
               >
+                {pendingAction === "saveContact" && <LoaderCircle className="h-3.5 w-3.5 animate-spin" />}
                 Guardar contacto
               </Button>
             )}
@@ -514,10 +535,12 @@ export function ContactPanel({ tenantId, phone, contact, onClose }: ContactPanel
               <Button
                 type="button"
                 onClick={handleConvertToClient}
+                disabled={pendingAction !== null}
                 variant="outline"
                 size="sm"
                 className="h-8 w-full border-zinc-800 bg-zinc-900/60 text-xs text-zinc-300 hover:bg-zinc-800/60"
               >
+                {pendingAction === "convertToClient" && <LoaderCircle className="h-3.5 w-3.5 animate-spin" />}
                 Convertir en cliente
               </Button>
             )}
@@ -541,11 +564,12 @@ export function ContactPanel({ tenantId, phone, contact, onClose }: ContactPanel
                 <Button
                   type="button"
                   onClick={handleCreateFollowUp}
-                  disabled={!followUpProject}
+                  disabled={!followUpProject || pendingAction !== null}
                   variant="outline"
                   size="sm"
                   className="h-8 w-full border-zinc-800 bg-zinc-900/60 text-xs text-zinc-300 hover:bg-zinc-800/60 disabled:opacity-40"
                 >
+                  {pendingAction === "createFollowUp" && <LoaderCircle className="h-3.5 w-3.5 animate-spin" />}
                   Crear seguimiento
                 </Button>
               </div>
@@ -578,8 +602,10 @@ export function ContactPanel({ tenantId, phone, contact, onClose }: ContactPanel
                 <Button
                   type="button"
                   onClick={handleCreateTicket}
+                  disabled={pendingAction !== null}
                   className="h-8 w-full bg-cyan-600 text-xs text-white hover:bg-cyan-500"
                 >
+                  {pendingAction === "createTicket" && <LoaderCircle className="h-3.5 w-3.5 animate-spin" />}
                   Crear ticket
                 </Button>
               </PopoverContent>
