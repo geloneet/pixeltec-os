@@ -145,6 +145,11 @@ export default function LoginPage() {
     setIsLoading(true);
     setError(null);
 
+    // Tracks the success path locally: state (isRedirecting) is stale inside
+    // this closure, and on success the spinner must survive until the browser
+    // actually navigates — resetting it re-mounts the form and flickers.
+    let redirecting = false;
+
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
@@ -180,6 +185,7 @@ export default function LoginPage() {
                     return;
                 }
 
+                redirecting = true;
                 setIsRedirecting(true);
                 window.location.assign(redirectTo);
             } else {
@@ -214,12 +220,15 @@ export default function LoginPage() {
       }
       setError(friendlyMessage);
     } finally {
-      setIsLoading(false);
+      if (!redirecting) setIsLoading(false);
     }
   };
 
-  // Show a loading screen while user state is being determined
-  if (user === undefined || (user && profileLoading)) {
+  // Show a loading screen while user state is being determined or while an
+  // already-authenticated visitor is being redirected. Never during an active
+  // form login (isLoading): swapping the form for this screen mid-login is
+  // what caused the unmount → full-screen spinner → re-mount flicker.
+  if (!isLoading && (isRedirecting || user === undefined || (user && profileLoading))) {
     return (
         <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-zinc-950 text-white p-4">
             <LoaderCircle className="h-12 w-12 animate-spin text-cyan-400" />
