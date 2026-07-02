@@ -149,5 +149,21 @@ service cloud.firestore {
 
     // Auth brute-force lockout — Admin SDK only
     match /authLockouts/{docId}                 { allow read, write: if false; }
+
+    // ═══════════════════════════════════════════════════════════════
+    // PixelBot WhatsApp Inbox — proyección de solo lectura
+    // Escrita EXCLUSIVAMENTE por pixelbot vía Admin SDK (SA
+    // pixelbot-runtime@...). SQLite del bot = source of truth.
+    // El dashboard la lee en tiempo real; toda acción (enviar,
+    // takeover) pasa por /api/whatsapp-inbox/* → bot interno.
+    // ═══════════════════════════════════════════════════════════════
+    match /tenants/{tenantId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+    match /tenants/{tenantId}/{path=**} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
   }
 }
