@@ -3,6 +3,7 @@ import {
   ListTodo,
   FolderKanban,
   Users,
+  MessageCircle,
   Receipt,
   KeyRound,
   Server,
@@ -52,6 +53,13 @@ export const PALETTE_NAV_ITEMS: PaletteNavItem[] = [
     label: "Clientes",
     description: "Workspace completo por cliente: proyectos, contratos, facturación y portal",
     icon: Users,
+    section: "trabajo",
+  },
+  {
+    href: "/whatsapp",
+    label: "WhatsApp",
+    description: "Inbox del bot: conversaciones en vivo, takeover humano y envío manual",
+    icon: MessageCircle,
     section: "trabajo",
   },
   {

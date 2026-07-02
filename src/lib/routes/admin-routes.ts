@@ -14,6 +14,7 @@ export const ADMIN_ROUTES = [
   'tareas',
   'proyectos',
   'clientes',
+  'whatsapp',
   'cobros',
   'accesos',
   'vps',
