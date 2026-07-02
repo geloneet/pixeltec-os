@@ -10,7 +10,8 @@
 
 export async function fetchPixelbot(
   path: string,
-  body: Record<string, unknown>
+  body?: Record<string, unknown>,
+  method: 'POST' | 'GET' | 'PUT' = 'POST'
 ): Promise<{ data: unknown; status: number }> {
   const baseUrl = process.env.PIXELBOT_INTERNAL_URL;
   const secret = process.env.PIXELBOT_INTERNAL_SECRET;
@@ -19,16 +20,24 @@ export async function fetchPixelbot(
     throw new Error('PIXELBOT_INTERNAL_URL / PIXELBOT_INTERNAL_SECRET no configurados');
   }
 
-  const res = await fetch(`${baseUrl}${path}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Internal-Secret': secret,
-    },
-    body: JSON.stringify(body),
+  const headers: Record<string, string> = {
+    'X-Internal-Secret': secret,
+  };
+
+  const fetchOptions: RequestInit = {
+    method,
+    headers,
     cache: 'no-store',
     signal: AbortSignal.timeout(15_000),
-  });
+  };
+
+  // GET requests don't include body or Content-Type
+  if (method !== 'GET') {
+    headers['Content-Type'] = 'application/json';
+    fetchOptions.body = JSON.stringify(body || {});
+  }
+
+  const res = await fetch(`${baseUrl}${path}`, fetchOptions);
 
   const data = await res.json().catch(() => ({}));
   return { data, status: res.status };

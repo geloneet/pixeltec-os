@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { phone, mode } = await req.json();
+    const { phone, mode, pausedUntil } = await req.json();
     if (typeof phone !== "string" || !phone.trim()) {
       return NextResponse.json({ error: "phone es requerido" }, { status: 400 });
     }
@@ -26,6 +26,24 @@ export async function POST(req: NextRequest) {
         { error: "mode debe ser BOT, HUMAN o PAUSED" },
         { status: 400 }
       );
+    }
+
+    let pausedUntilCanonical: string | undefined;
+    if (pausedUntil !== undefined && pausedUntil !== null) {
+      if (mode !== "PAUSED") {
+        return NextResponse.json(
+          { error: "pausedUntil solo aplica con mode=PAUSED" },
+          { status: 400 }
+        );
+      }
+      const ms = Date.parse(pausedUntil);
+      if (typeof pausedUntil !== "string" || isNaN(ms)) {
+        return NextResponse.json(
+          { error: "pausedUntil inválido (usa ISO 8601)" },
+          { status: 400 }
+        );
+      }
+      pausedUntilCanonical = new Date(ms).toISOString().slice(0, 19).replace("T", " ");
     }
 
     const tenantId = process.env.PIXELBOT_TENANT_ID;
@@ -38,6 +56,7 @@ export async function POST(req: NextRequest) {
       phone: phone.trim(),
       mode,
       changed_by_uid: guard.uid,
+      ...(pausedUntilCanonical ? { paused_until: pausedUntilCanonical } : {}),
     });
     return NextResponse.json(data, { status });
   } catch (error) {
