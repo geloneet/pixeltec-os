@@ -2,6 +2,29 @@
 
 ---
 
+## Sesión 3 — Sincronización de estado y limpieza (2026-07-02)
+
+**Estado al cerrar:** main pusheado a origin (`d469136`), dev server arriba, sin deploy (por decisión de Miguel).
+
+### Qué se hizo
+
+1. **Push a origin/main** — 20 commits que estaban solo en local (task cards redesign completo + proposals feature). origin/main pasó de `aede639` a `d469136`.
+2. **Dev server levantado** — `npm run dev` (puerto 9002), `https://dev.pixeltec.mx` responde 200 vía nginx.
+3. **Verificación de rutas** — `/documentos`, `/ia-factory` y `/crecimiento/analytics` responden 307 → `/login` (middleware OK, no hay 404). Verificación completa con sesión pendiente de que el login en dev funcione.
+4. **Growth Analytics — NO es pendiente accionable.** El blueprint (`docs/superpowers/plans/2026-06-23-content-studio-blueprint.md` §"❌ Analytics") lo difiere deliberadamente a **Fase 3**: requiere webhooks de todas las redes + pipeline de datos, y aplica solo después de que Social Publisher tenga 3+ meses de datos. La entrada en nav está `hidden: true` a propósito.
+5. **Limpieza de ramas:**
+   - `feat/telegram-alerts` — ELIMINADA (ahead: 0, 100% en main) + worktree `.worktrees/feat-telegram-alerts` removido.
+   - `feat/vps-api-migration-v3` — ELIMINADA (ahead: 0, 100% en main).
+   - `fix/sidebar-routes-and-404` y `security/login-hardening-csp-report-only` — **contenido ya absorbido en main** (admin-routes.ts, not-found.tsx ×2, sidebar-coming-soon-item.tsx, CSP Report-Only en middleware.ts:85) pero con hashes distintos. Candidatas a eliminar cuando Miguel confirme.
+
+### Pendientes vivos
+
+1. **Login en dev.pixeltec.mx** — agregar `dev.pixeltec.mx` a Firebase Console → Authentication → Settings → Authorized domains (proyecto `studio-1487114664-78b63`). **Paso manual de Miguel**, no automatizable.
+2. **Deploy al VPS** — main sigue adelante de producción. Solo cuando Miguel lo pida.
+3. Post-deploy (backlog): hardening binding 127.0.0.1, redirects 302→301, CSP Phase 2 (enforcement tras revisar `cspViolations`), auditoría legal externa.
+
+---
+
 ## Sesión 2 — Execution Workspace Redesign (COMPLETO)
 
 **Fecha:** 2026-06-26  
