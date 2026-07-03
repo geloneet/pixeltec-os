@@ -217,6 +217,15 @@ export function BotConfigView() {
       toast.error("Define hora de inicio y fin, o desmarca todos los días para siempre abierto");
       return;
     }
+    if (
+      config.schedule.days.length > 0 &&
+      config.schedule.start &&
+      config.schedule.end &&
+      config.schedule.start >= config.schedule.end
+    ) {
+      toast.error("La hora de inicio debe ser menor que la hora de fin (horarios overnight no están soportados)");
+      return;
+    }
 
     setSaving(true);
     try {
