@@ -169,7 +169,7 @@ export function ConversationList({
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por nombre, teléfono, mensaje o tag…"
+            placeholder="Buscar por nombre, teléfono, mensaje o etiqueta…"
             className="w-full rounded-lg border border-zinc-800 bg-zinc-900/60 py-2 pl-9 pr-3 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-cyan-500/50 focus:outline-none"
           />
         </div>

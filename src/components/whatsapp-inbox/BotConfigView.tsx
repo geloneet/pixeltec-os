@@ -325,7 +325,7 @@ export function BotConfigView() {
                 className="h-8 w-28 border-zinc-800 bg-zinc-900/60 text-sm text-zinc-200"
               />
               <p className="text-[11px] text-zinc-500">
-                default 30 — pausa humanizada antes de responder
+                por defecto 30 — pausa humanizada antes de responder
               </p>
             </div>
 

@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(data, { status });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    return NextResponse.json({ error: "Config fetch failed: " + message }, { status: 500 });
+    return NextResponse.json({ error: "Error al cargar la configuración: " + message }, { status: 500 });
   }
 }
 
@@ -46,6 +46,6 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json(data, { status });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    return NextResponse.json({ error: "Config update failed: " + message }, { status: 500 });
+    return NextResponse.json({ error: "Error al guardar la configuración: " + message }, { status: 500 });
   }
 }

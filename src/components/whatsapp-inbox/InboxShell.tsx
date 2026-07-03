@@ -29,7 +29,7 @@ export function InboxShell({ tenantId }: InboxShellProps) {
           <h2 className="mb-2 text-lg font-semibold text-zinc-100">Inbox no configurado</h2>
           <p className="text-sm text-zinc-400">
             Falta <code className="text-amber-300">PIXELBOT_TENANT_ID</code> en las variables de
-            entorno. Obtén el id del tenant desde el SQLite de pixelbot y redeploy.
+            entorno. Obtén el id del tenant desde el SQLite de pixelbot y vuelve a desplegar.
           </p>
         </div>
       </div>
