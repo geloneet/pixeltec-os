@@ -54,7 +54,11 @@ export function WhatsAppModule({ tenantId }: WhatsAppModuleProps) {
 
       {/* Tab content */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        {activeTab === "inbox" ? <InboxShell tenantId={tenantId} /> : <BotConfigView />}
+        {activeTab === "inbox" ? (
+          <InboxShell tenantId={tenantId} onOpenConfig={() => setActiveTab("config")} />
+        ) : (
+          <BotConfigView />
+        )}
       </div>
     </div>
   );

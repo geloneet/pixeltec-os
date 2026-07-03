@@ -1,24 +1,30 @@
 "use client";
 
 import { useState } from "react";
-import { MessageCircle } from "lucide-react";
+import { MessageCircle, Settings2 } from "lucide-react";
 import { useWhatsappContacts } from "@/hooks/use-whatsapp-contacts";
 import { ChatThread } from "./ChatThread";
 import { ContactPanel } from "./ContactPanel";
-import { ConversationList } from "./ConversationList";
+import { ConversationList, type CategoryId, type QuickFilterId } from "./ConversationList";
 
 interface InboxShellProps {
   tenantId: string;
+  /** Cambia a la tab "Configuración del bot" del módulo. */
+  onOpenConfig: () => void;
 }
 
 /**
  * Layout de dos paneles del inbox de WhatsApp.
  * - Desktop (≥768px): lista de conversaciones + hilo lado a lado.
  * - Mobile: un panel a la vez (lista ↔ hilo con botón de regreso).
+ * El estado de filtros vive aquí para que el empty state central pueda
+ * activar filtros de la lista.
  */
-export function InboxShell({ tenantId }: InboxShellProps) {
+export function InboxShell({ tenantId, onOpenConfig }: InboxShellProps) {
   const [selectedPhone, setSelectedPhone] = useState<string | null>(null);
   const [panelOpen, setPanelOpen] = useState(true);
+  const [category, setCategory] = useState<CategoryId>("todos");
+  const [quickFilter, setQuickFilter] = useState<QuickFilterId | null>(null);
   const { contactsByPhone } = useWhatsappContacts();
 
   if (!tenantId) {
@@ -50,6 +56,10 @@ export function InboxShell({ tenantId }: InboxShellProps) {
           contactsByPhone={contactsByPhone}
           selectedPhone={selectedPhone}
           onSelect={setSelectedPhone}
+          category={category}
+          onCategoryChange={setCategory}
+          quickFilter={quickFilter}
+          onQuickFilterChange={setQuickFilter}
         />
       </div>
 
@@ -65,8 +75,36 @@ export function InboxShell({ tenantId }: InboxShellProps) {
             onOpenPanel={() => setPanelOpen((v) => !v)}
           />
         ) : (
-          <div className="flex h-full items-center justify-center text-sm text-zinc-500">
-            Selecciona una conversación
+          <div className="flex h-full items-center justify-center p-6">
+            <div className="w-full max-w-sm rounded-2xl border border-white/[0.06] bg-zinc-950/60 p-8 text-center shadow-xl backdrop-blur">
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-cyan-500/20 bg-cyan-500/10">
+                <MessageCircle className="h-6 w-6 text-cyan-400" />
+              </div>
+              <h2 className="text-base font-semibold text-zinc-100">
+                Selecciona una conversación
+              </h2>
+              <p className="mt-1.5 text-sm leading-relaxed text-zinc-500">
+                Elige un chat del inbox para revisar mensajes, clasificar el contacto o tomar
+                control humano.
+              </p>
+              <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={onOpenConfig}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-zinc-800 bg-zinc-900/60 px-3 py-1.5 text-xs text-zinc-300 transition-colors hover:border-zinc-700 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40"
+                >
+                  <Settings2 className="h-3.5 w-3.5" />
+                  Ver configuración del bot
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setQuickFilter("sin_responder")}
+                  className="inline-flex items-center rounded-md border border-zinc-800 bg-zinc-900/60 px-3 py-1.5 text-xs text-zinc-300 transition-colors hover:border-zinc-700 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40"
+                >
+                  Filtrar sin responder
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>
