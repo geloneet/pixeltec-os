@@ -23,13 +23,14 @@ import { CommandPalette } from "@/components/nav/command-palette";
 
 function Shell({
   children,
-  isSessionRoute,
+  isFullBleedRoute,
 }: {
   children: ReactNode;
-  isSessionRoute: boolean;
+  /** Rutas tipo app (sesión, WhatsApp): sin padding y con scroll interno propio. */
+  isFullBleedRoute: boolean;
 }) {
   return (
-    <div className="h-screen w-full flex bg-[#030303] text-zinc-100 font-sans overflow-hidden">
+    <div className="h-dvh w-full flex bg-[#030303] text-zinc-100 font-sans overflow-hidden">
       {/* Ambient gradient */}
       <div
         aria-hidden
@@ -47,7 +48,7 @@ function Shell({
         <main
           className={cn(
             "flex-1",
-            isSessionRoute
+            isFullBleedRoute
               ? "overflow-hidden"
               : "overflow-y-auto p-4 sm:p-6 lg:p-8"
           )}
@@ -87,7 +88,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
   if (user === undefined) {
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-[#030303]">
+      <div className="flex h-dvh w-full items-center justify-center bg-[#030303]">
         <LoaderCircle className="h-10 w-10 animate-spin text-cyan-400" />
       </div>
     );
@@ -100,7 +101,11 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       <CmdKProvider>
         <CRMProvider>
           <CRMShellProvider>
-            <Shell isSessionRoute={!!pathname?.includes("/sesion")}>
+            <Shell
+              isFullBleedRoute={
+                !!pathname?.includes("/sesion") || !!pathname?.startsWith("/whatsapp")
+              }
+            >
               {children}
             </Shell>
             <CommandPalette />

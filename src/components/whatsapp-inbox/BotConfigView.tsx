@@ -280,8 +280,8 @@ export function BotConfigView() {
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col">
-      <div className="min-h-0 flex-1 overflow-y-auto p-4 pb-24">
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+      <div className="scrollbar-soft min-h-0 flex-1 overflow-y-auto p-4 pb-6">
+        <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
           {/* Identidad */}
           <SectionCard title="Identidad">
             <div className="space-y-1.5">

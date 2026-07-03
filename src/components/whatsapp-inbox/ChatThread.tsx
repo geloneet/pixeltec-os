@@ -325,15 +325,25 @@ export function ChatThread({ tenantId, phone, onBack, contact, onOpenPanel }: Ch
         </div>
       )}
 
-      {/* Mensajes + notas */}
-      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-4">
-        {loading && (
-          <div className="flex justify-center py-8">
-            <LoaderCircle className="h-5 w-5 animate-spin text-zinc-500" />
-          </div>
-        )}
-        {nodes}
-        <div ref={bottomRef} />
+      {/* Mensajes + notas — scroller interno con fades arriba/abajo */}
+      <div className="relative min-h-0 flex-1">
+        <div className="scrollbar-soft h-full space-y-2 overflow-y-auto p-4">
+          {loading && (
+            <div className="flex justify-center py-8">
+              <LoaderCircle className="h-5 w-5 animate-spin text-zinc-500" />
+            </div>
+          )}
+          {nodes}
+          <div ref={bottomRef} />
+        </div>
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-0 h-5 bg-gradient-to-b from-[#030303]/80 to-transparent"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-5 bg-gradient-to-t from-[#030303]/80 to-transparent"
+        />
       </div>
 
       <Composer phone={phone} mode={mode} windowOpen={windowOpen} />

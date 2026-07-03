@@ -85,6 +85,30 @@
   html {
     scroll-behavior: smooth;
   }
+
+  /* Scrollbars dark premium por default en toda la app — nunca la barra
+     nativa blanca/gruesa del navegador sobre el fondo #030303. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(113, 113, 122, 0.35) transparent; /* zinc-500 */
+  }
+  *::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background-color: rgba(113, 113, 122, 0.35);
+    border-radius: 9999px;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(148, 163, 184, 0.55); /* slate-400 */
+  }
+  *::-webkit-scrollbar-corner {
+    background: transparent;
+  }
 }
 
 @layer utilities {
@@ -94,6 +118,38 @@
   .hidden-scrollbar {
     -ms-overflow-style: none;  /* IE and Edge */
     scrollbar-width: none;  /* Firefox */
+  }
+
+  /* Alias usado por chips/tabs (ClientWorkspace, WhatsApp, IA Factory):
+     scroll horizontal funcional sin barra visible. */
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* Scroller interno de paneles: barra delgada, tinte cyan al hover,
+     sin scroll-chaining hacia el body. */
+  .scrollbar-soft {
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(113, 113, 122, 0.3) transparent;
+  }
+  .scrollbar-soft::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scrollbar-soft::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-soft::-webkit-scrollbar-thumb {
+    background-color: rgba(113, 113, 122, 0.3);
+    border-radius: 9999px;
+  }
+  .scrollbar-soft::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(34, 211, 238, 0.4); /* cyan-400 */
   }
 }
 

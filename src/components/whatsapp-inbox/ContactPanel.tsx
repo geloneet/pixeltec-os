@@ -371,7 +371,7 @@ export function ContactPanel({ tenantId, phone, contact, onClose }: ContactPanel
         </button>
       </div>
 
-      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
+      <div className="scrollbar-soft min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
         {/* Identidad */}
         <SectionCard title="Identidad">
           <Input

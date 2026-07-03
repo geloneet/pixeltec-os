@@ -37,11 +37,11 @@ export function InboxShell({ tenantId }: InboxShellProps) {
   }
 
   return (
-    <div className="relative flex h-full min-h-0">
+    <div className="relative flex h-full min-h-0 overflow-hidden">
       {/* Panel izquierdo: lista de conversaciones */}
       <div
         className={
-          "w-full border-r border-zinc-800/60 md:block md:w-80 lg:w-96 " +
+          "min-h-0 w-full border-r border-zinc-800/60 md:block md:w-80 md:flex-shrink-0 lg:w-[22.5rem] " +
           (selectedPhone ? "hidden" : "block")
         }
       >
@@ -71,17 +71,25 @@ export function InboxShell({ tenantId }: InboxShellProps) {
         )}
       </div>
 
-      {/* Panel derecho: ficha del contacto — overlay en <xl, columna normal en xl+ */}
+      {/* Panel derecho: ficha del contacto — slide-over con scrim en <xl, columna normal en xl+ */}
       {panelOpen && selectedPhone && (
-        <div className="absolute inset-y-0 right-0 z-20 w-80 shrink-0 border-l border-zinc-800/60 bg-[#0a0a0b] shadow-2xl xl:static xl:z-auto xl:shadow-none">
-          <ContactPanel
-            key={selectedPhone}
-            tenantId={tenantId}
-            phone={selectedPhone}
-            contact={contactsByPhone.get(selectedPhone)}
-            onClose={() => setPanelOpen(false)}
+        <>
+          <button
+            type="button"
+            aria-label="Cerrar panel de contacto"
+            onClick={() => setPanelOpen(false)}
+            className="absolute inset-0 z-10 cursor-default bg-black/50 backdrop-blur-[2px] animate-in fade-in-0 duration-200 xl:hidden"
           />
-        </div>
+          <div className="absolute inset-y-0 right-0 z-20 w-80 max-w-[85vw] shrink-0 border-l border-zinc-800/60 bg-[#0a0a0b] shadow-2xl animate-in slide-in-from-right-4 duration-200 xl:static xl:z-auto xl:max-w-none xl:animate-none xl:shadow-none">
+            <ContactPanel
+              key={selectedPhone}
+              tenantId={tenantId}
+              phone={selectedPhone}
+              contact={contactsByPhone.get(selectedPhone)}
+              onClose={() => setPanelOpen(false)}
+            />
+          </div>
+        </>
       )}
     </div>
   );

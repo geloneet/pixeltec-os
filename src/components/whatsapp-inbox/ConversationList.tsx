@@ -193,7 +193,7 @@ export function ConversationList({
         </div>
       </div>
 
-      <ul className="min-h-0 flex-1 overflow-y-auto">
+      <ul className="scrollbar-soft min-h-0 flex-1 overflow-y-auto">
         {filteredConversations.length === 0 ? (
           <div className="p-6 text-center text-sm text-zinc-500">
             Nada por aquí con este filtro.
