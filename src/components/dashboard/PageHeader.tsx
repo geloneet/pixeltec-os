@@ -23,7 +23,7 @@ const badgeClasses: Record<BadgeColor, string> = {
   lime:   'bg-lime-400/10 text-lime-600 dark:text-lime-400 border-lime-400/20',
   yellow: 'bg-yellow-400/10 text-yellow-600 dark:text-yellow-400 border-yellow-400/20',
   red:    'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20',
-  zinc:   'bg-muted text-muted-foreground border-border',
+  zinc:   'bg-muted dark:bg-zinc-700/30 text-muted-foreground dark:text-zinc-400 border-border dark:border-zinc-700/40',
 };
 
 interface PageHeaderProps {

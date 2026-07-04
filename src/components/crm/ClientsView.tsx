@@ -89,7 +89,7 @@ function ClientRow({ item, navigateToClient, setModal }: ClientRowProps) {
       tabIndex={0}
       onClick={() => navigateToClient(c.id)}
       onKeyDown={(e) => { if (e.key === "Enter") navigateToClient(c.id); }}
-      className="group flex items-center rounded-xl border border-border bg-card shadow-sm cursor-pointer transition-all duration-150 hover:border-cyan-400/30 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40"
+      className="group flex items-center rounded-xl border border-border bg-card dark:bg-zinc-900/20 shadow-sm dark:shadow-none cursor-pointer transition-all duration-150 hover:border-cyan-400/30 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40"
     >
       {/* Identity */}
       <div className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3">
