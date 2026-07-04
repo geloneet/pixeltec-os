@@ -18,8 +18,8 @@ export function TestimonialCard({ author, text, href, className }: TestimonialCa
   const CardContent = (
     <div className={cn(
       "relative flex h-full w-[22.5rem] flex-col justify-between gap-6 rounded-2xl p-6 transition-colors",
-      "bg-[#1A1A1C] border border-[#29292B] text-gray-300",
-      "hover:bg-white/10",
+      "bg-card border border-border text-card-foreground",
+      "hover:bg-accent",
       className,
     )}>
       <div className="flex-1">
@@ -28,13 +28,13 @@ export function TestimonialCard({ author, text, href, className }: TestimonialCa
             <Star key={i} className="h-5 w-5 text-primary fill-primary" />
           ))}
         </div>
-        <p className="text-base font-light text-white/80">{text}</p>
+        <p className="text-base font-light text-foreground">{text}</p>
       </div>
       <div className="flex items-center gap-4">
         {author.icon}
         <div className="flex flex-col">
-          <p className="font-semibold text-white">{author.name}</p>
-          <p className="text-sm text-white/60">{author.title}</p>
+          <p className="font-semibold text-foreground">{author.name}</p>
+          <p className="text-sm text-muted-foreground">{author.title}</p>
         </div>
       </div>
     </div>

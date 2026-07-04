@@ -27,23 +27,23 @@ const AnimatedHamburger = ({ isOpen, onClick, className }: { isOpen: boolean; on
       className={cn("relative block flex-shrink-0 cursor-pointer w-[50px] h-[40px] z-[60] focus:outline-none lg:hidden", className)}
       aria-label="Abrir menú"
     >
-      <span 
+      <span
         className={cn(
-          "absolute left-0 h-[7px] bg-[#f1faee] rounded-full transition-all duration-300 ease-out",
+          "absolute left-0 h-[7px] bg-foreground rounded-full transition-all duration-300 ease-out",
           isOpen ? "top-0 rotate-45 left-[5px] w-[48px] origin-top-left" : "top-0 w-[45px]"
-        )} 
+        )}
       />
-      <span 
+      <span
         className={cn(
-          "absolute left-0 w-[45px] h-[7px] bg-[#f1faee] rounded-full transition-all duration-300 ease-out top-[17px]",
+          "absolute left-0 w-[45px] h-[7px] bg-foreground rounded-full transition-all duration-300 ease-out top-[17px]",
           isOpen ? "-translate-x-[20px] opacity-0" : ""
-        )} 
+        )}
       />
-      <span 
+      <span
         className={cn(
-          "absolute left-0 h-[7px] bg-[#f1faee] rounded-full transition-all duration-300 ease-out",
+          "absolute left-0 h-[7px] bg-foreground rounded-full transition-all duration-300 ease-out",
           isOpen ? "bottom-[-1px] -rotate-45 left-[5px] w-[48px] origin-bottom-left" : "bottom-0 w-[45px]"
-        )} 
+        )}
       />
     </button>
   );
@@ -85,7 +85,7 @@ export default function Header() {
       className={cn(
         "fixed top-0 left-0 right-0 z-50 transition-all duration-300 ease-in-out",
         isScrolled
-          ? "h-20 bg-[#030303]/85 backdrop-blur-md border-b border-white/10 shadow-lg shadow-blue-950/10"
+          ? "h-20 bg-background/85 backdrop-blur-md border-b border-border shadow-sm dark:shadow-lg dark:shadow-blue-950/10"
           : "h-24 sm:h-28 bg-transparent"
       )}
     >
@@ -106,17 +106,17 @@ export default function Header() {
                   "hover:brightness-110 hover:drop-shadow-[0_0_15px_rgba(33,150,243,0.3)]",
                   isScrolled ? "text-3xl" : "text-4xl"
               )}>
-                  <span className="text-gray-100">Pixel</span><span className="text-brand-blue">Tec</span>
+                  <span className="text-foreground">Pixel</span><span className="text-brand-blue">Tec</span>
               </span>
             </Link>
-            
+
             <nav className="hidden lg:flex items-center gap-8">
             {navLinks.map((link) => (
                 <a
                 key={link.href}
                 href={link.href}
                 onClick={(e) => handleNavClick(e, link.href)}
-                className="text-base font-bold tracking-wide text-gray-300 transition-colors hover:text-primary"
+                className="text-base font-bold tracking-wide text-muted-foreground transition-colors hover:text-primary"
                 >
                 <AnimatedTextLink>{link.label}</AnimatedTextLink>
                 </a>
@@ -139,7 +139,7 @@ export default function Header() {
                 <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
                     <SheetContent 
                       side="right" 
-                      className="bg-[#030303]/90 backdrop-blur-xl bottom-auto top-4 h-[calc(100dvh-2rem)] w-[90%] max-w-sm rounded-l-3xl border-l border-t border-b border-white/10 shadow-2xl shadow-black/50 p-0 [&>button[aria-label='Close']]:hidden right-0 rounded-r-none border-r-0"
+                      className="bg-background/90 backdrop-blur-xl bottom-auto top-4 h-[calc(100dvh-2rem)] w-[90%] max-w-sm rounded-l-3xl border-l border-t border-b border-border shadow-2xl dark:shadow-black/50 p-0 [&>button[aria-label='Close']]:hidden right-0 rounded-r-none border-r-0"
                     >
                     <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
                     <AnimatedHamburger isOpen={isMenuOpen} onClick={() => setIsMenuOpen(false)} className="absolute top-6 right-6 z-10"/>
@@ -150,7 +150,7 @@ export default function Header() {
                                 <span className={cn(
                                     "font-logo text-4xl font-extrabold uppercase tracking-tighter translate-y-0.5"
                                 )}>
-                                    <span className="text-gray-100">Pixel</span><span className="text-brand-blue">Tec</span>
+                                    <span className="text-foreground">Pixel</span><span className="text-brand-blue">Tec</span>
                                 </span>
                             </div>
                             <nav className="flex flex-col items-center justify-center gap-8 text-center">
@@ -158,7 +158,7 @@ export default function Header() {
                                 <Link
                                 key={link.href}
                                 href={link.href}
-                                className="text-white font-black uppercase text-4xl"
+                                className="text-foreground font-black uppercase text-4xl"
                                 onClick={() => setIsMenuOpen(false)}
                                 >
                                 <AnimatedTextLink>{link.label}</AnimatedTextLink>

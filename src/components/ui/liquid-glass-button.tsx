@@ -11,8 +11,8 @@ const liquidbuttonVariants = cva(
     variants: {
       variant: {
         // PixelTEC specific variant
-        pixeltec: "bg-cyan-500 text-black hover:bg-cyan-400 hover:scale-105 hover:shadow-[0_0_30px_rgba(0,240,255,0.6)] shadow-[0_0_15px_rgba(0,240,255,0.3)] tracking-wide",
-        default: "bg-transparent hover:scale-105 duration-300 transition text-white",
+        pixeltec: "bg-cyan-500 text-black hover:bg-cyan-400 hover:scale-105 tracking-wide shadow-md hover:shadow-lg dark:shadow-[0_0_15px_rgba(0,240,255,0.3)] dark:hover:shadow-[0_0_30px_rgba(0,240,255,0.6)]",
+        default: "bg-transparent hover:scale-105 duration-300 transition text-foreground",
       },
       size: {
         default: "h-11 px-8 py-2",

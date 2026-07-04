@@ -70,11 +70,12 @@ export function SocialLinks({ className }: SocialLinksProps) {
                   aria-label={link.title}
                   className={cn(
                     'flex h-10 w-10 items-center justify-center rounded-full',
-                    'border border-white/[0.06] bg-zinc-900/50 text-zinc-400',
+                    'border border-border bg-card text-muted-foreground',
                     'cursor-pointer transition-all duration-300 ease-out',
-                    'hover:scale-105 hover:border-cyan-400/30 hover:bg-zinc-900 hover:text-cyan-400',
-                    'hover:shadow-[0_0_20px_rgba(34,211,238,0.15)]',
-                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950'
+                    'hover:scale-105 hover:bg-accent hover:text-foreground hover:shadow-sm',
+                    'dark:hover:border-cyan-400/30 dark:hover:bg-zinc-900 dark:hover:text-cyan-400',
+                    'dark:hover:shadow-[0_0_20px_rgba(34,211,238,0.15)]',
+                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background'
                   )}
                 >
                   {link.icon}
@@ -83,7 +84,7 @@ export function SocialLinks({ className }: SocialLinksProps) {
               <TooltipContent
                 side="top"
                 sideOffset={8}
-                className="rounded-md border border-white/10 bg-zinc-900 px-2.5 py-1.5 text-xs text-zinc-100"
+                className="rounded-md border border-border bg-popover px-2.5 py-1.5 text-xs text-popover-foreground"
               >
                 {link.title}
               </TooltipContent>

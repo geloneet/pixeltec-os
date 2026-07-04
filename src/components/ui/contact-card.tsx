@@ -31,7 +31,7 @@ export function ContactCard({
 	return (
 		<div
 			className={cn(
-				'bg-[#0a0a0a] border border-white/10 relative grid w-full shadow-2xl shadow-cyan-900/10 md:grid-cols-2 lg:grid-cols-3 rounded-xl overflow-hidden',
+				'bg-card border border-border relative grid w-full shadow-md dark:shadow-2xl dark:shadow-cyan-900/10 md:grid-cols-2 lg:grid-cols-3 rounded-xl overflow-hidden',
 				className,
 			)}
 			{...props}
@@ -42,10 +42,10 @@ export function ContactCard({
 			<PlusIcon className="absolute -right-3 -bottom-3 h-6 w-6 text-cyan-500" />
 			<div className="flex flex-col justify-between lg:col-span-2">
 				<div className="relative h-full space-y-6 px-6 py-10 md:p-12">
-					<h2 className="text-3xl font-bold md:text-4xl lg:text-5xl text-white tracking-tight">
+					<h2 className="text-3xl font-bold md:text-4xl lg:text-5xl text-foreground tracking-tight">
 						{title}
 					</h2>
-					<p className="text-white/60 max-w-xl text-base lg:text-lg font-light leading-relaxed tracking-wide">
+					<p className="text-muted-foreground max-w-xl text-base lg:text-lg font-light leading-relaxed tracking-wide">
 						{description}
 					</p>
 					<div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-8">
@@ -57,7 +57,7 @@ export function ContactCard({
 			</div>
 			<div
 				className={cn(
-					'bg-[#111111] flex h-full w-full items-center border-t border-white/10 p-6 md:p-8 lg:p-12 md:col-span-1 lg:col-span-1 md:border-t-0 md:border-l rounded-b-xl md:rounded-r-xl md:rounded-bl-none',
+					'bg-muted/40 flex h-full w-full items-center border-t border-border p-6 md:p-8 lg:p-12 md:col-span-1 lg:col-span-1 md:border-t-0 md:border-l rounded-b-xl md:rounded-r-xl md:rounded-bl-none',
 					formSectionClassName,
 				)}
 			>
@@ -80,8 +80,8 @@ function ContactInfo({
 				<Icon className="h-5 w-5 text-primary" />
 			</div>
 			<div>
-				<p className="font-medium text-white/90">{label}</p>
-				<p className="text-white/50 text-sm mt-1">{value}</p>
+				<p className="font-medium text-foreground">{label}</p>
+				<p className="text-muted-foreground text-sm mt-1">{value}</p>
 			</div>
 		</div>
 	);
