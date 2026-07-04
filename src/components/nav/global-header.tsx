@@ -7,6 +7,7 @@ import { useCmdK } from "@/components/cmd-k/CmdKProvider";
 import { PALETTE_NAV_ITEMS } from "./command-palette-items";
 import { UserMenu } from "./user-menu";
 import { NotificationsMenu } from "./notifications-menu";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 function currentPageLabel(pathname: string): string {
   const item = PALETTE_NAV_ITEMS.find(
@@ -66,6 +67,7 @@ export function GlobalHeader() {
           </kbd>
         </button>
 
+        <ThemeToggle />
         <NotificationsMenu />
         <UserMenu />
       </div>
