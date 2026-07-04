@@ -54,7 +54,7 @@ const footerLinks: FooterSection[] = [
 
 export function Footer() {
 	return (
-		<footer className="md:rounded-t-[3rem] relative w-full flex flex-col items-center justify-center rounded-t-3xl border-t border-border bg-[radial-gradient(35%_128px_at_50%_0%,theme(colors.sky.400/12%),transparent)] dark:bg-[radial-gradient(35%_128px_at_50%_0%,theme(colors.cyan.900/40%),transparent)] bg-muted/40 dark:bg-[#030303] px-6 py-12 lg:py-16 text-foreground">
+		<footer className="md:rounded-t-[3rem] relative w-full flex flex-col items-center justify-center rounded-t-3xl border-t border-border bg-[radial-gradient(35%_128px_at_50%_0%,hsl(var(--primary)/0.08),transparent)] dark:bg-[radial-gradient(35%_128px_at_50%_0%,theme(colors.cyan.900/40%),transparent)] bg-muted/40 dark:bg-[#030303] px-6 py-12 lg:py-16 text-foreground">
 			<div className="bg-cyan-500/50 absolute top-0 right-1/2 left-1/2 h-[2px] w-1/3 -translate-x-1/2 -translate-y-1/2 rounded-full blur-[2px]" />
 
 			<div className="grid w-full max-w-7xl gap-8 xl:grid-cols-3 xl:gap-8 mx-auto">
@@ -68,7 +68,7 @@ export function Footer() {
                     <p className="text-muted-foreground mt-4 text-sm leading-relaxed max-w-xs font-light">
                         Arquitectura digital y automatización inteligente para empresas que escalan al ritmo de la innovación.
                     </p>
-					<p className="text-muted-foreground mt-8 text-xs md:mt-6">
+					<p className="text-muted-foreground/70 mt-8 text-xs md:mt-6">
 						© {new Date().getFullYear()} PixelTEC. Todos los derechos reservados.
 					</p>
 				</AnimatedContainer>
