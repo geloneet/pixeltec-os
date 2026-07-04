@@ -19,11 +19,11 @@ import type { ReactNode } from 'react';
 type BadgeColor = 'cyan' | 'lime' | 'yellow' | 'red' | 'zinc';
 
 const badgeClasses: Record<BadgeColor, string> = {
-  cyan:   'bg-cyan-400/10 text-cyan-400 border-cyan-400/20',
-  lime:   'bg-lime-400/10 text-lime-400 border-lime-400/20',
-  yellow: 'bg-yellow-400/10 text-yellow-400 border-yellow-400/20',
-  red:    'bg-red-500/10 text-red-400 border-red-500/20',
-  zinc:   'bg-zinc-700/30 text-zinc-400 border-zinc-700/40',
+  cyan:   'bg-cyan-400/10 text-cyan-600 dark:text-cyan-400 border-cyan-400/20',
+  lime:   'bg-lime-400/10 text-lime-600 dark:text-lime-400 border-lime-400/20',
+  yellow: 'bg-yellow-400/10 text-yellow-600 dark:text-yellow-400 border-yellow-400/20',
+  red:    'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20',
+  zinc:   'bg-muted text-muted-foreground border-border',
 };
 
 interface PageHeaderProps {
@@ -47,9 +47,9 @@ export default function PageHeader({
     <div className={cn('flex justify-between items-center', className)}>
       <div className="flex items-center gap-3">
         {icon && (
-          <span className="text-zinc-400 flex-shrink-0">{icon}</span>
+          <span className="text-muted-foreground flex-shrink-0">{icon}</span>
         )}
-        <h1 className="text-4xl font-semibold tracking-tight text-white">
+        <h1 className="text-4xl font-semibold tracking-tight text-foreground">
           {title}
         </h1>
         {badge && (

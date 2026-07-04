@@ -33,17 +33,17 @@ export function GlobalHeader() {
           height={36}
           className="flex-shrink-0 w-8 h-8 sm:w-9 sm:h-9"
         />
-        <span className="font-logo font-extrabold uppercase tracking-tighter text-gray-100 text-xl sm:text-2xl flex-shrink-0">
+        <span className="font-logo font-extrabold uppercase tracking-tighter text-foreground text-xl sm:text-2xl flex-shrink-0">
           Pixel<span className="text-brand-blue">Tec</span>
         </span>
-        <span className="hidden lg:block text-zinc-500 text-sm font-medium truncate">
+        <span className="hidden lg:block text-muted-foreground text-sm font-medium truncate">
           / {pageLabel}
         </span>
       </div>
 
       {/* ── CENTER: Page title (mobile only, absolute) ───────────────────────── */}
       <span
-        className="lg:hidden absolute left-1/2 -translate-x-1/2 font-logo font-bold uppercase tracking-tighter text-gray-100 text-base sm:text-lg pointer-events-none select-none whitespace-nowrap"
+        className="lg:hidden absolute left-1/2 -translate-x-1/2 font-logo font-bold uppercase tracking-tighter text-foreground text-base sm:text-lg pointer-events-none select-none whitespace-nowrap"
         onClick={() => setOpen(true)}
       >
         {pageLabel}
@@ -56,13 +56,13 @@ export function GlobalHeader() {
           type="button"
           onClick={() => setOpen(true)}
           aria-label="Abrir menú de navegación"
-          className="flex items-center gap-2 h-9 sm:h-10 px-3 rounded-full border backdrop-blur-md bg-white/5 border-white/10 text-zinc-400 hover:text-white hover:bg-white/10 transition-all duration-200"
+          className="flex items-center gap-2 h-9 sm:h-10 px-3 rounded-full border backdrop-blur-md bg-secondary/60 border-border text-muted-foreground hover:text-foreground hover:bg-secondary transition-all duration-200"
         >
           <LayoutGrid className="w-4 h-4 sm:hidden" />
           <span className="text-xs font-medium sm:hidden">Menú</span>
           <Search className="w-4 h-4 hidden sm:block" />
           <span className="hidden sm:block text-xs">Buscar</span>
-          <kbd className="hidden lg:inline-flex items-center rounded border border-white/10 bg-black/40 px-1.5 py-0.5 text-[10px] font-mono text-zinc-400">
+          <kbd className="hidden lg:inline-flex items-center rounded border border-border bg-background/60 px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">
             ⌘K
           </kbd>
         </button>

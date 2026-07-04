@@ -46,7 +46,7 @@ export function UserMenu() {
         <button
           type="button"
           aria-label="Menú de usuario"
-          className="relative flex-shrink-0 rounded-full ring-offset-[#030303] transition-all hover:ring-2 hover:ring-sky-400/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/50"
+          className="relative flex-shrink-0 rounded-full ring-offset-background transition-all hover:ring-2 hover:ring-sky-400/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/50"
         >
           {/* Avatar */}
           <div className="relative h-8 w-8 sm:h-9 sm:w-9 rounded-full overflow-hidden">
@@ -69,7 +69,7 @@ export function UserMenu() {
 
           {/* Admin badge overlay */}
           {isAdmin && (
-            <span className="absolute -bottom-0.5 -right-0.5 z-10 flex items-center justify-center rounded-full bg-amber-500 text-black text-[9px] font-bold px-1 py-0.5 leading-none border border-[#030303]">
+            <span className="absolute -bottom-0.5 -right-0.5 z-10 flex items-center justify-center rounded-full bg-amber-500 text-black text-[9px] font-bold px-1 py-0.5 leading-none border border-background">
               A
             </span>
           )}
@@ -79,7 +79,7 @@ export function UserMenu() {
       <DropdownMenuContent
         align="end"
         sideOffset={8}
-        className="w-64 bg-zinc-950/95 backdrop-blur-xl border border-white/10 shadow-[0_0_60px_-15px_rgba(0,0,0,0.6)] rounded-xl p-1"
+        className="w-64 bg-popover/95 backdrop-blur-xl border border-border shadow-xl dark:shadow-[0_0_60px_-15px_rgba(0,0,0,0.6)] rounded-xl p-1"
       >
         {/* Header con foto grande */}
         <DropdownMenuLabel className="flex items-center gap-3 px-2 py-2">
@@ -101,22 +101,22 @@ export function UserMenu() {
             )}
           </div>
           <div className="flex flex-col min-w-0">
-            <span className="text-zinc-100 font-semibold text-sm truncate">
+            <span className="text-foreground font-semibold text-sm truncate">
               {user.displayName ?? "Usuario"}
             </span>
-            <span className="text-zinc-500 text-xs truncate">{user.email}</span>
+            <span className="text-muted-foreground text-xs truncate">{user.email}</span>
             {isAdmin && (
-              <span className="mt-0.5 self-start text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-full px-1.5 py-0.5 leading-none">
+              <span className="mt-0.5 self-start text-[10px] font-bold bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 rounded-full px-1.5 py-0.5 leading-none">
                 admin
               </span>
             )}
           </div>
         </DropdownMenuLabel>
 
-        <DropdownMenuSeparator className="bg-white/5" />
+        <DropdownMenuSeparator className="bg-border" />
 
         <DropdownMenuItem
-          className="flex items-center gap-2 text-zinc-300 hover:text-white focus:text-white focus:bg-white/5 rounded-lg cursor-pointer px-2 py-2 text-sm"
+          className="flex items-center gap-2 text-muted-foreground hover:text-foreground focus:text-foreground focus:bg-accent rounded-lg cursor-pointer px-2 py-2 text-sm"
           onClick={() => router.push("/perfil")}
         >
           <User className="h-4 w-4 flex-shrink-0" />
@@ -124,14 +124,14 @@ export function UserMenu() {
         </DropdownMenuItem>
 
         <DropdownMenuItem
-          className="flex items-center gap-2 text-zinc-300 hover:text-white focus:text-white focus:bg-white/5 rounded-lg cursor-pointer px-2 py-2 text-sm"
+          className="flex items-center gap-2 text-muted-foreground hover:text-foreground focus:text-foreground focus:bg-accent rounded-lg cursor-pointer px-2 py-2 text-sm"
           onClick={() => router.push("/settings")}
         >
           <Settings className="h-4 w-4 flex-shrink-0" />
           Configuración
         </DropdownMenuItem>
 
-        <DropdownMenuSeparator className="bg-white/5" />
+        <DropdownMenuSeparator className="bg-border" />
 
         <DropdownMenuItem
           className="flex items-center gap-2 text-rose-400 hover:text-rose-300 focus:text-rose-300 focus:bg-rose-500/10 rounded-lg cursor-pointer px-2 py-2 text-sm"

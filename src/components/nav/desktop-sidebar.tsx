@@ -86,7 +86,10 @@ const BY_SECTION = groupBySection(PALETTE_NAV_ITEMS.filter((item) => !item.hidde
  */
 const SidebarBackdrop = memo(function SidebarBackdrop() {
   return (
-    <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+    <div
+      aria-hidden="true"
+      className="pointer-events-none absolute inset-0 hidden overflow-hidden dark:block"
+    >
       {/* 1. Tinted glass base — subtle bluish-zinc gradient that survives behind the backdrop-blur */}
       <div
         className="absolute inset-0"
@@ -172,13 +175,13 @@ function ItemBadge({ badge, isCollapsed }: { badge: BadgeMeta | undefined; isCol
   if (typeof count === "number") {
     if (!isCollapsed) {
       return (
-        <span className="ml-auto inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-semibold bg-cyan-500/15 text-cyan-300 border border-cyan-400/20">
+        <span className="ml-auto inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-semibold bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border border-cyan-400/20">
           {count}
         </span>
       );
     }
     return (
-      <span className="absolute top-1 right-1 inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full text-[9px] font-semibold bg-cyan-500/15 text-cyan-300 border border-cyan-400/20">
+      <span className="absolute top-1 right-1 inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full text-[9px] font-semibold bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border border-cyan-400/20">
         {count}
       </span>
     );
@@ -242,11 +245,10 @@ export function DesktopSidebar() {
         aria-expanded={!isCollapsed}
         className={cn(
           "relative h-full flex-shrink-0 flex flex-col overflow-hidden",
-          // Liquid-glass surface: translucent dark tint + heavy backdrop blur
-          "bg-zinc-900/30 backdrop-blur-2xl backdrop-saturate-150",
-          // Glass-edge border + inner highlight glints
-          "border-r border-white/[0.08]",
-          "shadow-[inset_0_1px_0_rgba(255,255,255,0.06),inset_-1px_0_0_rgba(255,255,255,0.03)]",
+          // Superficie: card/muted en light; liquid-glass translúcido + blur en dark
+          "bg-muted/60 dark:bg-zinc-900/30 backdrop-blur-2xl backdrop-saturate-150",
+          "border-r border-border",
+          "shadow-sm dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06),inset_-1px_0_0_rgba(255,255,255,0.03)]",
           "transition-[width] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
           isCollapsed ? "w-16" : "w-60"
         )}
@@ -257,7 +259,7 @@ export function DesktopSidebar() {
           {/* ─── System Status Header ─────────────────────────────── */}
           <div
             className={cn(
-              "flex items-center border-b border-white/[0.04] h-16",
+              "flex items-center border-b border-border/60 h-16",
               isCollapsed ? "justify-center px-0" : "justify-between px-4"
             )}
           >
@@ -268,7 +270,7 @@ export function DesktopSidebar() {
                     type="button"
                     onClick={toggleCollapsed}
                     aria-label={`Expandir menú · ${APP_VERSION}`}
-                    className="flex h-9 w-9 items-center justify-center rounded-lg text-zinc-500 hover:bg-white/[0.04] hover:text-cyan-300 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+                    className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-primary dark:hover:text-cyan-300 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                   >
                     <PanelLeftOpen className="h-5 w-5" strokeWidth={1.75} />
                   </button>
@@ -276,7 +278,7 @@ export function DesktopSidebar() {
                 <TooltipContent
                   side="right"
                   sideOffset={12}
-                  className="z-[60] bg-zinc-900 border border-white/10 text-zinc-100 text-sm px-3 py-1.5 rounded-lg shadow-xl"
+                  className="z-[60] text-sm px-3 py-1.5 rounded-lg shadow-xl"
                 >
                   Expandir menú · ONLINE · {APP_VERSION}
                 </TooltipContent>
@@ -286,10 +288,10 @@ export function DesktopSidebar() {
                 <div className="flex items-center gap-2.5">
                   <PulseDot color="cyan" />
                   <div className="flex flex-col leading-tight">
-                    <span className="text-[11px] font-mono uppercase tracking-[0.18em] text-cyan-300">
+                    <span className="text-[11px] font-mono uppercase tracking-[0.18em] text-cyan-700 dark:text-cyan-300">
                       Online
                     </span>
-                    <span className="text-[10px] font-mono text-zinc-500">
+                    <span className="text-[10px] font-mono text-muted-foreground">
                       PixelTEC OS · {APP_VERSION}
                     </span>
                   </div>
@@ -298,7 +300,7 @@ export function DesktopSidebar() {
                   type="button"
                   onClick={toggleCollapsed}
                   aria-label="Colapsar menú"
-                  className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 hover:bg-white/[0.04] hover:text-zinc-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                 >
                   <PanelLeftClose className="h-4 w-4" strokeWidth={1.75} />
                 </button>
@@ -318,7 +320,7 @@ export function DesktopSidebar() {
                     <div
                       aria-hidden="true"
                       className={cn(
-                        "mx-3 h-px bg-white/[0.04] transition-all duration-200 ease-out",
+                        "mx-3 h-px bg-border/60 transition-all duration-200 ease-out",
                         isCollapsed ? "my-1 opacity-0" : "my-2 opacity-100"
                       )}
                     />
@@ -330,7 +332,7 @@ export function DesktopSidebar() {
                     aria-expanded={!collapsedSections.has(section)}
                     tabIndex={isCollapsed ? -1 : 0}
                     className={cn(
-                      "flex items-center justify-between px-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500 hover:text-zinc-300 overflow-hidden whitespace-nowrap",
+                      "flex items-center justify-between px-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground overflow-hidden whitespace-nowrap",
                       "transition-all duration-200 ease-out",
                       isCollapsed
                         ? "h-0 mb-0 opacity-0 pointer-events-none"
@@ -361,24 +363,24 @@ export function DesktopSidebar() {
                             className={cn(
                               "group/item relative flex items-center gap-3 mx-2 px-3 h-10 rounded-lg",
                               "transition-all duration-200",
-                              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950",
+                              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                               active
-                                ? "bg-gradient-to-r from-cyan-500/[0.12] via-cyan-500/[0.06] to-transparent text-cyan-100 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.25),0_0_20px_-8px_rgba(34,211,238,0.5)]"
-                                : "text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-100"
+                                ? "bg-primary/10 text-primary shadow-sm dark:bg-transparent dark:bg-gradient-to-r dark:from-cyan-500/[0.12] dark:via-cyan-500/[0.06] dark:to-transparent dark:text-cyan-100 dark:shadow-[inset_0_0_0_1px_rgba(34,211,238,0.25),0_0_20px_-8px_rgba(34,211,238,0.5)]"
+                                : "text-muted-foreground hover:bg-accent hover:text-foreground"
                             )}
                           >
                             {active && (
                               <span
                                 aria-hidden="true"
-                                className="absolute -left-2 top-1.5 bottom-1.5 w-[3px] rounded-r bg-cyan-400 shadow-[0_0_12px_rgba(34,211,238,0.7)]"
+                                className="absolute -left-2 top-1.5 bottom-1.5 w-[3px] rounded-r bg-primary dark:bg-cyan-400 dark:shadow-[0_0_12px_rgba(34,211,238,0.7)]"
                               />
                             )}
                             <Icon
                               className={cn(
                                 "h-7 w-7 flex-shrink-0 transition-colors",
                                 active
-                                  ? "text-cyan-300 drop-shadow-[0_0_8px_rgba(34,211,238,0.6)]"
-                                  : "text-zinc-500 group-hover/item:text-zinc-200"
+                                  ? "text-primary dark:text-cyan-300 dark:drop-shadow-[0_0_8px_rgba(34,211,238,0.6)]"
+                                  : "text-muted-foreground group-hover/item:text-foreground"
                               )}
                               strokeWidth={1.75}
                             />
@@ -397,7 +399,7 @@ export function DesktopSidebar() {
                         <TooltipContent
                           side="right"
                           sideOffset={12}
-                          className="z-[60] bg-zinc-900 border border-white/10 text-zinc-100 text-sm px-3 py-1.5 rounded-lg shadow-xl"
+                          className="z-[60] text-sm px-3 py-1.5 rounded-lg shadow-xl"
                         >
                           {item.label}
                         </TooltipContent>
@@ -410,7 +412,7 @@ export function DesktopSidebar() {
           </nav>
 
           {/* ─── Command Palette trigger ──────────────────────────── */}
-          <div className="flex flex-col border-t border-white/[0.04] pt-3">
+          <div className="flex flex-col border-t border-border/60 pt-3">
             <Tooltip open={isCollapsed ? undefined : false}>
               <TooltipTrigger asChild>
                 <button
@@ -419,19 +421,19 @@ export function DesktopSidebar() {
                   aria-label="Abrir paleta de comandos (⌘K)"
                   className={cn(
                     "group/cmdk relative mx-2 flex items-center gap-3 h-10 px-3 rounded-lg",
-                    "bg-white/[0.03] border border-white/[0.06]",
-                    "hover:bg-white/[0.06] hover:border-cyan-400/30",
+                    "bg-secondary/60 border border-border",
+                    "hover:bg-secondary hover:border-cyan-400/30",
                     "transition-all duration-200",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                   )}
                 >
                   <Search
-                    className="h-7 w-7 flex-shrink-0 text-zinc-500 transition-colors group-hover/cmdk:text-cyan-300"
+                    className="h-7 w-7 flex-shrink-0 text-muted-foreground transition-colors group-hover/cmdk:text-primary dark:group-hover/cmdk:text-cyan-300"
                     strokeWidth={1.75}
                   />
                   <span
                     className={cn(
-                      "text-sm text-zinc-500 whitespace-nowrap overflow-hidden transition-[max-width,opacity] duration-200 ease-out delay-75 group-hover/cmdk:text-zinc-200",
+                      "text-sm text-muted-foreground whitespace-nowrap overflow-hidden transition-[max-width,opacity] duration-200 ease-out delay-75 group-hover/cmdk:text-foreground",
                       isCollapsed ? "max-w-0 opacity-0" : "max-w-[120px] opacity-100"
                     )}
                   >
@@ -440,7 +442,7 @@ export function DesktopSidebar() {
                   <kbd
                     aria-hidden="true"
                     className={cn(
-                      "ml-auto inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-zinc-900/80 border border-white/10 text-[10px] font-mono text-zinc-400 transition-opacity duration-200 delay-75",
+                      "ml-auto inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-secondary border border-border text-[10px] font-mono text-muted-foreground transition-opacity duration-200 delay-75",
                       isCollapsed ? "opacity-0" : "opacity-100"
                     )}
                   >
@@ -451,7 +453,7 @@ export function DesktopSidebar() {
               <TooltipContent
                 side="right"
                 sideOffset={12}
-                className="z-[60] bg-zinc-900 border border-white/10 text-zinc-100 text-sm px-3 py-1.5 rounded-lg shadow-xl"
+                className="z-[60] text-sm px-3 py-1.5 rounded-lg shadow-xl"
               >
                 Buscar · ⌘K
               </TooltipContent>
@@ -467,13 +469,13 @@ export function DesktopSidebar() {
                   onClick={handleLogout}
                   className={cn(
                     "group/logout flex items-center gap-3 mx-2 px-3 h-10 rounded-lg",
-                    "text-zinc-500 hover:bg-red-500/10 hover:text-red-300",
+                    "text-muted-foreground hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-300",
                     "transition-all duration-200",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/40 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                   )}
                 >
                   <LogOut
-                    className="h-7 w-7 flex-shrink-0 text-zinc-500 transition-colors group-hover/logout:text-red-300"
+                    className="h-7 w-7 flex-shrink-0 text-muted-foreground transition-colors group-hover/logout:text-red-600 dark:group-hover/logout:text-red-300"
                     strokeWidth={1.75}
                   />
                   <span
@@ -490,7 +492,7 @@ export function DesktopSidebar() {
               <TooltipContent
                 side="right"
                 sideOffset={12}
-                className="z-[60] bg-zinc-900 border border-white/10 text-zinc-100 text-sm px-3 py-1.5 rounded-lg shadow-xl"
+                className="z-[60] text-sm px-3 py-1.5 rounded-lg shadow-xl"
               >
                 Cerrar sesión
               </TooltipContent>
@@ -501,7 +503,7 @@ export function DesktopSidebar() {
           <div
             aria-hidden="true"
             className={cn(
-              "px-4 pb-3 text-[9px] font-mono uppercase tracking-[0.2em] text-zinc-700 text-center transition-opacity duration-200",
+              "px-4 pb-3 text-[9px] font-mono uppercase tracking-[0.2em] text-muted-foreground/60 text-center transition-opacity duration-200",
               isCollapsed ? "opacity-0" : "opacity-100"
             )}
           >

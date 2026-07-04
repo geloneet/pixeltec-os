@@ -5,6 +5,7 @@ validateEnv();
 
 import { useEffect, type ReactNode } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import { useTheme } from "next-themes";
 import { LoaderCircle } from "lucide-react";
 import { Toaster } from "sonner";
 import { cn } from "@/lib/utils";
@@ -29,12 +30,14 @@ function Shell({
   /** Rutas tipo app (sesión, WhatsApp): sin padding y con scroll interno propio. */
   isFullBleedRoute: boolean;
 }) {
+  const { resolvedTheme } = useTheme();
+
   return (
-    <div className="h-dvh w-full flex bg-[#030303] text-zinc-100 font-sans overflow-hidden">
-      {/* Ambient gradient */}
+    <div className="h-dvh w-full flex bg-background text-foreground font-sans overflow-hidden">
+      {/* Ambient gradient: glow azul/violeta solo en dark; en light, tinte azul muy sutil */}
       <div
         aria-hidden
-        className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_top,rgba(59,130,246,0.08),transparent_50%),radial-gradient(ellipse_at_bottom,rgba(139,92,246,0.06),transparent_50%)]"
+        className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_top,rgba(33,150,243,0.03),transparent_50%)] dark:bg-[radial-gradient(ellipse_at_top,rgba(59,130,246,0.08),transparent_50%),radial-gradient(ellipse_at_bottom,rgba(139,92,246,0.06),transparent_50%)]"
       />
 
       {/* Desktop sidebar — visible only ≥1280px */}
@@ -60,11 +63,11 @@ function Shell({
       <Toaster
         richColors
         position="top-right"
-        theme="dark"
+        theme={resolvedTheme === "light" ? "light" : "dark"}
         toastOptions={{
           classNames: {
             toast:
-              "border border-zinc-800/60 bg-zinc-900/90 backdrop-blur-xl text-zinc-100",
+              "border border-border bg-card/95 backdrop-blur-xl text-card-foreground",
           },
         }}
       />
@@ -88,7 +91,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
   if (user === undefined) {
     return (
-      <div className="flex h-dvh w-full items-center justify-center bg-[#030303]">
+      <div className="flex h-dvh w-full items-center justify-center bg-background">
         <LoaderCircle className="h-10 w-10 animate-spin text-cyan-400" />
       </div>
     );

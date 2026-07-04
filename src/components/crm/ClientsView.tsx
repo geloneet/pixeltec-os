@@ -89,7 +89,7 @@ function ClientRow({ item, navigateToClient, setModal }: ClientRowProps) {
       tabIndex={0}
       onClick={() => navigateToClient(c.id)}
       onKeyDown={(e) => { if (e.key === "Enter") navigateToClient(c.id); }}
-      className="group flex items-center rounded-xl border border-white/[0.06] bg-zinc-900/20 cursor-pointer transition-all duration-150 hover:border-cyan-400/30 hover:bg-white/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40"
+      className="group flex items-center rounded-xl border border-border bg-card shadow-sm cursor-pointer transition-all duration-150 hover:border-cyan-400/30 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40"
     >
       {/* Identity */}
       <div className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3">
@@ -100,9 +100,9 @@ function ClientRow({ item, navigateToClient, setModal }: ClientRowProps) {
           {initials(c.name)}
         </span>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium leading-snug text-zinc-100">{c.name}</p>
-          <p className="truncate text-[11px] leading-snug text-zinc-500">
-            {meta || <span className="italic text-zinc-700">Sin datos de contacto</span>}
+          <p className="truncate text-sm font-medium leading-snug text-foreground">{c.name}</p>
+          <p className="truncate text-[11px] leading-snug text-muted-foreground">
+            {meta || <span className="italic text-muted-foreground/60">Sin datos de contacto</span>}
           </p>
         </div>
       </div>
@@ -114,43 +114,43 @@ function ClientRow({ item, navigateToClient, setModal }: ClientRowProps) {
         </span>
       </div>
 
-      <div className="my-2 w-px self-stretch bg-white/[0.06]" />
+      <div className="my-2 w-px self-stretch bg-border" />
 
       {/* Projects */}
       <div className="w-20 flex-shrink-0 px-3 py-3 text-center">
-        <p className="tabular-nums text-sm font-semibold text-zinc-100">{stats.projectsCount}</p>
-        <p className="mt-0.5 text-[10px] text-zinc-600">proyectos</p>
+        <p className="tabular-nums text-sm font-semibold text-foreground">{stats.projectsCount}</p>
+        <p className="mt-0.5 text-[10px] text-muted-foreground/70">proyectos</p>
       </div>
 
-      <div className="my-2 w-px self-stretch bg-white/[0.06]" />
+      <div className="my-2 w-px self-stretch bg-border" />
 
       {/* Tasks */}
       <div className="w-28 flex-shrink-0 px-3 py-3 text-center">
-        <p className="tabular-nums text-sm font-semibold text-zinc-100">
+        <p className="tabular-nums text-sm font-semibold text-foreground">
           {stats.totalTasks > 0 ? stats.openTasks : "—"}
         </p>
-        <p className="mt-0.5 text-[10px] text-zinc-600">abiertas</p>
+        <p className="mt-0.5 text-[10px] text-muted-foreground/70">abiertas</p>
       </div>
 
-      <div className="my-2 w-px self-stretch bg-white/[0.06]" />
+      <div className="my-2 w-px self-stretch bg-border" />
 
       {/* Since */}
       <div className="w-24 flex-shrink-0 px-3 py-3 text-center">
-        <p className="text-[11px] font-medium capitalize text-zinc-400">{since}</p>
-        <p className="mt-0.5 text-[10px] text-zinc-600">cliente desde</p>
+        <p className="text-[11px] font-medium capitalize text-muted-foreground">{since}</p>
+        <p className="mt-0.5 text-[10px] text-muted-foreground/70">cliente desde</p>
       </div>
 
-      <div className="my-2 w-px self-stretch bg-white/[0.06]" />
+      <div className="my-2 w-px self-stretch bg-border" />
 
       {/* Progress */}
       <div className="w-28 flex-shrink-0 px-4 py-3">
         {stats.totalTasks > 0 ? (
           <div className="space-y-1">
             <div className="flex items-center justify-between">
-              <span className="tabular-nums text-[10px] font-medium text-zinc-400">{stats.pct}%</span>
-              <span className="text-[10px] text-zinc-600">avance</span>
+              <span className="tabular-nums text-[10px] font-medium text-muted-foreground">{stats.pct}%</span>
+              <span className="text-[10px] text-muted-foreground/70">avance</span>
             </div>
-            <div className="h-[3px] w-full overflow-hidden rounded-full bg-white/[0.06]">
+            <div className="h-[3px] w-full overflow-hidden rounded-full bg-muted">
               <div
                 className={cn("h-full rounded-full transition-all", stats.pct >= 100 ? "bg-green-500" : "bg-cyan-500")}
                 style={{ width: `${stats.pct}%` }}
@@ -159,7 +159,7 @@ function ClientRow({ item, navigateToClient, setModal }: ClientRowProps) {
           </div>
         ) : (
           <div className="flex h-full items-center justify-center">
-            <span className="text-[11px] text-zinc-700">—</span>
+            <span className="text-[11px] text-muted-foreground/50">—</span>
           </div>
         )}
       </div>
@@ -173,21 +173,21 @@ function ClientRow({ item, navigateToClient, setModal }: ClientRowProps) {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
-              className="flex h-7 w-7 items-center justify-center rounded-md text-zinc-500 opacity-0 transition-opacity hover:bg-white/[0.06] hover:text-zinc-300 group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none"
+              className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-accent hover:text-foreground group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none"
               aria-label={`Acciones para ${c.name}`}
             >
               <MoreHorizontal className="h-3.5 w-3.5" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-44 border-zinc-800/60 bg-zinc-900/95 backdrop-blur-xl">
+          <DropdownMenuContent align="end" className="w-44 border-border bg-popover/95 backdrop-blur-xl">
             <DropdownMenuItem
-              className="cursor-pointer text-sm text-zinc-300 focus:bg-white/[0.06] focus:text-zinc-100"
+              className="cursor-pointer text-sm text-muted-foreground focus:bg-accent focus:text-foreground"
               onSelect={() => navigateToClient(c.id)}
             >
               Ver cliente
             </DropdownMenuItem>
             <DropdownMenuItem
-              className="cursor-pointer text-sm text-zinc-300 focus:bg-white/[0.06] focus:text-zinc-100"
+              className="cursor-pointer text-sm text-muted-foreground focus:bg-accent focus:text-foreground"
               onSelect={() =>
                 setModal({
                   type: "editClient",
@@ -206,7 +206,7 @@ function ClientRow({ item, navigateToClient, setModal }: ClientRowProps) {
               Editar
             </DropdownMenuItem>
             <DropdownMenuItem
-              className="cursor-pointer text-sm text-zinc-300 focus:bg-white/[0.06] focus:text-zinc-100"
+              className="cursor-pointer text-sm text-muted-foreground focus:bg-accent focus:text-foreground"
               onSelect={() => navigateToClient(c.id)}
             >
               + Proyecto nuevo
@@ -285,12 +285,12 @@ export function ClientsView({ clients, navigateToClient, setModal }: ClientsView
       {/* Header */}
       <div className="mb-5 flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-xl font-semibold text-zinc-100">Clientes</h2>
-          <p className="text-sm text-zinc-500">Directorio de cuentas activas</p>
+          <h2 className="text-xl font-semibold text-foreground">Clientes</h2>
+          <p className="text-sm text-muted-foreground">Directorio de cuentas activas</p>
         </div>
         <button
           onClick={() => setModal({ type: "addClient" })}
-          className="flex-shrink-0 rounded-lg border border-cyan-500/20 bg-cyan-500/10 px-4 py-2 text-sm font-medium text-cyan-300 transition-all duration-150 hover:bg-cyan-500/20"
+          className="flex-shrink-0 rounded-lg border border-cyan-500/20 bg-cyan-500/10 px-4 py-2 text-sm font-medium text-cyan-700 dark:text-cyan-300 transition-all duration-150 hover:bg-cyan-500/20"
         >
           + Cliente
         </button>
@@ -301,20 +301,20 @@ export function ClientsView({ clients, navigateToClient, setModal }: ClientsView
         <div className="mb-5 flex items-center gap-5 text-sm">
           <span className="flex items-center gap-1.5">
             <Users className="h-3.5 w-3.5 text-cyan-400" strokeWidth={1.75} />
-            <span className="tabular-nums font-semibold text-zinc-100">{metrics.totalClients}</span>
-            <span className="text-zinc-500">clientes</span>
+            <span className="tabular-nums font-semibold text-foreground">{metrics.totalClients}</span>
+            <span className="text-muted-foreground">clientes</span>
           </span>
-          <span className="text-zinc-700">·</span>
+          <span className="text-muted-foreground/50">·</span>
           <span className="flex items-center gap-1.5">
             <FolderKanban className="h-3.5 w-3.5 text-cyan-400" strokeWidth={1.75} />
-            <span className="tabular-nums font-semibold text-zinc-100">{metrics.totalProjects}</span>
-            <span className="text-zinc-500">proyectos</span>
+            <span className="tabular-nums font-semibold text-foreground">{metrics.totalProjects}</span>
+            <span className="text-muted-foreground">proyectos</span>
           </span>
-          <span className="text-zinc-700">·</span>
+          <span className="text-muted-foreground/50">·</span>
           <span className="flex items-center gap-1.5">
             <ListTodo className="h-3.5 w-3.5 text-cyan-400" strokeWidth={1.75} />
-            <span className="tabular-nums font-semibold text-zinc-100">{metrics.totalOpenTasks}</span>
-            <span className="text-zinc-500">tareas abiertas</span>
+            <span className="tabular-nums font-semibold text-foreground">{metrics.totalOpenTasks}</span>
+            <span className="text-muted-foreground">tareas abiertas</span>
           </span>
         </div>
       )}
@@ -323,16 +323,16 @@ export function ClientsView({ clients, navigateToClient, setModal }: ClientsView
       {clients.length > 0 && (
         <div className="mb-4 flex flex-wrap items-center gap-3">
           <div className="relative min-w-48 max-w-xs flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-500" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Buscar cliente…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="h-8 border-white/[0.08] bg-zinc-900/40 pl-9 text-sm text-zinc-300 placeholder:text-zinc-600 focus-visible:border-cyan-500/40 focus-visible:ring-cyan-500/20"
+              className="h-8 border-border bg-muted/40 pl-9 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-cyan-500/40 focus-visible:ring-cyan-500/20"
             />
           </div>
 
-          <div className="flex items-center gap-0.5 rounded-lg border border-white/[0.06] p-0.5">
+          <div className="flex items-center gap-0.5 rounded-lg border border-border p-0.5">
             {FILTERS.map(({ key, label }) => (
               <button
                 key={key}
@@ -340,8 +340,8 @@ export function ClientsView({ clients, navigateToClient, setModal }: ClientsView
                 className={cn(
                   "rounded-md px-3 py-1 text-xs font-medium transition-all duration-150",
                   filter === key
-                    ? "border border-cyan-500/20 bg-cyan-500/15 text-cyan-300"
-                    : "text-zinc-500 hover:bg-white/[0.04] hover:text-zinc-300"
+                    ? "border border-cyan-500/20 bg-cyan-500/15 text-cyan-700 dark:text-cyan-300"
+                    : "text-muted-foreground hover:bg-accent hover:text-foreground"
                 )}
               >
                 {label}
@@ -350,13 +350,13 @@ export function ClientsView({ clients, navigateToClient, setModal }: ClientsView
           </div>
 
           <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
-            <SelectTrigger className="h-8 w-44 border-white/[0.08] bg-zinc-900/40 text-xs text-zinc-400 focus:ring-cyan-500/20">
+            <SelectTrigger className="h-8 w-44 border-border bg-muted/40 text-xs text-muted-foreground focus:ring-cyan-500/20">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent className="border-zinc-800/60 bg-zinc-900/95 backdrop-blur-xl">
-              <SelectItem value="recientes" className="text-sm text-zinc-300 focus:bg-white/[0.06] focus:text-zinc-100">Más recientes</SelectItem>
-              <SelectItem value="nombre" className="text-sm text-zinc-300 focus:bg-white/[0.06] focus:text-zinc-100">Nombre A–Z</SelectItem>
-              <SelectItem value="mas-proyectos" className="text-sm text-zinc-300 focus:bg-white/[0.06] focus:text-zinc-100">Más proyectos</SelectItem>
+            <SelectContent className="border-border bg-popover/95 backdrop-blur-xl">
+              <SelectItem value="recientes" className="text-sm text-muted-foreground focus:bg-accent focus:text-foreground">Más recientes</SelectItem>
+              <SelectItem value="nombre" className="text-sm text-muted-foreground focus:bg-accent focus:text-foreground">Nombre A–Z</SelectItem>
+              <SelectItem value="mas-proyectos" className="text-sm text-muted-foreground focus:bg-accent focus:text-foreground">Más proyectos</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -364,11 +364,11 @@ export function ClientsView({ clients, navigateToClient, setModal }: ClientsView
 
       {/* List */}
       {clients.length === 0 ? (
-        <p className="py-20 text-center text-sm text-zinc-500">No hay clientes aún</p>
+        <p className="py-20 text-center text-sm text-muted-foreground">No hay clientes aún</p>
       ) : filtered.length === 0 ? (
-        <p className="py-12 text-center text-sm text-zinc-500">
+        <p className="py-12 text-center text-sm text-muted-foreground">
           Sin resultados para{" "}
-          <span className="text-zinc-400">&ldquo;{query}&rdquo;</span>
+          <span className="text-foreground">&ldquo;{query}&rdquo;</span>
         </p>
       ) : (
         <div className="space-y-1.5">
