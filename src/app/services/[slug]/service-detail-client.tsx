@@ -30,7 +30,7 @@ import { ServiceStructuredData } from '@/components/seo/structured-data';
 const servicesData = [
     {
         slug: 'ecosistemas-web',
-        icon: <Globe className="h-10 w-10 md:h-12 md:w-12 text-cyan-400" />,
+        icon: <Globe className="h-10 w-10 md:h-12 md:w-12 text-primary dark:text-cyan-400" />,
         title: 'Ecosistemas Web Avanzados',
         description: 'Creación de aplicaciones web robustas, CRMs personalizados y sitios corporativos ultra rápidos. Construimos con tecnologías de vanguardia como Next.js, React y Firebase, diseñando arquitecturas escalables preparadas para el futuro de tu negocio.',
         features: [
@@ -73,7 +73,7 @@ const servicesData = [
     },
     {
         slug: 'automatizacion',
-        icon: <Bot className="h-10 w-10 md:h-12 md:w-12 text-cyan-400" />,
+        icon: <Bot className="h-10 w-10 md:h-12 md:w-12 text-primary dark:text-cyan-400" />,
         title: 'Automatización de Procesos con IA',
         description: 'Desarrollamos scripts en Python, herramientas de validación de datos y bots de Telegram o WhatsApp interactivos para optimizar la operación diaria, reducir tareas manuales y permitir que tu equipo se enfoque en el crecimiento.',
         features: [
@@ -116,7 +116,7 @@ const servicesData = [
     },
     {
         slug: 'consultoria',
-        icon: <Briefcase className="h-10 w-10 md:h-12 md:w-12 text-cyan-400" />,
+        icon: <Briefcase className="h-10 w-10 md:h-12 md:w-12 text-primary dark:text-cyan-400" />,
         title: 'Consultoría Tecnológica Estratégica',
         description: 'Realizamos una auditoría y digitalización de tu negocio. Desde la transición de procesos administrativos (como la gestión de flotillas o clínicas) hasta el rediseño UI/UX de tus sistemas actuales para mejorar la eficiencia y la experiencia de usuario.',
         features: [
@@ -182,7 +182,7 @@ export default function ServiceDetailClient({ slug }: { slug: string }) {
   return (
     <>
     <ServiceStructuredData slug={service.slug} title={service.title} description={service.description} />
-    <div className="min-h-screen bg-[#030303] text-white pt-32 sm:pt-40 pb-16 sm:pb-24">
+    <div className="min-h-screen bg-background text-foreground pt-32 sm:pt-40 pb-16 sm:pb-24">
       <Header />
       <main className="container mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
         <motion.div
@@ -194,7 +194,7 @@ export default function ServiceDetailClient({ slug }: { slug: string }) {
         >
           <Link
             href="/services"
-            className="group inline-flex items-center font-medium text-zinc-400 transition-colors hover:text-white"
+            className="group inline-flex items-center font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
             <ArrowLeft className="mr-2 h-5 w-5 transition-transform group-hover:-translate-x-1" />
             Volver a Servicios
@@ -206,15 +206,15 @@ export default function ServiceDetailClient({ slug }: { slug: string }) {
           animate="visible"
           custom={1}
           variants={sectionVariants}
-          className="mb-16 rounded-2xl border border-white/10 bg-[#0A0A0A] p-8 md:p-12 shadow-[0_0_40px_rgba(0,240,255,0.05)]"
+          className="mb-16 rounded-2xl border border-border bg-card p-8 md:p-12 shadow-sm dark:shadow-[0_0_40px_rgba(0,240,255,0.05)]"
         >
           <div className="flex flex-col sm:flex-row items-center text-center sm:text-left gap-6 md:gap-8">
             <div className="mb-4 sm:mb-0">{service.icon}</div>
             <div className="flex-1">
-                <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-white">
+                <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-foreground">
                 {service.title}
                 </h1>
-                <p className="mt-4 max-w-3xl text-base md:text-lg text-white/70 leading-relaxed">
+                <p className="mt-4 max-w-3xl text-base md:text-lg text-muted-foreground leading-relaxed">
                 {service.description}
                 </p>
             </div>
@@ -229,17 +229,17 @@ export default function ServiceDetailClient({ slug }: { slug: string }) {
           variants={sectionVariants}
           className="py-12 sm:py-16"
         >
-          <h2 className="mb-10 md:mb-12 text-center text-3xl font-bold text-white">
+          <h2 className="mb-10 md:mb-12 text-center text-3xl font-bold text-foreground">
             Beneficios Clave
           </h2>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 sm:gap-6">
             {service.features.map((feature, index) => (
               <div
                 key={index}
-                className="flex items-start gap-4 rounded-lg border border-white/10 bg-[#0A0A0A] p-5"
+                className="flex items-start gap-4 rounded-lg border border-border bg-card p-5"
               >
-                <CheckCircle className="mt-1 h-5 w-5 flex-shrink-0 text-cyan-400" />
-                <p className="text-white/80">{feature}</p>
+                <CheckCircle className="mt-1 h-5 w-5 flex-shrink-0 text-primary dark:text-cyan-400" />
+                <p className="text-foreground/80">{feature}</p>
               </div>
             ))}
           </div>
@@ -252,16 +252,16 @@ export default function ServiceDetailClient({ slug }: { slug: string }) {
             variants={sectionVariants}
             className="py-12 sm:py-16"
         >
-            <h2 className="mb-10 md:mb-12 text-center text-3xl font-bold text-white">
+            <h2 className="mb-10 md:mb-12 text-center text-3xl font-bold text-foreground">
                 Casos de Uso y Aplicaciones
             </h2>
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:gap-8">
                 {service.useCases.map((useCase, index) => (
-                    <div key={index} className="flex gap-6 rounded-xl border border-white/5 bg-[#0A0A0A] p-6 transition-all duration-300 hover:border-cyan-500/20 hover:-translate-y-1">
-                        <div className="mt-1 text-cyan-400 flex-shrink-0">{useCase.icon}</div>
+                    <div key={index} className="flex gap-6 rounded-xl border border-border/60 bg-card p-6 transition-all duration-300 hover:border-primary/20 dark:hover:border-cyan-500/20 hover:-translate-y-1">
+                        <div className="mt-1 text-primary dark:text-cyan-400 flex-shrink-0">{useCase.icon}</div>
                         <div>
-                            <h3 className="font-bold text-white text-lg">{useCase.title}</h3>
-                            <p className="mt-2 text-sm text-white/60 leading-relaxed">{useCase.description}</p>
+                            <h3 className="font-bold text-foreground text-lg">{useCase.title}</h3>
+                            <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{useCase.description}</p>
                         </div>
                     </div>
                 ))}
@@ -275,16 +275,16 @@ export default function ServiceDetailClient({ slug }: { slug: string }) {
             variants={sectionVariants}
             className="py-12 sm:py-16"
         >
-            <h2 className="mb-10 md:mb-12 text-center text-3xl font-bold text-white">
+            <h2 className="mb-10 md:mb-12 text-center text-3xl font-bold text-foreground">
                 Nuestro Proceso
             </h2>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-6">
                 {service.process.map((step, index) => (
-                    <div key={index} className="relative rounded-xl border border-white/10 bg-[#0A0A0A] p-6 md:p-8 overflow-hidden text-center md:text-left">
-                        <span className="absolute -top-2 -right-2 md:-top-4 md:-right-4 text-6xl md:text-8xl font-extrabold text-cyan-500/5">
+                    <div key={index} className="relative rounded-xl border border-border bg-card p-6 md:p-8 overflow-hidden text-center md:text-left">
+                        <span className="absolute -top-2 -right-2 md:-top-4 md:-right-4 text-6xl md:text-8xl font-extrabold text-primary/5 dark:text-cyan-500/5">
                             {`0${index + 1}`}
                         </span>
-                        <p className="relative z-10 text-base md:text-lg font-semibold text-white">{step}</p>
+                        <p className="relative z-10 text-base md:text-lg font-semibold text-foreground">{step}</p>
                     </div>
                 ))}
             </div>
@@ -295,12 +295,12 @@ export default function ServiceDetailClient({ slug }: { slug: string }) {
           whileInView="visible"
           viewport={{ once: true, amount: 0.5 }}
           variants={sectionVariants}
-          className="mt-12 mb-8 md:mb-16 rounded-2xl bg-gradient-to-tr from-cyan-950/50 via-[#0A0A0A] to-[#0A0A0A] border border-white/10 py-12 md:py-16 px-6 text-center shadow-[0_0_40px_rgba(0,240,255,0.05)]"
+          className="mt-12 mb-8 md:mb-16 rounded-2xl bg-gradient-to-tr from-primary/5 via-card to-card border border-border py-12 md:py-16 px-6 text-center shadow-sm dark:bg-gradient-to-tr dark:from-cyan-950/50 dark:via-[#0A0A0A] dark:to-[#0A0A0A] dark:shadow-[0_0_40px_rgba(0,240,255,0.05)]"
         >
-          <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
+          <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
             ¿Listo para escalar tu operación?
           </h2>
-          <p className="mx-auto mt-4 max-w-xl text-lg text-white/60 leading-relaxed">
+          <p className="mx-auto mt-4 max-w-xl text-lg text-muted-foreground leading-relaxed">
             Agendemos una consultoría gratuita para analizar tus necesidades y diseñar una solución a la medida.
           </p>
           <div className="mt-8">

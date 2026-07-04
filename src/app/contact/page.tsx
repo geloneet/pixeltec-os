@@ -73,7 +73,7 @@ export default function ContactPage() {
   }, [state, toast]);
 
   return (
-    <div className="bg-[#030303] text-white">
+    <div className="bg-background text-foreground">
       <Header />
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-16 sm:pt-40 sm:pb-24">
         {/* Header */}
@@ -83,10 +83,10 @@ export default function ContactPage() {
             transition={{ duration: 0.8, ease: 'easeOut' }}
             className="text-center mb-12 md:mb-16"
         >
-            <h1 className="text-4xl font-extrabold tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl">
+            <h1 className="text-4xl font-extrabold tracking-tight text-foreground sm:text-5xl md:text-6xl lg:text-7xl">
                 Iniciemos la <span className="text-brand-blue">Transformación</span>
             </h1>
-            <p className="mx-auto mt-6 max-w-3xl text-lg text-zinc-400 md:text-xl leading-relaxed">
+            <p className="mx-auto mt-6 max-w-3xl text-lg text-muted-foreground md:text-xl leading-relaxed">
                 Cuéntanos sobre tu desafío operativo o proyecto tecnológico. Nuestro equipo en Puerto Vallarta está listo para diseñar tu próxima solución escalable.
             </p>
         </motion.div>
@@ -106,14 +106,14 @@ export default function ContactPage() {
                         <a 
                             href={item.href} 
                             key={item.title} 
-                            className="block bg-[#0A0A0A] border border-white/10 p-6 rounded-2xl backdrop-blur-md hover:border-brand-blue/30 transition-colors duration-300 flex items-center gap-6"
+                            className="block bg-card border border-border p-6 rounded-2xl backdrop-blur-md hover:border-brand-blue/30 transition-colors duration-300 flex items-center gap-6"
                             target={item.href.startsWith('http') ? '_blank' : undefined}
                             rel={item.href.startsWith('http') ? 'noopener noreferrer' : undefined}
                         >
                             <item.icon className="h-8 w-8 text-brand-blue" />
                             <div>
-                                <h3 className="font-semibold text-white">{item.title}</h3>
-                                <p className="text-white/70">{item.value}</p>
+                                <h3 className="font-semibold text-foreground">{item.title}</h3>
+                                <p className="text-muted-foreground">{item.value}</p>
                             </div>
                         </a>
                     ))}
@@ -128,7 +128,7 @@ export default function ContactPage() {
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.8, ease: 'easeOut', delay: 0.4 }}
-                className="lg:col-span-3 bg-[#0A0A0A]/80 border border-white/10 rounded-2xl p-8 md:p-12 backdrop-blur-lg shadow-[0_0_40px_rgba(0,240,255,0.05)]"
+                className="lg:col-span-3 bg-card/80 border border-border rounded-2xl p-8 md:p-12 backdrop-blur-lg shadow-sm dark:bg-[#0A0A0A]/80 dark:shadow-[0_0_40px_rgba(0,240,255,0.05)]"
             >
                 <form ref={formRef} action={formAction} className="space-y-6">
                     {/* Honeypot — hidden from humans (incl. screen readers), tempting for naive bots. */}
@@ -145,22 +145,22 @@ export default function ContactPage() {
                       />
                     </div>
                     <div>
-                        <Label htmlFor="name" className="text-white/80">Nombre Completo</Label>
-                        <Input id="name" name="name" required className="mt-2 bg-black/50 border-white/10 text-white focus-visible:ring-cyan-500 focus-visible:border-cyan-500" />
+                        <Label htmlFor="name" className="text-foreground/80">Nombre Completo</Label>
+                        <Input id="name" name="name" required className="mt-2 bg-muted/40 text-foreground focus-visible:ring-primary focus-visible:border-primary dark:bg-black/50 dark:border-white/10 dark:focus-visible:ring-cyan-500 dark:focus-visible:border-cyan-500" />
                          {state.errors?.name && <p className="text-sm text-destructive mt-1">{state.errors.name[0]}</p>}
                     </div>
                      <div>
-                        <Label htmlFor="email" className="text-white/80">Correo Electrónico</Label>
-                        <Input id="email" name="email" type="email" required className="mt-2 bg-black/50 border-white/10 text-white focus-visible:ring-cyan-500 focus-visible:border-cyan-500" />
+                        <Label htmlFor="email" className="text-foreground/80">Correo Electrónico</Label>
+                        <Input id="email" name="email" type="email" required className="mt-2 bg-muted/40 text-foreground focus-visible:ring-primary focus-visible:border-primary dark:bg-black/50 dark:border-white/10 dark:focus-visible:ring-cyan-500 dark:focus-visible:border-cyan-500" />
                          {state.errors?.email && <p className="text-sm text-destructive mt-1">{state.errors.email[0]}</p>}
                     </div>
                      <div>
-                        <Label htmlFor="empresa" className="text-white/80">Empresa (Opcional)</Label>
-                        <Input id="empresa" name="empresa" className="mt-2 bg-black/50 border-white/10 text-white focus-visible:ring-cyan-500 focus-visible:border-cyan-500" />
+                        <Label htmlFor="empresa" className="text-foreground/80">Empresa (Opcional)</Label>
+                        <Input id="empresa" name="empresa" className="mt-2 bg-muted/40 text-foreground focus-visible:ring-primary focus-visible:border-primary dark:bg-black/50 dark:border-white/10 dark:focus-visible:ring-cyan-500 dark:focus-visible:border-cyan-500" />
                     </div>
                     <div>
-                        <Label htmlFor="message" className="text-white/80">Cuéntanos sobre tu proyecto</Label>
-                        <Textarea id="message" name="message" required rows={4} className="mt-2 bg-black/50 border-white/10 text-white focus-visible:ring-cyan-500 focus-visible:border-cyan-500" />
+                        <Label htmlFor="message" className="text-foreground/80">Cuéntanos sobre tu proyecto</Label>
+                        <Textarea id="message" name="message" required rows={4} className="mt-2 bg-muted/40 text-foreground focus-visible:ring-primary focus-visible:border-primary dark:bg-black/50 dark:border-white/10 dark:focus-visible:ring-cyan-500 dark:focus-visible:border-cyan-500" />
                         {state.errors?.message && <p className="text-sm text-destructive mt-1">{state.errors.message[0]}</p>}
                     </div>
                     <div className="flex items-start gap-3">
@@ -169,15 +169,15 @@ export default function ContactPage() {
                           id="contact-consent"
                           checked={consent}
                           onCheckedChange={(checked) => setConsent(Boolean(checked))}
-                          className="mt-0.5 border-white/20 data-[state=checked]:bg-cyan-500 data-[state=checked]:border-cyan-500"
+                          className="mt-0.5 border-border data-[state=checked]:bg-cyan-500 data-[state=checked]:border-cyan-500"
                         />
-                        <Label htmlFor="contact-consent" className="text-sm text-zinc-400 leading-relaxed cursor-pointer">
+                        <Label htmlFor="contact-consent" className="text-sm text-muted-foreground leading-relaxed cursor-pointer">
                           He leído y acepto el{' '}
                           <Link
                             href="/aviso-de-privacidad"
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-cyan-400 hover:underline"
+                            className="text-primary dark:text-cyan-400 hover:underline"
                           >
                             Aviso de Privacidad
                           </Link>
