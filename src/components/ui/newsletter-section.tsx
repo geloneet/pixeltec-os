@@ -14,33 +14,33 @@ export function NewsletterSection({
   return (
     <section
       className={cn(
-        "relative bg-transparent text-white",
+        "relative bg-transparent text-foreground",
         "py-12 md:py-16",
         "overflow-hidden w-full max-w-6xl mx-auto px-4",
         className,
       )}
       {...props}
     >
-      <div className="relative overflow-hidden rounded-3xl bg-[#0A0A0B] border border-white/10 px-6 py-12 md:px-12 shadow-[0_0_30px_rgba(0,240,255,0.05)]">
+      <div className="relative overflow-hidden rounded-3xl bg-card border border-border px-6 py-12 md:px-12 shadow-sm dark:shadow-[0_0_30px_rgba(0,240,255,0.05)]">
         {backgroundEffect && <BackgroundEffect />}
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
           <div className="max-w-xl">
-            <h2 className="text-2xl md:text-3xl lg:text-4xl font-extrabold tracking-tight text-white mb-4">
+            <h2 className="text-2xl md:text-3xl lg:text-4xl font-extrabold tracking-tight text-foreground mb-4">
               {title}
             </h2>
-            <p className="text-zinc-400 text-sm md:text-base">
+            <p className="text-muted-foreground text-sm md:text-base">
               Recibe insights sobre automatización, arquitectura y crecimiento operativo para empresas que escalan.
             </p>
           </div>
 
-          <div className="w-full md:w-auto md:min-w-[360px] rounded-2xl border border-white/10 bg-white/5 px-6 py-5 space-y-3">
-            <p className="text-sm text-zinc-300 leading-relaxed">
+          <div className="w-full md:w-auto md:min-w-[360px] rounded-2xl border border-border bg-muted/40 px-6 py-5 space-y-3">
+            <p className="text-sm text-muted-foreground leading-relaxed">
               Pronto lanzaremos nuestro newsletter. Si quieres estar entre los primeros en recibirlo, escríbenos con asunto{' '}
-              <span className="font-semibold text-white">NEWSLETTER</span>:
+              <span className="font-semibold text-foreground">NEWSLETTER</span>:
             </p>
             <a
               href="mailto:hola@pixeltec.mx?subject=NEWSLETTER"
-              className="inline-flex items-center gap-2 text-cyan-400 hover:text-cyan-300 font-medium text-sm transition-colors"
+              className="inline-flex items-center gap-2 text-primary hover:text-primary/80 dark:text-cyan-400 dark:hover:text-cyan-300 font-medium text-sm transition-colors"
             >
               hola@pixeltec.mx
             </a>
@@ -54,7 +54,7 @@ export function NewsletterSection({
 function BackgroundEffect() {
   return (
     <div
-      className="pointer-events-none absolute -right-64 -top-48 opacity-50 mix-blend-screen"
+      className="pointer-events-none absolute -right-64 -top-48 opacity-0 dark:opacity-50 mix-blend-screen"
       aria-hidden="true"
     >
       <svg

@@ -6,7 +6,7 @@ import { ShinyButton } from './shiny-button';
 
 export function AboutWaveSection() {
   return (
-    <section id="about" className="relative w-full bg-[#030303] flex flex-col justify-center pt-24 pb-32 sm:pt-32 sm:pb-48 overflow-hidden">
+    <section id="about" className="relative w-full bg-background dark:bg-[#030303] flex flex-col justify-center pt-24 pb-32 sm:pt-32 sm:pb-48 overflow-hidden">
       
       {/* Top Content Grid */}
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10 grid grid-cols-1 md:grid-cols-12 gap-8 md:gap-12 items-center">
@@ -19,7 +19,7 @@ export function AboutWaveSection() {
           transition={{ duration: 0.8, ease: "easeOut" }}
           viewport={{ once: true }}
         >
-          <h2 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-semibold text-white leading-[1.1] tracking-tight">
+          <h2 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-semibold text-foreground leading-[1.1] tracking-tight">
             Arquitectos de tu transformación con <br className="hidden md:block" />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-500 to-blue-500">
               PIXELTEC
@@ -35,7 +35,7 @@ export function AboutWaveSection() {
           transition={{ duration: 0.8, ease: "easeOut", delay: 0.2 }}
           viewport={{ once: true }}
         >
-          <p className="text-white/70 text-base leading-relaxed font-light mb-8 max-w-md">
+          <p className="text-muted-foreground dark:text-white/70 text-base leading-relaxed font-light mb-8 max-w-md">
             No somos una agencia tradicional de desarrollo. En PixelTEC entendemos que la tecnología es un medio, no el fin. Combinamos metodologías de consultoría empresarial con la potencia de la inteligencia artificial y el desarrollo de software a medida, creando ecosistemas que permiten a las empresas operar y escalar sin fricción.
           </p>
           <Link href="/about">
@@ -48,7 +48,7 @@ export function AboutWaveSection() {
       </div>
 
       {/* Bottom Abstract Wave SVG - HIGH INTENSITY ANIMATION */}
-      <div className="absolute bottom-0 left-0 w-full h-[300px] sm:h-[400px] md:h-[500px] pointer-events-none opacity-70">
+      <div className="absolute bottom-0 left-0 w-full h-[300px] sm:h-[400px] md:h-[500px] pointer-events-none opacity-30 dark:opacity-70">
         <svg 
           viewBox="0 0 1440 500" 
           fill="none" 
@@ -104,7 +104,7 @@ export function AboutWaveSection() {
       </div>
 
       {/* Gradient to blend bottom smoothly into next section */}
-      <div className="absolute bottom-0 left-0 w-full h-24 sm:h-32 md:h-40 bg-gradient-to-t from-[#030303] via-[#030303]/80 to-transparent z-20"></div>
+      <div className="absolute bottom-0 left-0 w-full h-24 sm:h-32 md:h-40 bg-gradient-to-t from-background via-background/80 to-transparent dark:from-[#030303] dark:via-[#030303]/80 z-20"></div>
     </section>
   );
 }

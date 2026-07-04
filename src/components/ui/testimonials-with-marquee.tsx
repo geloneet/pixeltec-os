@@ -26,16 +26,16 @@ export function TestimonialsWithMarquee({
 
   return (
     <section className={cn(
-      "bg-[#030303] text-white",
+      "bg-background dark:bg-[#030303] text-foreground",
       "py-16 sm:py-24 md:py-32 px-0",
       className
     )}>
       <div className="mx-auto flex w-full max-w-container flex-col items-center gap-6 text-center sm:gap-16">
         <div className="flex flex-col items-center gap-4 px-4 sm:gap-6">
-          <h2 className="max-w-[720px] text-4xl font-bold leading-tight sm:text-6xl sm:leading-tight tracking-tight text-white">
+          <h2 className="max-w-[720px] text-4xl font-bold leading-tight sm:text-6xl sm:leading-tight tracking-tight text-foreground">
             {title}
           </h2>
-          <p className="text-md max-w-[600px] font-light text-white/60 sm:text-xl tracking-wide">
+          <p className="text-md max-w-[600px] font-light text-muted-foreground sm:text-xl tracking-wide">
             {description}
           </p>
         </div>

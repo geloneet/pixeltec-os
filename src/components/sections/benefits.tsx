@@ -28,7 +28,7 @@ export default function BenefitsSection() {
       <CategoryList 
         title="Tecnología que impacta tu rentabilidad"
         categories={benefitsData}
-        className="bg-[#0A0A0B]"
+        className="bg-muted/40 dark:bg-[#0A0A0B]"
       />
     </section>
   );

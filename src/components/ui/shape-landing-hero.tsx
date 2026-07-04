@@ -12,7 +12,7 @@ function ElegantShape({
     width = 400,
     height = 100,
     rotate = 0,
-    gradient = "from-white/[0.08]",
+    gradient = "dark:from-white/[0.08]",
 }: {
     className?: string;
     delay?: number;
@@ -60,11 +60,12 @@ function ElegantShape({
                     className={cn(
                         "absolute inset-0 rounded-full",
                         "bg-gradient-to-r to-transparent",
+                        "from-primary/[0.06]",
                         gradient,
-                        "backdrop-blur-[2px] border-2 border-white/[0.15]",
-                        "shadow-[0_8px_32px_0_rgba(255,255,255,0.1)]",
+                        "backdrop-blur-[2px] border-2 border-primary/[0.08] dark:border-white/[0.15]",
+                        "shadow-[0_8px_24px_0_rgba(33,150,243,0.08)] dark:shadow-[0_8px_32px_0_rgba(255,255,255,0.1)]",
                         "after:absolute after:inset-0 after:rounded-full",
-                        "after:bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.2),transparent_70%)]"
+                        "after:bg-[radial-gradient(circle_at_50%_50%,rgba(33,150,243,0.10),transparent_70%)] dark:after:bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.2),transparent_70%)]"
                     )}
                 />
             </motion.div>
@@ -95,7 +96,7 @@ function HeroGeometric({
     };
 
     return (
-        <div id="home" className="relative min-h-screen w-full flex items-center justify-center overflow-hidden bg-black py-24 sm:py-32">
+        <div id="home" className="relative min-h-screen w-full flex items-center justify-center overflow-hidden bg-background dark:bg-black py-24 sm:py-32">
 
             <div className="absolute inset-0 overflow-hidden">
                 <ElegantShape
@@ -103,7 +104,7 @@ function HeroGeometric({
                     width={600}
                     height={140}
                     rotate={12}
-                    gradient="from-cyan-500/[0.15]"
+                    gradient="dark:from-cyan-500/[0.15]"
                     className="left-[-10%] md:left-[-5%] top-[15%] md:top-[20%]"
                 />
 
@@ -112,7 +113,7 @@ function HeroGeometric({
                     width={500}
                     height={120}
                     rotate={-15}
-                    gradient="from-blue-500/[0.15]"
+                    gradient="dark:from-blue-500/[0.15]"
                     className="right-[-5%] md:right-[0%] top-[70%] md:top-[75%]"
                 />
 
@@ -121,7 +122,7 @@ function HeroGeometric({
                     width={300}
                     height={80}
                     rotate={-8}
-                    gradient="from-sky-500/[0.15]"
+                    gradient="dark:from-sky-500/[0.15]"
                     className="left-[5%] md:left-[10%] bottom-[5%] md:bottom-[10%]"
                 />
 
@@ -130,7 +131,7 @@ function HeroGeometric({
                     width={200}
                     height={60}
                     rotate={20}
-                    gradient="from-teal-500/[0.15]"
+                    gradient="dark:from-teal-500/[0.15]"
                     className="right-[15%] md:right-[20%] top-[10%] md:top-[15%]"
                 />
 
@@ -139,7 +140,7 @@ function HeroGeometric({
                     width={150}
                     height={40}
                     rotate={-25}
-                    gradient="from-indigo-500/[0.15]"
+                    gradient="dark:from-indigo-500/[0.15]"
                     className="left-[20%] md:left-[25%] top-[5%] md:top-[10%]"
                 />
             </div>
@@ -154,7 +155,7 @@ function HeroGeometric({
                         className="inline-flex items-center gap-3 mb-8 md:mb-12"
                     >
                         <Circle className="h-2 w-2 text-cyan-400 fill-cyan-400 animate-pulse" />
-                        <span className="text-xs text-white/60 tracking-[0.2em]">
+                        <span className="text-xs text-muted-foreground tracking-[0.2em]">
                             {badge}
                         </span>
                     </motion.div>
@@ -166,13 +167,14 @@ function HeroGeometric({
                         animate="visible"
                     >
                         <h1 className="text-4xl sm:text-6xl md:text-8xl font-bold mb-6 md:mb-8 tracking-tight">
-                            <span className="bg-clip-text text-transparent bg-gradient-to-b from-white to-white/80">
+                            <span className="bg-clip-text text-transparent bg-gradient-to-b from-foreground to-foreground/80">
                                 {title1}
                             </span>
                             <br />
                             <span
                                 className={cn(
-                                    "bg-clip-text text-transparent bg-gradient-to-r from-cyan-300 via-white/90 to-blue-300 "
+                                    "bg-clip-text text-transparent bg-gradient-to-r from-primary via-foreground to-primary",
+                                    "dark:from-cyan-300 dark:via-white/90 dark:to-blue-300"
                                 )}
                             >
                                 {title2}
@@ -186,7 +188,7 @@ function HeroGeometric({
                         initial="hidden"
                         animate="visible"
                     >
-                        <p className="text-base sm:text-lg md:text-xl text-white/40 mb-8 leading-relaxed font-light tracking-wide max-w-xl mx-auto px-4">
+                        <p className="text-base sm:text-lg md:text-xl text-muted-foreground dark:text-white/40 mb-8 leading-relaxed font-light tracking-wide max-w-xl mx-auto px-4">
                             Automatizamos procesos manuales y construimos ecosistemas digitales de alto rendimiento para empresas que buscan el futuro hoy.
                         </p>
                     </motion.div>
@@ -208,7 +210,7 @@ function HeroGeometric({
                 </div>
             </div>
 
-            <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/80 pointer-events-none" />
+            <div className="absolute inset-0 dark:bg-gradient-to-t dark:from-black dark:via-transparent dark:to-black/80 pointer-events-none" />
         </div>
     );
 }

@@ -91,7 +91,7 @@ const AccordionItem = ({ item, isActive, onMouseEnter, onClick }: AccordionItemP
       className={`
         relative h-[450px] rounded-2xl overflow-hidden cursor-pointer
         transition-all duration-700 ease-in-out
-        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950
+        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background
         ${isActive ? 'w-[400px]' : 'w-[60px]'}
       `}
       onMouseEnter={onMouseEnter}
@@ -158,10 +158,10 @@ export function LandingAccordionItem() {
 
           {/* Right Side: Text Content */}
           <div className="w-full md:w-1/2 text-center md:text-right">
-            <h2 className="text-4xl md:text-6xl font-bold text-white leading-tight tracking-tighter">
+            <h2 className="text-4xl md:text-6xl font-bold text-foreground leading-tight tracking-tighter">
               Servicios Diseñados para el Futuro
             </h2>
-            <p className="mt-6 text-lg text-gray-400 max-w-xl mx-auto md:ml-auto font-light tracking-wide">
+            <p className="mt-6 text-lg text-muted-foreground max-w-xl mx-auto md:ml-auto font-light tracking-wide">
               Impulsamos tu transformación digital con soluciones de vanguardia. Desde inteligencia artificial hasta arquitecturas web de alto rendimiento y soporte empresarial.
             </p>
             <div className="mt-8">
@@ -179,7 +179,7 @@ export function LandingAccordionItem() {
 
       {/* Service preview modal */}
       <Dialog open={!!openItem} onOpenChange={(o) => !o && setOpenItem(null)}>
-        <DialogContent className="max-w-2xl bg-zinc-950/95 backdrop-blur-xl border border-white/10 p-0 overflow-hidden">
+        <DialogContent className="max-w-2xl bg-popover/95 backdrop-blur-xl border border-border p-0 overflow-hidden">
           {openItem && (
             <>
               {/* Hero image */}
@@ -201,14 +201,14 @@ export function LandingAccordionItem() {
 
               {/* Content */}
               <div className="p-6 space-y-5">
-                <DialogDescription className="text-zinc-400 text-sm leading-relaxed">
+                <DialogDescription className="text-muted-foreground text-sm leading-relaxed">
                   {openItem.preview}
                 </DialogDescription>
 
                 <ul className="space-y-2">
                   {openItem.bullets.map((b, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm text-zinc-300">
-                      <span className="text-cyan-400 mt-0.5" aria-hidden="true">→</span>
+                    <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
+                      <span className="text-primary dark:text-cyan-400 mt-0.5" aria-hidden="true">→</span>
                       <span>{b}</span>
                     </li>
                   ))}
@@ -219,7 +219,7 @@ export function LandingAccordionItem() {
                   <button
                     type="button"
                     onClick={() => setOpenItem(null)}
-                    className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-100 transition-colors"
+                    className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
                   >
                     Cerrar
                   </button>

@@ -56,7 +56,7 @@ export default function ContactSection() {
   }, [state, toast]);
 
   return (
-    <section id="contact" className="py-20 md:py-32 bg-[#0A0A0B]">
+    <section id="contact" className="py-20 md:py-32 bg-background dark:bg-[#0A0A0B]">
       <div className="container mx-auto px-4 md:px-6">
         <ContactCard
             title="¿Listo para automatizar tu éxito?"
@@ -79,17 +79,17 @@ export default function ContactSection() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="name">Nombre</Label>
-                <Input id="name" name="name" placeholder="Tu nombre" required className="bg-transparent border-white/20 focus:border-primary"/>
+                <Input id="name" name="name" placeholder="Tu nombre" required className="bg-transparent border-border focus:border-primary"/>
                 {state.errors?.name && <p className="text-sm text-destructive mt-1">{state.errors.name[0]}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" name="email" type="email" placeholder="tu@email.com" required className="bg-transparent border-white/20 focus:border-primary"/>
+                <Input id="email" name="email" type="email" placeholder="tu@email.com" required className="bg-transparent border-border focus:border-primary"/>
                 {state.errors?.email && <p className="text-sm text-destructive mt-1">{state.errors.email[0]}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="message">Mensaje</Label>
-                <Textarea id="message" name="message" placeholder="Cuéntanos sobre tu proyecto..." required rows={4} className="bg-transparent border-white/20 focus:border-primary"/>
+                <Textarea id="message" name="message" placeholder="Cuéntanos sobre tu proyecto..." required rows={4} className="bg-transparent border-border focus:border-primary"/>
                 {state.errors?.message && <p className="text-sm text-destructive mt-1">{state.errors.message[0]}</p>}
               </div>
               <div className="flex items-start gap-3 pt-1">
@@ -98,11 +98,11 @@ export default function ContactSection() {
                   id="contact-consent"
                   checked={consent}
                   onCheckedChange={(checked) => setConsent(Boolean(checked))}
-                  className="mt-0.5 border-white/20 data-[state=checked]:bg-cyan-500 data-[state=checked]:border-cyan-500"
+                  className="mt-0.5 border-border data-[state=checked]:bg-cyan-500 data-[state=checked]:border-cyan-500"
                 />
-                <Label htmlFor="contact-consent" className="text-sm text-zinc-400 leading-relaxed cursor-pointer">
+                <Label htmlFor="contact-consent" className="text-sm text-muted-foreground leading-relaxed cursor-pointer">
                   He leído y acepto el{' '}
-                  <Link href="/aviso-de-privacidad" target="_blank" className="text-cyan-400 hover:underline">
+                  <Link href="/aviso-de-privacidad" target="_blank" className="text-primary dark:text-cyan-400 hover:underline">
                     Aviso de Privacidad
                   </Link>
                 </Label>
@@ -120,7 +120,7 @@ export default function ContactSection() {
                 </ShinyButton>
               </div>
                {state.isSuccess && (
-                <p className="text-sm text-green-400 mt-2 text-center">
+                <p className="text-sm text-green-700 dark:text-green-400 mt-2 text-center">
                   ¡Gracias! Tu mensaje ha sido enviado con éxito.
                 </p>
               )}

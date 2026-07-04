@@ -32,7 +32,7 @@ export const CategoryList = ({
   const [hoveredItem, setHoveredItem] = useState<string | number | null>(null);
 
   return (
-    <div className={cn("w-full bg-[#030303] text-white py-20 px-4 md:px-8", className)}>
+    <div className={cn("w-full bg-background dark:bg-[#030303] text-foreground py-20 px-4 md:px-8", className)}>
       <div className="max-w-5xl mx-auto">
         {/* Header Section */}
         <div className="text-center mb-16 md:mb-20">
@@ -41,9 +41,9 @@ export const CategoryList = ({
               {headerIcon}
             </div>
           )}
-          <h2 className="text-4xl md:text-6xl font-bold mb-2 tracking-tight text-white">{title}</h2>
+          <h2 className="text-4xl md:text-6xl font-bold mb-2 tracking-tight text-foreground">{title}</h2>
           {subtitle && (
-            <h3 className="text-3xl md:text-5xl font-bold text-cyan-400/80">{subtitle}</h3>
+            <h3 className="text-3xl md:text-5xl font-bold text-primary dark:text-cyan-400/80">{subtitle}</h3>
           )}
         </div>
 
@@ -63,7 +63,7 @@ export const CategoryList = ({
                   // Hover state styles
                   hoveredItem === category.id
                     ? 'h-36 border-cyan-500 shadow-[0_0_30px_rgba(0,240,255,0.15)] bg-cyan-950/20'
-                    : 'h-28 border-white/10 bg-white/[0.02] hover:border-cyan-500/50'
+                    : 'h-28 border-border bg-transparent hover:border-primary/50 dark:hover:border-cyan-500/50'
                 )}
               >
                 {/* Corner brackets that appear on hover */}
@@ -87,7 +87,7 @@ export const CategoryList = ({
                       className={cn(
                         "font-bold transition-colors duration-300 tracking-wide",
                         category.featured ? 'text-2xl md:text-4xl' : 'text-xl md:text-3xl',
-                        hoveredItem === category.id ? 'text-cyan-400' : 'text-white'
+                        hoveredItem === category.id ? 'text-primary dark:text-cyan-400' : 'text-foreground'
                       )}
                     >
                       {category.title}
@@ -96,7 +96,7 @@ export const CategoryList = ({
                       <p
                         className={cn(
                           "mt-2 transition-colors duration-300 text-sm md:text-lg font-light",
-                           hoveredItem === category.id ? 'text-white/90' : 'text-white/50'
+                           hoveredItem === category.id ? 'text-foreground/90' : 'text-foreground/50'
                         )}
                       >
                         {category.subtitle}
@@ -108,7 +108,7 @@ export const CategoryList = ({
                   {category.icon && (
                     <div className={cn(
                       "transition-all duration-500 transform",
-                      hoveredItem === category.id ? "opacity-100 translate-x-0 text-cyan-400 scale-110" : "opacity-30 -translate-x-4 text-white/20 scale-100"
+                      hoveredItem === category.id ? "opacity-100 translate-x-0 text-primary dark:text-cyan-400 scale-110" : "opacity-30 -translate-x-4 text-foreground/20 scale-100"
                     )}>
                       {category.icon}
                     </div>
