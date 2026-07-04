@@ -59,7 +59,7 @@ export default async function RootLayout({
   return (
     <html lang="es-MX" className={cn('scroll-smooth', poppins.variable, roboto.variable, leagueSpartan.variable)} suppressHydrationWarning>
       <body className={cn('font-body antialiased min-h-screen bg-background text-foreground')}>
-        <ThemeProvider>
+        <ThemeProvider nonce={nonce}>
           <OrganizationStructuredData />
           <FirebaseClientProvider>
             {children}

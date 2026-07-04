@@ -13,7 +13,7 @@ function ThemeColorSync() {
 
   useEffect(() => {
     if (!resolvedTheme) return;
-    const color = resolvedTheme === 'light' ? '#FAFAFA' : '#030303';
+    const color = resolvedTheme === 'light' ? '#F9FAFB' : '#030303';
     let meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
     if (!meta) {
       meta = document.createElement('meta');
@@ -26,13 +26,14 @@ function ThemeColorSync() {
   return null;
 }
 
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
+export function ThemeProvider({ children, nonce }: { children: React.ReactNode; nonce?: string }) {
   return (
     <NextThemesProvider
       attribute="class"
       defaultTheme="dark"
       enableSystem={false}
       disableTransitionOnChange
+      nonce={nonce}
     >
       <ThemeColorSync />
       {children}
