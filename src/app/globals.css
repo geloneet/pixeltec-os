@@ -86,11 +86,11 @@
     scroll-behavior: smooth;
   }
 
-  /* Scrollbars dark premium por default en toda la app — nunca la barra
-     nativa blanca/gruesa del navegador sobre el fondo #030303. */
+  /* Scrollbars premium tematizados: delgados y discretos en ambos temas,
+     nunca la barra nativa gruesa del navegador. */
   * {
     scrollbar-width: thin;
-    scrollbar-color: rgba(113, 113, 122, 0.35) transparent; /* zinc-500 */
+    scrollbar-color: hsl(var(--muted-foreground) / 0.35) transparent;
   }
   *::-webkit-scrollbar {
     width: 6px;
@@ -100,11 +100,11 @@
     background: transparent;
   }
   *::-webkit-scrollbar-thumb {
-    background-color: rgba(113, 113, 122, 0.35);
+    background-color: hsl(var(--muted-foreground) / 0.35);
     border-radius: 9999px;
   }
   *::-webkit-scrollbar-thumb:hover {
-    background-color: rgba(148, 163, 184, 0.55); /* slate-400 */
+    background-color: hsl(var(--muted-foreground) / 0.55);
   }
   *::-webkit-scrollbar-corner {
     background: transparent;
@@ -135,7 +135,7 @@
   .scrollbar-soft {
     overscroll-behavior: contain;
     scrollbar-width: thin;
-    scrollbar-color: rgba(113, 113, 122, 0.3) transparent;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
   }
   .scrollbar-soft::-webkit-scrollbar {
     width: 6px;
@@ -145,11 +145,11 @@
     background: transparent;
   }
   .scrollbar-soft::-webkit-scrollbar-thumb {
-    background-color: rgba(113, 113, 122, 0.3);
+    background-color: hsl(var(--muted-foreground) / 0.3);
     border-radius: 9999px;
   }
   .scrollbar-soft::-webkit-scrollbar-thumb:hover {
-    background-color: rgba(34, 211, 238, 0.4); /* cyan-400 */
+    background-color: rgba(34, 211, 238, 0.4); /* cyan-400: acento de marca en hover */
   }
 }
 
