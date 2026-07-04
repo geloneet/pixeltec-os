@@ -41,15 +41,15 @@ export function deriveClientStats(client: CRMClient): ClientStats {
 
 export function clientBadge(stats: ClientStats): ClientBadge {
   if (stats.stopped > 0) {
-    return { label: "Atención", colorClass: "bg-red-500/15 text-red-400 border border-red-500/20" };
+    return { label: "Atención", colorClass: "bg-red-500/15 text-red-700 dark:text-red-400 border border-red-500/20" };
   }
   if (stats.totalTasks === 0) {
-    return { label: "Sin tareas", colorClass: "bg-zinc-500/15 text-zinc-400 border border-zinc-500/20" };
+    return { label: "Sin tareas", colorClass: "bg-zinc-500/15 text-zinc-600 dark:text-zinc-400 border border-zinc-500/20" };
   }
   if (stats.openTasks > 0) {
-    return { label: "En progreso", colorClass: "bg-cyan-500/15 text-cyan-400 border border-cyan-500/20" };
+    return { label: "En progreso", colorClass: "bg-cyan-500/15 text-cyan-700 dark:text-cyan-400 border border-cyan-500/20" };
   }
-  return { label: "Al día", colorClass: "bg-green-500/15 text-green-400 border border-green-500/20" };
+  return { label: "Al día", colorClass: "bg-green-500/15 text-green-700 dark:text-green-400 border border-green-500/20" };
 }
 
 // ── Project-level derivations ─────────────────────────────────────────────────
@@ -90,12 +90,12 @@ export function deriveProjectStats(project: CRMProject): ProjectStats {
 
 export function projectStatus(stats: ProjectStats): ClientBadge {
   if (stats.stopped > 0) {
-    return { label: "Detenido", colorClass: "bg-red-500/15 text-red-400 border border-red-500/20" };
+    return { label: "Detenido", colorClass: "bg-red-500/15 text-red-700 dark:text-red-400 border border-red-500/20" };
   }
   if (stats.totalTasks > 0 && stats.completed === stats.totalTasks) {
-    return { label: "Completado", colorClass: "bg-green-500/15 text-green-400 border border-green-500/20" };
+    return { label: "Completado", colorClass: "bg-green-500/15 text-green-700 dark:text-green-400 border border-green-500/20" };
   }
-  return { label: "Activo", colorClass: "bg-cyan-500/15 text-cyan-400 border border-cyan-500/20" };
+  return { label: "Activo", colorClass: "bg-cyan-500/15 text-cyan-700 dark:text-cyan-400 border border-cyan-500/20" };
 }
 
 // ── Activity feed ─────────────────────────────────────────────────────────────

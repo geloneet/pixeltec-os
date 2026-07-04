@@ -134,7 +134,7 @@ export function UserMenu() {
         <DropdownMenuSeparator className="bg-border" />
 
         <DropdownMenuItem
-          className="flex items-center gap-2 text-rose-400 hover:text-rose-300 focus:text-rose-300 focus:bg-rose-500/10 rounded-lg cursor-pointer px-2 py-2 text-sm"
+          className="flex items-center gap-2 text-rose-500 dark:text-rose-400 hover:text-rose-600 dark:hover:text-rose-300 focus:text-rose-600 dark:focus:text-rose-300 focus:bg-rose-500/10 rounded-lg cursor-pointer px-2 py-2 text-sm"
           onClick={handleLogout}
         >
           <LogOut className="h-4 w-4 flex-shrink-0" />

@@ -295,7 +295,7 @@ export default function ServiceDetailClient({ slug }: { slug: string }) {
           whileInView="visible"
           viewport={{ once: true, amount: 0.5 }}
           variants={sectionVariants}
-          className="mt-12 mb-8 md:mb-16 rounded-2xl bg-gradient-to-tr from-primary/5 via-card to-card border border-border py-12 md:py-16 px-6 text-center shadow-sm dark:bg-gradient-to-tr dark:from-cyan-950/50 dark:via-[#0A0A0A] dark:to-[#0A0A0A] dark:shadow-[0_0_40px_rgba(0,240,255,0.05)]"
+          className="mt-12 mb-8 md:mb-16 rounded-2xl bg-gradient-to-tr from-primary/5 via-card to-card border border-border py-12 md:py-16 px-6 text-center shadow-sm dark:from-cyan-950/50 dark:via-[#0A0A0A] dark:to-[#0A0A0A] dark:shadow-[0_0_40px_rgba(0,240,255,0.05)]"
         >
           <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
             ¿Listo para escalar tu operación?

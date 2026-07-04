@@ -125,7 +125,7 @@ export default function ServicesPage() {
           variants={sectionVariants}
         >
           <div className="container mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-            <div className="rounded-2xl bg-gradient-to-tr from-primary/5 via-card to-card border border-border py-12 md:py-16 px-6 text-center shadow-sm dark:bg-gradient-to-tr dark:from-cyan-950/50 dark:via-[#0A0A0A] dark:to-[#0A0A0A] dark:shadow-[0_0_40px_rgba(0,240,255,0.05)]">
+            <div className="rounded-2xl bg-gradient-to-tr from-primary/5 via-card to-card border border-border py-12 md:py-16 px-6 text-center shadow-sm dark:from-cyan-950/50 dark:via-[#0A0A0A] dark:to-[#0A0A0A] dark:shadow-[0_0_40px_rgba(0,240,255,0.05)]">
                 <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
                 ¿Tienes un desafío operativo?
                 </h2>

@@ -62,7 +62,7 @@ export const CategoryList = ({
                   "relative overflow-hidden rounded-xl border transition-all duration-500 ease-out cursor-pointer",
                   // Hover state styles
                   hoveredItem === category.id
-                    ? 'h-36 border-cyan-500 shadow-[0_0_30px_rgba(0,240,255,0.15)] bg-cyan-950/20'
+                    ? 'h-36 border-primary bg-primary/5 shadow-md dark:border-cyan-500 dark:bg-cyan-950/20 dark:shadow-[0_0_30px_rgba(0,240,255,0.15)]'
                     : 'h-28 border-border bg-transparent hover:border-primary/50 dark:hover:border-cyan-500/50'
                 )}
               >

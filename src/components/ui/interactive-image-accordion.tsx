@@ -191,7 +191,7 @@ export function LandingAccordionItem() {
                   sizes="(max-width: 768px) 100vw, 672px"
                   className="object-cover"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/60 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/30 to-transparent dark:from-zinc-950 dark:via-zinc-950/60" />
                 <div className="absolute bottom-4 left-6">
                   <DialogTitle className="text-2xl font-bold text-white tracking-tight">
                     {openItem.title}
