@@ -13,7 +13,7 @@ function ThemeColorSync() {
 
   useEffect(() => {
     if (!resolvedTheme) return;
-    const color = resolvedTheme === 'light' ? '#F9FAFB' : '#030303';
+    const color = resolvedTheme === 'light' ? '#F9F8F6' : '#030303'; /* hsl(40 20% 97%) = --background light */
     let meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
     if (!meta) {
       meta = document.createElement('meta');
