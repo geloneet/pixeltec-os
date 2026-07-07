@@ -54,7 +54,7 @@
     "genkit": "^1.16.1",
     "grammy": "^1.42.0",
     "lucide-react": "^0.475.0",
-    "mermaid": "^11.14.0",
+    "mermaid": "^11.15.0",
     "next": "^15.5.12",
     "node-cron": "^4.2.1",
     "openai": "^6.44.0",
