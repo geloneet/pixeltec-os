@@ -5,8 +5,8 @@ import { getFirestore } from "firebase-admin/firestore";
 import { createNotification } from "@/lib/notifications/actions";
 
 export async function GET(req: NextRequest) {
-  const secret = req.nextUrl.searchParams.get("secret");
-  if (secret !== process.env.CRON_SECRET) {
+  const provided = req.headers.get("authorization")?.replace("Bearer ", "") ?? req.nextUrl.searchParams.get("secret");
+  if (!process.env.CRON_SECRET || provided !== process.env.CRON_SECRET) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

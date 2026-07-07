@@ -13,7 +13,8 @@ export const maxDuration = 30;
 export async function GET(req: NextRequest) {
   // Autorización: Vercel Cron envía header con CRON_SECRET
   const auth = req.headers.get("authorization");
-  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
+  const expected = process.env.CRON_SECRET ? `Bearer ${process.env.CRON_SECRET}` : null;
+  if (!expected || auth !== expected) {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 

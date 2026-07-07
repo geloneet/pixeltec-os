@@ -29,6 +29,8 @@ export async function sendTelegramAlert(
     console.error(
       `[telegram-sender] fallo enviando a ${chatId}: ${res.status} ${body}`
     );
-    // No throw: no queremos que un fallo de envío tumbe el alert engine completo.
+    // Lanzamos para que el llamador (alert-engine) sepa que la entrega falló y
+    // no marque la alerta como entregada ni consuma el cooldown de la regla.
+    throw new Error(`Telegram send failed: ${res.status} ${body}`);
   }
 }

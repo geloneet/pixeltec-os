@@ -18,6 +18,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const session = await requireSession(sessionCookie);
 
     let ownerUid: string;
+    let portalClientId: string | null = null;
     if (session.ok) {
       ownerUid = session.uid;
     } else {
@@ -27,6 +28,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       const resolved = await resolveToken(portalToken);
       if (!resolved) return new NextResponse("Unauthorized", { status: 401 });
       ownerUid = resolved.uid;
+      portalClientId = resolved.clientId;
     }
 
     // Fetch contract from Firestore
@@ -41,6 +43,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
     const contract = snap.data() as {
       uid: string;
+      clientId: string;
       title: string;
       content: string;
       status: string;
@@ -50,6 +53,11 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
     // Verify ownership
     if (contract.uid !== ownerUid) {
+      return new NextResponse("Forbidden", { status: 403 });
+    }
+    // Verify the portal token's client owns this contract — multiple clients
+    // of the same consultant share `uid`, so `uid` alone is not sufficient.
+    if (portalClientId !== null && contract.clientId !== portalClientId) {
       return new NextResponse("Forbidden", { status: 403 });
     }
 

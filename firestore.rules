@@ -8,26 +8,30 @@ service cloud.firestore {
     }
 
     // ── Clients ──────────────────────────────────────────────────────────────
-    // Authenticated admins can read/write everything.
-    // Portal (unauthenticated) can read the main client doc (slug lookup + dashboard)
-    // and update only the accessCode fields (code request / verification).
+    // Authenticated admins (dashboard) can read/write everything.
+    // The client portal (/[slug]) is UNauthenticated by design (OTP-gated, not
+    // Firebase Auth) — it never touches Firestore from the browser. All portal
+    // reads/writes (slug lookup, accessCode OTP, dashboard data, updates) go
+    // through Server Actions using the Admin SDK (src/app/actions.ts), which
+    // bypasses these rules entirely. So `clients` and its subcollections can be
+    // locked to authenticated-only without breaking the portal.
+    // Previously `read: if true` + an unauthenticated `accessCode` update were
+    // allowed here so the portal (running on the unauthenticated client SDK)
+    // could work — that publicly exposed every client's PII and let anyone
+    // read/overwrite the OTP access code. Fixed by migrating the portal to the
+    // Admin SDK instead of loosening these rules.
     match /clients/{clientId} {
-      allow read: if true;
-      allow write: if request.auth != null;
-      allow update: if request.resource.data.diff(resource.data).affectedKeys()
-        .hasOnly(['accessCode', 'accessCodeExpiresAt', 'lastCodeRequestAt']);
+      allow read, write: if request.auth != null;
     }
 
-    // Updates subcollection — portal dashboard reads these publicly.
+    // Updates subcollection — admin dashboard only; portal reads via Admin SDK.
     match /clients/{clientId}/updates/{updateId} {
-      allow read: if true;
-      allow write: if request.auth != null;
+      allow read, write: if request.auth != null;
     }
 
-    // Projects subcollection — portal dashboard reads these publicly.
+    // Projects subcollection — admin dashboard only; portal reads via Admin SDK.
     match /clients/{clientId}/projects/{projectId} {
-      allow read: if true;
-      allow write: if request.auth != null;
+      allow read, write: if request.auth != null;
     }
 
     // All other client subcollections (tasks, notes, etc.) — authenticated only.
@@ -41,6 +45,11 @@ service cloud.firestore {
     match /leads/{leadId} {
       allow read, write: if false;  // solo Admin SDK
     }
+
+    // Portal OTP rate-limit (por IP) y log de eventos de seguridad — escritos
+    // exclusivamente por src/app/actions.ts / security-log.ts vía Admin SDK.
+    match /portalRateLimit/{docId}     { allow read, write: if false; }
+    match /portalSecurityEvents/{docId} { allow read, write: if false; }
     match /tickets/{ticketId} {
       allow read, write: if request.auth != null;
     }

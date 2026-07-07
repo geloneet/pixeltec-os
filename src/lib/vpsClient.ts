@@ -192,7 +192,7 @@ export async function requireSession(
   if (!sessionCookie) return { ok: false, error: "Unauthorized" };
   try {
     const { getAdminAuth } = await import("./firebase-admin");
-    const decoded = await getAdminAuth().verifySessionCookie(sessionCookie, false);
+    const decoded = await getAdminAuth().verifySessionCookie(sessionCookie, true);
     return { ok: true, uid: decoded.uid };
   } catch {
     return { ok: false, error: "Session expired or invalid" };

@@ -25,7 +25,10 @@ async function deductCredits(uid: string, operation: CreditOperation): Promise<v
   await db().runTransaction(async (tx) => {
     const doc = await tx.get(ref);
     if (!doc.exists) throw new Error('Sin cuenta de créditos');
-    const balance = doc.data()!.balance as number;
+    const balance = doc.data()!.balance;
+    if (typeof balance !== 'number' || !Number.isFinite(balance)) {
+      throw new Error('Cuenta de créditos corrupta — contacta soporte.');
+    }
     if (balance < amount) throw new Error(`Créditos insuficientes. Necesitas ${amount}, tienes ${balance}.`);
     tx.update(ref, { balance: FieldValue.increment(-amount), totalUsed: FieldValue.increment(amount) });
   });
@@ -36,6 +39,26 @@ async function deductCredits(uid: string, operation: CreditOperation): Promise<v
     operation,
     amount: -amount,
     description: `Generación: ${operation}`,
+    createdAt: FieldValue.serverTimestamp(),
+  });
+}
+
+/** Devuelve créditos ya cobrados cuando la generación falla o entrega menos de lo cobrado. */
+async function refundCredits(uid: string, amount: number, reason: string): Promise<void> {
+  if (amount <= 0) return;
+  const ref = db().collection('growthCredits').doc(uid);
+
+  await db().runTransaction(async (tx) => {
+    const doc = await tx.get(ref);
+    if (!doc.exists) return; // nada que reembolsar si la cuenta desapareció
+    tx.update(ref, { balance: FieldValue.increment(amount), totalUsed: FieldValue.increment(-amount) });
+  });
+
+  await db().collection('growthCreditLedger').add({
+    uid,
+    type: 'refund',
+    amount,
+    description: reason,
     createdAt: FieldValue.serverTimestamp(),
   });
 }
@@ -64,7 +87,14 @@ export async function runPostGeneration(input: OrchestratorInput): Promise<Conte
 
   const system = buildSystemPrompt(brand);
   const user = buildUserPrompt(request);
-  const textResult = await generateText({ systemPrompt: system, userPrompt: user });
+  let textResult: Awaited<ReturnType<typeof generateText>>;
+  try {
+    textResult = await generateText({ systemPrompt: system, userPrompt: user });
+  } catch (err) {
+    // La generación falló después de cobrar créditos — reembolsar el cobro completo.
+    await refundCredits(uid, CREDIT_COSTS[operation], `Reembolso: fallo en generación de texto (${operation})`);
+    throw err;
+  }
 
   let parsed: {
     caption?: string;
@@ -94,6 +124,10 @@ export async function runPostGeneration(input: OrchestratorInput): Promise<Conte
       imageCost = imageResult.cost;
     } catch (err) {
       console.error('Image generation failed, continuing text-only:', err);
+      // Se cobró `post_complete` (incluye imagen) pero el usuario solo recibe texto —
+      // reembolsar el delta contra el costo de solo-texto.
+      const delta = CREDIT_COSTS.post_complete - CREDIT_COSTS.post_text_only;
+      await refundCredits(uid, delta, 'Reembolso: fallo en generación de imagen (entregado text-only)');
     }
   }
 

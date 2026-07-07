@@ -41,15 +41,23 @@ export function useDoc<T>(
       );
       return () => unsubscribe();
     } else {
+      // Cancellation flag: if `ref` changes again or the component unmounts before this
+      // one-shot getDoc resolves, a stale result must not overwrite newer state.
+      let cancelled = false;
       getDoc(ref)
         .then((snapshot) => {
+          if (cancelled) return;
           setData(snapshot.data());
           setLoading(false);
         })
         .catch((err) => {
+          if (cancelled) return;
           setError(err);
           setLoading(false);
         });
+      return () => {
+        cancelled = true;
+      };
     }
   }, [ref, options.listen]);
 

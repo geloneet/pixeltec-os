@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import crypto from 'node:crypto';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getAdminApp } from '@/lib/firebase-admin';
+import { getSessionUid } from '@/lib/crypto-intel/auth';
 import {
   exchangeCodeForToken,
   getLongLivedToken,
@@ -9,11 +11,21 @@ import {
   getInstagramUsername,
 } from '@/lib/growth/social/meta-api';
 import { upsertSocialAccount } from '@/lib/growth/actions/social-accounts';
+import { OAUTH_STATE_COOKIE } from '@/lib/growth/social/meta-oauth-state';
+
+function isValidCsrfState(req: NextRequest, state: string): boolean {
+  const expected = req.cookies.get(OAUTH_STATE_COOKIE)?.value;
+  if (!expected) return false;
+  const a = Buffer.from(expected);
+  const b = Buffer.from(state);
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
+}
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const code = searchParams.get('code');
-  const state = searchParams.get('state'); // uid
+  const state = searchParams.get('state'); // nonce CSRF — ver route.ts
   const error = searchParams.get('error');
   const errorDescription = searchParams.get('error_description');
 
@@ -28,13 +40,23 @@ export async function GET(req: NextRequest) {
     );
   }
 
+  // El uid SIEMPRE se deriva de la sesión activa — nunca del parámetro `state`
+  // que viene del cliente. Antes `state` era el uid en claro, validado solo con
+  // un regex de formato, lo que permitía a cualquiera vincular sus propias
+  // páginas de Facebook/Instagram a la cuenta de otra persona (account takeover).
+  const uid = await getSessionUid();
+  if (!uid) {
+    console.error('[meta/callback] no hay sesión activa al recibir el callback');
+    return NextResponse.redirect(`${redirectBase}?meta_error=no_session`);
+  }
+
+  if (!isValidCsrfState(req, state)) {
+    console.error('[meta/callback] state CSRF inválido o ausente');
+    return NextResponse.redirect(`${redirectBase}?meta_error=invalid_state`);
+  }
+
   try {
     const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/meta/callback`;
-
-    if (!/^[a-zA-Z0-9_-]{10,128}$/.test(state)) {
-      console.error('[meta/callback] invalid state:', state);
-      return NextResponse.redirect(`${redirectBase}?meta_error=invalid_state`);
-    }
 
     console.log('[meta/callback] exchanging code for token...');
     const shortToken = await exchangeCodeForToken(code, redirectUri);
@@ -72,7 +94,7 @@ export async function GET(req: NextRequest) {
       }
 
       const base = {
-        uid: state,
+        uid,
         status: 'connected' as const,
         facebookUserId: fbUser.id,
         facebookPageId: page.id,
@@ -100,7 +122,9 @@ export async function GET(req: NextRequest) {
     }
 
     console.log('[meta/callback] done, accounts saved:', accountsCreated);
-    return NextResponse.redirect(`${redirectBase}?meta_connected=${accountsCreated}`);
+    const res = NextResponse.redirect(`${redirectBase}?meta_connected=${accountsCreated}`);
+    res.cookies.delete(OAUTH_STATE_COOKIE); // nonce de un solo uso
+    return res;
 
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

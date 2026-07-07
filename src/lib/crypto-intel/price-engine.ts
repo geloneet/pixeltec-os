@@ -79,14 +79,26 @@ export async function syncPrices(): Promise<{
       continue;
     }
 
+    // CoinGecko puede devolver `current_price`/`market_cap` como null cuando
+    // el dato no está disponible en ese momento. Escribir `null` corrompe
+    // `priceUsd` (crashea `.toLocaleString()` en los mensajes de alerta) y
+    // hace que comparaciones como `null < threshold` disparen falsos
+    // positivos de `price_below`. Si el precio no es un número finito,
+    // saltamos la entrada por completo en vez de persistir datos corruptos.
+    if (typeof market.current_price !== 'number' || !Number.isFinite(market.current_price)) {
+      console.error(`[price-engine] current_price inválido para ${entry.symbol}`, market.current_price);
+      failed.push(entry.symbol);
+      continue;
+    }
+
     const snapshot: PriceSnapshot = {
       symbol: entry.symbol,
       priceUsd: market.current_price,
       change1h: market.price_change_percentage_1h_in_currency ?? 0,
       change24h: market.price_change_percentage_24h_in_currency ?? 0,
       change7d: market.price_change_percentage_7d_in_currency ?? 0,
-      volume24h: market.total_volume,
-      marketCap: market.market_cap,
+      volume24h: Number.isFinite(market.total_volume) ? market.total_volume : 0,
+      marketCap: Number.isFinite(market.market_cap) ? market.market_cap : 0,
       source: "coingecko",
       updatedAt: now,
     };

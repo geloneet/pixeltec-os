@@ -43,15 +43,23 @@ export function useCollection<T>(
       );
       return () => unsubscribe();
     } else {
+      // Cancellation flag: if `ref` changes again or the component unmounts before this
+      // one-shot getDocs resolves, a stale result must not overwrite newer state.
+      let cancelled = false;
       getDocs(ref)
         .then((snapshot) => {
+          if (cancelled) return;
           setData(snapshot.docs.map((doc) => ({ ...doc.data(), id: doc.id })) as T[]);
           setLoading(false);
         })
         .catch((err) => {
+          if (cancelled) return;
           setError(err);
           setLoading(false);
         });
+      return () => {
+        cancelled = true;
+      };
     }
   }, [ref, options.listen]);
 

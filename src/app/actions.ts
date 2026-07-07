@@ -30,7 +30,9 @@ import type { SupportTicketEmailProps } from '@/emails/SupportTicketEmail';
 import { renderClientAccessEmail } from '@/emails/ClientAccessEmail';
 import { renderProjectUpdateEmail } from '@/emails/ProjectUpdateEmail';
 import { headers } from 'next/headers';
-import { getServerFirestore } from '@/lib/firebase-server';
+import crypto from 'node:crypto';
+import { getAdminFirestore } from '@/lib/firebase-admin';
+import { FieldValue as AdminFieldValue, Timestamp as AdminTimestamp } from 'firebase-admin/firestore';
 import { generateAccessCode, generateSlug, type PortalSession } from '@/lib/portal';
 import {
   createPortalSession,
@@ -38,10 +40,29 @@ import {
 } from '@/lib/portal/session-server';
 import { requirePortalSession, PortalAuthError } from '@/lib/portal/auth-guard';
 import { logSecurityEvent } from '@/lib/portal/security-log';
-import {
-  doc, getDoc, getDocs, setDoc, updateDoc, addDoc, collection,
-  query, where, limit, orderBy, Timestamp, serverTimestamp,
-} from 'firebase/firestore';
+
+/**
+ * El flujo de portal corría antes sobre el SDK de cliente de Firebase SIN
+ * autenticar (`getServerFirestore`), lo que hacía que las reglas de
+ * Firestore fueran la única barrera real — y esa misma config pública está
+ * embebida en el bundle del navegador. Migrado a Admin SDK: estas server
+ * actions ahora tienen su propia autorización (sesión de portal / server-side)
+ * en vez de depender de qué tan permisivas sean las reglas.
+ */
+
+/** Hash del código OTP — nunca se guarda en texto plano en Firestore. */
+function hashAccessCode(code: string): string {
+  return crypto.createHash('sha256').update(code).digest('hex');
+}
+
+/** Comparación en tiempo constante de dos hashes hex del mismo largo (sha256 → 64 chars). */
+function accessCodeHashMatches(storedHash: string, providedCode: string): boolean {
+  const providedHash = hashAccessCode(providedCode);
+  const a = Buffer.from(storedHash, 'hex');
+  const b = Buffer.from(providedHash, 'hex');
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
+}
 
 const contactSchema = z.object({
   name: z.string().min(2, 'Tu nombre debe tener al menos 2 caracteres.'),
@@ -337,8 +358,10 @@ export async function getEnhancementSuggestions(input: ContentEnhancementInput):
 }
 
 export async function sendTelegramNotification(message: string): Promise<{ success: boolean; error?: string }> {
-  const token = process.env.NEXT_PUBLIC_TELEGRAM_BOT_TOKEN;
-  const chatId = process.env.NEXT_PUBLIC_TELEGRAM_CHAT_ID;
+  // Sin prefijo NEXT_PUBLIC_: este server action corre solo en el servidor, y un
+  // token de bot no debe arriesgarse a inlinearse en el bundle del navegador.
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  const chatId = process.env.TELEGRAM_CHAT_ID;
 
   if (!token || !chatId) {
     console.error('Telegram Bot Token o Chat ID no están configurados en las variables de entorno.');
@@ -518,9 +541,8 @@ export async function checkPortalSlugAction(
 ): Promise<PortalActionResult<{ companyName: string; contactEmail: string }>> {
   if (!slug?.trim()) return { success: false, error: 'Slug inválido.' };
   try {
-    const db = getServerFirestore();
-    const q = query(collection(db, 'clients'), where('slug', '==', slug.trim()), limit(1));
-    const snap = await getDocs(q);
+    const db = getAdminFirestore();
+    const snap = await db.collection('clients').where('slug', '==', slug.trim()).limit(1).get();
     if (snap.empty) return { success: false, error: 'Portal no encontrado.' };
     const d = snap.docs[0].data();
     return { success: true, data: { companyName: d.companyName, contactEmail: d.contactEmail ?? '' } };
@@ -543,28 +565,27 @@ export async function requestPortalCodeAction(
                ?? 'unknown';
     const safeIp = rawIp.replace(/[^a-zA-Z0-9.\-]/g, '_').slice(0, 64);
 
-    const db = getServerFirestore();
-    const ipRef = doc(db, 'portalRateLimit', safeIp);
-    const ipSnap = await getDoc(ipRef);
-    if (ipSnap.exists()) {
-      const ipData = ipSnap.data();
+    const db = getAdminFirestore();
+    const ipRef = db.collection('portalRateLimit').doc(safeIp);
+    const ipSnap = await ipRef.get();
+    if (ipSnap.exists) {
+      const ipData = ipSnap.data()!;
       const windowStart = ipData.windowStartedAt?.toDate?.() as Date | undefined;
       if (windowStart && Date.now() - windowStart.getTime() < IP_WINDOW_MS) {
         if ((ipData.count ?? 0) >= IP_MAX_REQUESTS) {
           await logSecurityEvent({ type: 'otp-rate-limit-ip', slug, reason: 'IP exceeded 10 req/hour' });
           return { success: false, error: 'Demasiadas solicitudes. Inténtalo más tarde.' };
         }
-        await updateDoc(ipRef, { count: (ipData.count ?? 0) + 1 });
+        await ipRef.update({ count: (ipData.count ?? 0) + 1 });
       } else {
-        await setDoc(ipRef, { count: 1, windowStartedAt: serverTimestamp() });
+        await ipRef.set({ count: 1, windowStartedAt: AdminFieldValue.serverTimestamp() });
       }
     } else {
-      await setDoc(ipRef, { count: 1, windowStartedAt: serverTimestamp() });
+      await ipRef.set({ count: 1, windowStartedAt: AdminFieldValue.serverTimestamp() });
     }
 
     // ── Slug lookup ────────────────────────────────────────────────────────
-    const q = query(collection(db, 'clients'), where('slug', '==', slug.trim()), limit(1));
-    const snap = await getDocs(q);
+    const snap = await db.collection('clients').where('slug', '==', slug.trim()).limit(1).get();
     if (snap.empty) return { success: false, error: 'Portal no encontrado.' };
 
     const clientDoc = snap.docs[0];
@@ -578,12 +599,15 @@ export async function requestPortalCodeAction(
     }
 
     const code = generateAccessCode();
-    const expiresAt = Timestamp.fromDate(new Date(Date.now() + CODE_TTL_MS));
+    const expiresAt = AdminTimestamp.fromDate(new Date(Date.now() + CODE_TTL_MS));
 
-    await updateDoc(clientDoc.ref, {
-      accessCode: code,
+    await clientDoc.ref.update({
+      // El código nunca se guarda en texto plano — un leak de la colección
+      // `clients` ya no expone el OTP vigente (ver firestore.rules).
+      accessCodeHash: hashAccessCode(code),
+      accessCode: AdminFieldValue.delete(),
       accessCodeExpiresAt: expiresAt,
-      lastCodeRequestAt: serverTimestamp(),
+      lastCodeRequestAt: AdminFieldValue.serverTimestamp(),
     });
 
     // Send via Resend
@@ -597,7 +621,14 @@ export async function requestPortalCodeAction(
         portalUrl,
         expiresIn: '10 minutos',
       });
-      await sendEmail(email, `🔐 Tu código de acceso — PixelTEC`, html).catch(console.error);
+      const emailResult = await sendEmail(email, `🔐 Tu código de acceso — PixelTEC`, html);
+      if (!emailResult.success) {
+        // `sendEmail` nunca rechaza (retorna {success:false}) — antes se ignoraba
+        // el resultado y se le decía al usuario "código enviado" aunque el envío
+        // hubiera fallado, mientras el rate-limit bloqueaba el reintento 60s.
+        console.error('[portal] requestCode: fallo enviando email de OTP', emailResult.error);
+        return { success: false, error: 'No se pudo enviar el código. Intenta de nuevo en unos minutos.' };
+      }
     }
 
     // Mask email for display: abc***@domain.com
@@ -621,15 +652,14 @@ export async function verifyPortalCodeAction(
   if (trimmedCode.length !== 6) return { success: false, error: 'El código debe tener 6 dígitos.' };
 
   try {
-    const db = getServerFirestore();
-    const q = query(collection(db, 'clients'), where('slug', '==', slug.trim()), limit(1));
-    const snap = await getDocs(q);
+    const db = getAdminFirestore();
+    const snap = await db.collection('clients').where('slug', '==', slug.trim()).limit(1).get();
     if (snap.empty) return { success: false, error: 'Portal no encontrado.' };
 
     const clientDoc = snap.docs[0];
     const data = clientDoc.data();
 
-    if (!data.accessCode || data.accessCode !== trimmedCode) {
+    if (!data.accessCodeHash || !accessCodeHashMatches(data.accessCodeHash, trimmedCode)) {
       await logSecurityEvent({ type: 'otp-invalid-code', slug });
       return { success: false, error: 'Código incorrecto.' };
     }
@@ -641,8 +671,8 @@ export async function verifyPortalCodeAction(
     }
 
     // Invalidate code after use (one-time)
-    await updateDoc(clientDoc.ref, {
-      accessCode: null,
+    await clientDoc.ref.update({
+      accessCodeHash: AdminFieldValue.delete(),
       accessCodeExpiresAt: null,
     });
 
@@ -686,16 +716,17 @@ export async function getPortalDashboardAction(slug: string): Promise<
     const session = await requirePortalSession(slug);
     const { clientId } = session;
 
-    const db = getServerFirestore();
+    const db = getAdminFirestore();
+    const clientRef = db.collection('clients').doc(clientId);
     const [clientSnap, updatesSnap, projectsSnap] = await Promise.all([
-      getDoc(doc(db, 'clients', clientId)),
-      getDocs(query(collection(db, 'clients', clientId, 'updates'), orderBy('createdAt', 'desc'), limit(20))),
-      getDocs(query(collection(db, 'clients', clientId, 'projects'), orderBy('name', 'asc'), limit(10))),
+      clientRef.get(),
+      clientRef.collection('updates').orderBy('createdAt', 'desc').limit(20).get(),
+      clientRef.collection('projects').orderBy('name', 'asc').limit(10).get(),
     ]);
 
-    if (!clientSnap.exists()) return { success: false, error: 'Cliente no encontrado.' };
+    if (!clientSnap.exists) return { success: false, error: 'Cliente no encontrado.' };
 
-    const clientData = clientSnap.data();
+    const clientData = clientSnap.data()!;
 
     const updates = updatesSnap.docs.map(d => {
       const u = d.data();
@@ -742,9 +773,9 @@ export async function generateClientSlugAction(
   companyName: string
 ): Promise<PortalActionResult<{ slug: string }>> {
   try {
-    const db = getServerFirestore();
+    const db = getAdminFirestore();
     const slug = generateSlug(companyName);
-    await updateDoc(doc(db, 'clients', clientId), { slug });
+    await db.collection('clients').doc(clientId).update({ slug });
     return { success: true, data: { slug } };
   } catch (err) {
     console.error('[portal] generateSlug error:', err);
@@ -766,11 +797,11 @@ export async function addClientUpdateAction(
   if (!parsed.success) return { success: false, error: 'Datos inválidos.' };
 
   try {
-    const db = getServerFirestore();
-    const ref = await addDoc(collection(db, 'clients', clientId, 'updates'), {
+    const db = getAdminFirestore();
+    const ref = await db.collection('clients').doc(clientId).collection('updates').add({
       ...parsed.data,
       imageUrl: parsed.data.imageUrl || null,
-      createdAt: serverTimestamp(),
+      createdAt: AdminFieldValue.serverTimestamp(),
     });
     return { success: true, data: { id: ref.id } };
   } catch (err) {
@@ -785,10 +816,10 @@ export async function sendUpdateEmailAction(
   update: { text: string; imageUrl?: string; createdBy: string }
 ): Promise<EmailResult> {
   try {
-    const db = getServerFirestore();
-    const clientSnap = await getDoc(doc(db, 'clients', clientId));
-    if (!clientSnap.exists()) return { success: false, error: 'Cliente no encontrado.' };
-    const d = clientSnap.data();
+    const db = getAdminFirestore();
+    const clientSnap = await db.collection('clients').doc(clientId).get();
+    if (!clientSnap.exists) return { success: false, error: 'Cliente no encontrado.' };
+    const d = clientSnap.data()!;
     if (!d.contactEmail) return { success: false, error: 'El cliente no tiene email registrado.' };
 
     const html = renderProjectUpdateEmail({
@@ -822,16 +853,16 @@ export async function migratePortalSessionAction(
     return { success: false, error: 'Sesión inválida.' };
   }
   try {
-    const db = getServerFirestore();
-    const clientSnap = await getDoc(doc(db, 'clients', clientId.trim()));
+    const db = getAdminFirestore();
+    const clientSnap = await db.collection('clients').doc(clientId.trim()).get();
 
     // Unified rejection: don't reveal whether the clientId exists in Firestore
-    if (!clientSnap.exists() || clientSnap.data().slug !== slug.trim()) {
-      if (clientSnap.exists()) {
+    if (!clientSnap.exists || clientSnap.data()?.slug !== slug.trim()) {
+      if (clientSnap.exists) {
         await logSecurityEvent({
           type:         'migration-slug-mismatch',
           slug:         slug.trim(),
-          resolvedSlug: clientSnap.data().slug ?? null,
+          resolvedSlug: clientSnap.data()?.slug ?? null,
         });
       }
       return { success: false, error: 'Sesión inválida.' };

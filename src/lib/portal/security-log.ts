@@ -13,8 +13,8 @@
  */
 
 import { headers } from 'next/headers';
-import { getServerFirestore } from '@/lib/firebase-server';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { getAdminFirestore } from '@/lib/firebase-admin';
+import { FieldValue } from 'firebase-admin/firestore';
 
 export type PortalSecurityEventType =
   | 'auth-no-session'         // requirePortalSession: no cookie present
@@ -47,15 +47,14 @@ export async function logSecurityEvent(input: SecurityEventInput): Promise<void>
             ?? 'unknown';
     const ua = (h.get('user-agent') ?? 'unknown').slice(0, 200);
 
-    const db = getServerFirestore();
-    await addDoc(collection(db, 'portalSecurityEvents'), {
+    await getAdminFirestore().collection('portalSecurityEvents').add({
       type:         input.type,
       slug:         input.slug         ?? null,
       resolvedSlug: input.resolvedSlug ?? null,
       reason:       input.reason       ?? null,
       ip,
       userAgent:    ua,
-      createdAt:    serverTimestamp(),
+      createdAt:    FieldValue.serverTimestamp(),
     });
   } catch {
     if (process.env.NODE_ENV !== 'production') {

@@ -64,25 +64,44 @@ export async function evaluateAllAlerts(): Promise<EvaluationSummary> {
       const result = evaluateRule(rule, price);
       if (!result.triggered) continue;
 
-      // Disparar: guardar evento + actualizar regla + notificar
+      // Disparar: notificar primero, luego persistir evento + regla con el
+      // resultado real de la entrega (antes se guardaba `deliveredTo: []` fijo
+      // y se actualizaba el cooldown aunque el envío fallara).
+      const deliveredTo: string[] = [];
+      let deliveredOk = false;
+
+      if (rule.channels.includes("telegram")) {
+        const chatId = (rule as AlertRule & { telegramChatId?: string }).telegramChatId;
+        if (!chatId) {
+          console.warn(`[alert-engine] regla ${rule.id} sin telegramChatId configurado — omitiendo entrega`);
+        } else {
+          try {
+            await sendTelegramAlert(chatId, result.message);
+            deliveredTo.push("telegram");
+            deliveredOk = true;
+          } catch (deliveryErr) {
+            console.error(`[alert-engine] fallo entregando alerta ${rule.id} por telegram`, deliveryErr);
+          }
+        }
+      }
+
       const event: AlertEvent = {
         ruleId: rule.id!,
         userId: rule.userId,
         symbol: rule.symbol,
         message: result.message,
         payload: { price: price.priceUsd, rule: rule.params },
-        deliveredTo: [],
+        deliveredTo,
         createdAt: now,
       };
 
       await firestore.collection(COL.alerts).add(event);
-      await doc.ref.update({ lastTriggeredAt: now });
 
-      // Entregar a canales
-      if (rule.channels.includes("telegram")) {
-        const chatId = (rule as AlertRule & { telegramChatId?: string }).telegramChatId ?? rule.userId;
-        await sendTelegramAlert(chatId, result.message);
-        event.deliveredTo.push("telegram");
+      // Solo consumimos el cooldown si la entrega tuvo éxito en al menos un canal
+      // (o si no había canales configurados) — un envío fallido debe poder
+      // reintentarse en la próxima corrida del cron.
+      if (deliveredOk || rule.channels.length === 0) {
+        await doc.ref.update({ lastTriggeredAt: now });
       }
 
       summary.triggered++;
@@ -108,6 +127,8 @@ export function evaluateRule(
   rule: AlertRule,
   price: PriceSnapshot
 ): EvalResult {
+  const symbol = escapeMarkdownV2(rule.symbol);
+
   switch (rule.type) {
     case "price_below":
       if (
@@ -117,9 +138,9 @@ export function evaluateRule(
         return {
           triggered: true,
           message:
-            `🔻 *${rule.symbol}* bajó de \`$${rule.params.threshold.toLocaleString()}\`\n` +
+            `🔻 *${symbol}* bajó de \`$${rule.params.threshold.toLocaleString()}\`\n` +
             `Precio actual: \`$${price.priceUsd.toLocaleString()}\`\n` +
-            `24h: ${formatPct(price.change24h)}`,
+            `24h: \`${formatPct(price.change24h)}\``,
         };
       }
       break;
@@ -132,9 +153,9 @@ export function evaluateRule(
         return {
           triggered: true,
           message:
-            `🔺 *${rule.symbol}* rompió \`$${rule.params.threshold.toLocaleString()}\`\n` +
+            `🔺 *${symbol}* rompió \`$${rule.params.threshold.toLocaleString()}\`\n` +
             `Precio actual: \`$${price.priceUsd.toLocaleString()}\`\n` +
-            `24h: ${formatPct(price.change24h)}`,
+            `24h: \`${formatPct(price.change24h)}\``,
         };
       }
       break;
@@ -159,7 +180,7 @@ export function evaluateRule(
         return {
           triggered: true,
           message:
-            `${emoji} *${rule.symbol}* ${formatPct(changeField)} en ${window}\n` +
+            `${emoji} *${symbol}* \`${formatPct(changeField)}\` en ${window}\n` +
             `Precio actual: \`$${price.priceUsd.toLocaleString()}\``,
         };
       }
@@ -177,4 +198,15 @@ export function evaluateRule(
 function formatPct(n: number): string {
   const sign = n >= 0 ? "+" : "";
   return `${sign}${n.toFixed(2)}%`;
+}
+
+/**
+ * Escapa los caracteres reservados de Telegram MarkdownV2 en texto que va
+ * FUERA de una entidad (negritas `*..*`, código `` `..` ``, etc). Dentro de
+ * backticks/asteriscos ya usados arriba para los valores numéricos no hace
+ * falta escapar `.`/`-`, pero el símbolo (texto libre de configuración) sí
+ * puede contener alguno de estos caracteres reservados.
+ */
+function escapeMarkdownV2(text: string): string {
+  return text.replace(/[_*[\]()~`>#+\-=|{}.!]/g, "\\$&");
 }

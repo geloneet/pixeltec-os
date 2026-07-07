@@ -95,9 +95,51 @@ export async function generateCampaignStrategy(
     return { ok: false, error: 'Créditos insuficientes para generar estrategia' };
   }
 
+  // Claim atómico: evita que dos clicks concurrentes disparen dos llamadas a OpenAI
+  // para la misma campaña (el débito de créditos ya es transaccional, pero el gasto
+  // real de la API ocurre antes de esa transacción).
+  const campaignRef = db().collection('growthCampaigns').doc(campaignId);
+  try {
+    await db().runTransaction(async (tx) => {
+      const doc = await tx.get(campaignRef);
+      if (!doc.exists) throw new Error('Campaña no encontrada');
+      const currentStatus = doc.data()?.status as Campaign['status'] | undefined;
+      if (currentStatus === 'generating') {
+        throw new Error('CONCURRENT_GENERATION');
+      }
+      tx.update(campaignRef, { status: 'generating', updatedAt: FieldValue.serverTimestamp() });
+    });
+  } catch (err) {
+    if (err instanceof Error && err.message === 'CONCURRENT_GENERATION') {
+      return { ok: false, error: 'Ya se está generando una estrategia para esta campaña.' };
+    }
+    return { ok: false, error: 'No se pudo iniciar la generación.' };
+  }
+
   const campaign = campaignDoc.data() as Campaign;
+
+  // A partir de aquí la campaña quedó marcada 'generating'; cualquier salida debe
+  // revertirla a 'pending' para no dejarla atascada si algo falla.
+  try {
+    return await generateStrategyBody(uid, campaignId, campaign);
+  } catch (err) {
+    await campaignRef.update({ status: 'pending', updatedAt: FieldValue.serverTimestamp() }).catch(() => {});
+    const message = err instanceof Error ? err.message : 'Error interno generando la estrategia';
+    return { ok: false, error: message };
+  }
+}
+
+async function generateStrategyBody(
+  uid: string,
+  campaignId: string,
+  campaign: Campaign
+): Promise<{ ok: boolean; error?: string }> {
   const brandDoc = await db().collection('growthBrands').doc(campaign.brandId).get();
-  if (!brandDoc.exists) return { ok: false, error: 'Marca no encontrada' };
+  if (!brandDoc.exists) {
+    await db().collection('growthCampaigns').doc(campaignId)
+      .update({ status: 'pending', updatedAt: FieldValue.serverTimestamp() }).catch(() => {});
+    return { ok: false, error: 'Marca no encontrada' };
+  }
 
   const brand = { id: brandDoc.id, ...brandDoc.data() } as BrandBrain;
 
@@ -141,7 +183,9 @@ Genera entre 3 y 6 posts con diferentes propósitos (awareness, consideration, c
     const parsed = JSON.parse(cleaned) as typeof strategy;
     strategy = parsed;
   } catch {
-    return { ok: false, error: 'Error al parsear la estrategia de IA' };
+    // Re-lanzado como Error para que el catch de generateCampaignStrategy revierta
+    // el status de la campaña a 'pending' (si no, quedaría atascada en 'generating').
+    throw new Error('Error al parsear la estrategia de IA');
   }
 
   const postPlans: CampaignPostPlan[] = (strategy.postPlans as Array<Partial<CampaignPostPlan>>).map((p, i) => ({

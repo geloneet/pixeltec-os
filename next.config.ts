@@ -51,23 +51,13 @@ const nextConfig: NextConfig = {
           { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
           // HSTS con preload (incluir en https://hstspreload.org después de verificar)
           { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
-          {
-            key: 'Content-Security-Policy',
-            value: [
-              "default-src 'self'",
-              // Next.js requiere unsafe-inline para scripts de hidratación
-              // Firebase Auth necesita apis.google.com (api.js) y gstatic.com
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com https://apis.google.com https://www.gstatic.com",
-              "style-src 'self' 'unsafe-inline'",
-              "font-src 'self' data:",
-              // Permite imágenes remotas ya whitelistadas en next.config
-              "img-src 'self' data: blob: https:",
-              "connect-src 'self' https: wss:",
-              // Firebase Auth carga un iframe en <project>.firebaseapp.com para sync de sesión
-              "frame-src 'self' https:",
-              "frame-ancestors 'none'",
-            ].join('; '),
-          },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          // Deshabilita APIs sensibles del navegador que la app no usa.
+          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), payment=(), usb=()' },
+          // La Content-Security-Policy vive ÚNICAMENTE en src/middleware.ts (con
+          // nonce + strict-dynamic, enforcing). Antes coexistían dos CSP y el
+          // navegador aplicaba la de aquí (con 'unsafe-inline'/'unsafe-eval'),
+          // dejando sin efecto la política más estricta del middleware.
         ],
       },
     ];

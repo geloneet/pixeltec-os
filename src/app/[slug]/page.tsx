@@ -1,14 +1,14 @@
 import { notFound } from 'next/navigation';
-import { getServerFirestore } from '@/lib/firebase-server';
-import { collection, query, where, getDocs, limit } from 'firebase/firestore';
+import { getAdminFirestore } from '@/lib/firebase-admin';
 import PortalEntryClient from './portal-entry-client';
 
 async function resolvePortalSlug(slug: string): Promise<{ companyName: string } | null> {
   try {
-    const db = getServerFirestore();
-    const snap = await getDocs(
-      query(collection(db, 'clients'), where('slug', '==', slug.trim()), limit(1))
-    );
+    const snap = await getAdminFirestore()
+      .collection('clients')
+      .where('slug', '==', slug.trim())
+      .limit(1)
+      .get();
     if (snap.empty) return null;
     const d = snap.docs[0].data();
     return { companyName: d.companyName as string };

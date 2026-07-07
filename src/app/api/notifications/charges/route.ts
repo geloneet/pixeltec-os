@@ -6,9 +6,58 @@ import { getFirestore } from "firebase-admin/firestore";
 import { getNextChargeDate } from "@/lib/crm/next-charge-date";
 import { createNotification } from "@/lib/notifications/actions";
 
+/**
+ * Marca `lastNotified` en un cargo puntual dentro de `crm_data/{docId}`.
+ *
+ * Vuelve a leer el documento DENTRO de la transacción (no usa la copia leída
+ * al inicio del loop del cron) y sólo reescribe el campo `clients`, aplicando
+ * la mutación puntual sobre los datos frescos. Esto evita que el cron pise
+ * ediciones concurrentes del usuario (dashboard) u otras pestañas: si el doc
+ * cambió entre la lectura y la escritura, Firestore reintenta la transacción
+ * automáticamente con el estado más reciente.
+ */
+async function markChargeNotified(
+  db: FirebaseFirestore.Firestore,
+  docId: string,
+  clientId: string,
+  projectId: string,
+  chargeId: string,
+  notifKey: string
+): Promise<void> {
+  const docRef = db.collection("crm_data").doc(docId);
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(docRef);
+    if (!snap.exists) return;
+    const freshData = snap.data();
+    if (!freshData) return;
+
+    let found = false;
+    const freshClients = (freshData.clients || []).map((c: any) => {
+      if (c.id !== clientId) return c;
+      return {
+        ...c,
+        projects: (c.projects || []).map((p: any) => {
+          if (p.id !== projectId) return p;
+          return {
+            ...p,
+            charges: (p.charges || []).map((ch: any) => {
+              if (ch.id !== chargeId) return ch;
+              found = true;
+              return { ...ch, lastNotified: notifKey };
+            }),
+          };
+        }),
+      };
+    });
+
+    if (!found) return;
+    tx.update(docRef, { clients: freshClients });
+  });
+}
+
 export async function GET(req: NextRequest) {
-  const secret = req.nextUrl.searchParams.get("secret");
-  if (secret !== process.env.CRON_SECRET) {
+  const provided = req.headers.get("authorization")?.replace("Bearer ", "") ?? req.nextUrl.searchParams.get("secret");
+  if (!process.env.CRON_SECRET || provided !== process.env.CRON_SECRET) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -21,7 +70,6 @@ export async function GET(req: NextRequest) {
     for (const doc of snapshot.docs) {
       const data = doc.data();
       const clients = data.clients || [];
-      let updated = false;
 
       for (const client of clients) {
         for (const project of client.projects || []) {
@@ -55,6 +103,12 @@ export async function GET(req: NextRequest) {
             });
 
             // 1. Email al cliente
+            // emailOk determines whether we mark this charge as notified:
+            // sendEmail() never throws — it returns { success: false, error }
+            // on failure — so we must check `result.success` explicitly.
+            // If it failed, we don't mark lastNotified so the cron retries
+            // sending the email next run instead of silently giving up.
+            let emailOk = true;
             if (charge.clientEmail) {
               try {
                 const html = `
@@ -81,13 +135,19 @@ export async function GET(req: NextRequest) {
                     </div>
                   </div>`;
 
-                await sendEmail(
+                const result = await sendEmail(
                   charge.clientEmail,
                   `Recordatorio de cobro — ${charge.concept}`,
                   html
                 );
-                notifications.push(`Email sent to ${charge.clientEmail} for ${charge.concept}`);
+                if (result.success) {
+                  notifications.push(`Email sent to ${charge.clientEmail} for ${charge.concept}`);
+                } else {
+                  emailOk = false;
+                  notifications.push(`Email FAILED to ${charge.clientEmail}: ${result.error}`);
+                }
               } catch (e) {
+                emailOk = false;
                 notifications.push(`Email FAILED to ${charge.clientEmail}: ${e}`);
               }
             }
@@ -129,15 +189,20 @@ export async function GET(req: NextRequest) {
               notifications.push(`In-app notification FAILED for ${charge.concept}: ${e}`);
             }
 
-            // 4. Marcar como notificado
-            charge.lastNotified = notifKey;
-            updated = true;
+            // 4. Marcar como notificado — sólo si el email (cuando aplica)
+            // se envió exitosamente. Se hace vía transacción que relee el
+            // doc fresco en vez de acumular sobre `data` (leído una sola vez
+            // al inicio del loop) y hacer un `.set()` de todo el documento,
+            // que pisaría ediciones concurrentes del usuario.
+            if (emailOk) {
+              try {
+                await markChargeNotified(db, doc.id, client.id, project.id, charge.id, notifKey);
+              } catch (e) {
+                notifications.push(`Failed to persist lastNotified for ${charge.concept}: ${e}`);
+              }
+            }
           }
         }
-      }
-
-      if (updated) {
-        await db.collection("crm_data").doc(doc.id).set(data);
       }
     }
 

@@ -33,6 +33,7 @@ export default function DocumentosPage() {
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!firestore || !user) { setLoading(false); return; }
@@ -46,6 +47,10 @@ export default function DocumentosPage() {
       setInvoices(inv);
       setContracts(con);
       setProposals(pro);
+      setError(null);
+    } catch (err) {
+      console.error('[DocumentosPage] load failed:', err);
+      setError('No se pudieron cargar los documentos. Intenta de nuevo más tarde.');
     } finally {
       setLoading(false);
     }
@@ -66,6 +71,14 @@ export default function DocumentosPage() {
     return (
       <div className="flex items-center justify-center py-24">
         <div className="w-5 h-5 border-2 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <p className="text-sm text-red-400">{error}</p>
       </div>
     );
   }

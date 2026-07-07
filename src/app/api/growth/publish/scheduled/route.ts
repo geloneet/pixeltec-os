@@ -3,9 +3,9 @@ import { publishScheduledPosts } from '@/lib/growth/social/publish';
 
 export async function POST(req: NextRequest) {
   const authHeader = req.headers.get('authorization');
-  const expected = `Bearer ${process.env.CRON_SECRET}`;
+  const expected = process.env.CRON_SECRET ? `Bearer ${process.env.CRON_SECRET}` : null;
 
-  if (authHeader !== expected) {
+  if (!expected || authHeader !== expected) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

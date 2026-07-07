@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { 
   BarChart, 
   Bar, 
@@ -22,42 +22,84 @@ interface ChartData {
 export default function WorkloadChart() {
   const [data, setData] = useState<ChartData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const firestore = useFirestore();
+  // Generation counter: guards against out-of-order snapshots (a slow snapshot resolving
+  // after a newer one has already landed) and against setState after unmount, since the
+  // callback below is async (N+1 getDocs per client) and can outlive its subscription.
+  const genRef = useRef(0);
 
   useEffect(() => {
     if (!firestore) return;
-    // Escuchamos la colección de clientes
-    const unsubscribe = onSnapshot(collection(firestore, 'clients'), async (snapshot) => {
-      const chartData: ChartData[] = [];
-      
-      for (const clientDoc of snapshot.docs) {
-        const clientData = clientDoc.data();
-        
-        // Consultamos las tareas pendientes de cada cliente (sub-colección)
-        const tasksQuery = query(collection(firestore, `clients/${clientDoc.id}/tasks`));
-        const tasksSnapshot = await getDocs(tasksQuery);
-        
-        // Filtramos solo las que no están completadas
-        const pendingCount = tasksSnapshot.docs.filter(t => !t.data().completed).length;
-        
-        chartData.push({
-          name: clientData.companyName || 'Sin Nombre',
-          pendingTasks: pendingCount
-        });
-      }
-      
-      // Ordenamos para que la empresa con más carga aparezca primero
-      setData(chartData.sort((a, b) => b.pendingTasks - a.pendingTasks));
-      setLoading(false);
-    });
+    const myGen = ++genRef.current;
 
-    return () => unsubscribe();
+    // Escuchamos la colección de clientes
+    const unsubscribe = onSnapshot(
+      collection(firestore, 'clients'),
+      async (snapshot) => {
+        try {
+          const chartData: ChartData[] = [];
+
+          // Nota: se mantiene el N+1 (una query de tareas por cliente) porque son
+          // sub-colecciones independientes sin un contador de pendientes desnormalizado en el
+          // doc del cliente; batchear implicaría ese cambio de modelo de datos, fuera de alcance
+          // de este fix. Se prioriza cortar el race condition y el error callback.
+          for (const clientDoc of snapshot.docs) {
+            const clientData = clientDoc.data();
+
+            const tasksQuery = query(collection(firestore, `clients/${clientDoc.id}/tasks`));
+            const tasksSnapshot = await getDocs(tasksQuery);
+
+            // Otra suscripción más reciente (o el desmontaje) invalidó este generation — abortar.
+            if (genRef.current !== myGen) return;
+
+            const pendingCount = tasksSnapshot.docs.filter(t => !t.data().completed).length;
+
+            chartData.push({
+              name: clientData.companyName || 'Sin Nombre',
+              pendingTasks: pendingCount,
+            });
+          }
+
+          if (genRef.current !== myGen) return;
+          // Ordenamos para que la empresa con más carga aparezca primero
+          setData(chartData.sort((a, b) => b.pendingTasks - a.pendingTasks));
+          setError(null);
+          setLoading(false);
+        } catch (err) {
+          if (genRef.current !== myGen) return;
+          console.error('[WorkloadChart] Error procesando snapshot:', err);
+          setError('No se pudo calcular la carga de trabajo.');
+          setLoading(false);
+        }
+      },
+      (err) => {
+        if (genRef.current !== myGen) return;
+        console.error('[WorkloadChart] Error en onSnapshot:', err);
+        setError('No se pudo cargar la carga de trabajo.');
+        setLoading(false);
+      }
+    );
+
+    return () => {
+      // Invalida cualquier trabajo async en vuelo ligado a esta suscripción.
+      genRef.current++;
+      unsubscribe();
+    };
   }, [firestore]);
 
   if (loading) {
     return (
       <div className="h-[300px] flex items-center justify-center text-zinc-500 animate-pulse">
         Calculando carga de trabajo...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="h-[300px] flex items-center justify-center text-red-400 text-sm text-center px-4">
+        {error}
       </div>
     );
   }

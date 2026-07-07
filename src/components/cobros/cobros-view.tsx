@@ -2,7 +2,7 @@
 
 import { LoaderCircle } from "lucide-react";
 import { useCRM } from "@/components/crm/CRMContextCore";
-import { getNextChargeDate } from "@/lib/crm/next-charge-date";
+import { getNextChargeDate, getMostRecentUnpaidChargeDate } from "@/lib/crm/next-charge-date";
 import { formatCurrency } from "@/lib/utils";
 import type { RecurringCharge } from "@/types/crm";
 
@@ -12,14 +12,19 @@ interface ChargeRow {
   projectName: string;
   nextDate: Date;
   daysUntil: number;
+  overdueDate: Date | null;
 }
 
 function formatDateES(d: Date): string {
   return d.toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" });
 }
 
-function DueBadge({ daysUntil }: { daysUntil: number }) {
-  if (daysUntil <= 0) {
+// `daysUntil` (derived from getNextChargeDate) is by design always a future
+// date, so it can never signal "Vencido" on its own — see the doc comment
+// on getMostRecentUnpaidChargeDate. `overdueDate` carries that separate
+// signal: the most recent period that was due and not marked as attended.
+function DueBadge({ daysUntil, overdueDate }: { daysUntil: number; overdueDate: Date | null }) {
+  if (overdueDate || daysUntil <= 0) {
     return (
       <span className="inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium bg-red-500/10 text-red-400">
         Vencido
@@ -60,19 +65,26 @@ export function CobrosView() {
       (p.charges || []).forEach(ch => {
         const nextDate = getNextChargeDate(ch.startDate, ch.frequency);
         const daysUntil = Math.ceil((nextDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        const overdueDate = getMostRecentUnpaidChargeDate(ch.startDate, ch.frequency, ch.lastNotified);
         rows.push({
           charge: ch,
           clientName: c.name,
           projectName: p.name,
           nextDate,
           daysUntil,
+          overdueDate,
         });
       });
     });
   });
 
-  // Sort by daysUntil ascending (most urgent first)
-  rows.sort((a, b) => a.daysUntil - b.daysUntil);
+  // Sort overdue charges first, then by daysUntil ascending (most urgent first)
+  rows.sort((a, b) => {
+    const aOverdue = a.overdueDate ? 0 : 1;
+    const bOverdue = b.overdueDate ? 0 : 1;
+    if (aOverdue !== bOverdue) return aOverdue - bOverdue;
+    return a.daysUntil - b.daysUntil;
+  });
 
   // Summary totals (active charges only)
   const activeRows = rows.filter(r => r.charge.active);
@@ -122,7 +134,7 @@ export function CobrosView() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-800/60">
-                {rows.map(({ charge, clientName, projectName, nextDate, daysUntil }) => (
+                {rows.map(({ charge, clientName, projectName, nextDate, daysUntil, overdueDate }) => (
                   <tr key={charge.id} className="hover:bg-zinc-900/40 transition-colors">
                     <td className="px-4 py-3">
                       <span className="text-zinc-200 font-medium">{charge.concept}</span>
@@ -149,7 +161,7 @@ export function CobrosView() {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <span className="text-zinc-400 text-xs">{formatDateES(nextDate)}</span>
-                        <DueBadge daysUntil={daysUntil} />
+                        <DueBadge daysUntil={daysUntil} overdueDate={overdueDate} />
                       </div>
                     </td>
                     <td className="px-4 py-3 text-center">
@@ -163,7 +175,7 @@ export function CobrosView() {
 
           {/* Mobile cards */}
           <div className="sm:hidden divide-y divide-zinc-800/60">
-            {rows.map(({ charge, clientName, projectName, nextDate, daysUntil }) => (
+            {rows.map(({ charge, clientName, projectName, nextDate, daysUntil, overdueDate }) => (
               <div key={charge.id} className="px-4 py-4 space-y-2">
                 <div className="flex items-start justify-between gap-2">
                   <p className="text-[13px] font-medium text-zinc-200 leading-snug">{charge.concept}</p>
@@ -182,7 +194,7 @@ export function CobrosView() {
                   </span>
                   <div className="flex items-center gap-2">
                     <span className="text-zinc-500 text-[11px]">{formatDateES(nextDate)}</span>
-                    <DueBadge daysUntil={daysUntil} />
+                    <DueBadge daysUntil={daysUntil} overdueDate={overdueDate} />
                   </div>
                 </div>
                 {!charge.active && (

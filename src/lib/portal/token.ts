@@ -55,12 +55,19 @@ export async function revokePortalToken(
     await db.collection(TOKENS_COL).doc(client.portalToken).delete().catch(() => {});
   }
 
-  // Clear token from crm_data
-  const updated = clients.map(c =>
-    c.id === clientId
-      ? { ...c, portalToken: undefined, portalEnabled: false }
-      : c,
-  );
+  // Clear token from crm_data. Firestore's Admin SDK rejects `undefined` as a
+  // field value (this project does not call `ignoreUndefinedProperties`), and
+  // `FieldValue.delete()` cannot be used inside array elements — so we just
+  // omit the `portalToken` key entirely from the replacement array element.
+  const updated = clients.map(c => {
+    if (c.id !== clientId) return c;
+    const next: { id: string; portalToken?: string; portalEnabled: boolean } = {
+      ...c,
+      portalEnabled: false,
+    };
+    delete next.portalToken;
+    return next;
+  });
   await db.collection("crm_data").doc(uid).update({ clients: updated });
 }
 

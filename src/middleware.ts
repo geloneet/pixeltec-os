@@ -53,10 +53,21 @@ const NOT_FOUND_HTML = `<!DOCTYPE html>
 
 const FIREBASE_AUTH_DOMAIN = 'studio-1487114664-78b63.firebaseapp.com';
 
+// Dominios de terceros con script-src propio (fuera del nonce): Cloudflare Web
+// Analytics (inyectado a nivel de edge/proxy) y los helpers de Firebase Auth
+// para OAuth federado (api.js / gstatic) — se mantienen aunque hoy no se
+// detecte un signInWithPopup/Redirect activo, para no romper esos flujos si
+// se usan condicionalmente.
+const THIRD_PARTY_SCRIPT_SRC = [
+  'https://static.cloudflareinsights.com',
+  'https://apis.google.com',
+  'https://www.gstatic.com',
+].join(' ');
+
 function buildCsp(nonce: string): string {
   const scriptSrc = process.env.NODE_ENV === 'development'
-    ? `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'unsafe-eval'`
-    : `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`;
+    ? `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'unsafe-eval' ${THIRD_PARTY_SCRIPT_SRC}`
+    : `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' ${THIRD_PARTY_SCRIPT_SRC}`;
   return [
     "default-src 'self'",
     scriptSrc,
@@ -69,7 +80,11 @@ function buildCsp(nonce: string): string {
       'wss://firestore.googleapis.com',
       `https://${FIREBASE_AUTH_DOMAIN}`,
     ].join(' '),
-    "img-src 'self' data: blob: https://lh3.googleusercontent.com https://firebasestorage.googleapis.com https://storage.googleapis.com",
+    // Permisivo a propósito (https: en vez de una allowlist corta): las
+    // actualizaciones del portal de clientes aceptan cualquier URL de imagen
+    // válida (src/app/actions.ts, addClientUpdateAction), no solo Firebase
+    // Storage — restringir aquí rompería esas imágenes silenciosamente.
+    "img-src 'self' data: blob: https:",
     "font-src 'self' data:",
     "frame-src 'none'",
     "frame-ancestors 'none'",
@@ -82,7 +97,10 @@ function buildCsp(nonce: string): string {
 }
 
 function withSecurityHeaders(res: NextResponse, nonce: string): NextResponse {
-  res.headers.set('Content-Security-Policy-Report-Only', buildCsp(nonce));
+  // Enforcing (antes Report-Only): esta es ahora la ÚNICA CSP del sitio — la
+  // política estática con 'unsafe-inline'/'unsafe-eval' de next.config.ts se
+  // quitó para no tener dos CSP compitiendo (ver next.config.ts).
+  res.headers.set('Content-Security-Policy', buildCsp(nonce));
   res.headers.set('Reporting-Endpoints', 'csp-endpoint="/api/csp-report"');
   res.headers.set('x-nonce', nonce);
   return res;

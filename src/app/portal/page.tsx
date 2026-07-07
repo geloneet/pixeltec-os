@@ -172,7 +172,11 @@ export default function PortalOverviewPage() {
         setLoading(false);
         return () => unsubscribers.forEach(unsub => unsub());
 
-    }, [firestore, client, loading]);
+        // `loading` is intentionally excluded: it's only read (not the trigger) inside this
+        // effect, and including it caused the 3 onSnapshot listeners above to be torn down and
+        // re-subscribed on every loading flip (churn / potential loop).
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [firestore, client]);
 
     if (loading) {
         return (

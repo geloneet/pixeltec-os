@@ -5,6 +5,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
 import rehypeRaw from 'rehype-raw';
+import rehypeSanitize from 'rehype-sanitize';
 import 'highlight.js/styles/github-dark.css';
 import type { Components } from 'react-markdown';
 import MermaidDiagram from './mermaid-diagram';
@@ -147,7 +148,15 @@ export default function MarkdownRenderer({ content }: { content: string }) {
   return (
     <ReactMarkdown
       remarkPlugins={[remarkGfm]}
-      rehypePlugins={[rehypeRaw, [rehypeHighlight, { ignoreMissing: true }]]}
+      rehypePlugins={[
+        rehypeRaw,
+        // Sanitizes the HTML tree produced by rehypeRaw (default GitHub-style
+        // schema — strips <script>/<style>/event handlers/iframes while
+        // keeping the tags this renderer's `components` map already handles:
+        // headings, links, blockquote, code/pre, tables, lists, img, etc.).
+        rehypeSanitize,
+        [rehypeHighlight, { ignoreMissing: true }],
+      ]}
       components={components}
     >
       {stripFrontmatter(stripCodeFenceWrapper(content))}

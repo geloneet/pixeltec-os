@@ -2,13 +2,23 @@
 
 import { createContext, useContext, useState, useEffect, useRef, useCallback, type ReactNode } from "react";
 import { useUser, useFirestore } from "@/firebase";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc, runTransaction } from "firebase/firestore";
 import { toast } from "sonner";
 import { clientSchema, projectSchema, taskSchema } from "@/lib/crm-schemas";
 import type { CRMClient, CRMProject, CRMTask, CRMKey, Tool, KnowledgeTip, ServerClientLink, RecurringCharge, ProjectLogEntry } from "@/types/crm";
 import type { WorkSession, BlockerType, BlockerStatus, BlockerImpact, BlockerSource, ObservationType, SessionGoal } from "@/types/session";
 
 const MAX_LOG_ENTRIES = 500;
+
+// Shape of the `crm_data/{uid}` document, and the top-level section keys
+// `persist()` can selectively overwrite. See the `persist` doc comment.
+interface PersistedDoc {
+  clients: CRMClient[];
+  tools: Tool[];
+  streak: number;
+  serverLinks: ServerClientLink;
+  sessions: WorkSession[];
+}
 
 function migrateTaskStatus(raw: string): CRMTask["status"] {
   if (raw === "proceso") return "en_progreso";
@@ -24,6 +34,21 @@ function uid(): string {
 // Firestore rejects undefined values — strip them recursively before saving
 function stripUndefined<T>(obj: T): T {
   return JSON.parse(JSON.stringify(obj));
+}
+
+// `RecurringCharge.amount` is a free-text string. Strip currency symbols,
+// thousands separators and whitespace (e.g. "$1,500.00" -> "1500.00") and
+// validate the result is a finite, positive number before ever letting it
+// reach Firestore — otherwise downstream `Number(charge.amount)` sums
+// silently turn into NaN -> 0, under-reporting revenue totals and emails.
+// Returns the cleaned numeric value, or `null` if the input isn't a valid
+// positive amount.
+function normalizeChargeAmount(raw: string): number | null {
+  const cleaned = raw.replace(/[^0-9.\-]/g, "");
+  if (!cleaned) return null;
+  const n = parseFloat(cleaned);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return n;
 }
 
 interface CRMContextValue {
@@ -173,20 +198,52 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // Debounced save
-  const persist = useCallback(() => {
+  // Debounced save.
+  //
+  // `crm_data/{uid}` is also written by the charges cron
+  // (src/app/api/notifications/charges/route.ts, via its own Admin SDK
+  // transaction that only touches the `clients` field) and can be open in
+  // multiple browser tabs at once. A blind `setDoc` of the whole document
+  // built from this tab's in-memory `dataRef` would silently revert
+  // whatever any other writer touched since this tab last loaded.
+  //
+  // Fix: wrap the write in a client `runTransaction` that rereads the doc
+  // right before writing, and only overwrites the TOP-LEVEL section(s) this
+  // call actually changed (`changedKeys`) — every other section is taken
+  // from the just-read remote doc instead of this tab's possibly-stale
+  // copy. Firestore retries the transaction automatically if the doc
+  // changes concurrently.
+  //
+  // LIMITATION: this is a shallow, section-level merge (clients / tools /
+  // streak / serverLinks / sessions), not a deep field-level merge. It
+  // fully protects cross-section races (e.g. cron editing
+  // `clients[].projects[].charges[].lastNotified` while this tab edits
+  // `tools`). It does NOT protect two tabs editing the SAME section at the
+  // same time (e.g. both editing `clients`) — within a section it's still
+  // last-write-wins. A true merge there would need to diff into
+  // clients→projects→tasks/charges, which is too deep/costly to do safely
+  // as part of this fix.
+  const persist = useCallback((changedKeys: Array<keyof PersistedDoc>) => {
     if (!userUid || !firestore) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(async () => {
       try {
-        await setDoc(doc(firestore, "crm_data", userUid), stripUndefined({
-          clients: dataRef.current.clients,
-          tools: dataRef.current.tools,
-          streak: dataRef.current.streak,
-          serverLinks: dataRef.current.serverLinks,
-          sessions: dataRef.current.sessions,
-          lastActivity: new Date().toISOString(),
-        }));
+        const ref = doc(firestore, "crm_data", userUid);
+        await runTransaction(firestore, async (tx) => {
+          const snap = await tx.get(ref);
+          const remote = snap.exists() ? (snap.data() as Partial<PersistedDoc>) : {};
+          const merged: PersistedDoc = {
+            clients: changedKeys.includes("clients") ? dataRef.current.clients : (remote.clients ?? dataRef.current.clients),
+            tools: changedKeys.includes("tools") ? dataRef.current.tools : (remote.tools ?? dataRef.current.tools),
+            streak: changedKeys.includes("streak") ? dataRef.current.streak : (remote.streak ?? dataRef.current.streak),
+            serverLinks: changedKeys.includes("serverLinks") ? dataRef.current.serverLinks : (remote.serverLinks ?? dataRef.current.serverLinks),
+            sessions: changedKeys.includes("sessions") ? dataRef.current.sessions : (remote.sessions ?? dataRef.current.sessions),
+          };
+          tx.set(ref, stripUndefined({
+            ...merged,
+            lastActivity: new Date().toISOString(),
+          }));
+        });
       } catch (error) {
         console.error('Error saving CRM data:', error);
         toast.error('Error al guardar cambios', {
@@ -199,11 +256,13 @@ export function CRMProvider({ children }: { children: ReactNode }) {
   const update = useCallback((newClients: CRMClient[], newStreak?: number) => {
     setClients(newClients);
     dataRef.current.clients = newClients;
+    const changedKeys: Array<keyof PersistedDoc> = ["clients"];
     if (newStreak !== undefined) {
       setStreak(newStreak);
       dataRef.current.streak = newStreak;
+      changedKeys.push("streak");
     }
-    persist();
+    persist(changedKeys);
   }, [persist]);
 
   const bumpStreak = useCallback(() => {
@@ -372,7 +431,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
   const updateTools = useCallback((newTools: Tool[]) => {
     setTools(newTools);
     dataRef.current.tools = newTools;
-    persist();
+    persist(["tools"]);
   }, [persist]);
 
   // CRUD: Tools
@@ -412,10 +471,17 @@ export function CRMProvider({ children }: { children: ReactNode }) {
 
   // CRUD: Charges
   const addCharge = useCallback((clientId: string, projectId: string, data: Partial<RecurringCharge>) => {
+    const normalizedAmount = normalizeChargeAmount(String(data.amount ?? ""));
+    if (normalizedAmount === null) {
+      toast.error('Monto inválido', {
+        description: 'Ingresa un monto numérico positivo (ej. 1500 o 1,500.00).',
+      });
+      return;
+    }
     const ch: RecurringCharge = {
       id: uid(),
       concept: data.concept || "",
-      amount: data.amount || "",
+      amount: String(normalizedAmount),
       frequency: data.frequency || "monthly",
       startDate: data.startDate || new Date().toISOString(),
       clientEmail: data.clientEmail || "",
@@ -429,8 +495,19 @@ export function CRMProvider({ children }: { children: ReactNode }) {
   }, [update]);
 
   const updateCharge = useCallback((clientId: string, projectId: string, chargeId: string, data: Partial<RecurringCharge>) => {
+    let patch = data;
+    if (data.amount !== undefined) {
+      const normalizedAmount = normalizeChargeAmount(String(data.amount));
+      if (normalizedAmount === null) {
+        toast.error('Monto inválido', {
+          description: 'Ingresa un monto numérico positivo (ej. 1500 o 1,500.00).',
+        });
+        return;
+      }
+      patch = { ...data, amount: String(normalizedAmount) };
+    }
     const next = dataRef.current.clients.map(c =>
-      c.id === clientId ? { ...c, projects: c.projects.map(p => p.id === projectId ? { ...p, charges: (p.charges || []).map(ch => ch.id === chargeId ? { ...ch, ...data } : ch) } : p) } : c
+      c.id === clientId ? { ...c, projects: c.projects.map(p => p.id === projectId ? { ...p, charges: (p.charges || []).map(ch => ch.id === chargeId ? { ...ch, ...patch } : ch) } : p) } : c
     );
     update(next);
   }, [update]);
@@ -446,7 +523,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
   const updateSessions = useCallback((newSessions: WorkSession[]) => {
     setSessions(newSessions);
     dataRef.current.sessions = newSessions;
-    persist();
+    persist(["sessions"]);
   }, [persist]);
 
   const startSession = useCallback((
@@ -654,7 +731,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     const next = { ...dataRef.current.serverLinks, [projectId]: clientId };
     setServerLinks(next);
     dataRef.current.serverLinks = next;
-    persist();
+    persist(["serverLinks"]);
   }, [persist]);
 
   const unlinkProject = useCallback((projectId: string) => {
@@ -662,7 +739,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     delete next[projectId];
     setServerLinks(next);
     dataRef.current.serverLinks = next;
-    persist();
+    persist(["serverLinks"]);
   }, [persist]);
 
   return (
