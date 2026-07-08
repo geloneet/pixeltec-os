@@ -1,59 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
+import { eq } from "drizzle-orm";
 import { sendWhatsApp } from "@/lib/whatsapp/sender";
 import { sendEmail } from "@/lib/email";
-import { getAdminApp } from "@/lib/firebase-admin";
-import { getFirestore } from "firebase-admin/firestore";
 import { getNextChargeDate } from "@/lib/crm/next-charge-date";
 import { createNotification } from "@/lib/notifications/actions";
-
-/**
- * Marca `lastNotified` en un cargo puntual dentro de `crm_data/{docId}`.
- *
- * Vuelve a leer el documento DENTRO de la transacción (no usa la copia leída
- * al inicio del loop del cron) y sólo reescribe el campo `clients`, aplicando
- * la mutación puntual sobre los datos frescos. Esto evita que el cron pise
- * ediciones concurrentes del usuario (dashboard) u otras pestañas: si el doc
- * cambió entre la lectura y la escritura, Firestore reintenta la transacción
- * automáticamente con el estado más reciente.
- */
-async function markChargeNotified(
-  db: FirebaseFirestore.Firestore,
-  docId: string,
-  clientId: string,
-  projectId: string,
-  chargeId: string,
-  notifKey: string
-): Promise<void> {
-  const docRef = db.collection("crm_data").doc(docId);
-  await db.runTransaction(async (tx) => {
-    const snap = await tx.get(docRef);
-    if (!snap.exists) return;
-    const freshData = snap.data();
-    if (!freshData) return;
-
-    let found = false;
-    const freshClients = (freshData.clients || []).map((c: any) => {
-      if (c.id !== clientId) return c;
-      return {
-        ...c,
-        projects: (c.projects || []).map((p: any) => {
-          if (p.id !== projectId) return p;
-          return {
-            ...p,
-            charges: (p.charges || []).map((ch: any) => {
-              if (ch.id !== chargeId) return ch;
-              found = true;
-              return { ...ch, lastNotified: notifKey };
-            }),
-          };
-        }),
-      };
-    });
-
-    if (!found) return;
-    tx.update(docRef, { clients: freshClients });
-  });
-}
+import { db } from "@/lib/db";
+import { users, recurringCharges } from "@/lib/db/schema";
+import { getFullCrmData } from "@/lib/db/repos/crm-sync";
 
 export async function GET(req: NextRequest) {
   const provided = req.headers.get("authorization")?.replace("Bearer ", "") ?? req.nextUrl.searchParams.get("secret");
@@ -62,18 +15,18 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const db = getFirestore(getAdminApp());
-    const snapshot = await db.collection("crm_data").get();
+    // Fase 4: antes se iteraban todos los docs `crm_data/{uid}` de Firestore
+    // — ahora se itera por usuario real de Postgres.
+    const allUsers = await db.select({ id: users.id }).from(users);
     const notifications: string[] = [];
     const today = new Date();
 
-    for (const doc of snapshot.docs) {
-      const data = doc.data();
-      const clients = data.clients || [];
+    for (const u of allUsers) {
+      const data = await getFullCrmData(u.id);
 
-      for (const client of clients) {
-        for (const project of client.projects || []) {
-          for (const charge of project.charges || []) {
+      for (const client of data.clients) {
+        for (const project of client.projects) {
+          for (const charge of project.charges ?? []) {
             if (!charge.active) continue;
 
             const nextDate = getNextChargeDate(charge.startDate, charge.frequency);
@@ -82,7 +35,10 @@ export async function GET(req: NextRequest) {
             );
 
             const notifKey = nextDate.toISOString().split("T")[0];
-            if (charge.lastNotified === notifKey) continue;
+            // `lastNotified` en Postgres es timestamptz (antes: string
+            // date-only en Firestore) — normalizar a date-only para comparar.
+            const lastNotifiedKey = charge.lastNotified ? charge.lastNotified.slice(0, 10) : undefined;
+            if (lastNotifiedKey === notifKey) continue;
 
             let shouldNotify = false;
 
@@ -173,7 +129,7 @@ export async function GET(req: NextRequest) {
               const body =
                 `${charge.concept} — $${Number(charge.amount).toLocaleString("es-MX")} MXN (${frequencyLabel}). Cobro el ${dateStr}.`;
               await createNotification({
-                userId: doc.id,
+                userId: u.id,
                 type: "warning",
                 title: "Cobro próximo",
                 body,
@@ -189,14 +145,18 @@ export async function GET(req: NextRequest) {
               notifications.push(`In-app notification FAILED for ${charge.concept}: ${e}`);
             }
 
-            // 4. Marcar como notificado — sólo si el email (cuando aplica)
-            // se envió exitosamente. Se hace vía transacción que relee el
-            // doc fresco en vez de acumular sobre `data` (leído una sola vez
-            // al inicio del loop) y hacer un `.set()` de todo el documento,
-            // que pisaría ediciones concurrentes del usuario.
+            // 4. Marcar como notificado — solo si el email (cuando aplica) se
+            // envió exitosamente. Con Postgres esto ya es un simple UPDATE de
+            // una fila/columna por firestore_id — la transacción de
+            // relectura que necesitaba Firestore (para no pisar ediciones
+            // concurrentes del dashboard sobre TODO el documento) ya no hace
+            // falta: no hay documento completo que sobrescribir.
             if (emailOk) {
               try {
-                await markChargeNotified(db, doc.id, client.id, project.id, charge.id, notifKey);
+                await db
+                  .update(recurringCharges)
+                  .set({ lastNotified: nextDate })
+                  .where(eq(recurringCharges.firestoreId, charge.id));
               } catch (e) {
                 notifications.push(`Failed to persist lastNotified for ${charge.concept}: ${e}`);
               }
@@ -211,8 +171,9 @@ export async function GET(req: NextRequest) {
       notificationsSent: notifications.length,
       details: notifications,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Charges notification error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const message = error instanceof Error ? error.message : String(error);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

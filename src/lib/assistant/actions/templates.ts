@@ -1,9 +1,12 @@
 'use server';
 
+// Postgres (Drizzle) — antes Firestore `assistantTemplates`.
 import { revalidatePath } from 'next/cache';
-import { FieldValue } from 'firebase-admin/firestore';
+import { and, eq } from 'drizzle-orm';
 import { getSessionUid } from '@/lib/crypto-intel/auth';
-import { db, COL } from '../firebase-admin';
+import { db } from '@/lib/db';
+import { assistantTasks, assistantTemplates, type AssistantTemplate } from '@/lib/db/schema';
+import { publicId, resolveOwnerId, resolveTemplateRow } from '../pg';
 import {
   AssistantTemplateCreateSchema,
   AssistantTemplateUpdateSchema,
@@ -12,7 +15,18 @@ import {
 import { buildWeeklyRRule, generateTaskInstancesForWeek } from '../rrule-helpers';
 import { getTemplates } from '../queries/templates';
 import { getCurrentWeekKey } from '../week-helpers';
-import type { AssistantTemplateDoc } from '../types';
+
+/** Fila del template si existe y pertenece al uid; null en cualquier otro caso. */
+async function getOwnedTemplateRow(
+  uid: string,
+  templateId: string,
+): Promise<AssistantTemplate | null> {
+  const ownerId = await resolveOwnerId(uid);
+  if (!ownerId) return null;
+  const row = await resolveTemplateRow(templateId);
+  if (!row || row.ownerId !== ownerId) return null;
+  return row;
+}
 
 export async function createTemplate(
   input: unknown,
@@ -23,31 +37,28 @@ export async function createTemplate(
   const parsed = AssistantTemplateCreateSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.errors[0].message };
 
+  const ownerId = await resolveOwnerId(uid);
+  if (!ownerId) return { ok: false, error: 'No autenticado' };
+
   const { title, description, category, weekdays, defaultTime, durationMin } = parsed.data;
   const rrule = buildWeeklyRRule(weekdays);
-  const now   = FieldValue.serverTimestamp();
 
-  const ref = await db().collection(COL.assistantTemplates).add({
-    uid,
-    title,
-    description: description ?? null,
-    category,
-    rrule,
-    defaultTime,
-    durationMin,
-    active: true,
-    createdAt: now,
-    updatedAt: now,
-  });
+  const [row] = await db
+    .insert(assistantTemplates)
+    .values({
+      ownerId,
+      title,
+      description: description ?? null,
+      category,
+      rrule,
+      defaultTime,
+      durationMin,
+      active: true,
+    })
+    .returning();
 
   revalidatePath('/tareas/templates');
-  return { ok: true, data: { templateId: ref.id } };
-}
-
-async function verifyTemplateOwnership(uid: string, templateId: string): Promise<boolean> {
-  const doc = await db().collection(COL.assistantTemplates).doc(templateId).get();
-  if (!doc.exists) return false;
-  return (doc.data() as AssistantTemplateDoc).uid === uid;
+  return { ok: true, data: { templateId: publicId(row) } };
 }
 
 export async function updateTemplate(
@@ -60,10 +71,10 @@ export async function updateTemplate(
   const parsed = AssistantTemplateUpdateSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.errors[0].message };
 
-  const owns = await verifyTemplateOwnership(uid, templateId);
-  if (!owns) return { ok: false, error: 'Template no encontrado' };
+  const row = await getOwnedTemplateRow(uid, templateId);
+  if (!row) return { ok: false, error: 'Template no encontrado' };
 
-  const updates: Record<string, unknown> = { updatedAt: FieldValue.serverTimestamp() };
+  const updates: Partial<typeof assistantTemplates.$inferInsert> = { updatedAt: new Date() };
   const { title, description, category, weekdays, defaultTime, durationMin } = parsed.data;
 
   if (title       !== undefined) updates.title       = title;
@@ -73,7 +84,7 @@ export async function updateTemplate(
   if (durationMin !== undefined) updates.durationMin = durationMin;
   if (weekdays    !== undefined) updates.rrule       = buildWeeklyRRule(weekdays);
 
-  await db().collection(COL.assistantTemplates).doc(templateId).update(updates);
+  await db.update(assistantTemplates).set(updates).where(eq(assistantTemplates.id, row.id));
   revalidatePath('/tareas/templates');
   return { ok: true };
 }
@@ -82,15 +93,13 @@ export async function toggleTemplateActive(templateId: string): Promise<ActionRe
   const uid = await getSessionUid();
   if (!uid) return { ok: false, error: 'No autenticado' };
 
-  const doc = await db().collection(COL.assistantTemplates).doc(templateId).get();
-  if (!doc.exists) return { ok: false, error: 'Template no encontrado' };
-  const data = doc.data() as AssistantTemplateDoc;
-  if (data.uid !== uid) return { ok: false, error: 'Template no encontrado' };
+  const row = await getOwnedTemplateRow(uid, templateId);
+  if (!row) return { ok: false, error: 'Template no encontrado' };
 
-  await doc.ref.update({
-    active:    !data.active,
-    updatedAt: FieldValue.serverTimestamp(),
-  });
+  await db
+    .update(assistantTemplates)
+    .set({ active: !row.active, updatedAt: new Date() })
+    .where(eq(assistantTemplates.id, row.id));
 
   revalidatePath('/tareas/templates');
   return { ok: true };
@@ -100,10 +109,10 @@ export async function deleteTemplate(templateId: string): Promise<ActionResult> 
   const uid = await getSessionUid();
   if (!uid) return { ok: false, error: 'No autenticado' };
 
-  const owns = await verifyTemplateOwnership(uid, templateId);
-  if (!owns) return { ok: false, error: 'Template no encontrado' };
+  const row = await getOwnedTemplateRow(uid, templateId);
+  if (!row) return { ok: false, error: 'Template no encontrado' };
 
-  await db().collection(COL.assistantTemplates).doc(templateId).delete();
+  await db.delete(assistantTemplates).where(eq(assistantTemplates.id, row.id));
   revalidatePath('/tareas/templates');
   return { ok: true };
 }
@@ -111,6 +120,9 @@ export async function deleteTemplate(templateId: string): Promise<ActionResult> 
 export async function generateTasksForCurrentWeek(): Promise<ActionResult<{ created: number; skipped: number }>> {
   const uid = await getSessionUid();
   if (!uid) return { ok: false, error: 'No autenticado' };
+
+  const ownerId = await resolveOwnerId(uid);
+  if (!ownerId) return { ok: false, error: 'No autenticado' };
 
   const weekKey = getCurrentWeekKey();
   const templates = await getTemplates(uid, { activeOnly: true });
@@ -123,22 +135,25 @@ export async function generateTasksForCurrentWeek(): Promise<ActionResult<{ crea
 
     for (const instance of instances) {
       // Idempotency check
-      const existing = await db()
-        .collection(COL.assistantTasks)
-        .where('uid', '==', uid)
-        .where('templateId', '==', template.id)
-        .where('startsAt', '==', instance.startsAt)
-        .limit(1)
-        .get();
+      const [existing] = await db
+        .select({ id: assistantTasks.id })
+        .from(assistantTasks)
+        .where(
+          and(
+            eq(assistantTasks.ownerId, ownerId),
+            eq(assistantTasks.templateId, template.id),
+            eq(assistantTasks.startsAt, instance.startsAt),
+          ),
+        )
+        .limit(1);
 
-      if (!existing.empty) {
+      if (existing) {
         skipped++;
         continue;
       }
 
-      const now = FieldValue.serverTimestamp();
-      await db().collection(COL.assistantTasks).add({
-        uid,
+      await db.insert(assistantTasks).values({
+        ownerId,
         templateId:  template.id,
         title:       instance.title,
         description: instance.description,
@@ -147,8 +162,6 @@ export async function generateTasksForCurrentWeek(): Promise<ActionResult<{ crea
         durationMin: instance.durationMin,
         status:      'pending',
         weekKey:     instance.weekKey,
-        createdAt:   now,
-        updatedAt:   now,
       });
       created++;
     }

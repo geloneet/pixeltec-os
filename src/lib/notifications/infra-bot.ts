@@ -1,7 +1,10 @@
 import { Bot, type Context, InlineKeyboard } from 'grammy';
+import { desc } from 'drizzle-orm';
 import { isAllowedChat, logCommand } from './telegram-auth';
 import { createSilence, checkSilence } from './silence';
-import { db } from '@/lib/assistant/firebase-admin';
+import { db } from '@/lib/db';
+import { assistantWeeklyReports } from '@/lib/db/schema';
+import type { ReportTotals } from '@/lib/assistant/types';
 
 let _bot: Bot | null = null;
 
@@ -342,19 +345,24 @@ function getBot(): Bot {
   return bot;
 }
 
-// --- Firestore helpers ---
+// --- Postgres helpers (antes Firestore `assistantWeeklyReports`) ---
+
+async function getLatestReportRow() {
+  const [row] = await db
+    .select()
+    .from(assistantWeeklyReports)
+    .orderBy(desc(assistantWeeklyReports.generatedAt))
+    .limit(1);
+  return row ?? null;
+}
 
 async function getHeartbeatAgeDays(): Promise<number | null> {
   // Heartbeat real vive en el FS del VPS. Usamos generatedAt del último
   // weekly report como proxy — misma señal que el watchdog monitorea.
   try {
-    const snap = await db()
-      .collection('assistantWeeklyReports')
-      .orderBy('generatedAt', 'desc')
-      .limit(1)
-      .get();
-    if (snap.empty) return null;
-    const createdMs = snap.docs[0].data().generatedAt?.toMillis() ?? 0;
+    const row = await getLatestReportRow();
+    if (!row) return null;
+    const createdMs = row.generatedAt?.getTime() ?? 0;
     return Math.floor((Date.now() - createdMs) / 86400000);
   } catch {
     return null;
@@ -363,15 +371,10 @@ async function getHeartbeatAgeDays(): Promise<number | null> {
 
 async function getLastReportSummary(): Promise<string | null> {
   try {
-    const snap = await db()
-      .collection('assistantWeeklyReports')
-      .orderBy('generatedAt', 'desc')
-      .limit(1)
-      .get();
-    if (snap.empty) return null;
-    const doc    = snap.docs[0].data();
-    const totals = doc.totals ?? {};
-    return `${doc.weekKey} · total ${totals.total ?? 0} · completadas ${totals.completed ?? 0}`;
+    const row = await getLatestReportRow();
+    if (!row) return null;
+    const totals = (row.totals ?? {}) as Partial<ReportTotals>;
+    return `${row.weekKey} · total ${totals.total ?? 0} · completadas ${totals.completed ?? 0}`;
   } catch {
     return null;
   }
@@ -379,16 +382,11 @@ async function getLastReportSummary(): Promise<string | null> {
 
 async function getLastReportDetail(): Promise<string> {
   try {
-    const snap = await db()
-      .collection('assistantWeeklyReports')
-      .orderBy('generatedAt', 'desc')
-      .limit(1)
-      .get();
-    if (snap.empty) return '<i>No hay reportes todavía.</i>';
-    const doc    = snap.docs[0].data();
-    const totals = doc.totals ?? {};
+    const row = await getLatestReportRow();
+    if (!row) return '<i>No hay reportes todavía.</i>';
+    const totals = (row.totals ?? {}) as Partial<ReportTotals>;
     const lines  = [
-      `📊 <b>Reporte ${doc.weekKey}</b>`,
+      `📊 <b>Reporte ${row.weekKey}</b>`,
       '',
       `<b>Total tasks:</b> ${totals.total ?? 0}`,
       `<b>Completadas:</b> ${totals.completed ?? 0}`,
@@ -397,8 +395,8 @@ async function getLastReportDetail(): Promise<string> {
       `<b>Canceladas:</b> ${totals.cancelled ?? 0}`,
       `<b>Postponed:</b> ${totals.postponed ?? 0}`,
       '',
-      `<i>Generado: ${doc.generatedAt?.toDate()?.toISOString() ?? '?'}</i>`,
-      `<i>Trigger: ${doc.generatedBy ?? '?'}</i>`,
+      `<i>Generado: ${row.generatedAt?.toISOString() ?? '?'}</i>`,
+      `<i>Trigger: ${row.generatedBy ?? '?'}</i>`,
     ];
     return lines.join('\n');
   } catch (err) {

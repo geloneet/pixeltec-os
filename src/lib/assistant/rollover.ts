@@ -1,13 +1,21 @@
-import { Timestamp } from 'firebase-admin/firestore';
-import { db, COL } from './firebase-admin';
+// Postgres (Drizzle) — antes Firestore (batch atómico → transacción SQL).
+import { and, eq } from 'drizzle-orm';
+import { db } from '@/lib/db';
+import {
+  assistantTasks,
+  assistantTasksArchive,
+  assistantWeeklyReports,
+  type NewAssistantWeeklyReport,
+} from '@/lib/db/schema';
+import { resolveOwnerId } from './pg';
 import { getCurrentWeekKey, getWeekRange } from './week-helpers';
 import { getTemplates } from './queries/templates';
 import { generateTaskInstancesForWeek } from './rrule-helpers';
+import { colorBucketFor } from './history-stats';
 import { sendWhatsApp } from '@/lib/whatsapp/sender';
 import { renderWeeklyReportMessage } from './whatsapp-report';
 import type {
-  AssistantTaskDoc,
-  AssistantWeeklyReportDoc,
+  AssistantWeeklyReportSerialized,
   AssistantTaskCategory,
   ReportTotals,
 } from './types';
@@ -85,10 +93,26 @@ export async function performWeeklyRollover(opts: {
   const reportId    = `${opts.uid}_${weekKey}`;
   const { start: weekStart, end: weekEnd } = getWeekRange(weekKey);
 
-  // Step 2: Idempotency check
-  const reportRef = db().collection(COL.assistantWeeklyReports).doc(reportId);
-  const existing  = await reportRef.get();
-  if (existing.exists) {
+  const ownerId = await resolveOwnerId(opts.uid);
+  if (!ownerId) {
+    return {
+      ok:                     false,
+      archivedCount:          0,
+      generatedCount:         0,
+      skippedGenerationCount: 0,
+      errors:                 [`No existe usuario para uid ${opts.uid}`],
+    };
+  }
+
+  // Step 2: Idempotency check — el reporte de la semana ya existe.
+  const [existing] = await db
+    .select({ id: assistantWeeklyReports.id })
+    .from(assistantWeeklyReports)
+    .where(
+      and(eq(assistantWeeklyReports.ownerId, ownerId), eq(assistantWeeklyReports.weekKey, weekKey)),
+    )
+    .limit(1);
+  if (existing) {
     return {
       ok: true,
       reportId,
@@ -100,12 +124,10 @@ export async function performWeeklyRollover(opts: {
   }
 
   // Step 3: Fetch tasks for the closing week
-  const tasksSnap = await db()
-    .collection(COL.assistantTasks)
-    .where('uid', '==', opts.uid)
-    .where('weekKey', '==', weekKey)
-    .get();
-  const tasks = tasksSnap.docs;
+  const tasks = await db
+    .select()
+    .from(assistantTasks)
+    .where(and(eq(assistantTasks.ownerId, ownerId), eq(assistantTasks.weekKey, weekKey)));
 
   // Step 4: Compute stats from tasks
   const totals = emptyTotals();
@@ -117,16 +139,15 @@ export async function performWeeklyRollover(opts: {
     aprendizaje: emptyTotals(),
   };
 
-  for (const docSnap of tasks) {
-    const task = docSnap.data() as AssistantTaskDoc;
+  for (const task of tasks) {
     totals.total++;
-    const cat = byCategory[task.category];
-    cat.total++;
+    const cat = byCategory[task.category as AssistantTaskCategory];
+    if (cat) cat.total++;
 
     const statusKey = STATUS_MAP[task.status];
     if (statusKey) {
       totals[statusKey]++;
-      cat[statusKey]++;
+      if (cat) cat[statusKey]++;
     }
   }
 
@@ -152,105 +173,85 @@ export async function performWeeklyRollover(opts: {
   let skippedGenerationCount = 0;
 
   for (const instance of allInstances) {
-    const exists = await db()
-      .collection(COL.assistantTasks)
-      .where('uid', '==', opts.uid)
-      .where('templateId', '==', instance.templateId)
-      .where('startsAt', '==', instance.startsAt)
-      .limit(1)
-      .get();
-    if (exists.empty) {
+    const [exists] = await db
+      .select({ id: assistantTasks.id })
+      .from(assistantTasks)
+      .where(
+        and(
+          eq(assistantTasks.ownerId, ownerId),
+          eq(assistantTasks.templateId, instance.templateId),
+          eq(assistantTasks.startsAt, instance.startsAt),
+        ),
+      )
+      .limit(1);
+    if (!exists) {
       instancesToCreate.push(instance);
     } else {
       skippedGenerationCount++;
     }
   }
 
-  // TODO(scale): batch chunking NO es atómico cross-batch.
-  // Si crash entre commits → estado parcial. Aceptable con volumen bajo.
-  // Cuando tasks > 400 considerar refactor a checkpoint pattern
-  // (status: 'rolling-over' → archivar en chunks idempotentes → 'complete').
-  if (tasks.length > 400) {
-    console.warn(
-      `[rollover] uid=${opts.uid} weekKey=${weekKey} tasks=${tasks.length} ` +
-      `cerca del límite de batch atómico. Considerar refactor.`,
-    );
-  }
-
-  // Step 7: Atomic Firestore batch
+  // Step 7: Atomic SQL transaction — report + archive + delete + new tasks.
+  // (Antes: batches de Firestore con chunking a 490 ops, no atómico
+  // cross-batch. La transacción de Postgres sí es atómica de punta a punta.)
   try {
-    const nowTs = Timestamp.now();
+    const now = new Date();
+    const rate = totals.total > 0 ? totals.completed / totals.total : 0;
 
-    // First batch: report + first chunk of archives + new tasks
-    let batch   = db().batch();
-    let opCount = 0;
-    const batches = [batch];
-
-    function ensureCapacity(opsNeeded: number) {
-      if (opCount + opsNeeded > 490) {
-        batch = db().batch();
-        batches.push(batch);
-        opCount = 0;
-      }
-      opCount += opsNeeded;
-    }
-
-    // Set report doc
-    const reportData: AssistantWeeklyReportDoc = {
-      uid:               opts.uid,
+    const reportData: NewAssistantWeeklyReport = {
+      firestoreId:       reportId, // id público estable, mismo formato que Firestore
+      ownerId,
       weekKey,
-      weekStart:         Timestamp.fromDate(weekStart),
-      weekEnd:           Timestamp.fromDate(weekEnd),
+      weekStart,
+      weekEnd,
       totals,
       byCategory,
-      generatedAt:       nowTs,
+      generatedAt:       now,
       generatedBy:       opts.trigger,
+      colorBucket:       colorBucketFor(rate, totals.total),
       whatsappMessageId: null,
       whatsappSentAt:    null,
       whatsappError:     null,
       emailSentAt:       null,
     };
-    batches[0].set(reportRef, reportData);
-    opCount++;
 
-    // Archive existing tasks
-    for (const docSnap of tasks) {
-      ensureCapacity(2);
-      const archiveRef = db().collection(COL.assistantTasksArchive).doc(docSnap.id);
-      const taskData   = docSnap.data() as AssistantTaskDoc;
-      batch.set(archiveRef, { ...taskData, archivedAt: nowTs });
-      batch.delete(docSnap.ref);
-    }
+    const reportRowId = await db.transaction(async (tx) => {
+      const [reportRow] = await tx
+        .insert(assistantWeeklyReports)
+        .values(reportData)
+        .returning({ id: assistantWeeklyReports.id });
 
-    // Create new-week tasks
-    for (const instance of instancesToCreate) {
-      ensureCapacity(1);
-      const newRef = db().collection(COL.assistantTasks).doc();
-      batch.set(newRef, {
-        uid:         opts.uid,
-        templateId:  instance.templateId,
-        title:       instance.title,
-        description: instance.description,
-        category:    instance.category,
-        startsAt:    Timestamp.fromDate(instance.startsAt),
-        durationMin: instance.durationMin,
-        status:      'pending' as const,
-        weekKey:     instance.weekKey,
-        createdAt:   nowTs,
-        updatedAt:   nowTs,
-      });
-    }
+      // Archive existing tasks (preserva id y firestoreId de la fila viva)
+      for (const task of tasks) {
+        await tx.insert(assistantTasksArchive).values({ ...task, archivedAt: now });
+        await tx.delete(assistantTasks).where(eq(assistantTasks.id, task.id));
+      }
 
-    // Commit all batches
-    for (const b of batches) {
-      await b.commit();
-    }
+      // Create new-week tasks
+      for (const instance of instancesToCreate) {
+        await tx.insert(assistantTasks).values({
+          ownerId,
+          templateId:  instance.templateId,
+          title:       instance.title,
+          description: instance.description,
+          category:    instance.category,
+          startsAt:    instance.startsAt,
+          durationMin: instance.durationMin,
+          status:      'pending',
+          weekKey:     instance.weekKey,
+          createdAt:   now,
+          updatedAt:   now,
+        });
+      }
+
+      return reportRow.id;
+    });
 
     const archivedCount  = tasks.length;
     const generatedCount = instancesToCreate.length;
 
     // Step 8: Notify owner via WhatsApp (best-effort, non-blocking).
-    // Failures here update the report doc with whatsappError but never
+    // Failures here update the report row with whatsappError but never
     // throw — the rollover already completed its critical work.
     let whatsappResult: {
       messageId: string | null;
@@ -259,7 +260,22 @@ export async function performWeeklyRollover(opts: {
     } = { messageId: null, sentAt: null, error: null };
 
     try {
-      const message = renderWeeklyReportMessage(reportData);
+      const serializedReport: AssistantWeeklyReportSerialized = {
+        id:                reportId,
+        uid:               opts.uid,
+        weekKey,
+        weekStart:         weekStart.toISOString(),
+        weekEnd:           weekEnd.toISOString(),
+        totals,
+        byCategory,
+        generatedAt:       now.toISOString(),
+        generatedBy:       opts.trigger,
+        whatsappMessageId: null,
+        whatsappSentAt:    null,
+        whatsappError:     null,
+        emailSentAt:       null,
+      };
+      const message = renderWeeklyReportMessage(serializedReport);
       const sent = await sendWhatsApp(message);
       whatsappResult = {
         messageId: sent.messageId,
@@ -273,15 +289,16 @@ export async function performWeeklyRollover(opts: {
       console.error('[rollover] whatsapp send failed:', errMsg);
     }
 
-    // Persist the delivery outcome on the report doc that already exists.
+    // Persist the delivery outcome on the report row that already exists.
     try {
-      await reportRef.update({
-        whatsappMessageId: whatsappResult.messageId,
-        whatsappSentAt:    whatsappResult.sentAt
-          ? Timestamp.fromDate(whatsappResult.sentAt)
-          : null,
-        whatsappError:     whatsappResult.error,
-      });
+      await db
+        .update(assistantWeeklyReports)
+        .set({
+          whatsappMessageId: whatsappResult.messageId,
+          whatsappSentAt:    whatsappResult.sentAt,
+          whatsappError:     whatsappResult.error,
+        })
+        .where(eq(assistantWeeklyReports.id, reportRowId));
     } catch (updateErr) {
       console.error('[rollover] failed to persist whatsapp status:', updateErr);
     }

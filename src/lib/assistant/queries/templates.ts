@@ -1,35 +1,38 @@
-import { db, COL } from '../firebase-admin';
-import {
-  serializeTemplate,
-  type AssistantTemplateDoc,
-  type AssistantTemplateSerialized,
-} from '../types';
+// Postgres (Drizzle) — antes Firestore `assistantTemplates`.
+import { and, desc, eq } from 'drizzle-orm';
+import { db } from '@/lib/db';
+import { assistantTemplates } from '@/lib/db/schema';
+import { resolveOwnerId, resolveTemplateRow, templateRowToSerialized } from '../pg';
+import type { AssistantTemplateSerialized } from '../types';
 
 export async function getTemplates(
   uid: string,
   opts?: { activeOnly?: boolean },
 ): Promise<AssistantTemplateSerialized[]> {
-  const base = db()
-    .collection(COL.assistantTemplates)
-    .where('uid', '==', uid);
+  const ownerId = await resolveOwnerId(uid);
+  if (!ownerId) return [];
 
-  const q = opts?.activeOnly
-    ? base.where('active', '==', true).orderBy('createdAt', 'desc')
-    : base.orderBy('createdAt', 'desc');
+  const where = opts?.activeOnly
+    ? and(eq(assistantTemplates.ownerId, ownerId), eq(assistantTemplates.active, true))
+    : eq(assistantTemplates.ownerId, ownerId);
 
-  const snap = await q.get();
-  return snap.docs.map((doc) =>
-    serializeTemplate(doc.data() as AssistantTemplateDoc, doc.id),
-  );
+  const rows = await db
+    .select()
+    .from(assistantTemplates)
+    .where(where)
+    .orderBy(desc(assistantTemplates.createdAt));
+
+  return rows.map((row) => templateRowToSerialized(row, uid));
 }
 
 export async function getTemplateById(
   uid: string,
   id: string,
 ): Promise<AssistantTemplateSerialized | null> {
-  const doc = await db().collection(COL.assistantTemplates).doc(id).get();
-  if (!doc.exists) return null;
-  const data = doc.data() as AssistantTemplateDoc;
-  if (data.uid !== uid) return null;
-  return serializeTemplate(data, doc.id);
+  const ownerId = await resolveOwnerId(uid);
+  if (!ownerId) return null;
+
+  const row = await resolveTemplateRow(id);
+  if (!row || row.ownerId !== ownerId) return null;
+  return templateRowToSerialized(row, uid);
 }

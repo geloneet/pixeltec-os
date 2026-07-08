@@ -2,19 +2,11 @@
 
 import { useState, useEffect, useCallback } from "react";
 import {
-  collection,
-  query,
-  where,
-  orderBy,
-  limit,
-  onSnapshot,
-  updateDoc,
-  doc,
-  writeBatch,
-  serverTimestamp,
-} from "firebase/firestore";
-import { useFirestore, useUser } from "@/firebase";
-import { NotificationSchema, type Notification } from "@/lib/notifications/schemas";
+  getMyNotifications,
+  markNotificationReadAction,
+  markAllNotificationsReadAction,
+} from "@/lib/notifications/actions";
+import type { Notification } from "@/lib/notifications/schemas";
 
 interface UseNotificationsReturn {
   notifications: Notification[];
@@ -25,83 +17,67 @@ interface UseNotificationsReturn {
   markAllAsRead: () => Promise<void>;
 }
 
+// Fase 4: Postgres en vez del onSnapshot de Firestore — polling cada 60s
+// (+ refetch al volver el foco a la pestaña), suficiente para un feed de
+// notificaciones de crons diarios. Si algún día molesta, subir a SSE.
+const POLL_INTERVAL_MS = 60_000;
+
 export function useNotifications(): UseNotificationsReturn {
-  const user = useUser();
-  const db = useFirestore();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!user || !db) {
+  const refresh = useCallback(async () => {
+    try {
+      const items = await getMyNotifications(20);
+      setNotifications(items);
+      setError(null);
+    } catch (err) {
+      console.error("useNotifications error:", err);
+      setError(err instanceof Error ? err.message : "unknown");
+    } finally {
       setLoading(false);
-      return;
     }
+  }, []);
 
-    const q = query(
-      collection(db, "notifications"),
-      where("userId", "==", user.uid),
-      orderBy("createdAt", "desc"),
-      limit(20)
-    );
-
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const items: Notification[] = [];
-        snapshot.forEach((docSnap) => {
-          const parsed = NotificationSchema.safeParse({
-            id: docSnap.id,
-            ...docSnap.data(),
-          });
-          if (parsed.success) items.push(parsed.data);
-        });
-        setNotifications(items);
-        setLoading(false);
-        setError(null);
-      },
-      (err) => {
-        console.error("useNotifications error:", err);
-        setError(err.message);
-        setLoading(false);
-      }
-    );
-
-    return () => unsubscribe();
-  }, [user, db]);
+  useEffect(() => {
+    void refresh();
+    const interval = setInterval(() => void refresh(), POLL_INTERVAL_MS);
+    const onFocus = () => void refresh();
+    window.addEventListener("focus", onFocus);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [refresh]);
 
   const markAsRead = useCallback(
     async (id: string) => {
-      if (!db) return;
+      // Optimista: se marca local de inmediato y se persiste en background.
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, read: true, readAt: new Date().toISOString() } : n))
+      );
       try {
-        await updateDoc(doc(db, "notifications", id), {
-          read: true,
-          readAt: serverTimestamp(),
-        });
+        await markNotificationReadAction(id);
       } catch (err) {
         console.error("[useNotifications] markAsRead error:", err);
+        void refresh();
       }
     },
-    [db]
+    [refresh]
   );
 
   const markAllAsRead = useCallback(async () => {
-    if (!db) return;
-    const unread = notifications.filter((n) => !n.read);
-    if (unread.length === 0) return;
+    if (!notifications.some((n) => !n.read)) return;
+    const now = new Date().toISOString();
+    setNotifications((prev) => prev.map((n) => (n.read ? n : { ...n, read: true, readAt: now })));
     try {
-      const batch = writeBatch(db);
-      unread.forEach((n) => {
-        batch.update(doc(db, "notifications", n.id), {
-          read: true,
-          readAt: serverTimestamp(),
-        });
-      });
-      await batch.commit();
+      await markAllNotificationsReadAction();
     } catch (err) {
       console.error("[useNotifications] markAllAsRead error:", err);
+      void refresh();
     }
-  }, [db, notifications]);
+  }, [notifications, refresh]);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 

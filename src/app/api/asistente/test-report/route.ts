@@ -7,17 +7,19 @@
  * re-renders the message body via the same pure renderer the rollover
  * uses, and re-sends it via WhatsApp. Does NOT touch rollover state —
  * no archive, no generate, no update on whatsappSentAt/whatsappError of
- * the report doc. Useful to validate the message format without waiting
+ * the report row. Useful to validate the message format without waiting
  * until Sunday 12:00.
  *
  * Auth: Authorization: Bearer ${CRON_SECRET}
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { desc, eq } from 'drizzle-orm';
 import { sendWhatsApp } from '@/lib/whatsapp/sender';
 import { renderWeeklyReportMessage } from '@/lib/assistant/whatsapp-report';
-import { db, COL } from '@/lib/assistant/firebase-admin';
-import type { AssistantWeeklyReportDoc } from '@/lib/assistant/types';
+import { db } from '@/lib/db';
+import { assistantWeeklyReports } from '@/lib/db/schema';
+import { reportRowToSerialized, resolveOwnerId } from '@/lib/assistant/pg';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -38,30 +40,38 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const snap = await db()
-      .collection(COL.assistantWeeklyReports)
-      .where('uid', '==', uid)
-      .orderBy('generatedAt', 'desc')
-      .limit(1)
-      .get();
+    const ownerId = await resolveOwnerId(uid);
+    if (!ownerId) {
+      return NextResponse.json(
+        { ok: false, error: 'No user found for this uid' },
+        { status: 404 },
+      );
+    }
 
-    if (snap.empty) {
+    const [row] = await db
+      .select()
+      .from(assistantWeeklyReports)
+      .where(eq(assistantWeeklyReports.ownerId, ownerId))
+      .orderBy(desc(assistantWeeklyReports.generatedAt))
+      .limit(1);
+
+    if (!row) {
       return NextResponse.json(
         { ok: false, error: 'No reports found for this uid' },
         { status: 404 },
       );
     }
 
-    const reportDoc = snap.docs[0].data() as AssistantWeeklyReportDoc;
-    const message = renderWeeklyReportMessage(reportDoc);
+    const report = reportRowToSerialized(row, uid);
+    const message = renderWeeklyReportMessage(report);
     const result = await sendWhatsApp(message);
 
     return NextResponse.json({
       ok: true,
       messageId: result.messageId,
       to: result.to,
-      reportId: snap.docs[0].id,
-      weekKey: reportDoc.weekKey,
+      reportId: report.id,
+      weekKey: report.weekKey,
       preview: message.length > 200 ? message.slice(0, 200) + '...' : message,
     });
   } catch (err) {

@@ -1,6 +1,7 @@
-import { db } from '@/lib/assistant/firebase-admin';
-import { Timestamp } from 'firebase-admin/firestore';
-import { TELEGRAM_COL } from './telegram-auth';
+// Fase 4: Postgres/Drizzle — antes Firestore `infraSilences`.
+import { desc, gt } from 'drizzle-orm';
+import { db } from '@/lib/db';
+import { infraSilences } from '@/lib/db/schema';
 
 const MAX_HOURS = 168; // 7 días
 
@@ -12,21 +13,19 @@ export interface SilenceCheckResult {
 
 export async function checkSilence(): Promise<SilenceCheckResult> {
   try {
-    const now = Timestamp.now();
-    const snap = await db()
-      .collection(TELEGRAM_COL.silences)
-      .where('expiresAt', '>', now)
-      .orderBy('expiresAt', 'desc')
-      .limit(1)
-      .get();
+    const [row] = await db
+      .select()
+      .from(infraSilences)
+      .where(gt(infraSilences.expiresAt, new Date()))
+      .orderBy(desc(infraSilences.expiresAt))
+      .limit(1);
 
-    if (snap.empty) return { silenced: false };
+    if (!row) return { silenced: false };
 
-    const doc = snap.docs[0].data();
     return {
       silenced:  true,
-      expiresAt: doc.expiresAt.toDate(),
-      reason:    doc.reason,
+      expiresAt: row.expiresAt,
+      reason:    row.reason ?? undefined,
     };
   } catch (err) {
     console.error('[silence] checkSilence failed:', err);
@@ -44,14 +43,12 @@ export async function createSilence(opts: {
   }
 
   try {
-    const now      = Date.now();
-    const expiresAt = new Date(now + opts.hours * 60 * 60 * 1000);
+    const expiresAt = new Date(Date.now() + opts.hours * 60 * 60 * 1000);
 
-    await db().collection(TELEGRAM_COL.silences).add({
+    await db.insert(infraSilences).values({
       silencedBy: opts.silencedBy,
       reason:     opts.reason ?? null,
-      createdAt:  Timestamp.fromMillis(now),
-      expiresAt:  Timestamp.fromDate(expiresAt),
+      expiresAt,
     });
 
     return { ok: true, expiresAt };

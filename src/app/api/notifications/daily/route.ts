@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { eq } from "drizzle-orm";
 import { sendWhatsApp } from "@/lib/whatsapp/sender";
-import { getAdminApp } from "@/lib/firebase-admin";
-import { getFirestore } from "firebase-admin/firestore";
 import { createNotification } from "@/lib/notifications/actions";
+import { db } from "@/lib/db";
+import { users } from "@/lib/db/schema";
+import { getFullCrmData } from "@/lib/db/repos/crm-sync";
 
 export async function GET(req: NextRequest) {
   const provided = req.headers.get("authorization")?.replace("Bearer ", "") ?? req.nextUrl.searchParams.get("secret");
@@ -11,14 +13,13 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const db = getFirestore(getAdminApp());
+    // Fase 4: antes se iteraban todos los docs `crm_data/{uid}` de Firestore
+    // — ahora se itera por usuario real de Postgres.
+    const allUsers = await db.select({ id: users.id }).from(users);
 
-    const snapshot = await db.collection("crm_data").get();
-
-    for (const doc of snapshot.docs) {
-      const data = doc.data();
-      const clients = data.clients || [];
-      const lastActivity = data.lastActivity;
+    for (const u of allUsers) {
+      const data = await getFullCrmData(u.id);
+      const clientsData = data.clients;
 
       let totalTasks = 0;
       let completed = 0;
@@ -27,10 +28,14 @@ export async function GET(req: NextRequest) {
       let pendiente = 0;
       const stoppedNames: string[] = [];
       const inProgressNames: string[] = [];
+      let lastActivityMs = 0;
 
-      clients.forEach((c: any) => {
-        c.projects?.forEach((p: any) => {
-          p.tasks?.forEach((t: any) => {
+      clientsData.forEach((c) => {
+        lastActivityMs = Math.max(lastActivityMs, new Date(c.createdAt).getTime());
+        c.projects?.forEach((p) => {
+          lastActivityMs = Math.max(lastActivityMs, new Date(p.createdAt).getTime());
+          p.tasks?.forEach((t) => {
+            lastActivityMs = Math.max(lastActivityMs, new Date(t.createdAt).getTime());
             totalTasks++;
             if (t.status === "completado") completed++;
             else if (t.status === "en_progreso" || t.status === "en_revision") {
@@ -46,8 +51,8 @@ export async function GET(req: NextRequest) {
 
       const pct = totalTasks ? Math.round((completed / totalTasks) * 100) : 0;
 
-      const hoursSinceActivity = lastActivity
-        ? Math.round((Date.now() - new Date(lastActivity).getTime()) / (1000 * 60 * 60))
+      const hoursSinceActivity = lastActivityMs
+        ? Math.round((Date.now() - lastActivityMs) / (1000 * 60 * 60))
         : 999;
 
       let msg = `*PixelTEC CRM - Reporte diario*\n\n`;
@@ -98,7 +103,7 @@ export async function GET(req: NextRequest) {
       const summaryBody = `Progreso general: ${pct}% — ${completed}/${totalTasks} tareas completadas. En proceso: ${inProgress}. Detenidas: ${stopped}. Pendientes: ${pendiente}.`;
       try {
         await createNotification({
-          userId: doc.id,
+          userId: u.id,
           type: "info",
           title: "Resumen diario",
           body: summaryBody,

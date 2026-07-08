@@ -1,10 +1,13 @@
 'use server';
 
+// Postgres (Drizzle) — antes Firestore `assistantTasks`.
 import { revalidatePath } from 'next/cache';
-import { FieldValue } from 'firebase-admin/firestore';
+import { eq } from 'drizzle-orm';
 import { getSessionUid } from '@/lib/crypto-intel/auth';
 import { sendWhatsApp } from '@/lib/whatsapp/sender';
-import { db, COL } from '../firebase-admin';
+import { db } from '@/lib/db';
+import { assistantTasks, type AssistantTask } from '@/lib/db/schema';
+import { resolveOwnerId, resolveTaskRow, taskRowToSerialized } from '../pg';
 import {
   AssistantTaskCreateSchema,
   AssistantTaskUpdateSchema,
@@ -13,14 +16,9 @@ import {
   type ActionResult,
 } from '../schemas';
 import { parseDateTimeToUTC, getWeekKeyFromDate, formatDateMX, formatTimeMX } from '../week-helpers';
-import {
-  serializeTask,
-  type AssistantTaskDoc,
-  type AssistantTaskSerialized,
-  type AssistantTaskStatus,
-} from '../types';
+import type { AssistantTaskSerialized, AssistantTaskStatus } from '../types';
 
-function buildCompletionMessage(task: AssistantTaskDoc): string {
+function buildCompletionMessage(task: { title: string; category: string }): string {
   const now = new Intl.DateTimeFormat('es-MX', {
     weekday: 'short', hour: 'numeric', minute: '2-digit',
     hour12: true, timeZone: 'America/Mexico_City',
@@ -45,10 +43,13 @@ const VALID_TRANSITIONS: Partial<Record<AssistantTaskStatus, AssistantTaskStatus
   cancelled:   ['pending'],
 };
 
-async function verifyOwnership(uid: string, taskId: string): Promise<boolean> {
-  const doc = await db().collection(COL.assistantTasks).doc(taskId).get();
-  if (!doc.exists) return false;
-  return (doc.data() as AssistantTaskDoc).uid === uid;
+/** Fila del task si existe y pertenece al uid; null en cualquier otro caso. */
+async function getOwnedTaskRow(uid: string, taskId: string): Promise<AssistantTask | null> {
+  const ownerId = await resolveOwnerId(uid);
+  if (!ownerId) return null;
+  const row = await resolveTaskRow(taskId);
+  if (!row || row.ownerId !== ownerId) return null;
+  return row;
 }
 
 export async function createTask(
@@ -60,32 +61,30 @@ export async function createTask(
   const parsed = AssistantTaskCreateSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.errors[0].message };
 
+  const ownerId = await resolveOwnerId(uid);
+  if (!ownerId) return { ok: false, error: 'No autenticado' };
+
   const { title, description, category, date, time, durationMin, important } = parsed.data;
   const startsAt = parseDateTimeToUTC(date, time);
   const weekKey  = getWeekKeyFromDate(startsAt);
-  const now      = FieldValue.serverTimestamp();
 
-  const ref = await db().collection(COL.assistantTasks).add({
-    uid,
-    title,
-    description:  description ?? null,
-    category,
-    startsAt,
-    durationMin,
-    status:    'pending',
-    weekKey,
-    important: important ?? false,
-    createdAt: now,
-    updatedAt: now,
-  });
-
-  // Re-read para obtener timestamps server-resolved (serverTimestamp()
-  // se resuelve en el write, no antes).
-  const snap = await ref.get();
-  const serialized = serializeTask(snap.data() as AssistantTaskDoc, ref.id);
+  const [row] = await db
+    .insert(assistantTasks)
+    .values({
+      ownerId,
+      title,
+      description: description ?? null,
+      category,
+      startsAt,
+      durationMin,
+      status:    'pending',
+      weekKey,
+      important: important ?? false,
+    })
+    .returning();
 
   revalidatePath('/tareas');
-  return { ok: true, data: serialized };
+  return { ok: true, data: taskRowToSerialized(row, uid) };
 }
 
 export async function updateTask(
@@ -98,10 +97,10 @@ export async function updateTask(
   const parsed = AssistantTaskUpdateSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.errors[0].message };
 
-  const owns = await verifyOwnership(uid, taskId);
-  if (!owns) return { ok: false, error: 'Tarea no encontrada' };
+  const existing = await getOwnedTaskRow(uid, taskId);
+  if (!existing) return { ok: false, error: 'Tarea no encontrada' };
 
-  const updates: Record<string, unknown> = { updatedAt: FieldValue.serverTimestamp() };
+  const updates: Partial<typeof assistantTasks.$inferInsert> = { updatedAt: new Date() };
   const { title, description, category, date, time, durationMin, important } = parsed.data;
 
   if (title       !== undefined) updates.title       = title;
@@ -111,9 +110,7 @@ export async function updateTask(
   if (important   !== undefined) updates.important   = important;
 
   if (date !== undefined || time !== undefined) {
-    const doc = await db().collection(COL.assistantTasks).doc(taskId).get();
-    const existing = doc.data() as AssistantTaskDoc;
-    const existingDate = existing.startsAt.toDate();
+    const existingDate = existing.startsAt;
     const resolvedDate = date ?? formatDateMX(existingDate);
     const resolvedTime = time ?? formatTimeMX(existingDate);
     const startsAt     = parseDateTimeToUTC(resolvedDate, resolvedTime);
@@ -121,15 +118,15 @@ export async function updateTask(
     updates.weekKey    = getWeekKeyFromDate(startsAt);
   }
 
-  await db().collection(COL.assistantTasks).doc(taskId).update(updates);
-
-  // Re-read post-update: timestamps y campos derivados ya resueltos.
-  const snap = await db().collection(COL.assistantTasks).doc(taskId).get();
-  if (!snap.exists) return { ok: false, error: 'Tarea no existe' };
-  const serialized = serializeTask(snap.data() as AssistantTaskDoc, taskId);
+  const [row] = await db
+    .update(assistantTasks)
+    .set(updates)
+    .where(eq(assistantTasks.id, existing.id))
+    .returning();
+  if (!row) return { ok: false, error: 'Tarea no existe' };
 
   revalidatePath('/tareas');
-  return { ok: true, data: serialized };
+  return { ok: true, data: taskRowToSerialized(row, uid) };
 }
 
 export async function setTaskStatus(
@@ -142,25 +139,22 @@ export async function setTaskStatus(
   const parsed = AssistantTaskStatusSchema.safeParse(status);
   if (!parsed.success) return { ok: false, error: 'Estado inválido' };
 
-  const doc = await db().collection(COL.assistantTasks).doc(taskId).get();
-  if (!doc.exists) return { ok: false, error: 'Tarea no encontrada' };
+  const row = await getOwnedTaskRow(uid, taskId);
+  if (!row) return { ok: false, error: 'Tarea no encontrada' };
 
-  const data = doc.data() as AssistantTaskDoc;
-  if (data.uid !== uid) return { ok: false, error: 'Tarea no encontrada' };
-
-  const allowed = VALID_TRANSITIONS[data.status] ?? [];
+  const allowed = VALID_TRANSITIONS[row.status as AssistantTaskStatus] ?? [];
   if (!allowed.includes(parsed.data)) {
-    return { ok: false, error: `No se puede pasar de ${data.status} a ${parsed.data}` };
+    return { ok: false, error: `No se puede pasar de ${row.status} a ${parsed.data}` };
   }
 
-  await db().collection(COL.assistantTasks).doc(taskId).update({
-    status:    parsed.data,
-    updatedAt: FieldValue.serverTimestamp(),
-  });
+  await db
+    .update(assistantTasks)
+    .set({ status: parsed.data, updatedAt: new Date() })
+    .where(eq(assistantTasks.id, row.id));
 
   // Notificación WhatsApp cuando se completa una tarea importante (best-effort)
-  if (parsed.data === 'completed' && data.important) {
-    sendWhatsApp(buildCompletionMessage(data)).catch((err) =>
+  if (parsed.data === 'completed' && row.important) {
+    sendWhatsApp(buildCompletionMessage(row)).catch((err) =>
       console.error('[tasks] completion notification failed:', err),
     );
   }
@@ -179,18 +173,16 @@ export async function postponeTask(
   const parsed = AssistantPostponeSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.errors[0].message };
 
-  const owns = await verifyOwnership(uid, taskId);
-  if (!owns) return { ok: false, error: 'Tarea no encontrada' };
+  const row = await getOwnedTaskRow(uid, taskId);
+  if (!row) return { ok: false, error: 'Tarea no encontrada' };
 
   const startsAt = parseDateTimeToUTC(parsed.data.date, parsed.data.time);
   const weekKey  = getWeekKeyFromDate(startsAt);
 
-  await db().collection(COL.assistantTasks).doc(taskId).update({
-    startsAt,
-    weekKey,
-    status:    'pending',
-    updatedAt: FieldValue.serverTimestamp(),
-  });
+  await db
+    .update(assistantTasks)
+    .set({ startsAt, weekKey, status: 'pending', updatedAt: new Date() })
+    .where(eq(assistantTasks.id, row.id));
 
   revalidatePath('/tareas');
   return { ok: true };
@@ -200,10 +192,10 @@ export async function deleteTask(taskId: string): Promise<ActionResult> {
   const uid = await getSessionUid();
   if (!uid) return { ok: false, error: 'No autenticado' };
 
-  const owns = await verifyOwnership(uid, taskId);
-  if (!owns) return { ok: false, error: 'Tarea no encontrada' };
+  const row = await getOwnedTaskRow(uid, taskId);
+  if (!row) return { ok: false, error: 'Tarea no encontrada' };
 
-  await db().collection(COL.assistantTasks).doc(taskId).delete();
+  await db.delete(assistantTasks).where(eq(assistantTasks.id, row.id));
   revalidatePath('/tareas');
   return { ok: true };
 }

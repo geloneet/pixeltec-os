@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Timestamp } from 'firebase-admin/firestore';
-import { db, COL } from '@/lib/assistant/firebase-admin';
+import { and, asc, eq, gte, lte } from 'drizzle-orm';
+import { db } from '@/lib/db';
+import { assistantTasks, type AssistantTask } from '@/lib/db/schema';
+import { resolveOwnerId } from '@/lib/assistant/pg';
 import { sendWhatsApp } from '@/lib/whatsapp/sender';
-import type { AssistantTaskDoc } from '@/lib/assistant/types';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -11,19 +12,18 @@ export const dynamic = 'force-dynamic';
 // El cron corre cada 15 min → ventana de 15 min evita dobles notificaciones.
 const WINDOW_MIN = 15;
 
-function buildReminderMessage(tasks: Array<AssistantTaskDoc & { id: string }>): string {
+function buildReminderMessage(tasks: AssistantTask[]): string {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://pixeltec.mx';
-  const fmt = (iso: Date) =>
+  const fmt = (d: Date) =>
     new Intl.DateTimeFormat('es-MX', {
       hour: 'numeric', minute: '2-digit', hour12: true,
       timeZone: 'America/Mexico_City',
-    }).format(iso);
+    }).format(d);
 
   const lines = ['⏰ PixelTEC OS — Recordatorio de tareas', ''];
 
   for (const t of tasks) {
-    const startsAt = (t.startsAt as unknown as { toDate(): Date }).toDate();
-    lines.push(`• ${fmt(startsAt)}  ${t.title}${t.important ? ' ⭐' : ''}`);
+    lines.push(`• ${fmt(t.startsAt)}  ${t.title}${t.important ? ' ⭐' : ''}`);
   }
 
   lines.push('', `${appUrl}/tareas`);
@@ -43,20 +43,28 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'ASSISTANT_OWNER_UID not configured' }, { status: 500 });
   }
 
+  const ownerId = await resolveOwnerId(uid);
+  if (!ownerId) {
+    console.error('[cron:task-reminder] no user found for ASSISTANT_OWNER_UID');
+    return NextResponse.json({ error: 'owner not found' }, { status: 500 });
+  }
+
   const now    = new Date();
   const cutoff = new Date(now.getTime() + WINDOW_MIN * 60 * 1000);
 
-  // Filtramos solo por rango de tiempo (evita índice compuesto uid+startsAt).
-  // El uid se valida en código — es seguro porque este endpoint usa ASSISTANT_OWNER_UID.
-  const snap = await db()
-    .collection(COL.assistantTasks)
-    .where('startsAt', '>=', Timestamp.fromDate(now))
-    .where('startsAt', '<=', Timestamp.fromDate(cutoff))
-    .get();
+  const rows = await db
+    .select()
+    .from(assistantTasks)
+    .where(
+      and(
+        eq(assistantTasks.ownerId, ownerId),
+        gte(assistantTasks.startsAt, now),
+        lte(assistantTasks.startsAt, cutoff),
+      ),
+    )
+    .orderBy(asc(assistantTasks.startsAt));
 
-  const upcoming = snap.docs
-    .map((d) => ({ id: d.id, ...(d.data() as AssistantTaskDoc) }))
-    .filter((t) => t.uid === uid && (t.status === 'pending' || t.status === 'in_progress'));
+  const upcoming = rows.filter((t) => t.status === 'pending' || t.status === 'in_progress');
 
   console.log(`[cron:task-reminder] ${upcoming.length} tareas en los próximos ${WINDOW_MIN} min`);
 
