@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 import { auth } from "@/lib/auth/config";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
-import { getAdminStorage } from "@/lib/firebase-admin";
+import { deleteObject, uploadObject } from "@/lib/r2/upload";
 import {
   AVATAR_MAX_BYTES,
   AVATAR_ALLOWED_TYPES,
@@ -15,9 +15,9 @@ import {
 } from "./schemas";
 
 // Fase 4: el perfil vive en la tabla `users` de Postgres (antes:
-// displayName/photoURL en Firebase Auth + phone/bio en Firestore). El
-// ARCHIVO del avatar sigue en Firebase Storage a propósito (decisión del
-// plan: Postgres no reemplaza blob storage) — aquí solo se persiste la URL.
+// displayName/photoURL en Firebase Auth + phone/bio en Firestore). Fase C
+// (retiro Firebase): el ARCHIVO del avatar se movió de Firebase Storage a
+// Cloudflare R2 — aquí solo se persiste la URL pública.
 
 const AVATAR_EXTS = ["jpg", "png", "webp"] as const;
 
@@ -28,16 +28,9 @@ async function requireSessionUser(): Promise<{ id: string; storageUid: string } 
   return { id: session.user.id, storageUid: session.user.firebaseUid ?? session.user.id };
 }
 
-function getAvatarBucket() {
-  const name = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
-  if (!name) throw new Error("NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET env var is required");
-  return getAdminStorage().bucket(name);
-}
-
 async function deleteExistingAvatars(storageUid: string): Promise<void> {
-  const bucket = getAvatarBucket();
   await Promise.allSettled(
-    AVATAR_EXTS.map((ext) => bucket.file(`users/${storageUid}/avatar.${ext}`).delete())
+    AVATAR_EXTS.map((ext) => deleteObject(`users/${storageUid}/avatar.${ext}`))
   );
 }
 
@@ -62,15 +55,8 @@ export async function uploadAvatar(formData: FormData): Promise<ActionResult> {
     await deleteExistingAvatars(user.storageUid);
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    const bucket = getAvatarBucket();
-
-    await bucket.file(path).save(buffer, {
-      contentType: file.type,
-      metadata: { cacheControl: "public, max-age=3600" },
-    });
-    await bucket.file(path).makePublic();
-
-    const publicUrl = `https://storage.googleapis.com/${bucket.name}/${path}?v=${Date.now()}`;
+    const uploadedUrl = await uploadObject(path, buffer, file.type);
+    const publicUrl = `${uploadedUrl}?v=${Date.now()}`;
     await db
       .update(users)
       .set({ image: publicUrl, updatedAt: new Date() })
