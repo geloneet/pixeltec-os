@@ -1,10 +1,7 @@
 'use server';
-import type { PortalActionResult, PipelineContext } from '@/lib/action-types';
+import type { PortalActionResult } from '@/lib/action-types';
 
 import { z } from 'zod';
-import { getContentEnhancementSuggestions as genAIFunction, ContentEnhancementInput, ContentEnhancementOutput } from '@/ai/flows/content-enhancement-suggestions';
-import { getStrategicSuggestions, type StrategicAdvisorInput, type StrategicAdvisorOutput } from '@/ai/flows/strategic-advisor';
-import { getGlobalStrategicInsights, type GlobalStrategicInsightsInput, type GlobalStrategicInsightsOutput } from '@/ai/flows/global-strategic-advisor';
 import {
   sendWelcomeEmail,
   sendInvoiceEmail,
@@ -339,26 +336,6 @@ export async function subscribeToNewsletterAction(
   return { success: true };
 }
 
-type AIEnhancerState = {
-    success: boolean;
-    data?: ContentEnhancementOutput;
-    error?: string;
-}
-
-export async function getEnhancementSuggestions(input: ContentEnhancementInput): Promise<AIEnhancerState> {
-    if (!input.content || input.content.trim().length < 50) {
-        return { success: false, error: 'Please provide at least 50 characters of content to analyze.' };
-    }
-    
-    try {
-        const result = await genAIFunction(input);
-        return { success: true, data: result };
-    } catch (error) {
-        console.error('AI content enhancement failed:', error);
-        return { success: false, error: 'Failed to get suggestions. The AI service may be temporarily unavailable.' };
-    }
-}
-
 export async function sendTelegramNotification(message: string): Promise<{ success: boolean; error?: string }> {
   // Sin prefijo NEXT_PUBLIC_: este server action corre solo en el servidor, y un
   // token de bot no debe arriesgarse a inlinearse en el bundle del navegador.
@@ -403,61 +380,6 @@ export async function sendTelegramNotification(message: string): Promise<{ succe
   }
 }
 
-type AIAdvisorState = {
-    success: boolean;
-    data?: StrategicAdvisorOutput;
-    error?: string;
-}
-
-export async function getAIAdvisorSuggestions(input: StrategicAdvisorInput): Promise<AIAdvisorState> {
-    if (!input.notes && !input.tasks) {
-        return { success: false, error: 'No hay suficiente contexto para analizar. Añade tareas o notas.' };
-    }
-    
-    try {
-        const result = await getStrategicSuggestions(input);
-        return { success: true, data: result };
-    } catch (error) {
-        console.error('AI strategic advisor failed:', error);
-        return { success: false, error: 'No se pudieron obtener las sugerencias. El servicio de IA podría no estar disponible.' };
-    }
-}
-
-type AIGlobalAdvisorState = {
-    success: boolean;
-    data?: GlobalStrategicInsightsOutput;
-    error?: string;
-}
-
-export async function getGlobalAIInsights(input: GlobalStrategicInsightsInput): Promise<AIGlobalAdvisorState> {
-    if (!input.allNotes || input.allNotes.trim().length === 0) {
-        return { success: false, error: 'No hay notas para analizar.' };
-    }
-
-    try {
-        const result = await getGlobalStrategicInsights(input);
-        return { success: true, data: result };
-    } catch (error) {
-        console.error('Global AI strategic advisor failed:', error);
-        return { success: false, error: 'No se pudieron obtener los insights. El servicio de IA podría no estar disponible.' };
-    }
-}
-
-// ─── AI Pipeline Server Actions ─────────────────────────��─────────────────────
-
-
-type PipelineInput = {
-  title: string;
-  description: string;
-  module: 'clients' | 'projects' | 'tasks' | 'pipeline' | 'finance' | 'support' | 'analytics' | 'auth' | 'global';
-  requestedBy: string;
-  priority?: 'critical' | 'high' | 'medium' | 'low';
-};
-
-export async function runFeaturePipelineAction(input: PipelineInput) {
-  const { runFeaturePipeline } = await import('@/ai/orchestrators/feature-pipeline');
-  return runFeaturePipeline(input);
-}
 
 // ─── Email Server Actions ─────────────────────��────────────────────────────────
 

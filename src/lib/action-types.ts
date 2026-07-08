@@ -5,8 +5,6 @@
  * solo pueden exportar funciones async en Next.js App Router.
  */
 
-export type { PipelineContext } from '@/ai/types/agent-types';
-
 export type PortalActionResult<T = undefined> = {
   success: boolean;
   data?: T;
