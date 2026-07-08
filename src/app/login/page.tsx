@@ -9,9 +9,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Image from 'next/image';
 import { signIn, useSession } from 'next-auth/react';
-import { useAuth } from '@/firebase';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { useFirebaseUser } from '@/firebase/auth/use-firebase-user';
 
 // Decorative background — memoized so the grid + glow never repaint when
 // the form's state changes (every keystroke would otherwise trigger a
@@ -81,11 +78,10 @@ export default function LoginPage() {
   const searchParams = useSearchParams();
   const redirectParam = searchParams.get('redirect');
   const { data: session, status } = useSession();
-  const firebaseAuth = useAuth();
-  const firebaseUser = useFirebaseUser();
 
-  // Redirect if already logged in — vía NextAuth (equipo interno) o vía
-  // Firebase (fallback del portal legado de clientes, ver handleLogin).
+  // Redirect if already logged in vía NextAuth (equipo interno). El portal
+  // legado de clientes tiene su propio login en /portal/login — ver ese
+  // archivo para su redirect equivalente.
   // Skip during an active login submit to avoid racing con el redirect propio.
   useEffect(() => {
     if (isLoading || isRedirecting) return;
@@ -93,14 +89,8 @@ export default function LoginPage() {
     if (status === 'authenticated' && session?.user) {
       setIsRedirecting(true);
       window.location.assign(redirectParam || '/hoy');
-      return;
     }
-
-    if (firebaseUser) {
-      setIsRedirecting(true);
-      window.location.assign(redirectParam || '/portal');
-    }
-  }, [status, session, firebaseUser, isLoading, isRedirecting, redirectParam]);
+  }, [status, session, isLoading, isRedirecting, redirectParam]);
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -130,21 +120,6 @@ export default function LoginPage() {
         setIsRedirecting(true);
         window.location.assign(redirectParam || '/hoy');
         return;
-      }
-
-      // Fallback: portal legado de clientes (`src/app/portal/*`), que sigue
-      // autenticado con Firebase directo — no tiene fila en la tabla `users`
-      // de Postgres, así que NextAuth siempre lo rechaza. Se intenta acá para
-      // no romper ese acceso mientras exista (ver nota en admin-routes.ts).
-      if (firebaseAuth) {
-        try {
-          await signInWithEmailAndPassword(firebaseAuth, email, password);
-          setIsRedirecting(true);
-          window.location.assign(redirectParam || '/portal');
-          return;
-        } catch {
-          // ni NextAuth ni Firebase reconocen estas credenciales
-        }
       }
 
       setError('El correo electrónico o la contraseña son incorrectos.');
@@ -294,6 +269,13 @@ export default function LoginPage() {
             </Button>
           </div>
         </form>
+
+        <p className="mt-6 text-center text-xs text-zinc-500">
+          ¿Eres cliente?{' '}
+          <a href="/portal/login" className="text-cyan-400 hover:underline">
+            Entra al portal de cliente
+          </a>
+        </p>
       </motion.div>
 
       {/* Footer */}

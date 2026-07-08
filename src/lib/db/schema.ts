@@ -292,6 +292,14 @@ export const clients = pgTable(
     accessCodeHash: text("access_code_hash"),
     accessCodeExpiresAt: timestamp("access_code_expires_at", { withTimezone: true }),
     lastCodeRequestAt: timestamp("last_code_request_at", { withTimezone: true }),
+
+    // Portal legado (`/portal`, Fase D retiro Firebase): mismo roster
+    // `source='portal'` de arriba — antes autenticado con Firebase Auth por
+    // `contactEmail` (== `email`), ahora con password propia. `documents`
+    // reemplaza el array `documents` que vivía directo en el doc de
+    // Firestore (nunca tuvo datos reales al momento de esta migración).
+    legacyPasswordHash: text("legacy_password_hash"),
+    documents: jsonb("documents").notNull().default([]), // ClientDocument[]
   },
   (t) => [
     index("clients_owner_idx").on(t.ownerId),

@@ -5,9 +5,8 @@ import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { LogOut, LayoutDashboard, FolderKanban, FileText, LifeBuoy, LoaderCircle } from 'lucide-react';
-import { useAuth } from '@/firebase';
-import { useFirebaseUser as useUser } from '@/firebase/auth/use-firebase-user';
-import { signOut } from 'firebase/auth';
+import { useLegacyPortalUser as useUser } from '@/hooks/use-legacy-portal-user';
+import { logoutLegacyPortal } from '@/lib/portal/legacy-auth';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 
@@ -21,30 +20,27 @@ const navItems = [
 
 export default function PortalLayout({ children }: { children: ReactNode }) {
     const user = useUser();
-    const auth = useAuth();
     const router = useRouter();
     const pathname = usePathname();
 
     const handleLogout = async () => {
-        if (auth) {
-            await signOut(auth);
-            router.push('/login');
-        }
+        await logoutLegacyPortal();
+        router.push('/portal/login');
     };
 
     // Authentication and Authorization check
     useEffect(() => {
-        // Skip auth for public token-based portal
-        const isPublicPortal = /^\/portal\/[a-f0-9]{32}/.test(pathname);
+        // Skip auth for public token-based portal and for the login page itself
+        const isPublicPortal = /^\/portal\/[a-f0-9]{32}/.test(pathname) || pathname === '/portal/login';
         // user is undefined during initial load, null if not logged in, object if logged in.
         if (!isPublicPortal && user === null) {
-            router.push('/login');
+            router.push('/portal/login');
         }
     }, [user, router, pathname]);
 
 
-    // Public token-based portal — bypass auth checks entirely
-    const isPublicPortal = /^\/portal\/[a-f0-9]{32}/.test(pathname);
+    // Public token-based portal and the legacy login page — bypass auth checks entirely
+    const isPublicPortal = /^\/portal\/[a-f0-9]{32}/.test(pathname) || pathname === '/portal/login';
     if (isPublicPortal) {
         return <>{children}</>;
     }

@@ -130,6 +130,13 @@ export const PALETTE_NAV_ITEMS: PaletteNavItem[] = [
     icon: Settings2,
     section: "sistema",
   },
+  {
+    href: "/portal-legado",
+    label: "Portal legado",
+    description: "Contraseñas de acceso al portal legado de clientes",
+    icon: KeyRound,
+    section: "sistema",
+  },
   // ── Crecimiento (Growth Suite) ────────────────────────────────────────────
   {
     href: "/crecimiento/brand-brain",

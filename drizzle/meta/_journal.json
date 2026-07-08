@@ -29,6 +29,13 @@
       "when": 1783482202962,
       "tag": "0003_small_white_tiger",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1783488627851,
+      "tag": "0004_wealthy_black_bolt",
+      "breakpoints": true
     }
   ]
 }
