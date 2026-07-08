@@ -1,25 +1,21 @@
-import { getFirestore } from 'firebase-admin/firestore';
-import { getAdminApp } from '@/lib/firebase-admin';
+// Fase 4 (rebanada Blog): Postgres — antes Firestore `blogBriefs`.
+import { resolveBriefRow, publicId } from '../pg';
 import type { BlogBriefSerialized } from '../types';
 
-function db() {
-  return getFirestore(getAdminApp());
-}
-
 export async function getBriefById(briefId: string): Promise<BlogBriefSerialized | null> {
-  const snap = await db().collection('blogBriefs').doc(briefId).get();
-  if (!snap.exists) return null;
-  const d = snap.data()!;
+  const row = await resolveBriefRow(briefId);
+  if (!row) return null;
+  const d = row.data as Record<string, unknown>;
   return {
-    id: snap.id,
-    topic: d.topic,
-    angle: d.angle,
-    targetAudience: d.targetAudience,
-    keyPoints: d.keyPoints ?? [],
-    tone: d.tone,
-    status: d.status,
-    generatedDraftId: d.generatedDraftId ?? null,
-    createdBy: d.createdBy,
-    createdAt: d.createdAt?.toDate().toISOString() ?? new Date().toISOString(),
+    id: publicId(row),
+    topic: (d.topic as string) ?? '',
+    angle: (d.angle as string) ?? '',
+    targetAudience: (d.targetAudience as string) ?? '',
+    keyPoints: (d.keyPoints as string[]) ?? [],
+    tone: (d.tone as string) ?? 'educativo',
+    status: (d.status as BlogBriefSerialized['status']) ?? 'pending',
+    generatedDraftId: (d.generatedDraftId as string | null) ?? null,
+    createdBy: (d.createdBy as string) ?? '',
+    createdAt: row.createdAt.toISOString(),
   };
 }

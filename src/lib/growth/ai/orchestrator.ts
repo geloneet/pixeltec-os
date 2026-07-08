@@ -1,15 +1,15 @@
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
-import { getAdminApp } from '@/lib/firebase-admin';
+// Fase 4 (rebanada Growth): Postgres — antes Firestore `growthJobs`,
+// `growthCredits`, `growthCreditLedger` y `growthPosts`.
+import { and, eq, gte, sql } from 'drizzle-orm';
+import { db } from '@/lib/db';
+import { growthJobs, growthPosts, growthCredits, growthCreditLedger } from '@/lib/db/schema';
 import { generateText } from './providers/openai-text';
 import { generateFluxImage } from './providers/flux-image';
 import { buildSystemPrompt, buildUserPrompt, buildImagePrompt, type PostGenerationRequest } from './prompt-builder';
 import { CREDIT_COSTS, type CreditOperation } from '@/lib/growth/credits/costs';
+import { resolveOwnerId, resolveBrandRow } from '@/lib/growth/pg';
 import type { BrandBrain } from '@/types/growth/brand-brain';
 import type { ContentPost, BrandSnapshot } from '@/types/growth/post';
-
-function db() {
-  return getFirestore(getAdminApp());
-}
 
 export interface OrchestratorInput {
   uid: string;
@@ -18,56 +18,71 @@ export interface OrchestratorInput {
   jobId: string;
 }
 
-async function deductCredits(uid: string, operation: CreditOperation): Promise<void> {
+async function deductCredits(ownerId: string, operation: CreditOperation): Promise<void> {
   const amount = CREDIT_COSTS[operation];
-  const ref = db().collection('growthCredits').doc(uid);
 
-  await db().runTransaction(async (tx) => {
-    const doc = await tx.get(ref);
-    if (!doc.exists) throw new Error('Sin cuenta de créditos');
-    const balance = doc.data()!.balance;
-    if (typeof balance !== 'number' || !Number.isFinite(balance)) {
-      throw new Error('Cuenta de créditos corrupta — contacta soporte.');
-    }
-    if (balance < amount) throw new Error(`Créditos insuficientes. Necesitas ${amount}, tienes ${balance}.`);
-    tx.update(ref, { balance: FieldValue.increment(-amount), totalUsed: FieldValue.increment(amount) });
-  });
+  // Débito atómico: UPDATE condicional (`balance >= amount`) en una sola
+  // sentencia — si otra petición concurrente gastó el saldo, afecta 0 filas.
+  const debited = await db
+    .update(growthCredits)
+    .set({
+      balance: sql`${growthCredits.balance} - ${amount}`,
+      totalUsed: sql`${growthCredits.totalUsed} + ${amount}`,
+    })
+    .where(and(eq(growthCredits.ownerId, ownerId), gte(growthCredits.balance, amount)))
+    .returning({ balance: growthCredits.balance });
 
-  await db().collection('growthCreditLedger').add({
-    uid,
-    type: 'debit',
+  if (debited.length === 0) {
+    const [account] = await db
+      .select({ balance: growthCredits.balance })
+      .from(growthCredits)
+      .where(eq(growthCredits.ownerId, ownerId))
+      .limit(1);
+    if (!account) throw new Error('Sin cuenta de créditos');
+    throw new Error(`Créditos insuficientes. Necesitas ${amount}, tienes ${account.balance}.`);
+  }
+
+  await db.insert(growthCreditLedger).values({
+    ownerId,
+    type: 'charge',
     operation,
     amount: -amount,
+    balance: debited[0].balance,
     description: `Generación: ${operation}`,
-    createdAt: FieldValue.serverTimestamp(),
   });
 }
 
 /** Devuelve créditos ya cobrados cuando la generación falla o entrega menos de lo cobrado. */
-async function refundCredits(uid: string, amount: number, reason: string): Promise<void> {
+async function refundCredits(ownerId: string, amount: number, reason: string): Promise<void> {
   if (amount <= 0) return;
-  const ref = db().collection('growthCredits').doc(uid);
 
-  await db().runTransaction(async (tx) => {
-    const doc = await tx.get(ref);
-    if (!doc.exists) return; // nada que reembolsar si la cuenta desapareció
-    tx.update(ref, { balance: FieldValue.increment(amount), totalUsed: FieldValue.increment(-amount) });
-  });
+  const refunded = await db
+    .update(growthCredits)
+    .set({
+      balance: sql`${growthCredits.balance} + ${amount}`,
+      totalUsed: sql`${growthCredits.totalUsed} - ${amount}`,
+    })
+    .where(eq(growthCredits.ownerId, ownerId))
+    .returning({ balance: growthCredits.balance });
 
-  await db().collection('growthCreditLedger').add({
-    uid,
+  if (refunded.length === 0) return; // nada que reembolsar si la cuenta desapareció
+
+  await db.insert(growthCreditLedger).values({
+    ownerId,
     type: 'refund',
     amount,
+    balance: refunded[0].balance,
     description: reason,
-    createdAt: FieldValue.serverTimestamp(),
   });
 }
 
-async function updateJob(jobId: string, update: Record<string, unknown>) {
-  await db().collection('growthJobs').doc(jobId).update({
-    ...update,
-    updatedAt: FieldValue.serverTimestamp(),
-  });
+type JobUpdate = Partial<Pick<typeof growthJobs.$inferInsert, 'status' | 'progress' | 'currentStep' | 'resultPostId' | 'error'>>;
+
+async function updateJob(jobId: string, update: JobUpdate) {
+  await db
+    .update(growthJobs)
+    .set({ ...update, updatedAt: new Date() })
+    .where(eq(growthJobs.id, jobId));
 }
 
 function determineCreditOp(request: PostGenerationRequest): CreditOperation {
@@ -78,10 +93,18 @@ function determineCreditOp(request: PostGenerationRequest): CreditOperation {
 export async function runPostGeneration(input: OrchestratorInput): Promise<ContentPost> {
   const { uid, brand, request, jobId } = input;
 
+  const ownerId = await resolveOwnerId(uid);
+  if (!ownerId) throw new Error('Usuario no encontrado para el uid de sesión');
+
+  // `brand.id` es el id público (Firestore id para marcas migradas) — el FK
+  // growth_posts.brand_id necesita el uuid de Postgres de la fila.
+  const brandRow = await resolveBrandRow(brand.id);
+  if (!brandRow || brandRow.ownerId !== ownerId) throw new Error('Marca no encontrada');
+
   await updateJob(jobId, { status: 'running', progress: 10, currentStep: 'Verificando créditos...' });
 
   const operation = determineCreditOp(request);
-  await deductCredits(uid, operation);
+  await deductCredits(ownerId, operation);
 
   await updateJob(jobId, { progress: 25, currentStep: 'Generando texto...' });
 
@@ -92,7 +115,7 @@ export async function runPostGeneration(input: OrchestratorInput): Promise<Conte
     textResult = await generateText({ systemPrompt: system, userPrompt: user });
   } catch (err) {
     // La generación falló después de cobrar créditos — reembolsar el cobro completo.
-    await refundCredits(uid, CREDIT_COSTS[operation], `Reembolso: fallo en generación de texto (${operation})`);
+    await refundCredits(ownerId, CREDIT_COSTS[operation], `Reembolso: fallo en generación de texto (${operation})`);
     throw err;
   }
 
@@ -127,7 +150,7 @@ export async function runPostGeneration(input: OrchestratorInput): Promise<Conte
       // Se cobró `post_complete` (incluye imagen) pero el usuario solo recibe texto —
       // reembolsar el delta contra el costo de solo-texto.
       const delta = CREDIT_COSTS.post_complete - CREDIT_COSTS.post_text_only;
-      await refundCredits(uid, delta, 'Reembolso: fallo en generación de imagen (entregado text-only)');
+      await refundCredits(ownerId, delta, 'Reembolso: fallo en generación de imagen (entregado text-only)');
     }
   }
 
@@ -142,44 +165,46 @@ export async function runPostGeneration(input: OrchestratorInput): Promise<Conte
     logoUrl: brand.identity?.logoUrl,
   };
 
-  const postRef = db().collection('growthPosts').doc();
-  const postData = {
-    uid,
-    brandId: brand.id,
-    brandSnapshot: snapshot,
-    format: request.format,
+  const generationMetadata = {
+    model: textResult.model,
+    operation,
+    // `objective` vivía como campo top-level del documento Firestore; en
+    // Postgres no hay columna dedicada (nadie lo consulta) — se preserva aquí.
     objective: request.objective,
-    caption: parsed.caption ?? '',
-    hashtags: parsed.hashtags ?? [],
-    imageUrl,
-    altText: parsed.altText,
-    suggestedTime: parsed.suggestedTime,
-    status: 'draft',
-    generationMetadata: {
-      model: textResult.model,
-      operation,
-      creditsUsed: CREDIT_COSTS[operation],
-      actualApiCost: {
-        textCost: textResult.cost,
-        imageCost,
-        totalCost: textResult.cost + imageCost,
-      },
+    creditsUsed: CREDIT_COSTS[operation],
+    actualApiCost: {
+      textCost: textResult.cost,
+      imageCost,
+      totalCost: textResult.cost + imageCost,
     },
-    createdAt: FieldValue.serverTimestamp(),
-    updatedAt: FieldValue.serverTimestamp(),
   };
 
-  await postRef.set(postData);
+  const [postRow] = await db
+    .insert(growthPosts)
+    .values({
+      ownerId,
+      brandId: brandRow.id,
+      brandSnapshot: snapshot,
+      format: request.format,
+      caption: parsed.caption ?? '',
+      hashtags: parsed.hashtags ?? [],
+      imageUrl: imageUrl ?? null,
+      altText: parsed.altText ?? null,
+      suggestedTime: parsed.suggestedTime ?? null,
+      status: 'draft',
+      generationMetadata,
+    })
+    .returning();
 
   await updateJob(jobId, {
     status: 'completed',
     progress: 100,
     currentStep: 'Listo',
-    resultPostId: postRef.id,
+    resultPostId: postRow.id,
   });
 
   return {
-    id: postRef.id,
+    id: postRow.id,
     uid,
     brandId: brand.id,
     brandSnapshot: snapshot,

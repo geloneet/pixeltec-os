@@ -1,37 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getFirestore, Timestamp } from 'firebase-admin/firestore';
-import { getAdminApp } from '@/lib/firebase-admin';
+import { and, asc, eq, gte, inArray, lte } from 'drizzle-orm';
+import { db } from '@/lib/db';
+import { growthPosts } from '@/lib/db/schema';
 import { getSessionUid } from '@/lib/crypto-intel/auth';
-
-function db() {
-  return getFirestore(getAdminApp());
-}
+import { resolveOwnerId, serializePostRow } from '@/lib/growth/pg';
 
 export async function GET(req: NextRequest) {
   const uid = await getSessionUid();
   if (!uid) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  const ownerId = await resolveOwnerId(uid);
+  if (!ownerId) return NextResponse.json({ posts: [] });
+
   const { searchParams } = new URL(req.url);
   const from = searchParams.get('from');
   const to = searchParams.get('to');
 
-  let query = db()
-    .collection('growthPosts')
-    .where('uid', '==', uid)
-    .where('status', 'in', ['scheduled', 'published'])
-    .orderBy('scheduledAt', 'asc');
+  const conditions = [
+    eq(growthPosts.ownerId, ownerId),
+    inArray(growthPosts.status, ['scheduled', 'published']),
+  ];
+  if (from) conditions.push(gte(growthPosts.scheduledAt, new Date(from)));
+  if (to) conditions.push(lte(growthPosts.scheduledAt, new Date(to)));
 
-  if (from) query = query.where('scheduledAt', '>=', Timestamp.fromDate(new Date(from))) as typeof query;
-  if (to) query = query.where('scheduledAt', '<=', Timestamp.fromDate(new Date(to))) as typeof query;
+  const rows = await db
+    .select()
+    .from(growthPosts)
+    .where(and(...conditions))
+    .orderBy(asc(growthPosts.scheduledAt));
 
-  const snap = await query.get();
-  const posts = snap.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data(),
-    createdAt: doc.data().createdAt?.toDate?.()?.toISOString() ?? null,
-    updatedAt: doc.data().updatedAt?.toDate?.()?.toISOString() ?? null,
-    scheduledAt: doc.data().scheduledAt?.toDate?.()?.toISOString() ?? null,
-  }));
-
-  return NextResponse.json({ posts });
+  return NextResponse.json({ posts: rows.map(serializePostRow) });
 }

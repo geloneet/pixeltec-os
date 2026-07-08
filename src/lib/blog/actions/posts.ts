@@ -1,15 +1,14 @@
 'use server';
 
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
-import { getAdminApp } from '@/lib/firebase-admin';
-import { getSessionUid } from '@/lib/crypto-intel/auth';
+// Fase 4 (rebanada Blog): Postgres — antes Firestore `blogPosts`.
+import { and, eq, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
+import { db } from '@/lib/db';
+import { blogPosts } from '@/lib/db/schema';
+import { getSessionUid } from '@/lib/crypto-intel/auth';
+import { resolvePostRow } from '../pg';
 import { BlogPostEditSchema, type BlogPostEditInput, type ActionResult } from '../schemas';
 import { computeWordCount, computeReadingTime, generateSlug } from '../ai/generate-post';
-
-function db() {
-  return getFirestore(getAdminApp());
-}
 
 export async function updatePost(postId: string, input: BlogPostEditInput): Promise<ActionResult> {
   const uid = await getSessionUid();
@@ -20,23 +19,31 @@ export async function updatePost(postId: string, input: BlogPostEditInput): Prom
     return { ok: false, error: parsed.error.errors[0]?.message ?? 'Datos inválidos' };
   }
 
+  const row = await resolvePostRow(postId);
+  if (!row) return { ok: false, error: 'Post no encontrado' };
+
   const { seoMetaTitle, seoMetaDescription, ...rest } = parsed.data;
   const wordCount = computeWordCount(rest.body);
   const readingTimeMin = computeReadingTime(wordCount);
+  const seo = {
+    ...(row.seo as Record<string, unknown>),
+    metaTitle: seoMetaTitle ?? rest.title.slice(0, 70),
+    metaDescription: seoMetaDescription ?? rest.excerpt.slice(0, 160),
+  };
+  const ai = { ...(row.ai as Record<string, unknown>), editedByHuman: true };
 
-  await db()
-    .collection('blogPosts')
-    .doc(postId)
-    .update({
+  await db
+    .update(blogPosts)
+    .set({
       ...rest,
       wordCount,
       readingTimeMin,
-      'ai.editedByHuman': true,
-      'seo.metaTitle': seoMetaTitle ?? rest.title.slice(0, 70),
-      'seo.metaDescription': seoMetaDescription ?? rest.excerpt.slice(0, 160),
+      ai,
+      seo,
       status: 'needs-review',
-      updatedAt: FieldValue.serverTimestamp(),
-    });
+      updatedAt: new Date(),
+    })
+    .where(eq(blogPosts.id, row.id));
 
   return { ok: true };
 }
@@ -45,14 +52,13 @@ export async function approvePost(postId: string): Promise<ActionResult> {
   const uid = await getSessionUid();
   if (!uid) return { ok: false, error: 'No autenticado' };
 
-  await db()
-    .collection('blogPosts')
-    .doc(postId)
-    .update({
-      status: 'approved',
-      approvedBy: uid,
-      updatedAt: FieldValue.serverTimestamp(),
-    });
+  const row = await resolvePostRow(postId);
+  if (!row) return { ok: false, error: 'Post no encontrado' };
+
+  await db
+    .update(blogPosts)
+    .set({ status: 'approved', approvedBy: uid, updatedAt: new Date() })
+    .where(eq(blogPosts.id, row.id));
 
   return { ok: true };
 }
@@ -61,37 +67,40 @@ export async function publishPost(postId: string): Promise<ActionResult> {
   const uid = await getSessionUid();
   if (!uid) return { ok: false, error: 'No autenticado' };
 
-  const ref = db().collection('blogPosts').doc(postId);
-  const snap = await ref.get();
-  if (!snap.exists) return { ok: false, error: 'Post no encontrado' };
-
-  const data = snap.data();
-  if (!data) return { ok: false, error: 'Datos no encontrados' };
+  const row = await resolvePostRow(postId);
+  if (!row) return { ok: false, error: 'Post no encontrado' };
 
   // Ensure slug is unique
-  let slug = data.slug as string;
+  let slug = row.slug;
   if (!slug) {
-    slug = generateSlug(data.title as string);
-    // Check uniqueness
-    const existing = await db().collection('blogPosts').where('slug', '==', slug).get();
-    if (!existing.empty) {
+    slug = generateSlug(row.title);
+    const [existing] = await db
+      .select({ id: blogPosts.id })
+      .from(blogPosts)
+      .where(eq(blogPosts.slug, slug))
+      .limit(1);
+    if (existing) {
       slug = `${slug}-${Date.now()}`;
     }
   }
 
-  const wordCount = computeWordCount(data.body as string);
+  const wordCount = computeWordCount(row.body);
   const readingTimeMin = computeReadingTime(wordCount);
+  const seo = { ...(row.seo as Record<string, unknown>), noindex: false };
 
-  await ref.update({
-    status: 'published',
-    slug,
-    wordCount,
-    readingTimeMin,
-    publishedAt: FieldValue.serverTimestamp(),
-    approvedBy: uid,
-    'seo.noindex': false,
-    updatedAt: FieldValue.serverTimestamp(),
-  });
+  await db
+    .update(blogPosts)
+    .set({
+      status: 'published',
+      slug,
+      wordCount,
+      readingTimeMin,
+      publishedAt: new Date(),
+      approvedBy: uid,
+      seo,
+      updatedAt: new Date(),
+    })
+    .where(eq(blogPosts.id, row.id));
 
   revalidatePath('/blog');
   revalidatePath(`/blog/${slug}`);
@@ -103,13 +112,13 @@ export async function archivePost(postId: string): Promise<ActionResult> {
   const uid = await getSessionUid();
   if (!uid) return { ok: false, error: 'No autenticado' };
 
-  await db()
-    .collection('blogPosts')
-    .doc(postId)
-    .update({
-      status: 'archived',
-      updatedAt: FieldValue.serverTimestamp(),
-    });
+  const row = await resolvePostRow(postId);
+  if (!row) return { ok: false, error: 'Post no encontrado' };
+
+  await db
+    .update(blogPosts)
+    .set({ status: 'archived', updatedAt: new Date() })
+    .where(eq(blogPosts.id, row.id));
 
   return { ok: true };
 }
@@ -121,10 +130,10 @@ export async function setPostStatus(
   const uid = await getSessionUid();
   if (!uid) return { ok: false, error: 'No autenticado' };
 
-  await db()
-    .collection('blogPosts')
-    .doc(postId)
-    .update({ status, updatedAt: FieldValue.serverTimestamp() });
+  const row = await resolvePostRow(postId);
+  if (!row) return { ok: false, error: 'Post no encontrado' };
+
+  await db.update(blogPosts).set({ status, updatedAt: new Date() }).where(eq(blogPosts.id, row.id));
 
   return { ok: true };
 }

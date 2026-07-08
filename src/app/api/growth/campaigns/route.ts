@@ -1,34 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getFirestore } from 'firebase-admin/firestore';
-import { getAdminApp } from '@/lib/firebase-admin';
+import { and, desc, eq } from 'drizzle-orm';
+import { db } from '@/lib/db';
+import { growthCampaigns } from '@/lib/db/schema';
 import { getSessionUid } from '@/lib/crypto-intel/auth';
-
-function db() {
-  return getFirestore(getAdminApp());
-}
+import { resolveOwnerId, resolveBrandRow, serializeCampaignRow } from '@/lib/growth/pg';
 
 export async function GET(req: NextRequest) {
   const uid = await getSessionUid();
   if (!uid) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  const ownerId = await resolveOwnerId(uid);
+  if (!ownerId) return NextResponse.json({ campaigns: [] });
+
   const { searchParams } = new URL(req.url);
   const brandId = searchParams.get('brandId');
 
-  let query = db()
-    .collection('growthCampaigns')
-    .where('uid', '==', uid)
-    .orderBy('createdAt', 'desc')
+  const conditions = [eq(growthCampaigns.ownerId, ownerId)];
+  if (brandId) {
+    const brand = await resolveBrandRow(brandId);
+    if (!brand) return NextResponse.json({ campaigns: [] });
+    conditions.push(eq(growthCampaigns.brandId, brand.id));
+  }
+
+  const rows = await db
+    .select()
+    .from(growthCampaigns)
+    .where(and(...conditions))
+    .orderBy(desc(growthCampaigns.createdAt))
     .limit(20);
 
-  if (brandId) query = query.where('brandId', '==', brandId) as typeof query;
-
-  const snap = await query.get();
-  const campaigns = snap.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data(),
-    createdAt: doc.data().createdAt?.toDate?.()?.toISOString() ?? null,
-    updatedAt: doc.data().updatedAt?.toDate?.()?.toISOString() ?? null,
-  }));
-
-  return NextResponse.json({ campaigns });
+  return NextResponse.json({ campaigns: rows.map(serializeCampaignRow) });
 }

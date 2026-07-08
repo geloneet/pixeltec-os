@@ -1,91 +1,110 @@
 'use server';
 
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
-import { getAdminApp } from '@/lib/firebase-admin';
+// Fase 4 (rebanada Growth): Postgres — antes Firestore `growthSocialAccounts`.
+import { and, desc, eq } from 'drizzle-orm';
+import { db } from '@/lib/db';
+import { growthSocialAccounts } from '@/lib/db/schema';
 import { getSessionUid } from '@/lib/crypto-intel/auth';
 import { revalidatePath } from 'next/cache';
+import { resolveOwnerId, resolveSocialAccountRow, publicId } from '@/lib/growth/pg';
 import type { SocialAccount } from '@/types/growth/social';
-
-function db() {
-  return getFirestore(getAdminApp());
-}
 
 export type SocialAccountClient = Omit<SocialAccount, 'createdAt' | 'updatedAt' | 'accessToken'> & {
   createdAt: string;
   updatedAt: string;
 };
 
-function serialize(doc: FirebaseFirestore.DocumentSnapshot): SocialAccountClient {
-  const d = doc.data()!;
+type AccountRow = typeof growthSocialAccounts.$inferSelect;
+
+function serialize(row: AccountRow): SocialAccountClient {
   return {
-    id: doc.id,
-    uid: d.uid,
-    platform: d.platform,
-    status: d.status,
-    facebookUserId: d.facebookUserId,
-    facebookPageId: d.facebookPageId,
-    facebookPageName: d.facebookPageName,
-    tokenExpiresAt: d.tokenExpiresAt,
-    instagramBusinessId: d.instagramBusinessId,
-    instagramUsername: d.instagramUsername,
-    createdAt: d.createdAt?.toDate?.()?.toISOString() ?? '',
-    updatedAt: d.updatedAt?.toDate?.()?.toISOString() ?? '',
+    id: publicId(row),
+    uid: row.ownerId,
+    platform: row.platform as SocialAccount['platform'],
+    status: row.status,
+    facebookUserId: row.facebookUserId,
+    facebookPageId: row.facebookPageId,
+    facebookPageName: row.facebookPageName,
+    tokenExpiresAt: row.tokenExpiresAt?.toISOString() ?? '',
+    instagramBusinessId: row.instagramBusinessId ?? undefined,
+    instagramUsername: row.instagramUsername ?? undefined,
+    createdAt: row.createdAt?.toISOString() ?? '',
+    updatedAt: row.updatedAt?.toISOString() ?? '',
   };
 }
 
 export async function getSocialAccounts(): Promise<SocialAccountClient[]> {
   const uid = await getSessionUid();
   if (!uid) return [];
-  const snap = await db()
-    .collection('growthSocialAccounts')
-    .where('uid', '==', uid)
-    .get();
-  return snap.docs
-    .map(serialize)
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const ownerId = await resolveOwnerId(uid);
+  if (!ownerId) return [];
+  const rows = await db
+    .select()
+    .from(growthSocialAccounts)
+    .where(eq(growthSocialAccounts.ownerId, ownerId))
+    .orderBy(desc(growthSocialAccounts.createdAt));
+  return rows.map(serialize);
 }
 
 export async function disconnectSocialAccount(accountId: string): Promise<{ ok: boolean; error?: string }> {
   const uid = await getSessionUid();
   if (!uid) return { ok: false, error: 'No autenticado' };
+  const ownerId = await resolveOwnerId(uid);
+  if (!ownerId) return { ok: false, error: 'No autenticado' };
 
-  const doc = await db().collection('growthSocialAccounts').doc(accountId).get();
-  if (!doc.exists || doc.data()?.uid !== uid) return { ok: false, error: 'No encontrado' };
+  const row = await resolveSocialAccountRow(accountId);
+  if (!row || row.ownerId !== ownerId) return { ok: false, error: 'No encontrado' };
 
-  await doc.ref.delete();
+  await db.delete(growthSocialAccounts).where(eq(growthSocialAccounts.id, row.id));
   revalidatePath('/crecimiento/publisher');
   return { ok: true };
 }
 
 export async function getAccessToken(accountId: string, uid: string): Promise<string | null> {
-  const doc = await db().collection('growthSocialAccounts').doc(accountId).get();
-  if (!doc.exists || doc.data()?.uid !== uid) return null;
-  return doc.data()!.accessToken as string;
+  const ownerId = await resolveOwnerId(uid);
+  if (!ownerId) return null;
+  const row = await resolveSocialAccountRow(accountId);
+  if (!row || row.ownerId !== ownerId) return null;
+  return row.accessToken;
 }
 
 export async function upsertSocialAccount(data: Omit<SocialAccount, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
-  const db_ = db();
+  const ownerId = await resolveOwnerId(data.uid);
+  if (!ownerId) throw new Error('Usuario no encontrado para el uid de sesión');
 
-  // Firestore no acepta undefined — eliminar campos opcionales no presentes
-  const clean = Object.fromEntries(
-    Object.entries(data).filter(([, v]) => v !== undefined)
-  ) as typeof data;
+  const values = {
+    ownerId,
+    platform: data.platform,
+    status: data.status,
+    facebookUserId: data.facebookUserId,
+    facebookPageId: data.facebookPageId,
+    facebookPageName: data.facebookPageName,
+    accessToken: data.accessToken,
+    tokenExpiresAt: new Date(data.tokenExpiresAt),
+    ...(data.instagramBusinessId !== undefined ? { instagramBusinessId: data.instagramBusinessId } : {}),
+    ...(data.instagramUsername !== undefined ? { instagramUsername: data.instagramUsername } : {}),
+  };
 
-  const existing = await db_
-    .collection('growthSocialAccounts')
-    .where('uid', '==', data.uid)
-    .where('facebookPageId', '==', data.facebookPageId)
-    .where('platform', '==', data.platform)
-    .limit(1)
-    .get();
+  const [existing] = await db
+    .select()
+    .from(growthSocialAccounts)
+    .where(
+      and(
+        eq(growthSocialAccounts.ownerId, ownerId),
+        eq(growthSocialAccounts.facebookPageId, data.facebookPageId),
+        eq(growthSocialAccounts.platform, data.platform)
+      )
+    )
+    .limit(1);
 
-  if (!existing.empty) {
-    const ref = existing.docs[0].ref;
-    await ref.update({ ...clean, updatedAt: FieldValue.serverTimestamp() });
-    return ref.id;
+  if (existing) {
+    await db
+      .update(growthSocialAccounts)
+      .set({ ...values, updatedAt: new Date() })
+      .where(eq(growthSocialAccounts.id, existing.id));
+    return publicId(existing);
   }
 
-  const ref = db_.collection('growthSocialAccounts').doc();
-  await ref.set({ ...clean, createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() });
-  return ref.id;
+  const [row] = await db.insert(growthSocialAccounts).values(values).returning();
+  return publicId(row);
 }

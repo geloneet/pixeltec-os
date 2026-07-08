@@ -1,18 +1,17 @@
 'use server';
 
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
-import { getAdminApp } from '@/lib/firebase-admin';
+// Fase 4 (rebanada Growth): Postgres — antes Firestore `growthCampaigns`.
+import { and, desc, eq, gte, ne, sql } from 'drizzle-orm';
+import { db } from '@/lib/db';
+import { growthBrands, growthCampaigns, growthCredits, growthCreditLedger } from '@/lib/db/schema';
 import { getSessionUid } from '@/lib/crypto-intel/auth';
 import { revalidatePath } from 'next/cache';
 import { generateText } from '@/lib/growth/ai/providers/openai-text';
 import { buildSystemPrompt } from '@/lib/growth/ai/prompt-builder';
 import { CREDIT_COSTS } from '@/lib/growth/credits/costs';
+import { resolveOwnerId, resolveBrandRow, resolveCampaignRow, publicId } from '@/lib/growth/pg';
 import type { Campaign, CampaignStrategy, CampaignPostPlan } from '@/types/growth/campaign';
 import type { BrandBrain } from '@/types/growth/brand-brain';
-
-function db() {
-  return getFirestore(getAdminApp());
-}
 
 export type CampaignClient = Omit<Campaign, 'createdAt' | 'updatedAt' | 'strategy'> & {
   createdAt: string;
@@ -20,15 +19,36 @@ export type CampaignClient = Omit<Campaign, 'createdAt' | 'updatedAt' | 'strateg
   strategy?: Omit<CampaignStrategy, 'generatedAt'> & { generatedAt: string };
 };
 
-function serialize(doc: FirebaseFirestore.DocumentSnapshot): CampaignClient {
-  const data = doc.data()!;
+type CampaignRow = typeof growthCampaigns.$inferSelect;
+
+// En jsonb la estrategia guarda `generatedAt` como ISO string.
+type StoredStrategy = Omit<CampaignStrategy, 'generatedAt'> & { generatedAt: string };
+
+function serialize(row: CampaignRow): CampaignClient {
+  const strategy = row.strategy as StoredStrategy | null;
   return {
-    ...(data as Omit<Campaign, 'id' | 'createdAt' | 'updatedAt'>),
-    id: doc.id,
-    createdAt: data.createdAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
-    updatedAt: data.updatedAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
-    strategy: data.strategy
-      ? { ...data.strategy, generatedAt: data.strategy.generatedAt?.toDate?.()?.toISOString() ?? '' }
+    id: publicId(row),
+    uid: row.ownerId,
+    brandId: row.brandId,
+    name: row.name,
+    objective: row.objective,
+    targetAction: row.targetAction,
+    targetPlatforms: row.targetPlatforms as Campaign['targetPlatforms'],
+    status: row.status,
+    counters: {
+      totalPosts: row.totalPosts,
+      generatedPosts: row.generatedPosts,
+      approvedPosts: row.approvedPosts,
+      publishedPosts: row.publishedPosts,
+    },
+    dateRange:
+      row.startDate && row.endDate
+        ? ({ startDate: row.startDate, endDate: row.endDate } as unknown as Campaign['dateRange'])
+        : undefined,
+    createdAt: row.createdAt?.toISOString() ?? new Date().toISOString(),
+    updatedAt: row.updatedAt?.toISOString() ?? new Date().toISOString(),
+    strategy: strategy
+      ? { ...strategy, generatedAt: strategy.generatedAt ?? '' }
       : undefined,
   };
 }
@@ -36,18 +56,32 @@ function serialize(doc: FirebaseFirestore.DocumentSnapshot): CampaignClient {
 export async function getCampaigns(brandId?: string): Promise<CampaignClient[]> {
   const uid = await getSessionUid();
   if (!uid) return [];
-  let query = db().collection('growthCampaigns').where('uid', '==', uid).orderBy('createdAt', 'desc');
-  if (brandId) query = query.where('brandId', '==', brandId) as typeof query;
-  const snap = await query.get();
-  return snap.docs.map(serialize);
+  const ownerId = await resolveOwnerId(uid);
+  if (!ownerId) return [];
+
+  const conditions = [eq(growthCampaigns.ownerId, ownerId)];
+  if (brandId) {
+    const brand = await resolveBrandRow(brandId);
+    if (!brand) return [];
+    conditions.push(eq(growthCampaigns.brandId, brand.id));
+  }
+
+  const rows = await db
+    .select()
+    .from(growthCampaigns)
+    .where(and(...conditions))
+    .orderBy(desc(growthCampaigns.createdAt));
+  return rows.map(serialize);
 }
 
 export async function getCampaign(campaignId: string): Promise<CampaignClient | null> {
   const uid = await getSessionUid();
   if (!uid) return null;
-  const doc = await db().collection('growthCampaigns').doc(campaignId).get();
-  if (!doc.exists || doc.data()?.uid !== uid) return null;
-  return serialize(doc);
+  const ownerId = await resolveOwnerId(uid);
+  if (!ownerId) return null;
+  const row = await resolveCampaignRow(campaignId);
+  if (!row || row.ownerId !== ownerId) return null;
+  return serialize(row);
 }
 
 export async function createCampaign(data: {
@@ -60,19 +94,29 @@ export async function createCampaign(data: {
 }): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
   const uid = await getSessionUid();
   if (!uid) return { ok: false, error: 'No autenticado' };
+  const ownerId = await resolveOwnerId(uid);
+  if (!ownerId) return { ok: false, error: 'No autenticado' };
 
-  const ref = db().collection('growthCampaigns').doc();
-  await ref.set({
-    ...data,
-    uid,
-    status: 'planning',
-    counters: { totalPosts: 0, generatedPosts: 0, approvedPosts: 0, publishedPosts: 0 },
-    createdAt: FieldValue.serverTimestamp(),
-    updatedAt: FieldValue.serverTimestamp(),
-  });
+  const brand = await resolveBrandRow(data.brandId);
+  if (!brand || brand.ownerId !== ownerId) return { ok: false, error: 'Marca no encontrada' };
+
+  const [row] = await db
+    .insert(growthCampaigns)
+    .values({
+      ownerId,
+      brandId: brand.id,
+      name: data.name,
+      objective: data.objective,
+      targetAction: data.targetAction,
+      targetPlatforms: data.targetPlatforms,
+      status: 'planning',
+      startDate: data.dateRange?.startDate ?? null,
+      endDate: data.dateRange?.endDate ?? null,
+    })
+    .returning();
 
   revalidatePath('/crecimiento/campanas');
-  return { ok: true, id: ref.id };
+  return { ok: true, id: publicId(row) };
 }
 
 export async function generateCampaignStrategy(
@@ -80,73 +124,89 @@ export async function generateCampaignStrategy(
 ): Promise<{ ok: boolean; error?: string }> {
   const uid = await getSessionUid();
   if (!uid) return { ok: false, error: 'No autenticado' };
+  const ownerId = await resolveOwnerId(uid);
+  if (!ownerId) return { ok: false, error: 'No autenticado' };
 
-  const [campaignDoc, creditsDoc] = await Promise.all([
-    db().collection('growthCampaigns').doc(campaignId).get(),
-    db().collection('growthCredits').doc(uid).get(),
-  ]);
-
-  if (!campaignDoc.exists || campaignDoc.data()?.uid !== uid) {
+  const campaignRow = await resolveCampaignRow(campaignId);
+  if (!campaignRow || campaignRow.ownerId !== ownerId) {
     return { ok: false, error: 'Campaña no encontrada' };
   }
 
-  const balance = creditsDoc.data()?.balance ?? 0;
+  const [credits] = await db
+    .select({ balance: growthCredits.balance })
+    .from(growthCredits)
+    .where(eq(growthCredits.ownerId, ownerId))
+    .limit(1);
+
+  const balance = credits?.balance ?? 0;
   if (balance < CREDIT_COSTS.campaign_strategy) {
     return { ok: false, error: 'Créditos insuficientes para generar estrategia' };
   }
 
   // Claim atómico: evita que dos clicks concurrentes disparen dos llamadas a OpenAI
   // para la misma campaña (el débito de créditos ya es transaccional, pero el gasto
-  // real de la API ocurre antes de esa transacción).
-  const campaignRef = db().collection('growthCampaigns').doc(campaignId);
-  try {
-    await db().runTransaction(async (tx) => {
-      const doc = await tx.get(campaignRef);
-      if (!doc.exists) throw new Error('Campaña no encontrada');
-      const currentStatus = doc.data()?.status as Campaign['status'] | undefined;
-      if (currentStatus === 'generating') {
-        throw new Error('CONCURRENT_GENERATION');
-      }
-      tx.update(campaignRef, { status: 'generating', updatedAt: FieldValue.serverTimestamp() });
-    });
-  } catch (err) {
-    if (err instanceof Error && err.message === 'CONCURRENT_GENERATION') {
-      return { ok: false, error: 'Ya se está generando una estrategia para esta campaña.' };
-    }
-    return { ok: false, error: 'No se pudo iniciar la generación.' };
+  // real de la API ocurre antes de esa transacción). Un solo UPDATE condicional:
+  // si otra petición ya la puso en 'generating', afecta 0 filas.
+  const claimed = await db
+    .update(growthCampaigns)
+    .set({ status: 'generating', updatedAt: new Date() })
+    .where(and(eq(growthCampaigns.id, campaignRow.id), ne(growthCampaigns.status, 'generating')))
+    .returning({ id: growthCampaigns.id });
+
+  if (claimed.length === 0) {
+    return { ok: false, error: 'Ya se está generando una estrategia para esta campaña.' };
   }
 
-  const campaign = campaignDoc.data() as Campaign;
-
   // A partir de aquí la campaña quedó marcada 'generating'; cualquier salida debe
-  // revertirla a 'pending' para no dejarla atascada si algo falla.
+  // revertirla para no dejarla atascada si algo falla. (Antes se revertía a
+  // 'pending' — valor fuera del enum de status; en Postgres usamos 'planning'.)
   try {
-    return await generateStrategyBody(uid, campaignId, campaign);
+    return await generateStrategyBody(ownerId, campaignRow);
   } catch (err) {
-    await campaignRef.update({ status: 'pending', updatedAt: FieldValue.serverTimestamp() }).catch(() => {});
+    await db
+      .update(growthCampaigns)
+      .set({ status: 'planning', updatedAt: new Date() })
+      .where(eq(growthCampaigns.id, campaignRow.id))
+      .catch(() => {});
     const message = err instanceof Error ? err.message : 'Error interno generando la estrategia';
     return { ok: false, error: message };
   }
 }
 
 async function generateStrategyBody(
-  uid: string,
-  campaignId: string,
-  campaign: Campaign
+  ownerId: string,
+  campaignRow: CampaignRow
 ): Promise<{ ok: boolean; error?: string }> {
-  const brandDoc = await db().collection('growthBrands').doc(campaign.brandId).get();
-  if (!brandDoc.exists) {
-    await db().collection('growthCampaigns').doc(campaignId)
-      .update({ status: 'pending', updatedAt: FieldValue.serverTimestamp() }).catch(() => {});
+  const [brandRow] = await db
+    .select()
+    .from(growthBrands)
+    .where(eq(growthBrands.id, campaignRow.brandId))
+    .limit(1);
+  if (!brandRow) {
+    await db
+      .update(growthCampaigns)
+      .set({ status: 'planning', updatedAt: new Date() })
+      .where(eq(growthCampaigns.id, campaignRow.id))
+      .catch(() => {});
     return { ok: false, error: 'Marca no encontrada' };
   }
 
-  const brand = { id: brandDoc.id, ...brandDoc.data() } as BrandBrain;
+  const brand = {
+    id: publicId(brandRow),
+    uid: brandRow.ownerId,
+    name: brandRow.name,
+    identity: brandRow.identity,
+    voice: brandRow.voice,
+    business: brandRow.business,
+    positioning: brandRow.positioning,
+    objections: brandRow.objections,
+    contentRules: brandRow.contentRules,
+  } as BrandBrain;
 
   const systemPrompt = buildSystemPrompt(brand);
-  const userPrompt = `Crea una estrategia de campaña para: "${campaign.objective}".
-Acción objetivo: ${campaign.targetAction}
-Plataformas: ${campaign.targetPlatforms.join(', ')}
+  const userPrompt = `Crea una estrategia de campaña para: "${campaignRow.objective}".
+Acción objetivo: ${campaignRow.targetAction}
+Plataformas: ${campaignRow.targetPlatforms.join(', ')}
 
 Responde con JSON estricto:
 {
@@ -170,7 +230,7 @@ Genera entre 3 y 6 posts con diferentes propósitos (awareness, consideration, c
   const result = await generateText({ systemPrompt, userPrompt });
 
   let strategy: Omit<CampaignStrategy, 'generatedAt'> & { templateId?: string } = {
-    campaignName: campaign.name,
+    campaignName: campaignRow.name,
     angle: '',
     targetedPain: '',
     keyMessage: '',
@@ -184,7 +244,7 @@ Genera entre 3 y 6 posts con diferentes propósitos (awareness, consideration, c
     strategy = parsed;
   } catch {
     // Re-lanzado como Error para que el catch de generateCampaignStrategy revierta
-    // el status de la campaña a 'pending' (si no, quedaría atascada en 'generating').
+    // el status de la campaña a 'planning' (si no, quedaría atascada en 'generating').
     throw new Error('Error al parsear la estrategia de IA');
   }
 
@@ -197,37 +257,50 @@ Genera entre 3 y 6 posts con diferentes propósitos (awareness, consideration, c
     status: 'pending',
   }));
 
-  await db().runTransaction(async (tx) => {
-    const credRef = db().collection('growthCredits').doc(uid);
-    const cred = await tx.get(credRef);
-    const bal = cred.data()?.balance ?? 0;
-    if (bal < CREDIT_COSTS.campaign_strategy) throw new Error('Créditos insuficientes');
-    tx.update(credRef, {
-      balance: FieldValue.increment(-CREDIT_COSTS.campaign_strategy),
-      totalUsed: FieldValue.increment(CREDIT_COSTS.campaign_strategy),
-    });
-    tx.update(db().collection('growthCampaigns').doc(campaignId), {
-      status: 'strategy_ready',
-      strategy: {
-        ...strategy,
-        postPlans,
-        estimatedCredits: postPlans.length * CREDIT_COSTS.campaign_post,
-        generatedAt: FieldValue.serverTimestamp(),
-      },
-      'counters.totalPosts': postPlans.length,
-      updatedAt: FieldValue.serverTimestamp(),
+  await db.transaction(async (tx) => {
+    // Débito atómico: UPDATE condicional sobre balance — si otro proceso gastó
+    // los créditos entre el pre-check y aquí, afecta 0 filas y abortamos.
+    const debited = await tx
+      .update(growthCredits)
+      .set({
+        balance: sql`${growthCredits.balance} - ${CREDIT_COSTS.campaign_strategy}`,
+        totalUsed: sql`${growthCredits.totalUsed} + ${CREDIT_COSTS.campaign_strategy}`,
+      })
+      .where(
+        and(
+          eq(growthCredits.ownerId, ownerId),
+          gte(growthCredits.balance, CREDIT_COSTS.campaign_strategy)
+        )
+      )
+      .returning({ balance: growthCredits.balance });
+
+    if (debited.length === 0) throw new Error('Créditos insuficientes');
+
+    await tx
+      .update(growthCampaigns)
+      .set({
+        status: 'strategy_ready',
+        strategy: {
+          ...strategy,
+          postPlans,
+          estimatedCredits: postPlans.length * CREDIT_COSTS.campaign_post,
+          generatedAt: new Date().toISOString(),
+        },
+        totalPosts: postPlans.length,
+        updatedAt: new Date(),
+      })
+      .where(eq(growthCampaigns.id, campaignRow.id));
+
+    await tx.insert(growthCreditLedger).values({
+      ownerId,
+      type: 'charge',
+      operation: 'campaign_strategy',
+      amount: -CREDIT_COSTS.campaign_strategy,
+      balance: debited[0].balance,
+      description: `Estrategia de campaña: ${campaignRow.name}`,
     });
   });
 
-  await db().collection('growthCreditLedger').add({
-    uid,
-    type: 'debit',
-    operation: 'campaign_strategy',
-    amount: -CREDIT_COSTS.campaign_strategy,
-    description: `Estrategia de campaña: ${campaign.name}`,
-    createdAt: FieldValue.serverTimestamp(),
-  });
-
-  revalidatePath(`/crecimiento/campanas/${campaignId}`);
+  revalidatePath(`/crecimiento/campanas/${publicId(campaignRow)}`);
   return { ok: true };
 }

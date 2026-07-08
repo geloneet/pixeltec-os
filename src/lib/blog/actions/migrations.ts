@@ -1,14 +1,15 @@
 'use server';
 
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
-import { getAdminApp } from '@/lib/firebase-admin';
-import { getSessionUid } from '@/lib/crypto-intel/auth';
+// Fase 4 (rebanada Blog): Postgres — antes Firestore `blogPosts`.
+// Migración one-off del body de un post ya publicado (limpieza de
+// frontmatter). Se conserva funcional porque sigue expuesta en
+// /blog-admin/migrate-post.
+import { eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
+import { db } from '@/lib/db';
+import { blogPosts } from '@/lib/db/schema';
+import { getSessionUid } from '@/lib/crypto-intel/auth';
 import type { ActionResult } from '../schemas';
-
-function db() {
-  return getFirestore(getAdminApp());
-}
 
 function stripCodeFenceWrapper(raw: string): string {
   const trimmed = raw.trim();
@@ -49,46 +50,40 @@ export async function migrateExistingPostBody(): Promise<ActionResult<{ before: 
   const uid = await getSessionUid();
   if (!uid) return { ok: false, error: 'No autenticado' };
 
-  const snap = await db()
-    .collection('blogPosts')
-    .where('slug', '==', TARGET_SLUG)
-    .limit(1)
-    .get();
+  const [row] = await db.select().from(blogPosts).where(eq(blogPosts.slug, TARGET_SLUG)).limit(1);
+  if (!row) return { ok: false, error: `Post no encontrado: ${TARGET_SLUG}` };
 
-  if (snap.empty) return { ok: false, error: `Post no encontrado: ${TARGET_SLUG}` };
-
-  const doc = snap.docs[0];
-  const data = doc.data();
-  const originalBody = data.body as string;
+  const originalBody = row.body;
 
   const unwrapped = stripCodeFenceWrapper(originalBody).replace(/\r\n/g, '\n');
   const frontMatter = parseFrontMatter(unwrapped);
   const cleanBody = extractBody(unwrapped);
 
-  const update: Record<string, unknown> = {
+  const briefSource = row.briefSource as Record<string, unknown>;
+  const update: Partial<typeof blogPosts.$inferInsert> = {
     body: cleanBody,
-    updatedAt: FieldValue.serverTimestamp(),
+    updatedAt: new Date(),
   };
 
-  // Populate doc fields from frontmatter only when current values are empty/fallback.
-  if (frontMatter.title && (!data.title || data.title === data.briefSource?.topic)) {
+  // Populate fields from frontmatter only when current values are empty/fallback.
+  if (frontMatter.title && (!row.title || row.title === briefSource.topic)) {
     update.title = String(frontMatter.title);
   }
-  if (frontMatter.excerpt && (!data.excerpt || data.excerpt === '')) {
+  if (frontMatter.excerpt && !row.excerpt) {
     update.excerpt = String(frontMatter.excerpt).slice(0, 160);
   }
-  if (Array.isArray(frontMatter.tags) && frontMatter.tags.length > 0 && (!data.tags?.length)) {
-    update.tags = frontMatter.tags;
+  if (Array.isArray(frontMatter.tags) && frontMatter.tags.length > 0 && !row.tags.length) {
+    update.tags = frontMatter.tags as string[];
   }
   if (
     frontMatter.category &&
     ALLOWED_CATEGORIES.includes(String(frontMatter.category)) &&
-    data.category === 'arquitectura'
+    row.category === 'arquitectura'
   ) {
     update.category = String(frontMatter.category);
   }
 
-  await doc.ref.update(update);
+  await db.update(blogPosts).set(update).where(eq(blogPosts.id, row.id));
 
   revalidatePath(`/blog/${TARGET_SLUG}`);
   revalidatePath('/blog');

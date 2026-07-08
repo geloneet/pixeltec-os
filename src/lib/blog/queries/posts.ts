@@ -1,92 +1,87 @@
-import { getFirestore } from 'firebase-admin/firestore';
-import { getAdminApp } from '@/lib/firebase-admin';
+// Fase 4 (rebanada Blog): Postgres/Drizzle — antes Firestore `blogPosts`.
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { db } from '@/lib/db';
+import { blogPosts } from '@/lib/db/schema';
 import type { BlogPostSerialized, BlogPostStatus } from '../types';
 
-function db() {
-  return getFirestore(getAdminApp());
-}
+type Row = typeof blogPosts.$inferSelect;
 
-function serializePost(id: string, d: FirebaseFirestore.DocumentData): BlogPostSerialized {
+function serializePost(r: Row): BlogPostSerialized {
+  const ai = (r.ai ?? {}) as Record<string, unknown>;
   return {
-    id,
-    slug: d.slug ?? '',
-    title: d.title ?? '',
-    excerpt: d.excerpt ?? '',
-    body: d.body ?? '',
-    category: d.category ?? 'arquitectura',
-    tags: d.tags ?? [],
-    coverImage: d.coverImage ?? null,
-    author: d.author ?? { name: 'Admin', uid: '' },
-    status: d.status ?? 'draft',
-    briefSource: d.briefSource ?? { topic: '', angle: '', targetAudience: '', keyPoints: [], tone: '' },
+    id: r.firestoreId ?? r.id,
+    slug: r.slug,
+    title: r.title,
+    excerpt: r.excerpt,
+    body: r.body,
+    category: (r.category || 'arquitectura') as BlogPostSerialized['category'],
+    tags: r.tags,
+    coverImage: r.coverImage,
+    author: (r.author ?? { name: 'Admin', uid: '' }) as BlogPostSerialized['author'],
+    status: r.status as BlogPostStatus,
+    briefSource: (r.briefSource ?? { topic: '', angle: '', targetAudience: '', keyPoints: [], tone: '' }) as BlogPostSerialized['briefSource'],
     ai: {
-      model: d.ai?.model ?? '',
-      generatedAt: d.ai?.generatedAt?.toDate().toISOString() ?? new Date().toISOString(),
-      editedByHuman: d.ai?.editedByHuman ?? false,
-      wordsAdded: d.ai?.wordsAdded ?? 0,
-      iterations: d.ai?.iterations ?? 1,
+      model: (ai.model as string) ?? '',
+      generatedAt: (ai.generatedAt as string) ?? new Date().toISOString(),
+      editedByHuman: (ai.editedByHuman as boolean) ?? false,
+      wordsAdded: (ai.wordsAdded as number) ?? 0,
+      iterations: (ai.iterations as number) ?? 1,
     },
-    seo: d.seo ?? { metaTitle: '', metaDescription: '', canonicalUrl: null, noindex: true },
-    wordCount: d.wordCount ?? 0,
-    readingTimeMin: d.readingTimeMin ?? 1,
-    createdAt: d.createdAt?.toDate().toISOString() ?? new Date().toISOString(),
-    updatedAt: d.updatedAt?.toDate().toISOString() ?? new Date().toISOString(),
-    publishedAt: d.publishedAt?.toDate().toISOString() ?? null,
-    approvedBy: d.approvedBy ?? null,
+    seo: (r.seo ?? { metaTitle: '', metaDescription: '', canonicalUrl: null, noindex: true }) as BlogPostSerialized['seo'],
+    wordCount: r.wordCount,
+    readingTimeMin: r.readingTimeMin,
+    createdAt: r.createdAt.toISOString(),
+    updatedAt: r.updatedAt.toISOString(),
+    publishedAt: r.publishedAt?.toISOString() ?? null,
+    approvedBy: r.approvedBy,
   };
 }
 
-export async function getPublishedPosts(): Promise<BlogPostSerialized[]> {
-  const snap = await db()
-    .collection('blogPosts')
-    .where('status', '==', 'published')
-    .where('seo.noindex', '==', false)
-    .orderBy('publishedAt', 'desc')
-    .get();
+const noindexFalse = sql`(${blogPosts.seo} ->> 'noindex')::boolean = false`;
 
-  return snap.docs.map((doc) => serializePost(doc.id, doc.data()));
+export async function getPublishedPosts(): Promise<BlogPostSerialized[]> {
+  const rows = await db
+    .select()
+    .from(blogPosts)
+    .where(and(eq(blogPosts.status, 'published'), noindexFalse))
+    .orderBy(desc(blogPosts.publishedAt));
+  return rows.map(serializePost);
 }
 
 export async function getPublishedPostBySlug(slug: string): Promise<BlogPostSerialized | null> {
-  const snap = await db()
-    .collection('blogPosts')
-    .where('slug', '==', slug)
-    .where('status', '==', 'published')
-    .where('seo.noindex', '==', false)
-    .limit(1)
-    .get();
-
-  if (snap.empty) return null;
-  const doc = snap.docs[0];
-  return serializePost(doc.id, doc.data());
+  const [row] = await db
+    .select()
+    .from(blogPosts)
+    .where(and(eq(blogPosts.slug, slug), eq(blogPosts.status, 'published'), noindexFalse))
+    .limit(1);
+  return row ? serializePost(row) : null;
 }
 
 export async function getPostBySlug(slug: string): Promise<BlogPostSerialized | null> {
-  const snap = await db()
-    .collection('blogPosts')
-    .where('slug', '==', slug)
-    .where('status', '==', 'published')
-    .limit(1)
-    .get();
-
-  if (snap.empty) return null;
-  const doc = snap.docs[0];
-  return serializePost(doc.id, doc.data());
+  const [row] = await db
+    .select()
+    .from(blogPosts)
+    .where(and(eq(blogPosts.slug, slug), eq(blogPosts.status, 'published')))
+    .limit(1);
+  return row ? serializePost(row) : null;
 }
 
 export async function getPostById(postId: string): Promise<BlogPostSerialized | null> {
-  const snap = await db().collection('blogPosts').doc(postId).get();
-  if (!snap.exists) return null;
-  return serializePost(snap.id, snap.data()!);
+  // `postId` puede ser el id viejo de Firestore (rutas existentes) o el uuid.
+  const [row] = await db.select().from(blogPosts).where(eq(blogPosts.firestoreId, postId)).limit(1);
+  if (row) return serializePost(row);
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(postId);
+  if (!isUuid) return null;
+  const [byId] = await db.select().from(blogPosts).where(eq(blogPosts.id, postId)).limit(1);
+  return byId ? serializePost(byId) : null;
 }
 
 export async function listAllPosts(statusFilter?: BlogPostStatus[]): Promise<BlogPostSerialized[]> {
-  let query: FirebaseFirestore.Query = db().collection('blogPosts').orderBy('createdAt', 'desc');
-
-  if (statusFilter && statusFilter.length > 0) {
-    query = query.where('status', 'in', statusFilter);
-  }
-
-  const snap = await query.limit(100).get();
-  return snap.docs.map((doc) => serializePost(doc.id, doc.data()));
+  const rows = await db
+    .select()
+    .from(blogPosts)
+    .where(statusFilter && statusFilter.length > 0 ? inArray(blogPosts.status, statusFilter) : undefined)
+    .orderBy(desc(blogPosts.createdAt))
+    .limit(100);
+  return rows.map(serializePost);
 }

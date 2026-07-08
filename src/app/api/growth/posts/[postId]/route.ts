@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getFirestore, FieldValue, Timestamp } from 'firebase-admin/firestore';
-import { getAdminApp } from '@/lib/firebase-admin';
+import { eq } from 'drizzle-orm';
+import { db } from '@/lib/db';
+import { growthPosts } from '@/lib/db/schema';
 import { getSessionUid } from '@/lib/crypto-intel/auth';
-
-function db() {
-  return getFirestore(getAdminApp());
-}
+import { resolveOwnerId, resolvePostRow, serializePostRow } from '@/lib/growth/pg';
 
 export async function GET(
   _req: NextRequest,
@@ -14,20 +12,14 @@ export async function GET(
   const uid = await getSessionUid();
   if (!uid) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  const ownerId = await resolveOwnerId(uid);
   const { postId } = await params;
-  const doc = await db().collection('growthPosts').doc(postId).get();
-  if (!doc.exists || doc.data()?.uid !== uid) {
+  const row = await resolvePostRow(postId);
+  if (!row || !ownerId || row.ownerId !== ownerId) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
-  const data = doc.data()!;
-  return NextResponse.json({
-    id: doc.id,
-    ...data,
-    createdAt: data.createdAt?.toDate?.()?.toISOString() ?? null,
-    updatedAt: data.updatedAt?.toDate?.()?.toISOString() ?? null,
-    scheduledAt: data.scheduledAt?.toDate?.()?.toISOString() ?? null,
-  });
+  return NextResponse.json(serializePostRow(row));
 }
 
 export async function PATCH(
@@ -37,9 +29,10 @@ export async function PATCH(
   const uid = await getSessionUid();
   if (!uid) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  const ownerId = await resolveOwnerId(uid);
   const { postId } = await params;
-  const doc = await db().collection('growthPosts').doc(postId).get();
-  if (!doc.exists || doc.data()?.uid !== uid) {
+  const row = await resolvePostRow(postId);
+  if (!row || !ownerId || row.ownerId !== ownerId) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
@@ -50,16 +43,16 @@ export async function PATCH(
     status?: string;
   };
 
-  const update: Record<string, unknown> = { updatedAt: FieldValue.serverTimestamp() };
+  const update: Partial<typeof growthPosts.$inferInsert> = { updatedAt: new Date() };
   if (body.caption !== undefined) update.caption = body.caption;
   if (body.hashtags !== undefined) update.hashtags = body.hashtags;
-  if (body.status !== undefined) update.status = body.status;
+  if (body.status !== undefined) update.status = body.status as typeof growthPosts.$inferInsert.status;
   if (body.scheduledAt !== undefined) {
-    update.scheduledAt = body.scheduledAt ? Timestamp.fromDate(new Date(body.scheduledAt)) : null;
+    update.scheduledAt = body.scheduledAt ? new Date(body.scheduledAt) : null;
     if (body.scheduledAt) update.status = 'scheduled';
   }
 
-  await db().collection('growthPosts').doc(postId).update(update);
+  await db.update(growthPosts).set(update).where(eq(growthPosts.id, row.id));
   return NextResponse.json({ ok: true });
 }
 
@@ -70,12 +63,13 @@ export async function DELETE(
   const uid = await getSessionUid();
   if (!uid) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  const ownerId = await resolveOwnerId(uid);
   const { postId } = await params;
-  const doc = await db().collection('growthPosts').doc(postId).get();
-  if (!doc.exists || doc.data()?.uid !== uid) {
+  const row = await resolvePostRow(postId);
+  if (!row || !ownerId || row.ownerId !== ownerId) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
-  await db().collection('growthPosts').doc(postId).delete();
+  await db.delete(growthPosts).where(eq(growthPosts.id, row.id));
   return NextResponse.json({ ok: true });
 }

@@ -1,89 +1,101 @@
 'use server';
 
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
-import { getAdminApp, getAdminAuth } from '@/lib/firebase-admin';
+// Fase 4 (rebanada Blog): Postgres — antes Firestore `blogBriefs`/`blogPosts`.
+import { eq, sql } from 'drizzle-orm';
+import { db } from '@/lib/db';
+import { blogBriefs, blogPosts } from '@/lib/db/schema';
 import { getSessionUid } from '@/lib/crypto-intel/auth';
+import { resolveBriefRow, resolvePostRow, publicId, getUserDisplayName } from '../pg';
 import { generatePostFromBrief, computeWordCount, computeReadingTime, generateSlug } from '../ai/generate-post';
-import type { BlogBriefDoc, BlogPostDoc } from '../types';
+import type { BlogBriefDoc } from '../types';
 import type { ActionResult } from '../schemas';
 
-function db() {
-  return getFirestore(getAdminApp());
+function setBriefStatus(briefRowId: string, patch: Record<string, unknown>) {
+  return db
+    .update(blogBriefs)
+    .set({ data: sql`${blogBriefs.data} || ${JSON.stringify(patch)}::jsonb` })
+    .where(eq(blogBriefs.id, briefRowId));
 }
 
 export async function generateDraft(briefId: string): Promise<ActionResult<{ postId: string }>> {
   const uid = await getSessionUid();
   if (!uid) return { ok: false, error: 'No autenticado' };
 
-  const briefRef = db().collection('blogBriefs').doc(briefId);
-  const briefSnap = await briefRef.get();
+  const briefRow = await resolveBriefRow(briefId);
+  if (!briefRow) return { ok: false, error: 'Brief no encontrado' };
+  const briefFields = briefRow.data as Record<string, unknown>;
 
-  if (!briefSnap.exists) return { ok: false, error: 'Brief no encontrado' };
-
-  const briefData = { id: briefSnap.id, ...briefSnap.data() } as BlogBriefDoc;
+  // generatePostFromBrief solo consume los campos de contenido — el shape
+  // BlogBriefDoc pide Timestamp en createdAt pero no se usa para generar.
+  const briefData = {
+    id: publicId(briefRow),
+    topic: (briefFields.topic as string) ?? '',
+    angle: (briefFields.angle as string) ?? '',
+    targetAudience: (briefFields.targetAudience as string) ?? '',
+    keyPoints: (briefFields.keyPoints as string[]) ?? [],
+    tone: (briefFields.tone as string) ?? '',
+    status: 'pending',
+    generatedDraftId: null,
+    createdBy: (briefFields.createdBy as string) ?? uid,
+    createdAt: briefRow.createdAt,
+  } as unknown as BlogBriefDoc;
 
   // Mark as generating
-  await briefRef.update({ status: 'generating' });
+  await setBriefStatus(briefRow.id, { status: 'generating' });
 
   try {
-    const authUser = await getAdminAuth().getUser(uid);
+    const authorName = await getUserDisplayName(uid);
     const generated = await generatePostFromBrief(briefData);
 
     const wordCount = computeWordCount(generated.body);
     const readingTimeMin = computeReadingTime(wordCount);
     const slug = generateSlug(generated.title);
+    const now = new Date();
 
-    const postRef = db().collection('blogPosts').doc();
-    const now = FieldValue.serverTimestamp();
+    const [postRow] = await db
+      .insert(blogPosts)
+      .values({
+        slug,
+        title: generated.title,
+        excerpt: generated.excerpt,
+        body: generated.body,
+        category: generated.category,
+        tags: generated.tags,
+        coverImage: null,
+        author: { name: authorName, uid },
+        status: 'draft',
+        briefSource: {
+          topic: briefData.topic,
+          angle: briefData.angle,
+          targetAudience: briefData.targetAudience,
+          keyPoints: briefData.keyPoints,
+          tone: briefData.tone,
+        },
+        ai: {
+          model: process.env.ANTHROPIC_MODEL ?? 'claude-opus-4-7',
+          generatedAt: now.toISOString(),
+          editedByHuman: false,
+          wordsAdded: 0,
+          iterations: 1,
+        },
+        seo: {
+          metaTitle: generated.title.slice(0, 70),
+          metaDescription: generated.excerpt.slice(0, 160),
+          canonicalUrl: null,
+          noindex: true,
+        },
+        wordCount,
+        readingTimeMin,
+        publishedAt: null,
+        approvedBy: null,
+      })
+      .returning({ id: blogPosts.id });
 
-    const postData: Omit<BlogPostDoc, 'id' | 'createdAt' | 'updatedAt' | 'ai'> & {
-      ai: Omit<BlogPostDoc['ai'], 'generatedAt'> & { generatedAt: ReturnType<typeof FieldValue.serverTimestamp> };
-      createdAt: ReturnType<typeof FieldValue.serverTimestamp>;
-      updatedAt: ReturnType<typeof FieldValue.serverTimestamp>;
-    } = {
-      slug,
-      title: generated.title,
-      excerpt: generated.excerpt,
-      body: generated.body,
-      category: generated.category as BlogPostDoc['category'],
-      tags: generated.tags,
-      coverImage: null,
-      author: { name: authUser.displayName ?? 'Admin', uid },
-      status: 'draft',
-      briefSource: {
-        topic: briefData.topic,
-        angle: briefData.angle,
-        targetAudience: briefData.targetAudience,
-        keyPoints: briefData.keyPoints,
-        tone: briefData.tone,
-      },
-      ai: {
-        model: process.env.ANTHROPIC_MODEL ?? 'claude-opus-4-7',
-        generatedAt: now,
-        editedByHuman: false,
-        wordsAdded: 0,
-        iterations: 1,
-      },
-      seo: {
-        metaTitle: generated.title.slice(0, 70),
-        metaDescription: generated.excerpt.slice(0, 160),
-        canonicalUrl: null,
-        noindex: true,
-      },
-      wordCount,
-      readingTimeMin,
-      publishedAt: null,
-      approvedBy: null,
-      createdAt: now,
-      updatedAt: now,
-    };
+    await setBriefStatus(briefRow.id, { status: 'generated', generatedDraftId: postRow.id });
 
-    await postRef.set(postData);
-    await briefRef.update({ status: 'generated', generatedDraftId: postRef.id });
-
-    return { ok: true, data: { postId: postRef.id } };
+    return { ok: true, data: { postId: postRow.id } };
   } catch (err) {
-    await briefRef.update({ status: 'pending' });
+    await setBriefStatus(briefRow.id, { status: 'pending' });
     console.error('generateDraft error:', err);
     return { ok: false, error: err instanceof Error ? err.message : 'Error generando borrador' };
   }
@@ -93,41 +105,46 @@ export async function regenerateDraft(postId: string): Promise<ActionResult<{ po
   const uid = await getSessionUid();
   if (!uid) return { ok: false, error: 'No autenticado' };
 
-  const postRef = db().collection('blogPosts').doc(postId);
-  const postSnap = await postRef.get();
-  if (!postSnap.exists) return { ok: false, error: 'Post no encontrado' };
+  const row = await resolvePostRow(postId);
+  if (!row) return { ok: false, error: 'Post no encontrado' };
 
-  const postData = postSnap.data() as BlogPostDoc;
-  const briefLike: BlogBriefDoc = {
+  const briefSource = row.briefSource as Record<string, unknown>;
+  const briefLike = {
     id: postId,
-    topic: postData.briefSource.topic,
-    angle: postData.briefSource.angle,
-    targetAudience: postData.briefSource.targetAudience,
-    keyPoints: postData.briefSource.keyPoints,
-    tone: postData.briefSource.tone,
+    topic: (briefSource.topic as string) ?? '',
+    angle: (briefSource.angle as string) ?? '',
+    targetAudience: (briefSource.targetAudience as string) ?? '',
+    keyPoints: (briefSource.keyPoints as string[]) ?? [],
+    tone: (briefSource.tone as string) ?? '',
     status: 'generated',
     generatedDraftId: postId,
     createdBy: uid,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    createdAt: postData.createdAt as any,
-  };
+    createdAt: row.createdAt,
+  } as unknown as BlogBriefDoc;
 
   try {
     const generated = await generatePostFromBrief(briefLike);
     const wordCount = computeWordCount(generated.body);
     const readingTimeMin = computeReadingTime(wordCount);
+    const prevAi = row.ai as Record<string, unknown>;
 
-    await postRef.update({
-      body: generated.body,
-      title: generated.title,
-      excerpt: generated.excerpt,
-      wordCount,
-      readingTimeMin,
-      status: 'draft',
-      'ai.iterations': (postData.ai?.iterations ?? 1) + 1,
-      'ai.generatedAt': FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
-    });
+    await db
+      .update(blogPosts)
+      .set({
+        body: generated.body,
+        title: generated.title,
+        excerpt: generated.excerpt,
+        wordCount,
+        readingTimeMin,
+        status: 'draft',
+        ai: {
+          ...prevAi,
+          iterations: ((prevAi.iterations as number) ?? 1) + 1,
+          generatedAt: new Date().toISOString(),
+        },
+        updatedAt: new Date(),
+      })
+      .where(eq(blogPosts.id, row.id));
 
     return { ok: true, data: { postId } };
   } catch (err) {
