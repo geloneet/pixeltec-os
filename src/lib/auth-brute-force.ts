@@ -1,10 +1,10 @@
 /**
- * Email-scoped brute-force lockout (Admin SDK only).
+ * Email-scoped brute-force lockout (Fase 4 — Postgres, antes Firestore
+ * `authLockouts`).
  *
- * Complements Firebase Auth's built-in client-side throttling
- * (`auth/too-many-requests`) by tracking failures at the session-cookie
- * endpoint — catches forged-token / replay attempts and any path where
- * client-side rate limits were bypassed.
+ * Tracks failures at the NextAuth `authorize()` callback — catches
+ * forged-token / replay attempts and any path where client-side rate limits
+ * were bypassed.
  *
  * Lockout schedule (per email):
  *   1-2 fails  → no lockout
@@ -14,23 +14,16 @@
  *   6          → 1 hour
  *   7+         → 24 hours
  *
- * Storage: `authLockouts/{sha256(email|INTERNAL_IP_SALT).slice(0,32)}`.
- * Doc id is hashed so the collection never contains raw email addresses.
- * Collection is deny-all in firestore.rules — accessed via Admin SDK only.
+ * Storage: fila en `auth_lockouts` con PK = sha256(email|INTERNAL_IP_SALT)
+ * .slice(0,32) — la tabla nunca contiene emails en claro (misma propiedad
+ * que tenía el doc-id hasheado de Firestore).
  */
 
 import { createHash } from 'crypto';
-import { getAdminFirestore } from './firebase-admin';
-import { FieldValue, Timestamp } from 'firebase-admin/firestore';
+import { eq, sql } from 'drizzle-orm';
+import { db } from '@/lib/db';
+import { authLockouts } from '@/lib/db/schema';
 import { formatRetryAfter } from './rate-limit';
-
-interface LockoutDoc {
-  emailHash: string;
-  failureCount: number;
-  firstFailureAt: Timestamp;
-  lastFailureAt: Timestamp;
-  lockedUntil: Timestamp | null;
-}
 
 /**
  * Returns lockout duration (ms) for the Nth failure. 0 means no lockout.
@@ -55,10 +48,6 @@ function hashEmail(email: string): string {
   return createHash('sha256').update(`${normalized}|${salt}`).digest('hex').slice(0, 32);
 }
 
-function docRef(email: string) {
-  return getAdminFirestore().collection('authLockouts').doc(hashEmail(email));
-}
-
 export interface LockoutStatus {
   locked: boolean;
   /** Wall-clock time the lockout lifts (only set when locked=true). */
@@ -69,11 +58,12 @@ export interface LockoutStatus {
 
 export async function isEmailLocked(email: string): Promise<LockoutStatus> {
   try {
-    const snap = await docRef(email).get();
-    if (!snap.exists) return { locked: false };
-
-    const data = snap.data() as LockoutDoc | undefined;
-    const lockedUntilMs = data?.lockedUntil?.toMillis?.() ?? 0;
+    const [row] = await db
+      .select({ lockedUntil: authLockouts.lockedUntil })
+      .from(authLockouts)
+      .where(eq(authLockouts.email, hashEmail(email)))
+      .limit(1);
+    const lockedUntilMs = row?.lockedUntil?.getTime() ?? 0;
     if (lockedUntilMs <= Date.now()) return { locked: false };
 
     const retryAfterSec = Math.ceil((lockedUntilMs - Date.now()) / 1000);
@@ -90,47 +80,53 @@ export async function isEmailLocked(email: string): Promise<LockoutStatus> {
 
 /**
  * Increment the failure counter for `email` and (re)compute lockedUntil.
- * Transactional so concurrent failures don't lose counts.
+ * Upsert atómico — fallos concurrentes no pierden conteos.
  */
 export async function recordAuthFailure(email: string): Promise<void> {
   try {
-    const ref = docRef(email);
-    const now = Date.now();
     const hash = hashEmail(email);
+    const now = new Date();
 
-    await getAdminFirestore().runTransaction(async tx => {
-      const snap = await tx.get(ref);
-      const existing = snap.exists ? (snap.data() as LockoutDoc) : null;
-      const failureCount = (existing?.failureCount ?? 0) + 1;
-      const lockoutMs = lockoutDurationMs(failureCount);
-      const lockedUntil = lockoutMs > 0 ? Timestamp.fromMillis(now + lockoutMs) : null;
+    // El nuevo lockedUntil depende del failureCount YA incrementado — se
+    // calcula en SQL para mantener la atomicidad del upsert. Dates van como
+    // ISO string + cast (el driver no acepta Date crudo en sql``).
+    const nowIso = now.toISOString();
+    const durationCase = sql`
+      CASE
+        WHEN ${authLockouts.failureCount} + 1 <= 2 THEN NULL
+        WHEN ${authLockouts.failureCount} + 1 = 3 THEN ${nowIso}::timestamptz + interval '30 seconds'
+        WHEN ${authLockouts.failureCount} + 1 = 4 THEN ${nowIso}::timestamptz + interval '2 minutes'
+        WHEN ${authLockouts.failureCount} + 1 = 5 THEN ${nowIso}::timestamptz + interval '10 minutes'
+        WHEN ${authLockouts.failureCount} + 1 = 6 THEN ${nowIso}::timestamptz + interval '1 hour'
+        ELSE ${nowIso}::timestamptz + interval '24 hours'
+      END`;
 
-      if (!snap.exists) {
-        tx.set(ref, {
-          emailHash: hash,
-          failureCount,
-          firstFailureAt: FieldValue.serverTimestamp(),
-          lastFailureAt: FieldValue.serverTimestamp(),
-          lockedUntil,
-        });
-        return;
-      }
-
-      tx.update(ref, {
-        failureCount,
-        lastFailureAt: FieldValue.serverTimestamp(),
-        lockedUntil,
+    await db
+      .insert(authLockouts)
+      .values({
+        email: hash,
+        failureCount: 1,
+        firstFailureAt: now,
+        lastFailureAt: now,
+        lockedUntil: lockoutDurationMs(1) > 0 ? new Date(now.getTime() + lockoutDurationMs(1)) : null,
+      })
+      .onConflictDoUpdate({
+        target: authLockouts.email,
+        set: {
+          failureCount: sql`${authLockouts.failureCount} + 1`,
+          lastFailureAt: now,
+          lockedUntil: durationCase,
+        },
       });
-    });
   } catch (err) {
     console.error('[auth-brute-force] recordAuthFailure failed', err);
   }
 }
 
-/** Wipe the lockout doc after a successful login. */
+/** Wipe the lockout row after a successful login. */
 export async function clearAuthFailures(email: string): Promise<void> {
   try {
-    await docRef(email).delete();
+    await db.delete(authLockouts).where(eq(authLockouts.email, hashEmail(email)));
   } catch (err) {
     console.error('[auth-brute-force] clearAuthFailures failed', err);
   }

@@ -1,11 +1,12 @@
 /**
  * CAPTCHA verifier abstraction.
  *
- * The endpoint pipeline (src/app/api/auth/session/route.ts) calls
- * `captcha.verify(token, ip)` as a no-op today so the hook is wired and
- * tested. To turn CAPTCHA on, swap `captcha` for a real implementation
- * (TurnstileVerifier or ReCaptchaVerifier) — no other code changes
- * required.
+ * `captcha.verify(token, ip)` es un no-op hoy — el hook queda cableado y
+ * probado, listo para activarse. Para prender CAPTCHA, reemplazar `captcha`
+ * por una implementación real (TurnstileVerifier o ReCaptchaVerifier); no
+ * requiere otros cambios de código. (Nota: no está conectado desde ningún
+ * endpoint todavía — el login del equipo interno migró a NextAuth en
+ * src/lib/auth/config.ts, que sí preserva el rate-limit/lockout de abajo.)
  *
  * Why a no-op default: the public login form is currently behind
  * honeypot + per-IP rate-limit + per-email lockout. Adding CAPTCHA is

@@ -18,7 +18,6 @@ export const ADMIN_ROUTES = [
   'cobros',
   'accesos',
   'vps',
-  'portal',
   'crypto-intel',
   'perfil',
   'notificaciones',
@@ -33,9 +32,18 @@ export type AdminRoute = typeof ADMIN_ROUTES[number];
 /** Paths that require a valid session cookie. Used by middleware at request time. */
 export const PROTECTED_PATHS = ADMIN_ROUTES.map(r => `/${r}`);
 
-/** Known single-segment paths that are NOT client portal slugs. */
+/**
+ * Known single-segment paths that are NOT client portal slugs.
+ *
+ * `portal` vive aquí (no en ADMIN_ROUTES): es el portal LEGADO de clientes
+ * (`src/app/portal/*`), autenticado con Firebase Auth directo (email/password
+ * de cliente), no con NextAuth (Fase 2 de la migración) — su propio
+ * `PortalLayout` hace el gate client-side con Firebase, no el middleware.
+ * Distinto del portal OTP en `/[slug]`.
+ */
 export const KNOWN_ROUTES = new Set<string>([
   ...ADMIN_ROUTES,
+  'portal',
   // Public site routes
   'about', 'contact', 'services', 'blog', 'metodologia', 'equipo',
   'industrias', 'privacy-policy', 'aviso-de-privacidad', 'terminos-de-servicio',

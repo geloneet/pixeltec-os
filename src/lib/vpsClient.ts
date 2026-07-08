@@ -185,15 +185,31 @@ export function sanitizeVpsPayload(
 
 // ── Auth ─────────────────────────────────────────────────────────────────────
 
-/** Valida la cookie de sesión del CRM antes de hablar al vps-api. */
+/**
+ * Valida la sesión del CRM antes de hablar al vps-api.
+ *
+ * Fase 2 de la migración (Firebase Auth → NextAuth): la sesión ya no es una
+ * cookie de Firebase que el caller lee y pasa explícitamente — `auth()` de
+ * NextAuth lee la sesión actual directo del request (vía el almacenamiento
+ * async de Next.js), así que el parámetro `sessionCookie` ya no se usa. Se
+ * mantiene en la firma a propósito para no tocar los ~10 call sites que
+ * todavía leen `cookies().get("__session")` y lo pasan aquí — ese valor
+ * ahora se ignora.
+ *
+ * El "uid" devuelto es el Firebase UID puente (`session.user.firebaseUid`),
+ * no el id de Postgres — mientras los datos sigan en Firestore (Fase 3 no ha
+ * corrido), todo el código que usa este uid para queries de Firestore/
+ * crm_data debe seguir recibiendo el mismo valor de siempre.
+ */
 export async function requireSession(
-  sessionCookie: string | undefined
+  _sessionCookie?: string
 ): Promise<{ ok: true; uid: string } | { ok: false; error: string }> {
-  if (!sessionCookie) return { ok: false, error: "Unauthorized" };
   try {
-    const { getAdminAuth } = await import("./firebase-admin");
-    const decoded = await getAdminAuth().verifySessionCookie(sessionCookie, true);
-    return { ok: true, uid: decoded.uid };
+    const { auth } = await import("./auth/config");
+    const session = await auth();
+    const uid = session?.user?.firebaseUid;
+    if (!uid) return { ok: false, error: "Unauthorized" };
+    return { ok: true, uid };
   } catch {
     return { ok: false, error: "Session expired or invalid" };
   }

@@ -2,10 +2,9 @@
 
 import { memo, useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { ChevronRight, LogOut, PanelLeftClose, PanelLeftOpen, Search } from "lucide-react";
-import { signOut } from "firebase/auth";
-import { useAuth } from "@/firebase";
+import { signOut } from "next-auth/react";
 import { useCRM } from "@/components/crm/CRMContextCore";
 import { cn } from "@/lib/utils";
 import {
@@ -206,8 +205,6 @@ function ItemBadge({ badge, isCollapsed }: { badge: BadgeMeta | undefined; isCol
 
 export function DesktopSidebar() {
   const pathname = usePathname();
-  const router = useRouter();
-  const auth = useAuth();
   const { setOpen: setCmdKOpen } = useCmdK();
   const { clients } = useCRM();
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -231,10 +228,7 @@ export function DesktopSidebar() {
     .filter(t => t.status === "pendiente" || t.status === "en_progreso" || t.status === "en_revision").length;
 
   const handleLogout = async () => {
-    if (!auth) return;
-    await fetch("/api/auth/session", { method: "DELETE" });
-    await signOut(auth);
-    router.push("/login");
+    await signOut({ redirectTo: "/login" });
   };
 
   const toggleCollapsed = () => setIsCollapsed((c) => !c);

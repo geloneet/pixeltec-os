@@ -3,8 +3,8 @@
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { LogOut, User, Settings } from "lucide-react";
-import { signOut } from "firebase/auth";
-import { useAuth, useUser, useUserProfile } from "@/firebase";
+import { signOut } from "next-auth/react";
+import { useUser, useUserProfile } from "@/firebase";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,15 +24,11 @@ function getInitials(displayName: string | null, email: string | null): string {
 
 export function UserMenu() {
   const router = useRouter();
-  const auth = useAuth();
   const user = useUser();
   const { userProfile } = useUserProfile();
 
   const handleLogout = async () => {
-    if (!auth) return;
-    await fetch("/api/auth/session", { method: "DELETE" });
-    await signOut(auth);
-    router.push("/login");
+    await signOut({ redirectTo: "/login" });
   };
 
   if (!user) return null;

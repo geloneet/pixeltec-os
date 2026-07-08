@@ -1,5 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getAdminAuth, getAdminFirestore } from '@/lib/firebase-admin';
+import { NextResponse } from 'next/server';
+import { eq } from 'drizzle-orm';
+import { auth } from '@/lib/auth/config';
+import { db } from '@/lib/db';
+import { clients } from '@/lib/db/schema';
 import { PROTECTED_PATHS, KNOWN_ROUTES } from '@/lib/routes/admin-routes';
 
 export const runtime = 'nodejs';
@@ -7,16 +10,11 @@ export const runtime = 'nodejs';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const crypto = require('crypto') as typeof import('crypto');
 
-const SESSION_COOKIE_NAME = '__session';
-
+// Fase 4: slug de portal validado contra Postgres (antes: Firestore `clients`).
 async function isValidPortalSlug(slug: string): Promise<boolean> {
   try {
-    const snap = await getAdminFirestore()
-      .collection('clients')
-      .where('slug', '==', slug)
-      .limit(1)
-      .get();
-    return !snap.empty;
+    const [row] = await db.select({ id: clients.id }).from(clients).where(eq(clients.slug, slug)).limit(1);
+    return !!row;
   } catch {
     return true; // Fail open — let [slug]/page.tsx handle it
   }
@@ -106,7 +104,21 @@ function withSecurityHeaders(res: NextResponse, nonce: string): NextResponse {
   return res;
 }
 
-export async function middleware(request: NextRequest) {
+// Envuelto con `auth()` de NextAuth (Fase 2 de la migración — reemplaza
+// `getAdminAuth().verifySessionCookie` de Firebase). `request.auth` viene
+// poblado por el wrapper: no-null si el JWT de sesión es válido, null si no
+// hay cookie / la firma no valida / expiró — NextAuth no distingue el motivo,
+// así que ya no podemos mostrar "tu sesión expiró" específicamente (antes sí,
+// vía el código de error de Firebase). Tampoco hay ya un "fail-open por
+// infraestructura": con estrategia JWT no hay round-trip a una DB para
+// validar la sesión en cada request (se verifica localmente contra
+// NEXTAUTH_SECRET), así que no existe ese modo de fallo.
+//
+// Nota de seguridad a considerar más adelante: con JWT puro no hay revocación
+// instantánea de sesión (logout-all-devices no invalida cookies ya emitidas
+// hasta que expiren). Si eso importa, migrar a `session.strategy: "database"`
+// con @auth/drizzle-adapter (ya instalado, sin usar).
+export default auth(async (request) => {
   const nonce = crypto.randomUUID().replace(/-/g, '');
   const { pathname } = request.nextUrl;
 
@@ -116,31 +128,12 @@ export async function middleware(request: NextRequest) {
   );
 
   if (isProtected) {
-    const sessionCookie = request.cookies.get(SESSION_COOKIE_NAME)?.value;
-
-    if (!sessionCookie) {
+    if (!request.auth) {
       const loginUrl = new URL('/login', request.url);
       loginUrl.searchParams.set('redirect', pathname);
       return withSecurityHeaders(NextResponse.redirect(loginUrl), nonce);
     }
-
-    try {
-      await getAdminAuth().verifySessionCookie(sessionCookie, /* checkRevoked */ true);
-      return withSecurityHeaders(NextResponse.next(), nonce);
-    } catch (err) {
-      const code = (err as { code?: string }).code ?? '';
-
-      if (code.startsWith('auth/')) {
-        const loginUrl = new URL('/login', request.url);
-        loginUrl.searchParams.set('redirect', pathname);
-        loginUrl.searchParams.set('error', 'session_expired');
-        return withSecurityHeaders(NextResponse.redirect(loginUrl), nonce);
-      }
-
-      // Infrastructure error — fail open
-      console.error('[middleware] session verify infrastructure error:', err);
-      return withSecurityHeaders(NextResponse.next(), nonce);
-    }
+    return withSecurityHeaders(NextResponse.next(), nonce);
   }
 
   // ── Portal slug validation ────────────────────────────────────────────────
@@ -162,7 +155,7 @@ export async function middleware(request: NextRequest) {
   }
 
   return withSecurityHeaders(NextResponse.next(), nonce);
-}
+});
 
 export const config = {
   // Broad matcher so CSP nonce is injected on every page.

@@ -1,20 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import {
-  reauthenticateWithCredential,
-  EmailAuthProvider,
-  updatePassword,
-  signOut,
-} from 'firebase/auth';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/firebase/provider';
+import { signOut } from 'next-auth/react';
 import { useUser } from '@/firebase/auth/use-user';
+import { changePasswordAction } from '@/lib/auth/actions';
 
 export function SecuritySettings() {
-  const auth = useAuth();
   const user = useUser();
-  const router = useRouter();
 
   // Change password state
   const [currentPw, setCurrentPw] = useState('');
@@ -23,7 +15,7 @@ export function SecuritySettings() {
   const [pwSuccess, setPwSuccess] = useState('');
   const [pwError, setPwError] = useState('');
 
-  // Sign out everywhere state
+  // Sign out state
   const [revokeLoading, setRevokeLoading] = useState(false);
   const [revokeError, setRevokeError] = useState('');
 
@@ -40,51 +32,45 @@ export function SecuritySettings() {
       setPwError('La nueva contraseña debe tener al menos 8 caracteres.');
       return;
     }
-    if (!user || !user.email) {
+    if (!user) {
       setPwError('No se pudo verificar tu sesión. Recarga la página.');
       return;
     }
 
     setPwLoading(true);
     try {
-      const credential = EmailAuthProvider.credential(user.email, currentPw);
-      await reauthenticateWithCredential(user, credential);
-      await updatePassword(user, newPw);
-      setPwSuccess('Contraseña actualizada correctamente.');
-      setCurrentPw('');
-      setNewPw('');
-    } catch (err: unknown) {
-      const code = (err as { code?: string })?.code;
-      if (
-        code === 'auth/wrong-password' ||
-        code === 'auth/invalid-credential'
-      ) {
+      const result = await changePasswordAction(currentPw, newPw);
+      if (result.ok) {
+        setPwSuccess('Contraseña actualizada correctamente.');
+        setCurrentPw('');
+        setNewPw('');
+      } else if (result.error === 'wrong-password') {
         setPwError('La contraseña actual es incorrecta.');
+      } else if (result.error === 'too-short') {
+        setPwError('La nueva contraseña debe tener al menos 8 caracteres.');
+      } else if (result.error === 'no-session') {
+        setPwError('No se pudo verificar tu sesión. Recarga la página.');
       } else {
         setPwError('Error al cambiar la contraseña. Inténtalo de nuevo.');
       }
+    } catch {
+      setPwError('Error al cambiar la contraseña. Inténtalo de nuevo.');
     } finally {
       setPwLoading(false);
     }
   };
 
-  const handleRevokeAll = async () => {
+  const handleSignOut = async () => {
     setRevokeError('');
     setRevokeLoading(true);
-
     try {
-      const res = await fetch('/api/auth/revoke', { method: 'POST' });
-      if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string };
-        setRevokeError(body.error ?? 'Error al cerrar sesiones.');
-        setRevokeLoading(false);
-        return;
-      }
-
-      // Standard sign-out sequence
-      await fetch('/api/auth/session', { method: 'DELETE' });
-      if (auth) await signOut(auth);
-      router.push('/login');
+      // Nota: con la estrategia de sesión JWT de NextAuth no hay revocación
+      // instantánea del lado del servidor — esto cierra la sesión actual
+      // (esta cookie), no invalida otras sesiones ya emitidas en otros
+      // dispositivos hasta que expiren por sí solas. Para revocación real
+      // multi-dispositivo hace falta `session.strategy: "database"` (con
+      // @auth/drizzle-adapter, ya instalado) — pendiente si esto importa.
+      await signOut({ redirectTo: '/login' });
     } catch {
       setRevokeError('No se pudo completar la operación. Inténtalo de nuevo.');
       setRevokeLoading(false);
@@ -151,14 +137,13 @@ export function SecuritySettings() {
         </form>
       </div>
 
-      {/* Sign out everywhere */}
+      {/* Sign out */}
       <div>
         <h3 className="mb-1 text-sm font-medium text-zinc-300">
-          Cerrar sesión en todos los dispositivos
+          Cerrar sesión
         </h3>
         <p className="mb-3 text-xs text-zinc-500">
-          Cierra tu sesión en todos los navegadores y dispositivos donde estés
-          conectado. Tendrás que iniciar sesión de nuevo.
+          Cierra tu sesión actual. Tendrás que iniciar sesión de nuevo.
         </p>
 
         {revokeError && (
@@ -167,11 +152,11 @@ export function SecuritySettings() {
 
         <button
           type="button"
-          onClick={handleRevokeAll}
+          onClick={handleSignOut}
           disabled={revokeLoading}
           className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm font-medium text-red-400 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {revokeLoading ? 'Cerrando sesiones…' : 'Cerrar sesión en todos los dispositivos'}
+          {revokeLoading ? 'Cerrando sesión…' : 'Cerrar sesión'}
         </button>
       </div>
     </div>

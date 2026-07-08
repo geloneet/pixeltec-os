@@ -1,53 +1,36 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useUser, useFirestore } from '@/firebase';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { useMemo } from 'react';
+import { useSession } from 'next-auth/react';
 
-// Define a type for the user profile for better type safety
+/**
+ * Fase 2 de la migración: el rol ya viene en la sesión de NextAuth
+ * (`users.role` de Postgres), no hace falta leer un doc de Firestore aparte
+ * — esto simplifica lo que antes era una suscripción `onSnapshot` a
+ * `users/{uid}`.
+ *
+ * Igual que `use-user.tsx`: resultado memoizado por campos primitivos para
+ * mantener identidad estable entre renders (los consumidores lo usan como
+ * dep de efectos).
+ */
 interface UserProfile {
-    uid: string;
-    email?: string;
-    displayName?: string;
-    role?: 'admin' | 'editor' | 'client';
-    [key: string]: any; // Allow other properties
+  uid: string;
+  email?: string;
+  displayName?: string;
+  role?: 'admin' | 'staff';
 }
 
-export function useUserProfile() {
-  const user = useUser();
-  const firestore = useFirestore();
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
+export function useUserProfile(): { userProfile: UserProfile | null; loading: boolean } {
+  const { data: session, status } = useSession();
 
-  useEffect(() => {
-    if (user && firestore) {
-      setLoading(true);
-      const docRef = doc(firestore, 'users', user.uid);
-      
-      const unsubscribe = onSnapshot(docRef, 
-        (docSnap) => {
-          if (docSnap.exists()) {
-            setUserProfile({ uid: user.uid, ...docSnap.data() } as UserProfile);
-          } else {
-            // Handle case where user document doesn't exist in Firestore yet
-            setUserProfile({ uid: user.uid, email: user.email || '', displayName: user.displayName || 'New User', role: 'editor' });
-          }
-          setLoading(false);
-        }, 
-        (error) => {
-          console.error("Error fetching user profile:", error);
-          setLoading(false);
-          setUserProfile(null);
-        }
-      );
+  const uid = session?.user ? session.user.firebaseUid ?? session.user.id ?? null : null;
+  const email = session?.user?.email ?? undefined;
+  const displayName = session?.user?.name ?? undefined;
+  const role = session?.user?.role as 'admin' | 'staff' | undefined;
 
-      return () => unsubscribe();
-    } else {
-      // If there's no user or firestore instance, we are not loading and there's no profile.
-      setLoading(false);
-      setUserProfile(null);
-    }
-  }, [user, firestore]);
-
-  return { userProfile, loading };
+  return useMemo(() => {
+    if (status === 'loading') return { userProfile: null, loading: true };
+    if (status !== 'authenticated' || !uid) return { userProfile: null, loading: false };
+    return { userProfile: { uid, email, displayName, role }, loading: false };
+  }, [status, uid, email, displayName, role]);
 }

@@ -1,15 +1,16 @@
 /**
- * Firestore-backed IP rate limiter for public server actions.
- * Admin SDK only — keep firestore.rules deny-all on `rateLimit`.
+ * Postgres-backed IP rate limiter for public server actions (Fase 4 — antes
+ * Firestore colección `rateLimit`).
  *
- * Fail-open semantics: if Firestore is unreachable we let the request through.
+ * Fail-open semantics: if Postgres is unreachable we let the request through.
  * The alternative is denying legitimate leads during an outage, which is worse
  * for a high-ticket B2B funnel than letting through a few extra spam attempts
  * while we recover.
  */
 
-import { getAdminFirestore } from './firebase-admin';
-import { FieldValue, Timestamp } from 'firebase-admin/firestore';
+import { sql } from 'drizzle-orm';
+import { db } from '@/lib/db';
+import { rateLimit } from '@/lib/db/schema';
 import { hashIp } from './privacy';
 
 export interface RateLimitInput {
@@ -39,53 +40,36 @@ export async function enforceRateLimit(input: RateLimitInput): Promise<RateLimit
   const id = buildKey(bucket, ip);
 
   try {
-    const db = getAdminFirestore();
-    const ref = db.collection('rateLimit').doc(id);
-    const now = Date.now();
+    const now = new Date();
+    const resetAt = new Date(now.getTime() + windowMs);
 
-    return await db.runTransaction(async tx => {
-      const snap = await tx.get(ref);
+    // Un solo upsert atómico reemplaza la transacción de Firestore:
+    // - fila nueva → count=1, ventana nueva
+    // - ventana expirada → reinicia count=1 con ventana nueva
+    // - ventana vigente → incrementa count
+    const [row] = await db
+      .insert(rateLimit)
+      .values({ id, bucket, count: 1, resetAt })
+      .onConflictDoUpdate({
+        target: rateLimit.id,
+        set: {
+          // Dates van como ISO string + cast — el driver postgres.js no
+          // acepta objetos Date crudos dentro de fragmentos sql``.
+          count: sql`CASE WHEN ${rateLimit.resetAt} <= ${now.toISOString()}::timestamptz THEN 1 ELSE ${rateLimit.count} + 1 END`,
+          resetAt: sql`CASE WHEN ${rateLimit.resetAt} <= ${now.toISOString()}::timestamptz THEN ${resetAt.toISOString()}::timestamptz ELSE ${rateLimit.resetAt} END`,
+        },
+      })
+      .returning({ count: rateLimit.count, resetAt: rateLimit.resetAt });
 
-      if (!snap.exists) {
-        tx.set(ref, {
-          bucket,
-          count: 1,
-          resetAt: Timestamp.fromMillis(now + windowMs),
-          createdAt: FieldValue.serverTimestamp(),
-        });
-        return { allowed: true, remaining: Math.max(0, max - 1), retryAfterSec: 0 };
-      }
-
-      const data = snap.data() as { count?: number; resetAt?: Timestamp };
-      const resetAtMs = data.resetAt?.toMillis?.() ?? 0;
-      const count = data.count ?? 0;
-
-      if (resetAtMs <= now) {
-        // Window expired — start fresh.
-        tx.set(ref, {
-          bucket,
-          count: 1,
-          resetAt: Timestamp.fromMillis(now + windowMs),
-          createdAt: FieldValue.serverTimestamp(),
-        });
-        return { allowed: true, remaining: Math.max(0, max - 1), retryAfterSec: 0 };
-      }
-
-      if (count >= max) {
-        return {
-          allowed: false,
-          remaining: 0,
-          retryAfterSec: Math.ceil((resetAtMs - now) / 1000),
-        };
-      }
-
-      tx.update(ref, { count: FieldValue.increment(1) });
+    if (row.count > max) {
       return {
-        allowed: true,
-        remaining: Math.max(0, max - count - 1),
-        retryAfterSec: 0,
+        allowed: false,
+        remaining: 0,
+        retryAfterSec: Math.ceil((row.resetAt.getTime() - now.getTime()) / 1000),
       };
-    });
+    }
+
+    return { allowed: true, remaining: Math.max(0, max - row.count), retryAfterSec: 0 };
   } catch (err) {
     console.error('[rateLimit] backend error — failing open', { bucket, err });
     return { allowed: true, remaining: max, retryAfterSec: 0 };

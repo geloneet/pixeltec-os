@@ -5,14 +5,13 @@ import { useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Lock, Mail, LoaderCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Image from 'next/image';
-import { useAuth, useUser, useFirestore } from '@/firebase';
-import { signInWithEmailAndPassword, signOut, type AuthError } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
-import { useUserProfile } from '@/firebase/auth/use-user-profile';
+import { signIn, useSession } from 'next-auth/react';
+import { useAuth } from '@/firebase';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { useFirebaseUser } from '@/firebase/auth/use-firebase-user';
 
 // Decorative background — memoized so the grid + glow never repaint when
 // the form's state changes (every keystroke would otherwise trigger a
@@ -74,7 +73,6 @@ const BlinkingCursor = memo(function BlinkingCursor() {
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
   const [honeypot, setHoneypot] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -82,59 +80,34 @@ export default function LoginPage() {
 
   const searchParams = useSearchParams();
   const redirectParam = searchParams.get('redirect');
-  const auth = useAuth();
-  const firestore = useFirestore();
-  const user = useUser();
-  const { userProfile, loading: profileLoading } = useUserProfile();
+  const { data: session, status } = useSession();
+  const firebaseAuth = useAuth();
+  const firebaseUser = useFirebaseUser();
 
-  // Redirect if user is already logged in and profile is loaded.
-  // Skip during active login to avoid racing with session cookie creation.
-  // IMPORTANT: must create the __session cookie before redirecting — middleware
-  // requires it on every protected route. Without this, Firebase-authenticated
-  // users enter an infinite /login ↔ /hoy redirect loop.
+  // Redirect if already logged in — vía NextAuth (equipo interno) o vía
+  // Firebase (fallback del portal legado de clientes, ver handleLogin).
+  // Skip during an active login submit to avoid racing con el redirect propio.
   useEffect(() => {
-    if (isLoading || isRedirecting || profileLoading || !userProfile || !user || !auth) return;
+    if (isLoading || isRedirecting) return;
 
-    let target: string | null = null;
-    if (redirectParam) {
-        target = redirectParam;
-    } else if (userProfile.role === 'admin' || userProfile.role === 'editor') {
-        target = '/hoy';
-    } else if (userProfile.role === 'client') {
-        target = '/portal';
+    if (status === 'authenticated' && session?.user) {
+      setIsRedirecting(true);
+      window.location.assign(redirectParam || '/hoy');
+      return;
     }
 
-    if (!target) return;
-
-    setIsRedirecting(true);
-
-    (async () => {
-      try {
-        const idToken = await user.getIdToken();
-        const sessionRes = await fetch('/api/auth/session', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ idToken, rememberMe: false }),
-        });
-        if (!sessionRes.ok) {
-          await signOut(auth);
-          setError('Error al restaurar la sesión. Por favor, inicia sesión de nuevo.');
-          setIsRedirecting(false);
-          return;
-        }
-        window.location.assign(target!);
-      } catch {
-        setIsRedirecting(false);
-      }
-    })();
-  }, [userProfile, profileLoading, isLoading, isRedirecting, redirectParam, user, auth]);
+    if (firebaseUser) {
+      setIsRedirecting(true);
+      window.location.assign(redirectParam || '/portal');
+    }
+  }, [status, session, firebaseUser, isLoading, isRedirecting, redirectParam]);
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (isLoading || !auth || !firestore) return;
+    if (isLoading) return;
 
     // Honeypot — silent no-op: looks like the form is processing,
-    // but Firebase and the session API are never called.
+    // but signIn() is never called.
     if (honeypot.trim() !== '') {
       setIsLoading(true);
       await new Promise((r) => setTimeout(r, 500));
@@ -145,90 +118,48 @@ export default function LoginPage() {
     setIsLoading(true);
     setError(null);
 
-    // Tracks the success path locally: state (isRedirecting) is stale inside
-    // this closure, and on success the spinner must survive until the browser
-    // actually navigates — resetting it re-mounts the form and flickers.
-    let redirecting = false;
-
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
+      // Equipo interno (admin/staff) — NextAuth contra Postgres.
+      const result = await signIn('credentials', {
+        email,
+        password,
+        redirect: false,
+      });
 
-      if (user) {
-        const userDocRef = doc(firestore, 'users', user.uid);
-        const userDocSnap = await getDoc(userDocRef);
+      if (!result?.error) {
+        setIsRedirecting(true);
+        window.location.assign(redirectParam || '/hoy');
+        return;
+      }
 
-        if (userDocSnap.exists()) {
-            const userData = userDocSnap.data();
-            let redirectTo: string | null = null;
-
-            if (redirectParam) {
-                redirectTo = redirectParam;
-            } else if (userData.role === 'admin' || userData.role === 'editor') {
-                redirectTo = '/hoy';
-            } else if (userData.role === 'client') {
-                redirectTo = '/portal';
-            }
-
-            if (redirectTo) {
-                // Set server-side session cookie before redirecting
-                const idToken = await user.getIdToken();
-                const sessionRes = await fetch('/api/auth/session', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ idToken, rememberMe }),
-                });
-
-                if (!sessionRes.ok) {
-                    await signOut(auth);
-                    setError('Error al crear la sesión. Por favor, intenta de nuevo.');
-                    return;
-                }
-
-                redirecting = true;
-                setIsRedirecting(true);
-                window.location.assign(redirectTo);
-            } else {
-                await signOut(auth);
-                setError('Tu rol no está definido. Contacta al administrador.');
-            }
-        } else {
-            // Security measure: if a user is authenticated but has no profile in Firestore,
-            // they shouldn't be able to access anything.
-            await signOut(auth);
-            setError('Tu cuenta no está configurada en el sistema. Contacta al administrador.');
+      // Fallback: portal legado de clientes (`src/app/portal/*`), que sigue
+      // autenticado con Firebase directo — no tiene fila en la tabla `users`
+      // de Postgres, así que NextAuth siempre lo rechaza. Se intenta acá para
+      // no romper ese acceso mientras exista (ver nota en admin-routes.ts).
+      if (firebaseAuth) {
+        try {
+          await signInWithEmailAndPassword(firebaseAuth, email, password);
+          setIsRedirecting(true);
+          window.location.assign(redirectParam || '/portal');
+          return;
+        } catch {
+          // ni NextAuth ni Firebase reconocen estas credenciales
         }
       }
-    } catch (err) {
-      const error = err as AuthError;
-      let friendlyMessage = 'Ocurrió un error inesperado. Por favor, intenta de nuevo.';
-      switch (error.code) {
-        case 'auth/user-not-found':
-        case 'auth/wrong-password':
-        case 'auth/invalid-credential':
-          friendlyMessage = 'El correo electrónico o la contraseña son incorrectos.';
-          break;
-        case 'auth/invalid-email':
-          friendlyMessage = 'El formato del correo electrónico no es válido.';
-          break;
-        case 'auth/too-many-requests':
-          friendlyMessage = 'Acceso bloqueado temporalmente por demasiados intentos. Intenta más tarde.';
-          break;
-        case 'auth/network-request-failed':
-            friendlyMessage = 'Error de red. Por favor, revisa tu conexión a internet.';
-            break;
-      }
-      setError(friendlyMessage);
-    } finally {
-      if (!redirecting) setIsLoading(false);
+
+      setError('El correo electrónico o la contraseña son incorrectos.');
+      setIsLoading(false);
+    } catch {
+      setError('Ocurrió un error inesperado. Por favor, intenta de nuevo.');
+      setIsLoading(false);
     }
   };
 
-  // Show a loading screen while user state is being determined or while an
+  // Show a loading screen while session state is being determined or while an
   // already-authenticated visitor is being redirected. Never during an active
   // form login (isLoading): swapping the form for this screen mid-login is
   // what caused the unmount → full-screen spinner → re-mount flicker.
-  if (!isLoading && (isRedirecting || user === undefined || (user && profileLoading))) {
+  if (!isLoading && (isRedirecting || status === 'loading')) {
     return (
         <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-zinc-950 text-white p-4">
             <LoaderCircle className="h-12 w-12 animate-spin text-cyan-400" />
@@ -343,23 +274,6 @@ export default function LoginPage() {
               disabled={isLoading}
               className="h-14 w-full rounded-lg border-white/10 bg-black/50 pl-12 text-white placeholder:text-zinc-500 transition-colors duration-200 hover:bg-black/60 focus-visible:ring-2 focus-visible:ring-cyan-500/50 focus-visible:border-cyan-500"
             />
-          </div>
-
-          {/* Remember session checkbox */}
-          <div className="flex items-center gap-2 mt-2 mb-4">
-            <Checkbox
-              id="remember-me"
-              checked={rememberMe}
-              onCheckedChange={(checked) => setRememberMe(checked === true)}
-              disabled={isLoading}
-              className="border-white/20 data-[state=checked]:bg-cyan-500 data-[state=checked]:border-cyan-500 data-[state=checked]:text-zinc-950"
-            />
-            <Label
-              htmlFor="remember-me"
-              className="text-xs text-zinc-400 cursor-pointer select-none"
-            >
-              Mantener sesión iniciada
-            </Label>
           </div>
 
           {error && (
