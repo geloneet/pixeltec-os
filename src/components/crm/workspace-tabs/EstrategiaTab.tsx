@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Plus, Pencil, Trash2, Check, X, ChevronUp, ChevronDown } from "lucide-react";
-import { useFirestore, useUser } from "@/firebase";
+import { useUser } from "@/firebase";
 import type { Strategy, StrategyObjective, StrategyKPI, RoadmapItem } from "@/types/documents";
 import { getStrategy, createStrategy, updateStrategy } from "@/lib/documents/strategies";
 
@@ -25,7 +25,6 @@ const PRIORITY_CONFIG = {
 const CHANNELS = ["Web", "Social Media", "Email", "WhatsApp", "Google Ads", "SEO"] as const;
 
 export function EstrategiaTab({ clientId }: Props) {
-  const firestore = useFirestore();
   const user = useUser();
 
   const [strategy, setStrategy] = useState<Strategy | null>(null);
@@ -59,25 +58,25 @@ export function EstrategiaTab({ clientId }: Props) {
   const [autosSaving, setAutosSaving] = useState(false);
 
   const loadStrategy = useCallback(async () => {
-    if (!firestore || !user) { setLoading(false); return; }
+    if (!user) { setLoading(false); return; }
     setLoading(true);
     try {
-      const data = await getStrategy(firestore, user.uid, clientId);
+      const data = await getStrategy(user.uid, clientId);
       setStrategy(data);
       if (data?.automations) setAutomationsText(data.automations.join("\n"));
     } finally {
       setLoading(false);
     }
-  }, [firestore, user, clientId]);
+  }, [user, clientId]);
 
   useEffect(() => { loadStrategy(); }, [loadStrategy]);
 
   const ensureStrategy = useCallback(async (): Promise<Strategy> => {
     if (strategy) return strategy;
-    if (!firestore || !user) throw new Error("Not ready");
-    // Deduplicate concurrent calls — only one Firestore createStrategy runs at a time
+    if (!user) throw new Error("Not ready");
+    // Deduplicate concurrent calls — only one createStrategy runs at a time
     if (creatingStrategyRef.current) return creatingStrategyRef.current;
-    const p = createStrategy(firestore, user.uid, clientId).then((id) => {
+    const p = createStrategy(user.uid, clientId).then((id) => {
       const newStrategy: Strategy = {
         id, uid: user.uid, clientId,
         objectives: [], kpis: [], roadmap: [],
@@ -90,13 +89,12 @@ export function EstrategiaTab({ clientId }: Props) {
     });
     creatingStrategyRef.current = p;
     return p;
-  }, [strategy, firestore, user, clientId]);
+  }, [strategy, user, clientId]);
 
   const saveStrategy = useCallback(async (updated: Strategy) => {
-    if (!firestore) return;
     setSaving(true);
     try {
-      await updateStrategy(firestore, updated.id, {
+      await updateStrategy(updated.id, {
         objectives: updated.objectives,
         kpis: updated.kpis,
         roadmap: updated.roadmap,
@@ -108,7 +106,7 @@ export function EstrategiaTab({ clientId }: Props) {
     } finally {
       setSaving(false);
     }
-  }, [firestore]);
+  }, []);
 
   // ── Objectives handlers ────────────────────────────────────────────────────
 

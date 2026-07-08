@@ -1,5 +1,9 @@
 import { notFound } from "next/navigation";
+import { eq } from "drizzle-orm";
 import { resolveToken } from "@/lib/portal/token";
+import { db } from "@/lib/db";
+import { users } from "@/lib/db/schema";
+import { getFullCrmData } from "@/lib/db/repos/crm-sync";
 import { getAdminFirestore } from "@/lib/firebase-admin";
 import { getPortalRequests } from "@/lib/portal/requests";
 import PortalDashboard from "@/components/portal/PortalDashboard";
@@ -21,18 +25,18 @@ export default async function PortalTokenPage({ params }: PageProps) {
   if (!resolved) notFound();
   const { uid, clientId } = resolved;
 
-  // Fetch CRM data
-  const db = getAdminFirestore();
-  const crmSnap = await db.collection("crm_data").doc(uid).get();
-  if (!crmSnap.exists) notFound();
-
-  const crmData = crmSnap.data()!;
-  const clients = (crmData.clients ?? []) as CRMClient[];
+  // Fetch CRM data (Fase 4 — Postgres, ya no el blob crm_data de Firestore)
+  const [ownerUser] = await db.select({ id: users.id }).from(users).where(eq(users.firebaseUid, uid)).limit(1);
+  if (!ownerUser) notFound();
+  const crmData = await getFullCrmData(ownerUser.id);
+  const clients = crmData.clients as CRMClient[];
   const client = clients.find(c => c.id === clientId);
   if (!client || !client.portalEnabled) notFound();
 
-  // Fetch strategy
-  const stratSnap = await db
+  // Fetch strategy (aún en Firestore — módulo Documentos, fuera del alcance
+  // de esta fase; hoy sin datos reales, colección vacía)
+  const adminDb = getAdminFirestore();
+  const stratSnap = await adminDb
     .collection("strategies")
     .where("uid", "==", uid)
     .where("clientId", "==", clientId)
@@ -45,8 +49,9 @@ export default async function PortalTokenPage({ params }: PageProps) {
   // Active project = first project (or could be latest)
   const project = client.projects[0] ?? null;
 
-  // Fetch signed contracts
-  const contractsSnap = await db
+  // Fetch signed contracts (aún en Firestore — módulo Documentos, fuera del
+  // alcance de esta fase; hoy sin datos reales, colección vacía)
+  const contractsSnap = await adminDb
     .collection("contracts")
     .where("uid", "==", uid)
     .where("clientId", "==", clientId)

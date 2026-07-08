@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { eq, and, asc } from "drizzle-orm";
 import { resolveToken } from "@/lib/portal/token";
 import { createPortalRequest, getPortalRequests } from "@/lib/portal/requests";
-import { getAdminFirestore } from "@/lib/firebase-admin";
+import { db } from "@/lib/db";
+import { users, clients, projects } from "@/lib/db/schema";
+import { createTask } from "@/lib/db/repos/crm";
 import { enforceRateLimit, formatRetryAfter } from "@/lib/rate-limit";
 
 interface PostBody {
@@ -28,6 +31,26 @@ function sanitizeText(value: unknown, maxLen: number): string | null {
   const trimmed = value.trim();
   if (!trimmed) return null;
   return escapeHtml(trimmed.slice(0, maxLen));
+}
+
+// Fase 4: `crm_data/{uid}` ya no existe — el cliente y su primer proyecto
+// viven en Postgres (`clients`/`projects`, source='crm_blob').
+async function findBlobClientAndFirstProject(firebaseUid: string, clientFirestoreId: string) {
+  const [user] = await db.select({ id: users.id }).from(users).where(eq(users.firebaseUid, firebaseUid)).limit(1);
+  if (!user) return null;
+  const [client] = await db
+    .select({ id: clients.id, portalEnabled: clients.portalEnabled })
+    .from(clients)
+    .where(and(eq(clients.ownerId, user.id), eq(clients.source, "crm_blob"), eq(clients.firestoreId, clientFirestoreId)))
+    .limit(1);
+  if (!client) return null;
+  const [project] = await db
+    .select({ id: projects.id })
+    .from(projects)
+    .where(eq(projects.clientId, client.id))
+    .orderBy(asc(projects.createdAt))
+    .limit(1);
+  return { client, project: project ?? null };
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
@@ -70,46 +93,27 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const db = getAdminFirestore();
-
-    // Read CRM data — add task to first project
-    const crmSnap = await db.collection("crm_data").doc(uid).get();
-    // Fail closed: if there's no crm_data doc for this uid, the portal was never configured
-    // for this account — do not silently skip the portalEnabled gate and create the request.
-    if (!crmSnap.exists) {
+    // Fail closed: si no hay cliente para este uid, el portal nunca se
+    // configuró para esta cuenta — no saltarse el gate de portalEnabled.
+    const found = await findBlobClientAndFirstProject(uid, clientId);
+    if (!found) {
       return NextResponse.json({ error: "Portal not configured" }, { status: 403 });
+    }
+    if (!found.client.portalEnabled) {
+      return NextResponse.json({ error: "Portal disabled" }, { status: 403 });
     }
 
     let linkedTaskId: string | undefined;
-    const data = crmSnap.data()!;
-    const clients = data.clients as Array<{ id: string; portalEnabled?: boolean; projects?: Array<{ id: string; tasks?: unknown[] }> }>;
-    const client = clients.find(c => c.id === clientId);
-    // Respect portalEnabled gate
-    if (!client?.portalEnabled) {
-      return NextResponse.json({ error: "Portal disabled" }, { status: 403 });
-    }
-    const project = client?.projects?.[0];
-    if (project) {
+    if (found.project) {
       const taskId = `task_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-      const newTask = {
-        id: taskId,
+      await createTask(found.project.id, {
+        firestoreId: taskId,
         name: `[PORTAL] ${safeTitle}`,
         desc: safeDescription,
         status: "pendiente",
         prio: "urgent",
-        createdAt: new Date().toISOString(),
         pomoSessions: 0,
-      };
-      const updatedClients = clients.map(c => {
-        if (c.id !== clientId) return c;
-        return {
-          ...c,
-          projects: (c.projects ?? []).map((p, i) =>
-            i === 0 ? { ...p, tasks: [...(p.tasks ?? []), newTask] } : p,
-          ),
-        };
       });
-      await db.collection("crm_data").doc(uid).update({ clients: updatedClients });
       linkedTaskId = taskId;
     }
 
@@ -137,15 +141,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const resolved = await resolveToken(token);
     if (!resolved) return NextResponse.json({ error: "Invalid token" }, { status: 401 });
 
-    // Check portalEnabled
-    const db = getAdminFirestore();
-    const crmSnap = await db.collection("crm_data").doc(resolved.uid).get();
-    if (crmSnap.exists) {
-      const clients = (crmSnap.data()?.clients ?? []) as Array<{ id: string; portalEnabled?: boolean }>;
-      const client = clients.find(c => c.id === resolved.clientId);
-      if (!client?.portalEnabled) {
-        return NextResponse.json({ error: "Portal disabled" }, { status: 403 });
-      }
+    const found = await findBlobClientAndFirstProject(resolved.uid, resolved.clientId);
+    if (found && !found.client.portalEnabled) {
+      return NextResponse.json({ error: "Portal disabled" }, { status: 403 });
     }
 
     const requests = await getPortalRequests(resolved.uid, resolved.clientId);

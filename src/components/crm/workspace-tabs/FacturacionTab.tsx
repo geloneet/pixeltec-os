@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { FileText, Plus, Trash2 } from "lucide-react";
-import { useFirestore, useUser } from "@/firebase";
+import { useUser } from "@/firebase";
 import type { Invoice, InvoiceItem } from "@/types/documents";
 import {
   getInvoices,
@@ -32,7 +32,6 @@ const formatMXN = (n: number) =>
   }).format(n);
 
 export function FacturacionTab({ clientId }: Props) {
-  const firestore = useFirestore();
   const user = useUser();
 
   const [view, setView] = useState<"list" | "create">("list");
@@ -47,15 +46,15 @@ export function FacturacionTab({ clientId }: Props) {
   const [notes, setNotes] = useState("");
 
   const loadInvoices = useCallback(async () => {
-    if (!firestore || !user) { setLoading(false); return; }
+    if (!user) { setLoading(false); return; }
     setLoading(true);
     try {
-      const data = await getInvoices(firestore, user.uid, clientId);
+      const data = await getInvoices(user.uid, clientId);
       setInvoices(data);
     } finally {
       setLoading(false);
     }
-  }, [firestore, user, clientId]);
+  }, [user, clientId]);
 
   useEffect(() => { loadInvoices(); }, [loadInvoices]);
 
@@ -80,10 +79,10 @@ export function FacturacionTab({ clientId }: Props) {
   const total = subtotal + ivaAmount;
 
   const handleSave = async () => {
-    if (!firestore || !user || !dueDate) return;
+    if (!user || !dueDate) return;
     setSaving(true);
     try {
-      const number = await getNextInvoiceNumber(firestore, user.uid);
+      const number = await getNextInvoiceNumber(user.uid);
       const invoiceItems: InvoiceItem[] = items.map((it, i) => ({
         id: `item_${i}`,
         description: it.description,
@@ -91,7 +90,7 @@ export function FacturacionTab({ clientId }: Props) {
         unitPrice: it.unitPrice,
         subtotal: it.qty * it.unitPrice,
       }));
-      await createInvoice(firestore, user.uid, clientId, {
+      await createInvoice(user.uid, clientId, {
         number,
         status: "borrador",
         items: invoiceItems,
@@ -117,9 +116,8 @@ export function FacturacionTab({ clientId }: Props) {
   const [statusError, setStatusError] = useState<string>("");
 
   const handleStatusChange = async (invoice: Invoice, status: Invoice["status"]) => {
-    if (!firestore) return;
     try {
-      await updateInvoice(firestore, invoice.id, { status });
+      await updateInvoice(invoice.id, { status });
       setInvoices(prev =>
         prev.map(inv => (inv.id === invoice.id ? { ...inv, status } : inv)),
       );

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Sparkles } from "lucide-react";
-import { useFirestore, useUser } from "@/firebase";
+import { useUser } from "@/firebase";
 import type { DiscoverySession } from "@/types/documents";
 import { DISCOVERY_INDUSTRIES } from "@/types/documents";
 import {
@@ -32,7 +32,6 @@ function groupByCategory(questions: DiscoverySession["questions"]): Record<strin
 // ── Component ──────────────────────────────────────────────────────────────────
 
 export function DiscoveryTab({ clientId, clientName }: Props) {
-  const firestore = useFirestore();
   const user = useUser();
 
   // Data
@@ -50,23 +49,23 @@ export function DiscoveryTab({ clientId, clientName }: Props) {
   // ── Data loading ─────────────────────────────────────────────────────────────
 
   const loadSession = useCallback(async () => {
-    if (!firestore || !user) { setLoading(false); return; }
+    if (!user) { setLoading(false); return; }
     setLoading(true);
     try {
-      const data = await getLatestDiscoverySession(firestore, user.uid, clientId);
+      const data = await getLatestDiscoverySession(user.uid, clientId);
       setSession(data);
       if (data) setAnswers(data.answers);
     } finally {
       setLoading(false);
     }
-  }, [firestore, user, clientId]);
+  }, [user, clientId]);
 
   useEffect(() => { loadSession(); }, [loadSession]);
 
   // ── Handlers ─────────────────────────────────────────────────────────────────
 
   const handleGenerate = async () => {
-    if (!industry || !firestore || !user) return;
+    if (!industry || !user) return;
     setGenerating(true);
     try {
       const res = await fetch("/api/documents/discovery-generate", {
@@ -77,7 +76,7 @@ export function DiscoveryTab({ clientId, clientName }: Props) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       if (!data.questions?.length) throw new Error("No questions returned");
-      const id = await createDiscoverySession(firestore, user.uid, clientId, {
+      const id = await createDiscoverySession(user.uid, clientId, {
         industry,
         status: "en_progreso",
         questions: data.questions,
@@ -101,13 +100,13 @@ export function DiscoveryTab({ clientId, clientName }: Props) {
   };
 
   const handleSave = async () => {
-    if (!firestore || !session) return;
+    if (!session) return;
     setSaving(true);
     try {
       const isComplete = session.questions
         .filter((q) => q.required)
         .every((q) => answers[q.id]?.trim());
-      await updateDiscoverySession(firestore, session.id, {
+      await updateDiscoverySession(session.id, {
         answers,
         status: isComplete ? "completado" : "en_progreso",
         ...(isComplete ? { completedAt: new Date().toISOString() } : {}),

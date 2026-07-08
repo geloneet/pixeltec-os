@@ -1,45 +1,27 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, useRef, useCallback, type ReactNode } from "react";
-import { useUser, useFirestore } from "@/firebase";
-import { doc, getDoc, runTransaction } from "firebase/firestore";
+import { useUser } from "@/firebase";
 import { toast } from "sonner";
 import { clientSchema, projectSchema, taskSchema } from "@/lib/crm-schemas";
+import { getCrmDataAction, syncCrmDataAction, type CrmSyncPayload } from "./crm-actions";
 import type { CRMClient, CRMProject, CRMTask, CRMKey, Tool, KnowledgeTip, ServerClientLink, RecurringCharge, ProjectLogEntry } from "@/types/crm";
 import type { WorkSession, BlockerType, BlockerStatus, BlockerImpact, BlockerSource, ObservationType, SessionGoal } from "@/types/session";
 
 const MAX_LOG_ENTRIES = 500;
 
-// Shape of the `crm_data/{uid}` document, and the top-level section keys
-// `persist()` can selectively overwrite. See the `persist` doc comment.
-interface PersistedDoc {
-  clients: CRMClient[];
-  tools: Tool[];
-  streak: number;
-  serverLinks: ServerClientLink;
-  sessions: WorkSession[];
-}
-
-function migrateTaskStatus(raw: string): CRMTask["status"] {
-  if (raw === "proceso") return "en_progreso";
-  if (raw === "detenido") return "pausado";
-  const valid = ["pendiente", "en_progreso", "en_revision", "completado", "pausado", "bloqueado"];
-  return valid.includes(raw) ? (raw as CRMTask["status"]) : "pendiente";
-}
+// Secciones top-level que `persist()` puede sincronizar de forma
+// independiente — ver el comentario de `persist` más abajo.
+type PersistedKey = keyof CrmSyncPayload;
 
 function uid(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 }
 
-// Firestore rejects undefined values — strip them recursively before saving
-function stripUndefined<T>(obj: T): T {
-  return JSON.parse(JSON.stringify(obj));
-}
-
 // `RecurringCharge.amount` is a free-text string. Strip currency symbols,
 // thousands separators and whitespace (e.g. "$1,500.00" -> "1500.00") and
 // validate the result is a finite, positive number before ever letting it
-// reach Firestore — otherwise downstream `Number(charge.amount)` sums
+// reach the server — otherwise downstream `Number(charge.amount)` sums
 // silently turn into NaN -> 0, under-reporting revenue totals and emails.
 // Returns the cleaned numeric value, or `null` if the input isn't a valid
 // positive amount.
@@ -112,7 +94,6 @@ export function useCRM() {
 
 export function CRMProvider({ children }: { children: ReactNode }) {
   const user = useUser();
-  const firestore = useFirestore();
   const [clients, setClients] = useState<CRMClient[]>([]);
   const [tools, setTools] = useState<Tool[]>([]);
   const [streak, setStreak] = useState(0);
@@ -123,59 +104,30 @@ export function CRMProvider({ children }: { children: ReactNode }) {
   const dataRef = useRef<{ clients: CRMClient[]; tools: Tool[]; streak: number; serverLinks: ServerClientLink; sessions: WorkSession[] }>({ clients: [], tools: [], streak: 0, serverLinks: {}, sessions: [] });
 
   const userEmail = user?.email || "";
-  const userUid = user?.uid;
 
-  // Load data from Firestore
+  // Carga inicial desde Postgres (Fase 4 — antes: onSnapshot/getDoc de
+  // Firestore). La sesión se resuelve del lado del servidor dentro de
+  // `getCrmDataAction` (cookie de NextAuth) — solo esperamos a que
+  // `useUser()` deje de estar en `undefined` (sesión cargando) antes de
+  // pedir los datos.
   useEffect(() => {
-    if (!userUid || !firestore) return;
+    if (user === undefined) return;
+    if (user === null) { setLoading(false); return; }
     let cancelled = false;
     (async () => {
       try {
-        const snap = await getDoc(doc(firestore, "crm_data", userUid));
+        const d = await getCrmDataAction();
         if (!cancelled) {
-          if (snap.exists()) {
-            const d = snap.data();
-            const loadedClients = (d.clients || []).map((c: any) => ({
-              ...c,
-              email: c.email || "",
-              projects: (c.projects || []).map((p: any) => ({
-                ...p,
-                charges: p.charges || [],
-                budget: Number(p.budget) || 0,
-                annual: Number(p.annual) || 0,
-                budgetIva: p.budgetIva || "none",
-                annualIva: p.annualIva || "none",
-                tasks: (p.tasks || []).map((t: any) => ({
-                  ...t,
-                  status: migrateTaskStatus(t.status ?? "pendiente"),
-                })),
-                notesLog: (() => {
-                  const existing: ProjectLogEntry[] = p.notesLog || [];
-                  // Guard: only migrate once. If entry-deletion is added later,
-                  // clear quickNotes (or add a migrated flag) to prevent re-injection.
-                  if (existing.length === 0 && p.quickNotes?.trim()) {
-                    return [{
-                      id: `legacy-${p.id}`,
-                      category: "General" as const,
-                      content: p.quickNotes.trim(),
-                      authorName: "Sistema",
-                      createdAt: typeof p.createdAt === "string"
-                        ? p.createdAt
-                        : new Date().toISOString(),
-                    }];
-                  }
-                  return existing;
-                })(),
-              })),
-            }));
-            const loadedSessions: WorkSession[] = d.sessions || [];
-            setClients(loadedClients);
-            setTools(d.tools || []);
-            setStreak(d.streak || 0);
-            setServerLinks(d.serverLinks || {});
-            setSessions(loadedSessions);
-            dataRef.current = { clients: loadedClients, tools: d.tools || [], streak: d.streak || 0, serverLinks: d.serverLinks || {}, sessions: loadedSessions };
-          }
+          // `getFullCrmData` (repos/crm-sync.ts) ya devuelve datos normalizados
+          // (budget/annual como number, status válido, notesLog poblado) — no
+          // hace falta la migración legacy que sí necesitaba el blob crudo de
+          // Firestore.
+          setClients(d.clients);
+          setTools(d.tools);
+          setStreak(d.streak);
+          setServerLinks(d.serverLinks);
+          setSessions(d.sessions);
+          dataRef.current = d;
           setLoading(false);
         }
       } catch (error) {
@@ -189,7 +141,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       }
     })();
     return () => { cancelled = true; };
-  }, [userUid, firestore]);
+  }, [user]);
 
   // Cleanup save timer on unmount
   useEffect(() => {
@@ -223,27 +175,18 @@ export function CRMProvider({ children }: { children: ReactNode }) {
   // last-write-wins. A true merge there would need to diff into
   // clients→projects→tasks/charges, which is too deep/costly to do safely
   // as part of this fix.
-  const persist = useCallback((changedKeys: Array<keyof PersistedDoc>) => {
-    if (!userUid || !firestore) return;
+  const persist = useCallback((changedKeys: PersistedKey[]) => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(async () => {
       try {
-        const ref = doc(firestore, "crm_data", userUid);
-        await runTransaction(firestore, async (tx) => {
-          const snap = await tx.get(ref);
-          const remote = snap.exists() ? (snap.data() as Partial<PersistedDoc>) : {};
-          const merged: PersistedDoc = {
-            clients: changedKeys.includes("clients") ? dataRef.current.clients : (remote.clients ?? dataRef.current.clients),
-            tools: changedKeys.includes("tools") ? dataRef.current.tools : (remote.tools ?? dataRef.current.tools),
-            streak: changedKeys.includes("streak") ? dataRef.current.streak : (remote.streak ?? dataRef.current.streak),
-            serverLinks: changedKeys.includes("serverLinks") ? dataRef.current.serverLinks : (remote.serverLinks ?? dataRef.current.serverLinks),
-            sessions: changedKeys.includes("sessions") ? dataRef.current.sessions : (remote.sessions ?? dataRef.current.sessions),
-          };
-          tx.set(ref, stripUndefined({
-            ...merged,
-            lastActivity: new Date().toISOString(),
-          }));
-        });
+        const payload: CrmSyncPayload = {};
+        if (changedKeys.includes("clients")) payload.clients = dataRef.current.clients;
+        if (changedKeys.includes("tools")) payload.tools = dataRef.current.tools;
+        if (changedKeys.includes("streak")) payload.streak = dataRef.current.streak;
+        if (changedKeys.includes("serverLinks")) payload.serverLinks = dataRef.current.serverLinks;
+        if (changedKeys.includes("sessions")) payload.sessions = dataRef.current.sessions;
+        const result = await syncCrmDataAction(payload);
+        if (!result.ok) throw new Error(result.error);
       } catch (error) {
         console.error('Error saving CRM data:', error);
         toast.error('Error al guardar cambios', {
@@ -251,12 +194,12 @@ export function CRMProvider({ children }: { children: ReactNode }) {
         });
       }
     }, 500);
-  }, [userUid, firestore]);
+  }, []);
 
   const update = useCallback((newClients: CRMClient[], newStreak?: number) => {
     setClients(newClients);
     dataRef.current.clients = newClients;
-    const changedKeys: Array<keyof PersistedDoc> = ["clients"];
+    const changedKeys: PersistedKey[] = ["clients"];
     if (newStreak !== undefined) {
       setStreak(newStreak);
       dataRef.current.streak = newStreak;

@@ -1,17 +1,22 @@
-// Server-only helpers that read the single crm_data/{uid} document and derive
-// the projection types used by /hoy and /proyectos. There are no clients/projects
-// Firestore collections — all CRM data lives in this one document as nested arrays
-// (written by the client SDK in CRMContext). lastActivityAt falls back to createdAt
-// (the model has no updatedAt).
-import { getAdminFirestore } from "@/lib/firebase-admin";
+// Server-only helpers that derive the projection types used by /hoy and
+// /proyectos. Fase 4: el núcleo CRM ya vive en Postgres (tabla `clients`,
+// source='crm_blob') — se dejó de leer el blob `crm_data/{uid}` de Firestore.
+import { eq } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { users } from "@/lib/db/schema";
+import { getFullCrmData } from "@/lib/db/repos/crm-sync";
 import type { CRMClient } from "@/types/crm";
 import type { ActiveProject, RecentClient } from "@/lib/hoy/types";
 
-/** Reads the single CRM blob document via the Admin SDK. */
+/**
+ * `uid` aquí sigue siendo el firebaseUid (bridge) que devuelve
+ * `getSessionUid()` — se resuelve al ownerId real de Postgres antes de leer.
+ */
 export async function getCrmClients(uid: string): Promise<CRMClient[]> {
-  const snap = await getAdminFirestore().collection("crm_data").doc(uid).get();
-  if (!snap.exists) return [];
-  return (snap.data()?.clients ?? []) as CRMClient[];
+  const [user] = await db.select({ id: users.id }).from(users).where(eq(users.firebaseUid, uid)).limit(1);
+  if (!user) return [];
+  const data = await getFullCrmData(user.id);
+  return data.clients;
 }
 
 /** Flatten nested client.projects[] into ActiveProject rows, newest first. Pass `limit` to cap. */

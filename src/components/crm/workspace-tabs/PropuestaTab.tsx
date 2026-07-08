@@ -6,7 +6,7 @@ import {
   Download, Eye, Clock, CheckCircle2, XCircle, Send, RefreshCw,
   ChevronDown, ChevronUp, Copy, Check,
 } from "lucide-react";
-import { useFirestore, useUser } from "@/firebase";
+import { useUser } from "@/firebase";
 import type { Proposal } from "@/types/documents";
 import { getProposals, createProposal, updateProposal, publishProposal } from "@/lib/documents/proposals";
 
@@ -78,7 +78,6 @@ function CopyButton({ text, children }: { text: string; children: React.ReactNod
 // ── Component ──────────────────────────────────────────────────────────────────
 
 export function PropuestaTab({ clientId, clientName }: Props) {
-  const firestore = useFirestore();
   const user = useUser();
 
   const [view, setView] = useState<"list" | "create" | "detail">("list");
@@ -103,15 +102,15 @@ export function PropuestaTab({ clientId, clientName }: Props) {
   // ── Data ─────────────────────────────────────────────────────────────────
 
   const loadProposals = useCallback(async () => {
-    if (!firestore || !user) { setLoading(false); return; }
+    if (!user) { setLoading(false); return; }
     setLoading(true);
     try {
-      const data = await getProposals(firestore, user.uid, clientId);
+      const data = await getProposals(user.uid, clientId);
       setProposals(data);
     } finally {
       setLoading(false);
     }
-  }, [firestore, user, clientId]);
+  }, [user, clientId]);
 
   useEffect(() => { loadProposals(); }, [loadProposals]);
 
@@ -134,10 +133,10 @@ export function PropuestaTab({ clientId, clientName }: Props) {
   };
 
   const handleSave = async () => {
-    if (!title.trim() || !scope.trim() || !firestore || !user) return;
+    if (!title.trim() || !scope.trim() || !user) return;
     setSaving(true);
     try {
-      await createProposal(firestore, user.uid, clientId, clientName, {
+      await createProposal(user.uid, clientId, clientName, {
         title: title.trim(),
         scope: scope.trim(),
         solution: generatedData?.solution,
@@ -157,10 +156,10 @@ export function PropuestaTab({ clientId, clientName }: Props) {
   };
 
   const handlePublish = async () => {
-    if (!firestore || !selected) return;
+    if (!selected) return;
     setPublishing(true);
     try {
-      const token = await publishProposal(firestore, selected);
+      const token = await publishProposal(selected);
       const updated = { ...selected, publicToken: token, status: selected.status === "borrador" ? "enviada" as const : selected.status };
       setSelected(updated);
       await loadProposals();
@@ -170,7 +169,7 @@ export function PropuestaTab({ clientId, clientName }: Props) {
   };
 
   const handleConvertToContract = async () => {
-    if (!firestore || !user || !selected) return;
+    if (!user || !selected) return;
     setConverting(true);
     try {
       const { createContract } = await import("@/lib/documents/contracts");
@@ -183,7 +182,7 @@ export function PropuestaTab({ clientId, clientName }: Props) {
         selected.timeline && `\nTIMELINE: ${selected.timeline}`,
       ].filter(Boolean).join("\n");
 
-      const newContractId = await createContract(firestore, user.uid, clientId, {
+      const newContractId = await createContract(user.uid, clientId, {
         title: selected.title,
         content,
         status: "borrador",
@@ -191,7 +190,7 @@ export function PropuestaTab({ clientId, clientName }: Props) {
         variables: {},
         proposalId: selected.id,
       });
-      await updateProposal(firestore, selected.id, { status: "aceptada", contractId: newContractId });
+      await updateProposal(selected.id, { status: "aceptada", contractId: newContractId });
       setSelected(prev => prev ? { ...prev, status: "aceptada", contractId: newContractId } : prev);
       await loadProposals();
     } finally {
@@ -200,8 +199,8 @@ export function PropuestaTab({ clientId, clientName }: Props) {
   };
 
   const handleStatusChange = async (newStatus: Proposal["status"]) => {
-    if (!firestore || !selected) return;
-    await updateProposal(firestore, selected.id, { status: newStatus });
+    if (!selected) return;
+    await updateProposal(selected.id, { status: newStatus });
     setSelected(prev => prev ? { ...prev, status: newStatus } : prev);
     await loadProposals();
   };

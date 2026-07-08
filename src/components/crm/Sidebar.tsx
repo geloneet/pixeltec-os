@@ -1,8 +1,6 @@
 "use client";
 
-import { useAuth } from "@/firebase";
-import { signOut } from "firebase/auth";
-import { useRouter } from "next/navigation";
+import { signOut } from "next-auth/react";
 import { useCRM } from "./CRMContextCore";
 import type { CRMClient } from "@/types/crm";
 
@@ -74,16 +72,10 @@ function NavIcon({ name }: { name: string }) {
 }
 
 export function Sidebar({ view, setView, clients, navigateToClient, setModal, streak, pomoRunning, pomoSeconds, pomoMode }: SidebarProps) {
-  const auth = useAuth();
-  const router = useRouter();
   const { userEmail } = useCRM();
 
   const handleLogout = async () => {
-    if (auth) {
-      await fetch("/api/auth/session", { method: "DELETE" });
-      await signOut(auth);
-      router.push("/login");
-    }
+    await signOut({ redirectTo: "/login" });
   };
 
   const navItems: { key: string; label: string; hint?: string }[] = [

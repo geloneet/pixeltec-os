@@ -5,7 +5,7 @@ import {
   ArrowLeft, FileText, Download, UserPlus, X, Check,
   Clock, CheckCircle2, AlertCircle, XCircle, FileCheck,
 } from "lucide-react";
-import { useFirestore, useUser } from "@/firebase";
+import { useUser } from "@/firebase";
 import type { Contract, ContractSigner, IATemplate } from "@/types/documents";
 import { getContracts, createContract, updateContract, createContractVersion } from "@/lib/documents/contracts";
 import { getTemplates } from "@/lib/documents/ia-templates";
@@ -52,7 +52,6 @@ interface Props {
 // ── Component ──────────────────────────────────────────────────────────────────
 
 export function ContratosTab({ clientId }: Props) {
-  const firestore = useFirestore();
   const user = useUser();
 
   const [view, setView] = useState<"list" | "create" | "detail">("list");
@@ -82,21 +81,21 @@ export function ContratosTab({ clientId }: Props) {
   // ── Data ─────────────────────────────────────────────────────────────────
 
   const loadContracts = useCallback(async () => {
-    if (!firestore || !user) { setLoading(false); return; }
+    if (!user) { setLoading(false); return; }
     setLoading(true);
     try {
-      const data = await getContracts(firestore, user.uid, clientId);
+      const data = await getContracts(user.uid, clientId);
       setContracts(data);
     } finally {
       setLoading(false);
     }
-  }, [firestore, user, clientId]);
+  }, [user, clientId]);
 
   const loadTemplates = useCallback(async () => {
-    if (!firestore || !user) return;
-    const data = await getTemplates(firestore, user.uid, "contrato");
+    if (!user) return;
+    const data = await getTemplates(user.uid, "contrato");
     setTemplates(data);
-  }, [firestore, user]);
+  }, [user]);
 
   useEffect(() => { loadContracts(); }, [loadContracts]);
   useEffect(() => { if (view === "create") loadTemplates(); }, [view, loadTemplates]);
@@ -104,7 +103,7 @@ export function ContratosTab({ clientId }: Props) {
   // ── Signer handlers ───────────────────────────────────────────────────────
 
   const handleAddSigner = async () => {
-    if (!firestore || !selectedContract || !signerName.trim()) return;
+    if (!selectedContract || !signerName.trim()) return;
     setAddingSign(true);
     try {
       const newSigner: ContractSigner = {
@@ -113,7 +112,7 @@ export function ContratosTab({ clientId }: Props) {
         role: signerRole.trim() || "Firmante",
       };
       const signers = [...(selectedContract.signers ?? []), newSigner];
-      await updateContract(firestore, selectedContract.id, { signers });
+      await updateContract(selectedContract.id, { signers });
       setSelectedContract(prev => prev ? { ...prev, signers } : prev);
       setSignerName(""); setSignerEmail(""); setSignerRole("");
       setShowAddSigner(false);
@@ -124,19 +123,19 @@ export function ContratosTab({ clientId }: Props) {
   };
 
   const handleRemoveSigner = async (idx: number) => {
-    if (!firestore || !selectedContract) return;
+    if (!selectedContract) return;
     const signers = selectedContract.signers.filter((_, i) => i !== idx);
-    await updateContract(firestore, selectedContract.id, { signers });
+    await updateContract(selectedContract.id, { signers });
     setSelectedContract(prev => prev ? { ...prev, signers } : prev);
     await loadContracts();
   };
 
   const handleMarkSigned = async (idx: number) => {
-    if (!firestore || !selectedContract) return;
+    if (!selectedContract) return;
     const signers = selectedContract.signers.map((s, i) =>
       i === idx ? { ...s, signedAt: new Date().toISOString() } : s,
     );
-    await updateContract(firestore, selectedContract.id, { signers });
+    await updateContract(selectedContract.id, { signers });
     setSelectedContract(prev => prev ? { ...prev, signers } : prev);
     await loadContracts();
   };
@@ -284,13 +283,13 @@ export function ContratosTab({ clientId }: Props) {
             <div className="flex gap-2">
               <button
                 onClick={async () => {
-                  if (!newTitle.trim() || !firestore || !user) return;
+                  if (!newTitle.trim() || !user) return;
                   setCreating(true);
                   try {
                     const content = selectedTemplate.id === "__blank__"
                       ? ""
                       : hydrateContent(selectedTemplate.content, varValues);
-                    await createContract(firestore, user.uid, clientId, {
+                    await createContract(user.uid, clientId, {
                       title: newTitle.trim(), content, status: "borrador",
                       signers: [], variables: varValues,
                       templateId: selectedTemplate.id === "__blank__" ? undefined : selectedTemplate.id,
@@ -348,9 +347,9 @@ export function ContratosTab({ clientId }: Props) {
             />
             <button
               onClick={async () => {
-                if (!firestore || !titleDraft.trim()) return;
+                if (!titleDraft.trim()) return;
                 setSaving(true);
-                await updateContract(firestore, selectedContract.id, { title: titleDraft.trim() });
+                await updateContract(selectedContract.id, { title: titleDraft.trim() });
                 setSelectedContract(prev => prev ? { ...prev, title: titleDraft.trim() } : prev);
                 setEditingTitle(false); setSaving(false);
                 loadContracts();
@@ -408,9 +407,8 @@ export function ContratosTab({ clientId }: Props) {
         <select
           value={selectedContract.status}
           onChange={async e => {
-            if (!firestore) return;
             const newStatus = e.target.value as Contract["status"];
-            await updateContract(firestore, selectedContract.id, { status: newStatus });
+            await updateContract(selectedContract.id, { status: newStatus });
             setSelectedContract(prev => prev ? { ...prev, status: newStatus } : prev);
             loadContracts();
           }}
@@ -425,8 +423,8 @@ export function ContratosTab({ clientId }: Props) {
 
         <button
           onClick={async () => {
-            if (!firestore || !user) return;
-            await createContractVersion(firestore, selectedContract.id, user.uid, clientId);
+            if (!user) return;
+            await createContractVersion(selectedContract.id, user.uid, clientId);
             await loadContracts();
             setView("list");
           }}
