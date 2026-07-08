@@ -6,7 +6,7 @@ import {
   Download, Eye, Clock, CheckCircle2, XCircle, Send, RefreshCw,
   ChevronDown, ChevronUp, Copy, Check,
 } from "lucide-react";
-import { useUser } from "@/firebase";
+import { useUser } from "@/hooks/use-user";
 import type { Proposal } from "@/types/documents";
 import { getProposals, createProposal, updateProposal, publishProposal } from "@/lib/documents/proposals";
 

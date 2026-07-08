@@ -1,4 +1,3 @@
-import type { Timestamp } from 'firebase-admin/firestore';
 
 export type AssetType =
   | 'logo'
@@ -24,5 +23,5 @@ export interface Asset {
   linkedPostId?: string;
   linkedCampaignId?: string;
   isUserUploaded: boolean;
-  createdAt: Timestamp;
+  createdAt: Date;
 }

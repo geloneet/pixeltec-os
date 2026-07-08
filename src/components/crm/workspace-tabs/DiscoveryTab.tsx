@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Sparkles } from "lucide-react";
-import { useUser } from "@/firebase";
+import { useUser } from "@/hooks/use-user";
 import type { DiscoverySession } from "@/types/documents";
 import { DISCOVERY_INDUSTRIES } from "@/types/documents";
 import {

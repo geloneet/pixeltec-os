@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Plus, Sparkles } from "lucide-react";
-import { useUser } from "@/firebase";
+import { useUser } from "@/hooks/use-user";
 import type { IATemplate, IATemplateType } from "@/types/documents";
 import { IA_TEMPLATE_TYPES, IA_TEMPLATE_TYPE_LABELS } from "@/types/documents";
 import {

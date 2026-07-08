@@ -49,17 +49,10 @@ const NOT_FOUND_HTML = `<!DOCTYPE html>
 </body>
 </html>`;
 
-const FIREBASE_AUTH_DOMAIN = 'studio-1487114664-78b63.firebaseapp.com';
-
 // Dominios de terceros con script-src propio (fuera del nonce): Cloudflare Web
-// Analytics (inyectado a nivel de edge/proxy) y los helpers de Firebase Auth
-// para OAuth federado (api.js / gstatic) — se mantienen aunque hoy no se
-// detecte un signInWithPopup/Redirect activo, para no romper esos flujos si
-// se usan condicionalmente.
+// Analytics, inyectado a nivel de edge/proxy.
 const THIRD_PARTY_SCRIPT_SRC = [
   'https://static.cloudflareinsights.com',
-  'https://apis.google.com',
-  'https://www.gstatic.com',
 ].join(' ');
 
 function buildCsp(nonce: string): string {
@@ -70,18 +63,11 @@ function buildCsp(nonce: string): string {
     "default-src 'self'",
     scriptSrc,
     "style-src 'self' 'unsafe-inline'",
-    [
-      "connect-src 'self'",
-      'https://identitytoolkit.googleapis.com',
-      'https://securetoken.googleapis.com',
-      'https://firestore.googleapis.com',
-      'wss://firestore.googleapis.com',
-      `https://${FIREBASE_AUTH_DOMAIN}`,
-    ].join(' '),
+    "connect-src 'self'",
     // Permisivo a propósito (https: en vez de una allowlist corta): las
     // actualizaciones del portal de clientes aceptan cualquier URL de imagen
-    // válida (src/app/actions.ts, addClientUpdateAction), no solo Firebase
-    // Storage — restringir aquí rompería esas imágenes silenciosamente.
+    // válida (src/app/actions.ts, addClientUpdateAction), no solo R2 —
+    // restringir aquí rompería esas imágenes silenciosamente.
     "img-src 'self' data: blob: https:",
     "font-src 'self' data:",
     "frame-src 'none'",

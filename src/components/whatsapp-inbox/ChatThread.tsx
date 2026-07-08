@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { ArrowLeft, LoaderCircle, PanelRight } from "lucide-react";
 import { toast } from "sonner";
-import { useUser } from "@/firebase";
+import { useUser } from "@/hooks/use-user";
 import { useInboxContactNotes } from "@/hooks/use-inbox-contact-notes";
 import { useInboxMessages } from "@/hooks/use-inbox-messages";
 import { cn } from "@/lib/utils";
@@ -42,9 +42,7 @@ function formatTime(msg: InboxMessage): string {
 }
 
 function formatNoteTime(note: ContactNote): string {
-  // note.createdAt llega como ISO string desde la API (ver nota de cast en
-  // src/lib/db/repos/whatsapp-contacts.ts) — ya no es un Timestamp de Firestore.
-  const d = note.createdAt ? new Date(note.createdAt as unknown as string) : new Date();
+  const d = note.createdAt ? new Date(note.createdAt) : new Date();
   return d.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" });
 }
 
@@ -119,7 +117,7 @@ export function ChatThread({
     const noteItems: TimelineItem[] = (notes ?? []).map((n) => ({
       kind: "note",
       id: n.id,
-      time: n.createdAt ? new Date(n.createdAt as unknown as string) : new Date(),
+      time: n.createdAt ? new Date(n.createdAt) : new Date(),
       data: n,
     }));
     return [...msgItems, ...noteItems].sort((a, b) => a.time.getTime() - b.time.getTime());

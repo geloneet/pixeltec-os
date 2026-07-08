@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { useUser } from "@/firebase";
-import { useUserProfile } from "@/firebase/auth/use-user-profile";
+import { useUser } from "@/hooks/use-user";
+import { useUserProfile } from "@/hooks/use-user-profile";
 import { cn } from "@/lib/utils";
 import {
   CRMProject,

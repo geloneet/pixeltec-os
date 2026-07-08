@@ -20,14 +20,13 @@ export interface AlertResponse {
   messageId?: number;
 }
 
-import type { Timestamp } from 'firebase-admin/firestore';
 
 export interface InfraSilenceDoc {
   id: string;
   silencedBy: string;
   reason?: string;
-  createdAt: Timestamp;
-  expiresAt: Timestamp;
+  createdAt: Date;
+  expiresAt: Date;
   source?: string;
 }
 
@@ -37,7 +36,7 @@ export interface InfraCommandLogDoc {
   args?: string;
   chatId: string;
   username?: string;
-  executedAt: Timestamp;
+  executedAt: Date;
   result: 'ok' | 'denied' | 'error';
   durationMs?: number;
   errorMessage?: string;

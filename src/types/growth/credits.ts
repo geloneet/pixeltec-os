@@ -1,4 +1,3 @@
-import type { Timestamp } from 'firebase-admin/firestore';
 
 export type CreditTransactionType =
   | 'monthly_grant'
@@ -16,7 +15,7 @@ export interface CreditSummary {
   monthlyAllowance: number;
   totalPurchased: number;
   totalUsed: number;
-  lastMonthlyRefillAt?: Timestamp;
+  lastMonthlyRefillAt?: Date;
   plan: OrganizationPlan;
 }
 
@@ -31,8 +30,8 @@ export interface CreditLedgerEntry {
   operation?: string;
   referenceId?: string;
   description: string;
-  expiresAt?: Timestamp;
-  createdAt: Timestamp;
+  expiresAt?: Date;
+  createdAt: Date;
 }
 
 export const PLAN_MONTHLY_ALLOWANCE: Record<OrganizationPlan, number> = {

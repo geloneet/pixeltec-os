@@ -25,9 +25,7 @@ export async function generateDraft(briefId: string): Promise<ActionResult<{ pos
   if (!briefRow) return { ok: false, error: 'Brief no encontrado' };
   const briefFields = briefRow.data as Record<string, unknown>;
 
-  // generatePostFromBrief solo consume los campos de contenido — el shape
-  // BlogBriefDoc pide Timestamp en createdAt pero no se usa para generar.
-  const briefData = {
+  const briefData: BlogBriefDoc = {
     id: publicId(briefRow),
     topic: (briefFields.topic as string) ?? '',
     angle: (briefFields.angle as string) ?? '',
@@ -38,7 +36,7 @@ export async function generateDraft(briefId: string): Promise<ActionResult<{ pos
     generatedDraftId: null,
     createdBy: (briefFields.createdBy as string) ?? uid,
     createdAt: briefRow.createdAt,
-  } as unknown as BlogBriefDoc;
+  };
 
   // Mark as generating
   await setBriefStatus(briefRow.id, { status: 'generating' });
@@ -109,7 +107,7 @@ export async function regenerateDraft(postId: string): Promise<ActionResult<{ po
   if (!row) return { ok: false, error: 'Post no encontrado' };
 
   const briefSource = row.briefSource as Record<string, unknown>;
-  const briefLike = {
+  const briefLike: BlogBriefDoc = {
     id: postId,
     topic: (briefSource.topic as string) ?? '',
     angle: (briefSource.angle as string) ?? '',
@@ -120,7 +118,7 @@ export async function regenerateDraft(postId: string): Promise<ActionResult<{ po
     generatedDraftId: postId,
     createdBy: uid,
     createdAt: row.createdAt,
-  } as unknown as BlogBriefDoc;
+  };
 
   try {
     const generated = await generatePostFromBrief(briefLike);

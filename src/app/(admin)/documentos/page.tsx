@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { FileText, Receipt, FileSignature, FileCheck } from "lucide-react";
-import { useUser } from "@/firebase";
+import { useUser } from "@/hooks/use-user";
 import { getInvoices } from "@/lib/documents/invoices";
 import { getContracts } from "@/lib/documents/contracts";
 import { getProposals } from "@/lib/documents/proposals";

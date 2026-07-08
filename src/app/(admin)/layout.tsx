@@ -9,7 +9,7 @@ import { useTheme } from "next-themes";
 import { LoaderCircle } from "lucide-react";
 import { Toaster } from "sonner";
 import { cn } from "@/lib/utils";
-import { useUser } from "@/firebase";
+import { useUser } from "@/hooks/use-user";
 import {
   PresentationModeProvider,
 } from "@/context/PresentationModeContext";

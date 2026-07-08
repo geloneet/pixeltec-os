@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { signOut } from 'next-auth/react';
-import { useUser } from '@/firebase/auth/use-user';
+import { useUser } from '@/hooks/use-user';
 import { changePasswordAction } from '@/lib/auth/actions';
 
 export function SecuritySettings() {

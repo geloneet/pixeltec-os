@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { FileText, Plus, Trash2 } from "lucide-react";
-import { useUser } from "@/firebase";
+import { useUser } from "@/hooks/use-user";
 import type { Invoice, InvoiceItem } from "@/types/documents";
 import {
   getInvoices,

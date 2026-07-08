@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, useRef, useCallback, type ReactNode } from "react";
-import { useUser } from "@/firebase";
+import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
 import { clientSchema, projectSchema, taskSchema } from "@/lib/crm-schemas";
 import { getCrmDataAction, syncCrmDataAction, type CrmSyncPayload } from "./crm-actions";

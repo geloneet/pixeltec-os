@@ -1,4 +1,3 @@
-import type { Timestamp } from 'firebase-admin/firestore';
 
 export type BlogPostStatus = 'draft' | 'needs-review' | 'approved' | 'published' | 'archived';
 export type BlogBriefStatus = 'pending' | 'generating' | 'generated' | 'discarded';
@@ -14,7 +13,7 @@ export interface BlogBriefDoc {
   status: BlogBriefStatus;
   generatedDraftId: string | null;
   createdBy: string;
-  createdAt: Timestamp;
+  createdAt: Date;
 }
 
 export interface BlogPostDoc {
@@ -40,7 +39,7 @@ export interface BlogPostDoc {
 
   ai: {
     model: string;
-    generatedAt: Timestamp;
+    generatedAt: Date;
     editedByHuman: boolean;
     wordsAdded: number;
     iterations: number;
@@ -56,9 +55,9 @@ export interface BlogPostDoc {
   wordCount: number;
   readingTimeMin: number;
 
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-  publishedAt: Timestamp | null;
+  createdAt: Date;
+  updatedAt: Date;
+  publishedAt: Date | null;
   approvedBy: string | null;
 }
 

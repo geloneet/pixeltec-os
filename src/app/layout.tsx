@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { cn } from '@/lib/utils';
 import { Toaster } from '@/components/ui/toaster';
-import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { SessionProvider } from 'next-auth/react';
 import { ThemeProvider } from '@/components/theme-provider';
 import { Poppins, Roboto, League_Spartan } from 'next/font/google';
@@ -63,10 +62,8 @@ export default async function RootLayout({
         <ThemeProvider nonce={nonce}>
           <OrganizationStructuredData />
           <SessionProvider>
-            <FirebaseClientProvider>
-              {children}
-              <Toaster />
-            </FirebaseClientProvider>
+            {children}
+            <Toaster />
           </SessionProvider>
         </ThemeProvider>
       </body>

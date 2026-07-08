@@ -1,6 +1,6 @@
 'use client';
 
-import { useUserProfile } from '@/firebase/auth/use-user-profile';
+import { useUserProfile } from '@/hooks/use-user-profile';
 
 /**
  * A hook to determine if the currently logged-in user has the 'admin' role.

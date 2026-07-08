@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { useUser } from "@/firebase";
+import { useUser } from "@/hooks/use-user";
 import { uploadAvatar, deleteAvatar } from "@/lib/profile/actions";
 import {
   AlertDialog,

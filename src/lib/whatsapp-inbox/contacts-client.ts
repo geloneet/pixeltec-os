@@ -38,3 +38,18 @@ export async function addContactNote(phone: string, text: string): Promise<Conta
   if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
   return data.note as ContactNote;
 }
+
+export async function createWhatsappTicket(
+  phone: string,
+  problema: string,
+  contactName?: string | null
+): Promise<{ ticketId: string }> {
+  const res = await fetch("/api/whatsapp-inbox/tickets", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phone, problema, contactName }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+  return { ticketId: data.ticket.ticketId as string };
+}

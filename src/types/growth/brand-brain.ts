@@ -1,4 +1,3 @@
-import type { Timestamp } from 'firebase-admin/firestore';
 import type { TemplateFormat } from './template';
 
 export interface BrandBrain {
@@ -18,8 +17,8 @@ export interface BrandBrain {
   completionScore?: number;
   isComplete?: boolean;
 
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface BrandIdentity {

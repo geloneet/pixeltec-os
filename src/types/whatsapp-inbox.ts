@@ -1,5 +1,3 @@
-import type { Timestamp } from 'firebase/firestore';
-
 /** Modo de una conversación en PixelBot. SQLite del bot = source of truth. */
 export type WhatsAppMode = 'BOT' | 'HUMAN' | 'PAUSED';
 
@@ -69,11 +67,11 @@ export interface WhatsAppContact {
   urgent?: boolean;
   linkedClientId?: string | null;
   actionHistory?: ContactAction[];
-  createdAt?: Timestamp;
-  updatedAt?: Timestamp;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
-export interface ContactNote { id: string; text: string; createdBy: string; createdAt?: Timestamp; }
+export interface ContactNote { id: string; text: string; createdBy: string; createdAt?: string; }
 
 export interface BotSchedule { days: number[]; start: string; end: string; }
 export interface BotConfig {

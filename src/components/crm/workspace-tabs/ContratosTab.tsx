@@ -5,7 +5,7 @@ import {
   ArrowLeft, FileText, Download, UserPlus, X, Check,
   Clock, CheckCircle2, AlertCircle, XCircle, FileCheck,
 } from "lucide-react";
-import { useUser } from "@/firebase";
+import { useUser } from "@/hooks/use-user";
 import type { Contract, ContractSigner, IATemplate } from "@/types/documents";
 import { getContracts, createContract, updateContract, createContractVersion } from "@/lib/documents/contracts";
 import { getTemplates } from "@/lib/documents/ia-templates";

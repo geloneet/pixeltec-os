@@ -221,7 +221,7 @@ export async function runPostGeneration(input: OrchestratorInput): Promise<Conte
       creditsUsed: CREDIT_COSTS[operation],
       actualApiCost: { textCost: textResult.cost, imageCost, totalCost: textResult.cost + imageCost },
     },
-    createdAt: null as unknown as import('firebase-admin/firestore').Timestamp,
-    updatedAt: null as unknown as import('firebase-admin/firestore').Timestamp,
+    createdAt: postRow.createdAt,
+    updatedAt: postRow.updatedAt,
   };
 }

@@ -7,8 +7,8 @@ const nextConfig: NextConfig = {
     root: path.resolve(__dirname),
   },
   allowedDevOrigins: ['198.100.155.231', 'dev.pixeltec.mx'],
-  // grammy, ws y firebase-admin NO deben ser bundleados por webpack.
-  serverExternalPackages: ['grammy', 'ws', 'firebase-admin', '@anthropic-ai/sdk'],
+  // grammy y ws NO deben ser bundleados por webpack.
+  serverExternalPackages: ['grammy', 'ws', '@anthropic-ai/sdk'],
   eslint: {
     ignoreDuringBuilds: true,
   },
@@ -64,6 +64,9 @@ const nextConfig: NextConfig = {
   },
   images: {
     remotePatterns: [
+      // TODO(Fase C retiro Firebase): agregar aquí el dominio custom de R2
+      // (R2_PUBLIC_URL) una vez que Miguel lo conecte en Cloudflare — avatares
+      // y logos de marca ahora se sirven desde ahí, ver src/lib/r2/upload.ts.
       {
         protocol: 'https',
         hostname: 'placehold.co',
@@ -84,12 +87,6 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: 'https',
-        hostname: 'firebasestorage.googleapis.com',
-        port: '',
-        pathname: '/**',
-      },
-      {
-        protocol: 'https',
         hostname: 'i.pravatar.cc',
         port: '',
         pathname: '/**',
@@ -99,11 +96,6 @@ const nextConfig: NextConfig = {
         hostname: 'lh3.googleusercontent.com',
         port: '',
         pathname: '/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'storage.googleapis.com',
-        pathname: '/studio-1487114664-78b63.firebasestorage.app/**',
       },
       {
         protocol: 'https',

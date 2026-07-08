@@ -1,4 +1,3 @@
-import type { Timestamp } from 'firebase-admin/firestore';
 
 export type JobStatus = 'queued' | 'running' | 'processing' | 'completed' | 'failed' | 'cancelled';
 
@@ -15,8 +14,8 @@ export interface GenerationJob {
   resultPostId?: string;
   error?: string;
 
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface OpenAIRawResult {

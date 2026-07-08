@@ -1,4 +1,3 @@
-import type { Timestamp } from 'firebase-admin/firestore';
 import type { TemplateFormat } from './template';
 
 export type PostStatus =
@@ -38,7 +37,7 @@ export interface ScheduledPlatform {
   status: 'pending' | 'published' | 'failed' | 'cancelled';
   publishedUrl?: string;
   error?: string;
-  attemptedAt?: Timestamp;
+  attemptedAt?: Date;
 }
 
 export interface ContentPost {
@@ -60,13 +59,13 @@ export interface ContentPost {
   brandSnapshot: BrandSnapshot;
   generationMetadata: GenerationMetadata;
 
-  scheduledAt?: Timestamp;
-  publishedAt?: Timestamp;
+  scheduledAt?: Date;
+  publishedAt?: Date;
   scheduledPlatforms?: ScheduledPlatform[];
 
   variantGroupId?: string;
   variantIndex?: number;
 
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  createdAt: Date;
+  updatedAt: Date;
 }

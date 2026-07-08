@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Plus, Pencil, Trash2, Check, X, ChevronUp, ChevronDown } from "lucide-react";
-import { useUser } from "@/firebase";
+import { useUser } from "@/hooks/use-user";
 import type { Strategy, StrategyObjective, StrategyKPI, RoadmapItem } from "@/types/documents";
 import { getStrategy, createStrategy, updateStrategy } from "@/lib/documents/strategies";
 

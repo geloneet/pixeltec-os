@@ -13,13 +13,10 @@
  */
 
 import type {
-  AssistantWeeklyReportDoc,
   AssistantWeeklyReportSerialized,
   AssistantTaskCategory,
   ReportTotals,
 } from './types';
-
-type AnyReport = AssistantWeeklyReportDoc | AssistantWeeklyReportSerialized;
 
 const TIMEZONE = 'America/Mexico_City';
 const LOCALE = 'es-MX';
@@ -40,10 +37,8 @@ const CATEGORY_ORDER: AssistantTaskCategory[] = [
   'aprendizaje',
 ];
 
-function toDate(value: Date | string | { toDate: () => Date }): Date {
-  if (value instanceof Date) return value;
-  if (typeof value === 'string') return new Date(value);
-  return value.toDate();
+function toDate(value: Date | string): Date {
+  return value instanceof Date ? value : new Date(value);
 }
 
 /** "5–11 may" for same month, "28 abr – 4 may" for cross-month, year suffix when spanning. */
@@ -90,7 +85,7 @@ function categoryLine(label: string, t: ReportTotals): string | null {
 }
 
 export function renderWeeklyReportMessage(
-  report: AnyReport,
+  report: AssistantWeeklyReportSerialized,
   _opts?: { weekNumber?: number },
 ): string {
   const start = toDate(report.weekStart);

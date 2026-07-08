@@ -1,15 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { Check, Copy, LoaderCircle, Plus, Ticket, X } from "lucide-react";
 import { toast } from "sonner";
-import { useFirestore, useUser } from "@/firebase";
+import { useUser } from "@/hooks/use-user";
 import { useCRM } from "@/components/crm/CRMContextCore";
 import { useInboxContactNotes } from "@/hooks/use-inbox-contact-notes";
 import type { ContactPatch } from "@/lib/db/repos/whatsapp-contacts";
 import { cn } from "@/lib/utils";
-import { addContactNote, upsertContact } from "@/lib/whatsapp-inbox/contacts-client";
+import { addContactNote, createWhatsappTicket, upsertContact } from "@/lib/whatsapp-inbox/contacts-client";
 import { parseCanonical } from "@/lib/whatsapp-inbox/time";
 import {
   CLASSIFICATION_META,
@@ -88,9 +87,6 @@ interface ContactPanelProps {
 }
 
 export function ContactPanel({ phone, conv, contact, onClose, onModeChanged, refetchContacts }: ContactPanelProps) {
-  // Firestore se conserva SOLO para el ticket de soporte (colección `tickets`,
-  // fuera de alcance de esta migración) — whatsappContacts ya no lo usa.
-  const firestore = useFirestore();
   const user = useUser();
   const crm = useCRM();
 
@@ -283,25 +279,14 @@ export function ContactPanel({ phone, conv, contact, onClose, onModeChanged, ref
 
   async function handleCreateTicket() {
     if (pendingAction) return;
-    if (!firestore) return;
     const problema = ticketProblem.trim();
     if (!problema) {
       toast.error("Describe el problema antes de crear el ticket");
       return;
     }
-    const ticketId = `WA-${Date.now().toString(36).toUpperCase()}`;
     setPendingAction("createTicket");
     try {
-      // `tickets` sigue en Firestore — fuera de alcance de esta migración.
-      await addDoc(collection(firestore, "tickets"), {
-        ticketId,
-        problema,
-        estado: "abierto",
-        phone,
-        nombre: contact?.name ?? null,
-        source: "whatsapp",
-        createdAt: serverTimestamp(),
-      });
+      const { ticketId } = await createWhatsappTicket(phone, problema, contact?.name);
       await upsertContact(phone, {}, `Ticket creado: ${ticketId}`);
       toast.success(`Ticket creado: ${ticketId}`);
       setTicketProblem("");

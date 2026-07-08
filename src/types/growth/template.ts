@@ -1,4 +1,3 @@
-import type { Timestamp } from 'firebase-admin/firestore';
 
 export type TemplateFormat =
   | 'instagram_post'
@@ -71,8 +70,8 @@ export interface Template {
 
   schemaVersion: number;
 
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export const TEMPLATE_FORMAT_LABELS: Record<TemplateFormat, string> = {

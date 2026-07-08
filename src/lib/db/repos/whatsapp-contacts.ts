@@ -34,14 +34,8 @@ function rowToContact(row: WhatsappContactRow): WhatsAppContact {
     urgent: row.urgent,
     linkedClientId: row.linkedClientId ?? null,
     actionHistory: (row.actionHistory as ContactAction[] | null) ?? [],
-    // El tipo declarado (src/types/whatsapp-inbox.ts) usa `Timestamp` de
-    // Firebase por contrato histórico del módulo — no se cambia esa forma.
-    // En runtime, tras esta migración, el valor real es un Date (servidor)
-    // que NextResponse.json serializa a ISO string hacia el cliente; los
-    // consumidores (ChatThread/ContactPanel) ya no llaman `.toDate()`, leen
-    // el string directamente. Cast documentado, no un Timestamp real.
-    createdAt: (row.createdAt ?? undefined) as unknown as WhatsAppContact["createdAt"],
-    updatedAt: (row.updatedAt ?? undefined) as unknown as WhatsAppContact["updatedAt"],
+    createdAt: row.createdAt?.toISOString(),
+    updatedAt: row.updatedAt?.toISOString(),
   };
 }
 
@@ -50,7 +44,7 @@ function rowToNote(row: WhatsappContactNoteRow): ContactNote {
     id: row.id,
     text: row.text,
     createdBy: row.createdBy,
-    createdAt: row.createdAt as unknown as ContactNote["createdAt"],
+    createdAt: row.createdAt.toISOString(),
   };
 }
 

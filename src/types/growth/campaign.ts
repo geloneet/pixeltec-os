@@ -1,4 +1,3 @@
-import type { Timestamp } from 'firebase-admin/firestore';
 import type { TemplateFormat } from './template';
 import type { SocialPlatform } from './post';
 
@@ -35,7 +34,7 @@ export interface CampaignStrategy {
   keyMessage: string;
   postPlans: CampaignPostPlan[];
   estimatedCredits: number;
-  generatedAt: Timestamp;
+  generatedAt: Date;
 }
 
 export interface Campaign {
@@ -61,10 +60,10 @@ export interface Campaign {
   };
 
   dateRange?: {
-    startDate: Timestamp;
-    endDate: Timestamp;
+    startDate: Date;
+    endDate: Date;
   };
 
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  createdAt: Date;
+  updatedAt: Date;
 }

@@ -1,4 +1,3 @@
-import type { Timestamp } from 'firebase-admin/firestore';
 
 export type SocialPlatformType = 'instagram' | 'facebook';
 
@@ -23,8 +22,8 @@ export interface SocialAccount {
   instagramBusinessId?: string;
   instagramUsername?: string;
 
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface PublishResult {

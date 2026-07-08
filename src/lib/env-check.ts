@@ -1,8 +1,5 @@
 const REQUIRED_SERVER_VARS = [
   "CRON_SECRET",
-  "FIREBASE_ADMIN_PROJECT_ID",
-  "FIREBASE_ADMIN_CLIENT_EMAIL",
-  "FIREBASE_ADMIN_PRIVATE_KEY",
 ];
 
 export function validateEnv(): void {
