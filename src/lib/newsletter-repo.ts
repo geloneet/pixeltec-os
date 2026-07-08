@@ -1,31 +1,24 @@
 /**
- * newsletterSubscribers repository — Admin SDK only.
+ * newsletterSubscribers repository (Fase 4 — Postgres, antes Firestore).
  *
- * Doc id = normalized email so duplicate subscriptions are impossible.
- * subscribeOrReactivate is the only legitimate entry point from server actions.
+ * Unique index en `email` reemplaza el doc-id-hasheado de Firestore como
+ * garantía anti-duplicados. subscribeOrReactivate is the only legitimate
+ * entry point from server actions.
  */
 
-import { createHash, randomUUID } from 'crypto';
-import { getAdminFirestore } from './firebase-admin';
-import { FieldValue, type Timestamp } from 'firebase-admin/firestore';
+import { randomUUID } from 'crypto';
+import { eq } from 'drizzle-orm';
+import { db } from '@/lib/db';
+import { newsletterSubscribers } from '@/lib/db/schema';
 
 export type SubscriberStatus = 'active' | 'unsubscribed' | 'bounced';
 
-export interface SubscriberRecord {
-  email: string;
-  status: SubscriberStatus;
-  subscribedAt: Timestamp;
-  source: string;
-  unsubscribeToken: string;
-  reactivatedAt?: Timestamp;
-}
-
 export interface SubscribeResult {
-  /** New doc inserted. */
+  /** New row inserted. */
   created: boolean;
-  /** Existing doc with status='unsubscribed'|'bounced' flipped back to 'active'. */
+  /** Existing row with status='unsubscribed'|'bounced' flipped back to 'active'. */
   reactivated: boolean;
-  /** Existing doc with status='active' — no email should be sent. */
+  /** Existing row with status='active' — no email should be sent. */
   alreadyActive: boolean;
   /** Stable across reactivations — embed in the welcome email's unsubscribe link. */
   unsubscribeToken: string;
@@ -33,18 +26,6 @@ export interface SubscribeResult {
 
 export function normalizeEmail(raw: string): string {
   return raw.toLowerCase().trim();
-}
-
-/**
- * Use this as the document id so each email maps to exactly one subscriber.
- *
- * Hashed with sha256 (32-char prefix) instead of URL-encoded so the id is
- * Firestore-safe regardless of internationalized email content and so the
- * id never leaks PII in URLs or logs. Reverse lookup uses the stored
- * `email` field.
- */
-export function subscriberDocId(email: string): string {
-  return createHash('sha256').update(normalizeEmail(email)).digest('hex').slice(0, 32);
 }
 
 export type UnsubscribeResult =
@@ -56,82 +37,94 @@ export type UnsubscribeResult =
  * Look up a subscriber by unsubscribe token and flip them to
  * `status: 'unsubscribed'`. Token is NOT rotated — a later
  * subscribeOrReactivate() call with the same email will reactivate the
- * same doc and the link in any prior email keeps working idempotently.
- *
- * Requires a single-field index on unsubscribeToken (declared in
- * firestore.indexes.json — Firestore auto-creates single-field indexes
- * but we keep it explicit).
+ * same row and the link in any prior email keeps working idempotently.
  */
 export async function unsubscribeByToken(rawToken: string): Promise<UnsubscribeResult> {
   const token = rawToken.trim();
   if (!token) return { status: 'not-found' };
 
-  const db = getAdminFirestore();
-  const snap = await db
-    .collection('newsletterSubscribers')
-    .where('unsubscribeToken', '==', token)
-    .limit(1)
-    .get();
+  const [row] = await db
+    .select({ id: newsletterSubscribers.id, email: newsletterSubscribers.email, status: newsletterSubscribers.status })
+    .from(newsletterSubscribers)
+    .where(eq(newsletterSubscribers.unsubscribeToken, token))
+    .limit(1);
 
-  if (snap.empty) return { status: 'not-found' };
+  if (!row) return { status: 'not-found' };
 
-  const docRef = snap.docs[0].ref;
-  const data = snap.docs[0].data() as SubscriberRecord;
-
-  if (data.status === 'unsubscribed') {
-    return { status: 'already-unsubscribed', email: data.email };
+  if (row.status === 'unsubscribed') {
+    return { status: 'already-unsubscribed', email: row.email };
   }
 
-  await docRef.update({
-    status: 'unsubscribed' as SubscriberStatus,
-    unsubscribedAt: FieldValue.serverTimestamp(),
-  });
-  return { status: 'unsubscribed', email: data.email };
+  await db
+    .update(newsletterSubscribers)
+    .set({ status: 'unsubscribed', unsubscribedAt: new Date() })
+    .where(eq(newsletterSubscribers.id, row.id));
+  return { status: 'unsubscribed', email: row.email };
 }
 
 export async function subscribeOrReactivate(
   rawEmail: string,
   source: string
 ): Promise<SubscribeResult> {
-  const db = getAdminFirestore();
   const email = normalizeEmail(rawEmail);
-  const ref = db.collection('newsletterSubscribers').doc(subscriberDocId(email));
+  const unsubscribeToken = randomUUID();
 
-  return db.runTransaction(async tx => {
-    const snap = await tx.get(ref);
+  // Upsert atómico (reemplaza la transacción de Firestore): si la fila ya
+  // existe no cambia nada todavía — el estado real se decide leyendo el
+  // resultado, que incluye el status PREVIO gracias a que el DO UPDATE solo
+  // corre cuando hay conflicto y devolvemos las columnas actuales.
+  const [existing] = await db
+    .select({
+      id: newsletterSubscribers.id,
+      status: newsletterSubscribers.status,
+      unsubscribeToken: newsletterSubscribers.unsubscribeToken,
+    })
+    .from(newsletterSubscribers)
+    .where(eq(newsletterSubscribers.email, email))
+    .limit(1);
 
-    if (!snap.exists) {
-      const unsubscribeToken = randomUUID();
-      tx.set(ref, {
-        email,
-        status: 'active' as SubscriberStatus,
-        source,
-        unsubscribeToken,
-        subscribedAt: FieldValue.serverTimestamp(),
-      });
+  if (!existing) {
+    // Carrera posible entre el select y el insert — el unique index en email
+    // convierte el duplicado en conflicto y lo tratamos como "ya activo".
+    const inserted = await db
+      .insert(newsletterSubscribers)
+      .values({ email, status: 'active', source, unsubscribeToken })
+      .onConflictDoNothing({ target: newsletterSubscribers.email })
+      .returning({ id: newsletterSubscribers.id });
+    if (inserted.length > 0) {
       return { created: true, reactivated: false, alreadyActive: false, unsubscribeToken };
     }
-
-    const data = snap.data() as SubscriberRecord;
-    if (data.status === 'active') {
-      return {
-        created: false,
-        reactivated: false,
-        alreadyActive: true,
-        unsubscribeToken: data.unsubscribeToken,
-      };
-    }
-
-    tx.update(ref, {
-      status: 'active' as SubscriberStatus,
-      source,
-      reactivatedAt: FieldValue.serverTimestamp(),
-    });
+    // Perdimos la carrera — leer la fila ganadora.
+    const [winner] = await db
+      .select({ status: newsletterSubscribers.status, unsubscribeToken: newsletterSubscribers.unsubscribeToken })
+      .from(newsletterSubscribers)
+      .where(eq(newsletterSubscribers.email, email))
+      .limit(1);
     return {
       created: false,
-      reactivated: true,
-      alreadyActive: false,
-      unsubscribeToken: data.unsubscribeToken,
+      reactivated: false,
+      alreadyActive: winner?.status === 'active',
+      unsubscribeToken: winner?.unsubscribeToken ?? unsubscribeToken,
     };
-  });
+  }
+
+  if (existing.status === 'active') {
+    return {
+      created: false,
+      reactivated: false,
+      alreadyActive: true,
+      unsubscribeToken: existing.unsubscribeToken,
+    };
+  }
+
+  await db
+    .update(newsletterSubscribers)
+    .set({ status: 'active', source, reactivatedAt: new Date() })
+    .where(eq(newsletterSubscribers.id, existing.id));
+  return {
+    created: false,
+    reactivated: true,
+    alreadyActive: false,
+    unsubscribeToken: existing.unsubscribeToken,
+  };
 }

@@ -1,16 +1,14 @@
 /**
- * leads repository — Admin SDK only.
+ * leads repository (Fase 4 — Postgres, antes Firestore `leads`).
  *
- * The `leads` collection is the source of truth for inbound demand
+ * The `leads` table is the source of truth for inbound demand
  * (contact form + newsletter). Writing happens BEFORE Resend so a leak
  * in email delivery never costs a high-ticket lead.
- *
- * firestore.rules locks the collection to Admin SDK; treat any client-side
- * read attempt as a bug.
  */
 
-import { getAdminFirestore } from './firebase-admin';
-import { FieldValue } from 'firebase-admin/firestore';
+import { eq } from 'drizzle-orm';
+import { db } from '@/lib/db';
+import { leads } from '@/lib/db/schema';
 
 export type LeadSource = 'contact_form' | 'newsletter';
 export type LeadStatus = 'new' | 'contacted' | 'qualified' | 'lost';
@@ -31,27 +29,24 @@ export interface CreateLeadInput {
   ipHash?: string;
 }
 
-/** Persist a new lead. Returns the auto-generated doc id. */
+/** Persist a new lead. Returns the generated row id. */
 export async function createLead(input: CreateLeadInput): Promise<string> {
-  const db = getAdminFirestore();
   const email = input.email.toLowerCase().trim();
 
-  const payload: Record<string, unknown> = {
-    source: input.source,
-    email,
-    status: 'new' as LeadStatus,
-    emailDeliveryStatus: 'pending' as EmailDeliveryStatus,
-    createdAt: FieldValue.serverTimestamp(),
-    consentTimestamp: FieldValue.serverTimestamp(),
-  };
-
-  if (input.name) payload.name = input.name;
-  if (input.message) payload.message = input.message;
-  if (input.userAgent) payload.userAgent = input.userAgent;
-  if (input.ipHash) payload.ipHash = input.ipHash;
-
-  const ref = await db.collection('leads').add(payload);
-  return ref.id;
+  const [row] = await db
+    .insert(leads)
+    .values({
+      source: input.source,
+      email,
+      name: input.name ?? null,
+      message: input.message ?? null,
+      userAgent: input.userAgent ?? null,
+      ipHash: input.ipHash ?? null,
+      status: 'new',
+      emailDeliveryStatus: 'pending',
+    })
+    .returning({ id: leads.id });
+  return row.id;
 }
 
 /**
@@ -65,13 +60,14 @@ export async function updateLeadEmailDelivery(
   error?: string
 ): Promise<void> {
   try {
-    const update: Record<string, unknown> = {
-      emailDeliveryStatus: status,
-      emailDeliveryAt: FieldValue.serverTimestamp(),
-    };
-    if (error) update.emailDeliveryError = error.slice(0, 500);
-
-    await getAdminFirestore().collection('leads').doc(leadId).update(update);
+    await db
+      .update(leads)
+      .set({
+        emailDeliveryStatus: status,
+        emailDeliveryAt: new Date(),
+        ...(error ? { emailDeliveryError: error.slice(0, 500) } : {}),
+      })
+      .where(eq(leads.id, leadId));
   } catch (err) {
     console.error('[leads] update delivery status failed', leadId, err);
   }

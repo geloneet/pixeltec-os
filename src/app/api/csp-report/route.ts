@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAdminFirestore } from '@/lib/firebase-admin';
-import { FieldValue } from 'firebase-admin/firestore';
+import { db } from '@/lib/db';
+import { cspViolations } from '@/lib/db/schema';
 import { enforceRateLimit } from '@/lib/rate-limit';
 
 // Browsers send one of these for CSP/Reporting-API violation reports.
@@ -75,15 +75,17 @@ export async function POST(req: NextRequest) {
 
     const violation = isPlainObject(body['csp-report']) ? body['csp-report'] : body;
 
-    getAdminFirestore().collection('cspViolations').add({
-      blockedURI: violation['blocked-uri'] ?? violation.blockedURL ?? null,
-      violatedDirective: violation['violated-directive'] ?? violation.effectiveDirective ?? null,
-      sourceFile: violation['source-file'] ?? violation.sourceFile ?? null,
-      lineNumber: violation['line-number'] ?? violation.lineNumber ?? null,
-      documentURI: violation['document-uri'] ?? violation.documentURL ?? null,
+    const lineRaw = violation['line-number'] ?? violation.lineNumber;
+    const lineNumber = typeof lineRaw === 'number' && Number.isFinite(lineRaw) ? Math.trunc(lineRaw) : null;
+
+    db.insert(cspViolations).values({
+      blockedUri: String(violation['blocked-uri'] ?? violation.blockedURL ?? '') || null,
+      violatedDirective: String(violation['violated-directive'] ?? violation.effectiveDirective ?? '') || null,
+      sourceFile: String(violation['source-file'] ?? violation.sourceFile ?? '') || null,
+      lineNumber,
+      documentUri: String(violation['document-uri'] ?? violation.documentURL ?? '') || null,
       userAgent: req.headers.get('user-agent') ?? null,
-      timestamp: FieldValue.serverTimestamp(),
-    }).catch((err: unknown) => console.error('[csp-report] firestore write failed:', err));
+    }).catch((err: unknown) => console.error('[csp-report] db write failed:', err));
 
     return new NextResponse(null, { status: 204 });
   } catch {

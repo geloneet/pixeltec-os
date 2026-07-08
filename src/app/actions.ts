@@ -31,8 +31,10 @@ import { renderClientAccessEmail } from '@/emails/ClientAccessEmail';
 import { renderProjectUpdateEmail } from '@/emails/ProjectUpdateEmail';
 import { headers } from 'next/headers';
 import crypto from 'node:crypto';
-import { getAdminFirestore } from '@/lib/firebase-admin';
-import { FieldValue as AdminFieldValue, Timestamp as AdminTimestamp } from 'firebase-admin/firestore';
+import { desc, asc, eq } from 'drizzle-orm';
+import { db as pgDb } from '@/lib/db';
+import { clients as clientsTable, clientPortalUpdates, clientPortalProjects } from '@/lib/db/schema';
+import { findPortalClientBySlug, resolvePortalClient, portalClientPublicId } from '@/lib/portal/pg';
 import { generateAccessCode, generateSlug, type PortalSession } from '@/lib/portal';
 import {
   createPortalSession,
@@ -541,11 +543,9 @@ export async function checkPortalSlugAction(
 ): Promise<PortalActionResult<{ companyName: string; contactEmail: string }>> {
   if (!slug?.trim()) return { success: false, error: 'Slug inválido.' };
   try {
-    const db = getAdminFirestore();
-    const snap = await db.collection('clients').where('slug', '==', slug.trim()).limit(1).get();
-    if (snap.empty) return { success: false, error: 'Portal no encontrado.' };
-    const d = snap.docs[0].data();
-    return { success: true, data: { companyName: d.companyName, contactEmail: d.contactEmail ?? '' } };
+    const row = await findPortalClientBySlug(slug);
+    if (!row) return { success: false, error: 'Portal no encontrado.' };
+    return { success: true, data: { companyName: row.name, contactEmail: row.email ?? '' } };
   } catch (err) {
     console.error('[portal] checkSlug error:', err);
     return { success: false, error: 'Error al verificar el portal.' };
@@ -558,65 +558,54 @@ export async function requestPortalCodeAction(
 ): Promise<PortalActionResult<{ maskedEmail: string }>> {
   if (!slug?.trim()) return { success: false, error: 'Slug inválido.' };
   try {
-    // ── IP-based rate limit ────────────────────────────────────────────────
+    // ── IP-based rate limit (rate_limit de Postgres — antes colección
+    // `portalRateLimit` propia en Firestore) ───────────────────────────────
     const headersList = await headers();
     const rawIp = headersList.get('x-forwarded-for')?.split(',')[0].trim()
                ?? headersList.get('x-real-ip')
                ?? 'unknown';
-    const safeIp = rawIp.replace(/[^a-zA-Z0-9.\-]/g, '_').slice(0, 64);
-
-    const db = getAdminFirestore();
-    const ipRef = db.collection('portalRateLimit').doc(safeIp);
-    const ipSnap = await ipRef.get();
-    if (ipSnap.exists) {
-      const ipData = ipSnap.data()!;
-      const windowStart = ipData.windowStartedAt?.toDate?.() as Date | undefined;
-      if (windowStart && Date.now() - windowStart.getTime() < IP_WINDOW_MS) {
-        if ((ipData.count ?? 0) >= IP_MAX_REQUESTS) {
-          await logSecurityEvent({ type: 'otp-rate-limit-ip', slug, reason: 'IP exceeded 10 req/hour' });
-          return { success: false, error: 'Demasiadas solicitudes. Inténtalo más tarde.' };
-        }
-        await ipRef.update({ count: (ipData.count ?? 0) + 1 });
-      } else {
-        await ipRef.set({ count: 1, windowStartedAt: AdminFieldValue.serverTimestamp() });
-      }
-    } else {
-      await ipRef.set({ count: 1, windowStartedAt: AdminFieldValue.serverTimestamp() });
+    const rl = await enforceRateLimit({
+      ip: rawIp,
+      bucket: 'portal_otp',
+      max: IP_MAX_REQUESTS,
+      windowMs: IP_WINDOW_MS,
+    });
+    if (!rl.allowed) {
+      await logSecurityEvent({ type: 'otp-rate-limit-ip', slug, reason: 'IP exceeded 10 req/hour' });
+      return { success: false, error: 'Demasiadas solicitudes. Inténtalo más tarde.' };
     }
 
     // ── Slug lookup ────────────────────────────────────────────────────────
-    const snap = await db.collection('clients').where('slug', '==', slug.trim()).limit(1).get();
-    if (snap.empty) return { success: false, error: 'Portal no encontrado.' };
-
-    const clientDoc = snap.docs[0];
-    const data = clientDoc.data();
+    const row = await findPortalClientBySlug(slug);
+    if (!row) return { success: false, error: 'Portal no encontrado.' };
 
     // Per-slug rate limit
-    const lastRequest = data.lastCodeRequestAt?.toDate?.() as Date | undefined;
+    const lastRequest = row.lastCodeRequestAt ?? undefined;
     if (lastRequest && Date.now() - lastRequest.getTime() < RATE_LIMIT_MS) {
       const waitSec = Math.ceil((RATE_LIMIT_MS - (Date.now() - lastRequest.getTime())) / 1000);
       return { success: false, error: `Espera ${waitSec}s antes de solicitar otro código.` };
     }
 
     const code = generateAccessCode();
-    const expiresAt = AdminTimestamp.fromDate(new Date(Date.now() + CODE_TTL_MS));
 
-    await clientDoc.ref.update({
-      // El código nunca se guarda en texto plano — un leak de la colección
-      // `clients` ya no expone el OTP vigente (ver firestore.rules).
-      accessCodeHash: hashAccessCode(code),
-      accessCode: AdminFieldValue.delete(),
-      accessCodeExpiresAt: expiresAt,
-      lastCodeRequestAt: AdminFieldValue.serverTimestamp(),
-    });
+    await pgDb
+      .update(clientsTable)
+      .set({
+        // El código nunca se guarda en texto plano — un leak de la tabla
+        // `clients` no expone el OTP vigente.
+        accessCodeHash: hashAccessCode(code),
+        accessCodeExpiresAt: new Date(Date.now() + CODE_TTL_MS),
+        lastCodeRequestAt: new Date(),
+      })
+      .where(eq(clientsTable.id, row.id));
 
     // Send via Resend
-    const email = data.contactEmail as string | undefined;
+    const email = row.email ?? undefined;
     if (email) {
       const portalUrl = `${APP_URL}/${slug}`;
       const html = renderClientAccessEmail({
-        clientName:  data.contactName ?? data.companyName,
-        companyName: data.companyName,
+        clientName:  row.contactName ?? row.name,
+        companyName: row.name,
         code,
         portalUrl,
         expiresIn: '10 minutos',
@@ -652,42 +641,38 @@ export async function verifyPortalCodeAction(
   if (trimmedCode.length !== 6) return { success: false, error: 'El código debe tener 6 dígitos.' };
 
   try {
-    const db = getAdminFirestore();
-    const snap = await db.collection('clients').where('slug', '==', slug.trim()).limit(1).get();
-    if (snap.empty) return { success: false, error: 'Portal no encontrado.' };
+    const row = await findPortalClientBySlug(slug);
+    if (!row) return { success: false, error: 'Portal no encontrado.' };
 
-    const clientDoc = snap.docs[0];
-    const data = clientDoc.data();
-
-    if (!data.accessCodeHash || !accessCodeHashMatches(data.accessCodeHash, trimmedCode)) {
+    if (!row.accessCodeHash || !accessCodeHashMatches(row.accessCodeHash, trimmedCode)) {
       await logSecurityEvent({ type: 'otp-invalid-code', slug });
       return { success: false, error: 'Código incorrecto.' };
     }
 
-    const expiresAt = data.accessCodeExpiresAt?.toDate?.() as Date | undefined;
-    if (!expiresAt || expiresAt < new Date()) {
+    if (!row.accessCodeExpiresAt || row.accessCodeExpiresAt < new Date()) {
       await logSecurityEvent({ type: 'otp-expired-code', slug });
       return { success: false, error: 'El código expiró. Solicita uno nuevo.' };
     }
 
     // Invalidate code after use (one-time)
-    await clientDoc.ref.update({
-      accessCodeHash: AdminFieldValue.delete(),
-      accessCodeExpiresAt: null,
-    });
+    await pgDb
+      .update(clientsTable)
+      .set({ accessCodeHash: null, accessCodeExpiresAt: null })
+      .where(eq(clientsTable.id, row.id));
 
     // Issue server-side session cookie
-    await createPortalSession(clientDoc.id, slug);
+    const publicId = portalClientPublicId(row);
+    await createPortalSession(publicId, slug);
 
     return {
       success: true,
       data: {
-        clientId:     clientDoc.id,
+        clientId:     publicId,
         slug,
-        companyName:  data.companyName ?? '',
-        status:       data.status ?? 'Activo',
-        services:     data.services ?? [],
-        taskProgress: data.taskProgress ?? { total: 0, completed: 0, percentage: 0 },
+        companyName:  row.name,
+        status:       row.status ?? 'Activo',
+        services:     row.services ?? [],
+        taskProgress: (row.taskProgress as { total: number; completed: number; percentage: number } | null) ?? { total: 0, completed: 0, percentage: 0 },
       },
     };
   } catch (err) {
@@ -716,33 +701,36 @@ export async function getPortalDashboardAction(slug: string): Promise<
     const session = await requirePortalSession(slug);
     const { clientId } = session;
 
-    const db = getAdminFirestore();
-    const clientRef = db.collection('clients').doc(clientId);
-    const [clientSnap, updatesSnap, projectsSnap] = await Promise.all([
-      clientRef.get(),
-      clientRef.collection('updates').orderBy('createdAt', 'desc').limit(20).get(),
-      clientRef.collection('projects').orderBy('name', 'asc').limit(10).get(),
+    const row = await resolvePortalClient(clientId);
+    if (!row) return { success: false, error: 'Cliente no encontrado.' };
+
+    const [updateRows, projectRows] = await Promise.all([
+      pgDb
+        .select()
+        .from(clientPortalUpdates)
+        .where(eq(clientPortalUpdates.clientId, row.id))
+        .orderBy(desc(clientPortalUpdates.createdAt))
+        .limit(20),
+      pgDb
+        .select()
+        .from(clientPortalProjects)
+        .where(eq(clientPortalProjects.clientId, row.id))
+        .orderBy(asc(clientPortalProjects.name))
+        .limit(10),
     ]);
 
-    if (!clientSnap.exists) return { success: false, error: 'Cliente no encontrado.' };
+    const updates = updateRows.map(u => ({
+      id:        u.firestoreId ?? u.id,
+      text:      u.text,
+      imageUrl:  u.imageUrl ?? undefined,
+      createdAt: u.createdAt.toISOString(),
+      createdBy: u.createdBy || 'PixelTEC',
+    }));
 
-    const clientData = clientSnap.data()!;
-
-    const updates = updatesSnap.docs.map(d => {
-      const u = d.data();
-      return {
-        id:        d.id,
-        text:      u.text ?? '',
-        imageUrl:  u.imageUrl ?? undefined,
-        createdAt: u.createdAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
-        createdBy: u.createdBy ?? 'PixelTEC',
-      };
-    });
-
-    const projects = projectsSnap.docs.map(d => ({
-      id:     d.id,
-      name:   d.data().name ?? '',
-      status: d.data().status ?? '',
+    const projects = projectRows.map(p => ({
+      id:     p.firestoreId ?? p.id,
+      name:   p.name,
+      status: p.status,
     }));
 
     return {
@@ -750,12 +738,12 @@ export async function getPortalDashboardAction(slug: string): Promise<
       data: {
         clientId,
         slug:         session.slug,
-        companyName:  clientData.companyName ?? '',
-        status:       clientData.status ?? 'Activo',
-        services:     clientData.services ?? [],
+        companyName:  row.name,
+        status:       row.status ?? 'Activo',
+        services:     row.services ?? [],
         updates,
         projects,
-        taskProgress: clientData.taskProgress ?? { total: 0, completed: 0, percentage: 0 },
+        taskProgress: (row.taskProgress as { total: number; completed: number; percentage: number } | null) ?? { total: 0, completed: 0, percentage: 0 },
       },
     };
   } catch (err) {
@@ -773,9 +761,10 @@ export async function generateClientSlugAction(
   companyName: string
 ): Promise<PortalActionResult<{ slug: string }>> {
   try {
-    const db = getAdminFirestore();
+    const row = await resolvePortalClient(clientId);
+    if (!row) return { success: false, error: 'Cliente no encontrado.' };
     const slug = generateSlug(companyName);
-    await db.collection('clients').doc(clientId).update({ slug });
+    await pgDb.update(clientsTable).set({ slug }).where(eq(clientsTable.id, row.id));
     return { success: true, data: { slug } };
   } catch (err) {
     console.error('[portal] generateSlug error:', err);
@@ -797,13 +786,18 @@ export async function addClientUpdateAction(
   if (!parsed.success) return { success: false, error: 'Datos inválidos.' };
 
   try {
-    const db = getAdminFirestore();
-    const ref = await db.collection('clients').doc(clientId).collection('updates').add({
-      ...parsed.data,
-      imageUrl: parsed.data.imageUrl || null,
-      createdAt: AdminFieldValue.serverTimestamp(),
-    });
-    return { success: true, data: { id: ref.id } };
+    const row = await resolvePortalClient(clientId);
+    if (!row) return { success: false, error: 'Cliente no encontrado.' };
+    const [inserted] = await pgDb
+      .insert(clientPortalUpdates)
+      .values({
+        clientId: row.id,
+        text: parsed.data.text,
+        imageUrl: parsed.data.imageUrl || null,
+        createdBy: parsed.data.createdBy,
+      })
+      .returning({ id: clientPortalUpdates.id });
+    return { success: true, data: { id: inserted.id } };
   } catch (err) {
     console.error('[portal] addUpdate error:', err);
     return { success: false, error: 'No se pudo guardar la actualización.' };
@@ -816,22 +810,20 @@ export async function sendUpdateEmailAction(
   update: { text: string; imageUrl?: string; createdBy: string }
 ): Promise<EmailResult> {
   try {
-    const db = getAdminFirestore();
-    const clientSnap = await db.collection('clients').doc(clientId).get();
-    if (!clientSnap.exists) return { success: false, error: 'Cliente no encontrado.' };
-    const d = clientSnap.data()!;
-    if (!d.contactEmail) return { success: false, error: 'El cliente no tiene email registrado.' };
+    const row = await resolvePortalClient(clientId);
+    if (!row) return { success: false, error: 'Cliente no encontrado.' };
+    if (!row.email) return { success: false, error: 'El cliente no tiene email registrado.' };
 
     const html = renderProjectUpdateEmail({
-      clientName:  d.contactName ?? d.companyName,
-      companyName: d.companyName,
+      clientName:  row.contactName ?? row.name,
+      companyName: row.name,
       updateText:  update.text,
       author:      update.createdBy,
-      portalUrl:   `${APP_URL}/${d.slug ?? clientId}`,
+      portalUrl:   `${APP_URL}/${row.slug ?? clientId}`,
       imageUrl:    update.imageUrl,
     });
 
-    return sendEmail(d.contactEmail, `✦ Nueva actualización — ${d.companyName}`, html);
+    return sendEmail(row.email, `✦ Nueva actualización — ${row.name}`, html);
   } catch (err) {
     console.error('[portal] sendUpdateEmail error:', err);
     return { success: false, error: String(err) };
@@ -853,22 +845,21 @@ export async function migratePortalSessionAction(
     return { success: false, error: 'Sesión inválida.' };
   }
   try {
-    const db = getAdminFirestore();
-    const clientSnap = await db.collection('clients').doc(clientId.trim()).get();
+    const row = await resolvePortalClient(clientId);
 
-    // Unified rejection: don't reveal whether the clientId exists in Firestore
-    if (!clientSnap.exists || clientSnap.data()?.slug !== slug.trim()) {
-      if (clientSnap.exists) {
+    // Unified rejection: don't reveal whether the clientId exists
+    if (!row || row.slug !== slug.trim()) {
+      if (row) {
         await logSecurityEvent({
           type:         'migration-slug-mismatch',
           slug:         slug.trim(),
-          resolvedSlug: clientSnap.data()?.slug ?? null,
+          resolvedSlug: row.slug ?? undefined,
         });
       }
       return { success: false, error: 'Sesión inválida.' };
     }
 
-    await createPortalSession(clientId.trim(), slug.trim());
+    await createPortalSession(portalClientPublicId(row), slug.trim());
     return { success: true, data: null };
   } catch (err) {
     console.error('[portal] migrateSession error:', err);

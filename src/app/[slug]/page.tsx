@@ -1,17 +1,13 @@
 import { notFound } from 'next/navigation';
-import { getAdminFirestore } from '@/lib/firebase-admin';
+import { findPortalClientBySlug } from '@/lib/portal/pg';
 import PortalEntryClient from './portal-entry-client';
 
+// Fase 4: Postgres — antes Firestore `clients`.
 async function resolvePortalSlug(slug: string): Promise<{ companyName: string } | null> {
   try {
-    const snap = await getAdminFirestore()
-      .collection('clients')
-      .where('slug', '==', slug.trim())
-      .limit(1)
-      .get();
-    if (snap.empty) return null;
-    const d = snap.docs[0].data();
-    return { companyName: d.companyName as string };
+    const row = await findPortalClientBySlug(slug);
+    if (!row) return null;
+    return { companyName: row.name };
   } catch {
     return null;
   }

@@ -3,6 +3,7 @@ import './globals.css';
 import { cn } from '@/lib/utils';
 import { Toaster } from '@/components/ui/toaster';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
+import { SessionProvider } from 'next-auth/react';
 import { ThemeProvider } from '@/components/theme-provider';
 import { Poppins, Roboto, League_Spartan } from 'next/font/google';
 import { OrganizationStructuredData } from '@/components/seo/structured-data';
@@ -61,10 +62,12 @@ export default async function RootLayout({
       <body className={cn('font-body antialiased min-h-screen bg-background text-foreground')}>
         <ThemeProvider nonce={nonce}>
           <OrganizationStructuredData />
-          <FirebaseClientProvider>
-            {children}
-            <Toaster />
-          </FirebaseClientProvider>
+          <SessionProvider>
+            <FirebaseClientProvider>
+              {children}
+              <Toaster />
+            </FirebaseClientProvider>
+          </SessionProvider>
         </ThemeProvider>
       </body>
     </html>

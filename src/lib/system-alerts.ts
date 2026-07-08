@@ -1,16 +1,15 @@
 /**
- * systemAlerts collection writer — Admin SDK only.
+ * systemAlerts writer (Fase 4 — Postgres, antes Firestore).
  *
  * Used by server actions and cron endpoints to surface critical
  * misconfigurations (missing envs, repeated email delivery failures, etc.)
  * without crashing the user-facing flow.
  *
- * The collection is locked down in firestore.rules (read/write: if false);
- * inspect it via the Firebase console or a server endpoint.
+ * Inspect via psql / drizzle studio; no UI reader exists.
  */
 
-import { getAdminFirestore } from './firebase-admin';
-import { FieldValue } from 'firebase-admin/firestore';
+import { db } from '@/lib/db';
+import { systemAlerts } from '@/lib/db/schema';
 
 export type AlertSeverity = 'info' | 'warning' | 'critical';
 
@@ -23,15 +22,12 @@ export interface SystemAlertInput {
 
 export async function logSystemAlert(input: SystemAlertInput): Promise<void> {
   try {
-    await getAdminFirestore()
-      .collection('systemAlerts')
-      .add({
-        severity: input.severity,
-        source: input.source,
-        message: input.message,
-        context: input.context ?? null,
-        createdAt: FieldValue.serverTimestamp(),
-      });
+    await db.insert(systemAlerts).values({
+      severity: input.severity,
+      source: input.source,
+      message: input.message,
+      context: input.context ?? null,
+    });
   } catch (err) {
     // Last-resort fallback: never let alert logging break the caller.
     console.error('[systemAlerts] log failed', err, input);
