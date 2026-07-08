@@ -67,59 +67,109 @@ revertirse sola con otro `firebase deploy` si hiciera falta abrir `tenants/**` d
 
 ## Bloque 2 — Resto de Fase 5 (después de Bloque 1)
 
-Piezas de Firebase que quedaron fuera a propósito y siguen pendientes:
+Piezas de Firebase que quedaron fuera a propósito:
 
-1. **Portal legado de clientes** (`src/app/portal/*`, Firebase Auth client-side) — decidir
-   alcance: ¿migrar su datastore a Postgres (ya migrado en Fase 3/4 parcialmente —
-   `clients`/`updates`/`projects` del portal ya están en Postgres) y su auth a NextAuth
-   también, o dejarlo en Firebase Auth indefinidamente por ser superficie client-facing?
-2. **Firebase Storage** (avatares de perfil, logos de Growth) — decidir si migrar a
-   S3/R2/Supabase Storage (Postgres solo guarda la URL, nunca reemplaza blob storage) o
-   mantenerlo.
-3. **Pipeline de IA con Genkit** (`src/ai/*`, tool `firestore-context` referenciado desde
-   `app/actions.ts`) — auditar qué datos toca exactamente antes de decidir alcance.
-4. **Retiro final de Firebase** — una vez 1-3 estén resueltos: quitar `firebase`/
-   `firebase-admin` de deps, verificar `grep -rn "firebase" src` sin resultados de
-   datastore/auth, limpiar env vars.
-
-Cada una de estas es su propia decisión de alcance — no se arranca ninguna sin que Miguel
-elija por dónde empezar, mismo patrón que WhatsApp Inbox/Crypto-Intel.
+1. **Portal legado de clientes** — DIFERIDO A PROPÓSITO (2026-07-08). Investigado a fondo:
+   no hay forma de crear cuentas dentro de la app (Firebase Console manual, sin
+   documentar), escala chica, y migrar su auth requeriría un rol/tabla nuevo en Postgres +
+   decidir mecanismo (password vs OTP) + plan de migración de cuentas existentes. Miguel
+   decidió tratarlo como fase separada, no mezclar con WhatsApp/Crypto-Intel. Ver sección
+   dedicada en memoria (`project_state.md`) para el detalle completo, incluida una
+   corrección real al Decision 6 de este mismo plan (el portal legado sigue en Firebase
+   Auth, a diferencia de `/[slug]` y `/portal/[token]`) y el hallazgo de que
+   `finances`/`tickets` en Postgres son solo una foto fija de Fase 3, sin repo/query real.
+2. **Firebase Storage** (avatares de perfil, logos de Growth) — **PENDIENTE, baja
+   prioridad, deliberadamente pospuesto (2026-07-08).** Decidir si migrar a S3/R2/Supabase
+   Storage (Postgres solo guarda la URL, nunca reemplaza blob storage) o mantenerlo.
+   **Por qué se pospone:** ni avatares ni logos de Growth son código muerto ni tienen un
+   problema de seguridad activo — es trabajo de infraestructura sin urgencia, y Miguel
+   quiere priorizar valor de producto (Bloque 4) sobre esto. **Sin dependencia oculta con
+   Bloque 4**: verificado que `src/lib/growth/storage/brands.ts` sí usa Firebase Storage
+   (`getStorage` de `firebase-admin/storage`) para logos de marca, pero la decisión de
+   Growth Suite en Bloque 4 (qué hacer con `growthCredits`/`Brands`/`Posts`/`Campaigns`/`Jobs`
+   de Firestore) es sobre DATOS, no sobre el blob storage — los logos se quedan en Firebase
+   Storage de cualquier forma (mismo patrón ya aceptado para avatares de perfil en Fase 4),
+   así que decidir Growth Suite no requiere resolver esto primero.
+3. **Pipeline de IA con Genkit** — HECHO (2026-07-08). Auditado a fondo: `firestore-context`
+   nunca tocó Firestore real (mock hardcodeado, código Admin SDK comentado) y todo
+   `src/ai/*` estaba huérfano (sin UI que lo usara). Encontrado además un gap de seguridad
+   real (sin `requireAdmin()` en ninguna de sus 4 server actions). Miguel decidió borrar
+   los 15 archivos + el componente `AIAdvisor.tsx` huérfano + las deps de genkit, en vez de
+   mantenerlo "por si algún día". Ver memoria para el detalle completo.
+4. **Retiro final de Firebase** — sigue bloqueado por el ítem 2 (Firebase Storage) y
+   crypto-intel/WhatsApp/pixelbot ya migrados (ver Bloque 1). No arrancar hasta que 2 esté
+   resuelto.
 
 ---
 
 ## Bloque 3 — Decisiones de infra/seguridad pendientes (independientes de Bloque 1)
 
-Estas no bloquean ni son bloqueadas por el deploy de Bloque 1 — se pueden resolver en
-paralelo, son decisiones puntuales:
+**HECHO (2026-07-08)**, salvo el ítem 3:
 
-1. **Nginx — HSTS duplicado.** Confirmado en producción (`pixeltec-os/nginx/nginx.conf` es
-   un archivo viejo sin uso real; el nginx real monta config desde
-   `pixeltec-infra/nginx/`, compartido por ~13 sitios de otros clientes). Pendiente:
-   ¿tocar el snippet compartido `security-headers.conf` (afecta a todos los clientes) o
-   dejarlo para una sesión dedicada con más contexto de ese repo?
-2. **Backup de purga de git** — considerar borrar
-   `~/backups/pixeltec-os-PRE-PURGE-backup-20260707-011929.git` (23M, historial viejo con
-   secretos ya rotados) una vez Miguel confirme que la purga quedó bien.
-3. **GitHub Support** — refs de PRs viejos (`refs/pull/1..39/head`) siguen teniendo los
-   commits con secretos (ya rotados) recuperables por SHA directo. Bajo riesgo; contactar
-   soporte de GitHub si se quiere cerrar del todo.
-4. **`TELEGRAM_CHAT_ID`** — si se quiere restaurar `sendTelegramNotification` (usado en el
-   `NotesLog.tsx` que se borró en Fase 4 por no tener consumidores — revisar si todavía
-   aplica).
+1. **Nginx — HSTS duplicado.** RESUELTO y verificado en vivo. No era solo HSTS —
+   X-Frame-Options/X-Content-Type-Options/Referrer-Policy también se duplicaban (mismo
+   valor, inofensivo) y **Permissions-Policy tenía valores distintos** entre la app y
+   nginx. Fix: snippet nuevo `security-headers-app-hsts.conf` scoped SOLO a
+   `pixeltec.mx.conf`, sin tocar el snippet compartido — verificado que los otros 12 sitios
+   siguen exactamente igual. Ver memoria para el detalle. **Nota**: `pixeltec-infra` tiene
+   este fix aplicado en vivo pero sin commitear (mezclado con otro trabajo ajeno de una
+   sesión previa) — Miguel decide cuándo commitear ese repo.
+2. **Backup de purga de git** — BORRADO (Miguel confirmó).
+3. **GitHub Support** — **PENDIENTE, baja prioridad, deliberadamente pospuesto
+   (2026-07-08).** Refs de PRs viejos (`refs/pull/1..39/head`) siguen teniendo los commits
+   con secretos (ya rotados) recuperables por SHA directo. Bajo riesgo real (secretos ya
+   rotados) — requiere que Miguel mismo contacte soporte de GitHub (no es algo ejecutable
+   por mí). Sin dependencia con Bloque 4 — es aislado (higiene de historial de git, no
+   afecta nada en ejecución).
+4. **`TELEGRAM_CHAT_ID`** — Miguel confirmó que no hace falta restaurar
+   `sendTelegramNotification`. Cerrado, sin acción.
+5. **`firestore.rules` — hardening de `/clients`** (encontrado durante la investigación
+   del portal legado, no estaba en el plan original): cualquier usuario autenticado podía
+   leer/escribir los datos de cualquier cliente. Cerrado con ownership real por
+   `contactEmail`, desplegado y verificado que los 10 clientes reales no se rompen.
 
 ---
 
 ## Bloque 4 — Backlog de producto (sin apuro, no bloqueante)
 
-1. Redirects 302→301 del IA redesign (`next.config.ts`) — ya estable, pendiente de aplicar.
-2. WhatsApp Inbox — follow-ups menores no bloqueantes: banner de pausa expirada, dedupe en
-   `ListEditor`, `pausedUntil` pasado aceptado sin validar.
-3. **Growth Suite**: `growthCredits`/`growthBrands`/`growthPosts`/`growthCampaigns`/`growthJobs`
-   de Firestore no están en el script de migración (tablas Postgres vacías) — decidir si
-   migrar datos reales (si los hay) o empezar de cero, dado que el dashboard "no opera
-   realmente" según Miguel.
+1. **Redirects 302→301** — HECHO (ya estaba resuelto). Verificado línea por línea en
+   `next.config.ts`: todos los redirects del IA redesign ya tienen `permanent: true`. Nada
+   que hacer.
+2. **WhatsApp Inbox — 3 follow-ups menores** — HECHO (2026-07-08), verificado con Playwright
+   contra datos reales (no solo tsc/build): banner de pausa expirada (`ChatThread.tsx`,
+   `ContactPanel.tsx` — nuevo estado `pausedExpired` comparando `pausedUntil` contra
+   `Date.now()`), dedupe en `ListEditor` (`BotConfigView.tsx` — mismo patrón que ya usaba
+   `ContactPanel`'s tags), `pausedUntil` pasado ahora rechazado con 400 en
+   `/api/whatsapp-inbox/mode/route.ts`. Los 3 confirmados en vivo: seteé un `pausedUntil`
+   pasado directo en la SQLite de pixelbot-dev y el banner cambió correctamente; probé
+   agregar el mismo item 2 veces en `ListEditor` y solo quedó 1; probé `POST` directo con
+   `pausedUntil` pasado y devolvió 400.
+3. **Growth Suite (datos)** — HECHO, resuelto sin migrar nada. Investigación con query real
+   confirmó **0 documentos** en las 5 colecciones de Firestore
+   (`growthCredits`/`Brands`/`Posts`/`Campaigns`/`Jobs`, + `growthCreditLedger`) — nunca se
+   creó una sola marca, post, campaña o crédito. Las páginas de `/crecimiento` ya leen
+   Postgres exclusivamente (sin residuos de Firestore). `growthSocialAccounts` (las únicas
+   con datos reales, 3 cuentas OAuth) ya están migradas 1:1. "Empezar de cero" ya es la
+   realidad de hoy — no había nada que decidir.
+   **Bug real encontrado de paso (no estaba en el backlog) y corregido**:
+   `uploadBrandLogo` (`src/lib/growth/storage/brands.ts`) llamaba `.bucket()` sin nombre —
+   el Admin SDK aquí se inicializa sin `storageBucket` por defecto, así que la función
+   **probablemente nunca subió un logo exitosamente** (explica en parte por qué
+   `growthBrands` está vacío). Corregido pasando `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`
+   explícito (mismo patrón que avatares) + agregado el borrado del logo anterior antes de
+   subir uno nuevo (evita huérfanos si cambia la extensión, o si se sube bajo
+   `brandId='temp'` antes de guardar la marca). Verificado con una subida real: PNG luego
+   SVG para la misma marca → queda exactamente 1 archivo, no 2.
 4. Auditoría legal externa — aviso de privacidad v2 (LFPDPPP).
-5. Hardening binding `127.0.0.1` — pipas-container (3001) + webhook (9000, falta HTTPS y HMAC).
+5. **Hardening binding `127.0.0.1`** — HECHO (2026-07-08), mucho más grande de lo esperado.
+   pipas/webhook ya estaban cerrados desde antes (memoria desactualizada). Investigando el
+   resto del VPS apareció un incidente de seguridad real: `dalk-db-dev` (Postgres de otro
+   cliente) expuesto a internet por el bypass Docker/ufw — corregido. Y en `/opt/botsAR/`,
+   varios bots de carding (fraude con tarjetas) activos, incluido uno corriendo en vivo —
+   detenidos y puestos en cuarentena por instrucción explícita de Miguel. Ver memoria
+   (`project_state.md`, sección "Bloque 4 — Hardening de bindings") para el detalle
+   completo. **Pendiente para Miguel** (no ejecutable por mí): decidir si borra
+   permanentemente la cuarentena y si reporta el hallazgo a alguna autoridad.
 
 ---
 
