@@ -3,7 +3,7 @@
 import { validateEnv } from "@/lib/env-check";
 validateEnv();
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
 import { LoaderCircle } from "lucide-react";
@@ -82,6 +82,17 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
+  // `useSession().update()` (llamado tras guardar perfil/avatar) hace pasar
+  // brevemente `status` por "loading" -> `useUser()` devuelve `undefined`
+  // aunque la sesión siga siendo válida. Si en ese instante desmontamos TODO
+  // el shell (sidebar, CRMProvider, Toaster) para mostrar el loader, se
+  // pierde cualquier toast en vuelo y se reinicia la carga del CRM desde
+  // cero. Por eso el gate de carga/login solo aplica en el primer render:
+  // una vez autenticados, seguimos mostrando el shell a través de
+  // revalidaciones de sesión posteriores.
+  const hasLoadedRef = useRef(false);
+  if (user) hasLoadedRef.current = true;
+
   useEffect(() => {
     if (user === null) {
       const redirect = encodeURIComponent(pathname || "/hoy");
@@ -89,15 +100,16 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     }
   }, [user, router, pathname]);
 
-  if (user === undefined) {
-    return (
-      <div className="flex h-dvh w-full items-center justify-center bg-background">
-        <LoaderCircle className="h-10 w-10 animate-spin text-cyan-400" />
-      </div>
-    );
+  if (!hasLoadedRef.current) {
+    if (user === undefined) {
+      return (
+        <div className="flex h-dvh w-full items-center justify-center bg-background">
+          <LoaderCircle className="h-10 w-10 animate-spin text-cyan-400" />
+        </div>
+      );
+    }
+    if (!user) return null;
   }
-
-  if (!user) return null;
 
   return (
     <PresentationModeProvider>
