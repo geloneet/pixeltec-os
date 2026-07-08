@@ -1575,6 +1575,86 @@ export const cryptoIntelLogs = pgTable(
 );
 
 // ════════════════════════════════════════════════════════════════════════
+// WhatsApp Inbox — contactos (Fase B, 2026-07-08). Único remanente de
+// Firestore de este módulo: conversations/messages ya migraron a pixelbot
+// SQLite/HTTP (src/app/api/whatsapp-inbox/*) en una sesión previa; esta
+// colección (`whatsappContacts` — notas/clasificación/tags del contacto) se
+// dejó fuera de scope a propósito y se migra ahora.
+// ════════════════════════════════════════════════════════════════════════
+
+export const whatsappContactClassificationEnum = pgEnum("whatsapp_contact_classification", [
+  "cliente",
+  "prospecto",
+  "soporte",
+  "proveedor",
+  "spam",
+  "otro",
+]);
+
+export const whatsappContactStatusEnum = pgEnum("whatsapp_contact_status", [
+  "nuevo",
+  "en_atencion",
+  "esperando_cliente",
+  "resuelto",
+  "archivado",
+]);
+
+/**
+ * Excepción deliberada a la convención uuid PK (mismo criterio que
+ * `cryptoTelegramUsers`/`cryptoPrices` arriba): `phone` es el doc id de
+ * siempre en Firestore, hot-path de lookup por teléfono en cada carga del
+ * inbox, y nada más lo referencia por FK salvo `whatsappContactNotes` abajo.
+ *
+ * `linkedClientId` es una referencia SUELTA a `clients.id` (sin FK dura a
+ * propósito): el id que hoy produce `CRMContextCore.addClient()` es un id
+ * generado client-side (`uid()` — timestamp base36 + random, NO un uuid) que
+ * se persiste hacia Postgres de forma asíncrona/debounced (500ms) en
+ * `clients.firestore_id`, mientras `clients.id` real es un uuid
+ * server-generado. Un FK contra `clients.id` fallaría de formato (el valor
+ * guardado aquí no es un uuid) y además hay una condición de carrera: el
+ * dashboard guarda `linkedClientId` inmediatamente al convertir el contacto,
+ * antes de que el insert debounced en `clients` complete. Se preserva como
+ * texto libre, igual que `userId` en `cryptoAlertRules` (ver nota de esa
+ * sección).
+ */
+export const whatsappContacts = pgTable("whatsapp_contacts", {
+  phone: text("phone").primaryKey(),
+  name: text("name"),
+  classification: whatsappContactClassificationEnum("classification"),
+  tags: jsonb("tags").notNull().default([]), // string[]
+  assignedTo: text("assigned_to"),
+  origin: text("origin"),
+  status: whatsappContactStatusEnum("status"),
+  urgent: boolean("urgent").notNull().default(false),
+  linkedClientId: text("linked_client_id"), // suelto, ver nota arriba — no FK
+  actionHistory: jsonb("action_history").notNull().default([]), // ContactAction[]
+  createdAt: timestamp("created_at", { withTimezone: true }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }),
+});
+
+/**
+ * Subcolección `whatsappContacts/{phone}/notes` de Firestore. A diferencia
+ * del resto de este módulo, SÍ lleva FK dura contra `whatsappContacts.phone`
+ * — Firestore permitía notas bajo un doc de contacto que nunca se creó
+ * explícitamente, así que `addNote()` (repo) primero garantiza una fila
+ * mínima en `whatsappContacts` (INSERT ... ON CONFLICT DO NOTHING) antes de
+ * insertar la nota, preservando esa capacidad sin arriesgar una FK rota.
+ */
+export const whatsappContactNotes = pgTable(
+  "whatsapp_contact_notes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    contactPhone: text("contact_phone")
+      .notNull()
+      .references(() => whatsappContacts.phone, { onDelete: "cascade" }),
+    text: text("text").notNull(),
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("whatsapp_contact_notes_phone_idx").on(t.contactPhone)]
+);
+
+// ════════════════════════════════════════════════════════════════════════
 // Type exports
 // ════════════════════════════════════════════════════════════════════════
 
@@ -1653,3 +1733,8 @@ export type CryptoPricePoint = typeof cryptoPricePoints.$inferSelect;
 export type NewCryptoPricePoint = typeof cryptoPricePoints.$inferInsert;
 export type CryptoIntelLog = typeof cryptoIntelLogs.$inferSelect;
 export type NewCryptoIntelLog = typeof cryptoIntelLogs.$inferInsert;
+
+export type WhatsappContactRow = typeof whatsappContacts.$inferSelect;
+export type NewWhatsappContactRow = typeof whatsappContacts.$inferInsert;
+export type WhatsappContactNoteRow = typeof whatsappContactNotes.$inferSelect;
+export type NewWhatsappContactNoteRow = typeof whatsappContactNotes.$inferInsert;

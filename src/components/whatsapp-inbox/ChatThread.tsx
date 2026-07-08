@@ -3,10 +3,11 @@
 import { useEffect, useMemo, useRef } from "react";
 import { ArrowLeft, LoaderCircle, PanelRight } from "lucide-react";
 import { toast } from "sonner";
-import { useCollection, useFirestore, useUser } from "@/firebase";
+import { useUser } from "@/firebase";
+import { useInboxContactNotes } from "@/hooks/use-inbox-contact-notes";
 import { useInboxMessages } from "@/hooks/use-inbox-messages";
 import { cn } from "@/lib/utils";
-import { notesQuery, upsertContact } from "@/lib/whatsapp-inbox/contacts";
+import { upsertContact } from "@/lib/whatsapp-inbox/contacts-client";
 import { parseCanonical } from "@/lib/whatsapp-inbox/time";
 import {
   CLASSIFICATION_META,
@@ -41,7 +42,9 @@ function formatTime(msg: InboxMessage): string {
 }
 
 function formatNoteTime(note: ContactNote): string {
-  const d = note.createdAt ? note.createdAt.toDate() : new Date();
+  // note.createdAt llega como ISO string desde la API (ver nota de cast en
+  // src/lib/db/repos/whatsapp-contacts.ts) — ya no es un Timestamp de Firestore.
+  const d = note.createdAt ? new Date(note.createdAt as unknown as string) : new Date();
   return d.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" });
 }
 
@@ -66,6 +69,7 @@ interface ChatThreadProps {
   contact?: WhatsAppContact;
   onOpenPanel: () => void;
   refetchConversations: () => void;
+  refetchContacts: () => void;
 }
 
 export function ChatThread({
@@ -75,18 +79,13 @@ export function ChatThread({
   contact,
   onOpenPanel,
   refetchConversations,
+  refetchContacts,
 }: ChatThreadProps) {
-  const firestore = useFirestore();
   const user = useUser();
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  const notesRef = useMemo(() => {
-    if (!firestore) return null;
-    return notesQuery(firestore, phone);
-  }, [firestore, phone]);
-
   const { messages, loading, refetch: refetchMessages } = useInboxMessages(phone);
-  const { data: notes } = useCollection<ContactNote>(notesRef, { listen: true });
+  const { notes, refetch: refetchNotes } = useInboxContactNotes(phone);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -120,7 +119,7 @@ export function ChatThread({
     const noteItems: TimelineItem[] = (notes ?? []).map((n) => ({
       kind: "note",
       id: n.id,
-      time: n.createdAt ? n.createdAt.toDate() : new Date(),
+      time: n.createdAt ? new Date(n.createdAt as unknown as string) : new Date(),
       data: n,
     }));
     return [...msgItems, ...noteItems].sort((a, b) => a.time.getTime() - b.time.getTime());
@@ -148,21 +147,21 @@ export function ChatThread({
   );
 
   async function handleStatusChange(next: ConversationStatus) {
-    if (!firestore) return;
     if (!user?.uid) {
       toast.error("No se pudo identificar tu usuario.");
       return;
     }
     try {
-      await upsertContact(firestore, phone, { status: next }, user.uid, `Estado → ${STATUS_META[next].label}`);
+      await upsertContact(phone, { status: next }, `Estado → ${STATUS_META[next].label}`);
       toast.success(`Estado actualizado a "${STATUS_META[next].label}"`);
+      refetchContacts();
     } catch (err) {
       toast.error(`No se pudo actualizar el estado: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
   async function handleConfirmSuggestion() {
-    if (!firestore || !suggestedClassification) return;
+    if (!suggestedClassification) return;
     if (!user?.uid) {
       toast.error("No se pudo identificar tu usuario.");
       return;
@@ -170,13 +169,12 @@ export function ChatThread({
     const label = CLASSIFICATION_META[suggestedClassification].label;
     try {
       await upsertContact(
-        firestore,
         phone,
         { classification: suggestedClassification },
-        user.uid,
         `Clasificación confirmada: ${label}`
       );
       toast.success(`Clasificación confirmada: ${label}`);
+      refetchContacts();
     } catch (err) {
       toast.error(`No se pudo confirmar la clasificación: ${err instanceof Error ? err.message : String(err)}`);
     }
@@ -346,6 +344,7 @@ export function ChatThread({
           refetchMessages();
           refetchConversations();
         }}
+        onNoteSaved={refetchNotes}
       />
     </div>
   );

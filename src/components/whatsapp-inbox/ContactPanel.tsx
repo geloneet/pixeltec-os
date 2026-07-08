@@ -4,21 +4,18 @@ import { useEffect, useMemo, useState } from "react";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { Check, Copy, LoaderCircle, Plus, Ticket, X } from "lucide-react";
 import { toast } from "sonner";
-import { useCollection, useFirestore, useUser } from "@/firebase";
+import { useFirestore, useUser } from "@/firebase";
 import { useCRM } from "@/components/crm/CRMContextCore";
+import { useInboxContactNotes } from "@/hooks/use-inbox-contact-notes";
+import type { ContactPatch } from "@/lib/db/repos/whatsapp-contacts";
 import { cn } from "@/lib/utils";
-import {
-  addContactNote,
-  notesQuery,
-  upsertContact,
-} from "@/lib/whatsapp-inbox/contacts";
+import { addContactNote, upsertContact } from "@/lib/whatsapp-inbox/contacts-client";
 import { parseCanonical } from "@/lib/whatsapp-inbox/time";
 import {
   CLASSIFICATION_META,
   STATUS_META,
   type ConversationStatus,
   type ContactClassification,
-  type ContactNote,
   type InboxConversation,
   type WhatsAppContact,
 } from "@/types/whatsapp-inbox";
@@ -87,9 +84,12 @@ interface ContactPanelProps {
   contact?: WhatsAppContact;
   onClose: () => void;
   onModeChanged: () => void;
+  refetchContacts: () => void;
 }
 
-export function ContactPanel({ phone, conv, contact, onClose, onModeChanged }: ContactPanelProps) {
+export function ContactPanel({ phone, conv, contact, onClose, onModeChanged, refetchContacts }: ContactPanelProps) {
+  // Firestore se conserva SOLO para el ticket de soporte (colección `tickets`,
+  // fuera de alcance de esta migración) — whatsappContacts ya no lo usa.
   const firestore = useFirestore();
   const user = useUser();
   const crm = useCRM();
@@ -106,8 +106,7 @@ export function ContactPanel({ phone, conv, contact, onClose, onModeChanged }: C
   useEffect(() => setName(contact?.name ?? ""), [contact?.name]);
   useEffect(() => setOrigin(contact?.origin ?? ""), [contact?.origin]);
 
-  const notesRef = useMemo(() => (firestore ? notesQuery(firestore, phone) : null), [firestore, phone]);
-  const { data: notes } = useCollection<ContactNote>(notesRef, { listen: true });
+  const { notes, refetch: refetchNotes } = useInboxContactNotes(phone);
 
   const mode = conv?.mode ?? "BOT";
   const pausedUntilLabel = useMemo(() => {
@@ -125,21 +124,22 @@ export function ContactPanel({ phone, conv, contact, onClose, onModeChanged }: C
     return parseCanonical(conv.pausedUntil).getTime() < Date.now();
   }, [conv?.pausedUntil]);
 
-  function requireCtx(): { fs: NonNullable<typeof firestore>; uid: string } | null {
-    if (!firestore) return null;
+  // `byUid` (actionHistory) ya no lo maneja el cliente — el servidor lo deriva
+  // de la sesión (requireAdmin). Este helper solo obtiene el uid cuando el
+  // dato en sí lo necesita (ej. assignedTo: "asignarme a mí").
+  function requireUid(): string | null {
     if (!user?.uid) {
       toast.error("No se pudo identificar tu usuario.");
       return null;
     }
-    return { fs: firestore, uid: user.uid };
+    return user.uid;
   }
 
-  async function saveField(data: Partial<Omit<WhatsAppContact, "id" | "actionHistory">>, action: string, successMsg?: string) {
-    const ctx = requireCtx();
-    if (!ctx) return;
+  async function saveField(data: ContactPatch, action: string, successMsg?: string) {
     try {
-      await upsertContact(ctx.fs, phone, data, ctx.uid, action);
+      await upsertContact(phone, data, action);
       if (successMsg) toast.success(successMsg);
+      refetchContacts();
     } catch (err) {
       toast.error(`No se pudo guardar: ${err instanceof Error ? err.message : String(err)}`);
     }
@@ -188,11 +188,11 @@ export function ContactPanel({ phone, conv, contact, onClose, onModeChanged }: C
   }
 
   function handleAssignToggle() {
-    const ctx = requireCtx();
-    if (!ctx) return;
-    const isMine = contact?.assignedTo === ctx.uid;
+    const uid = requireUid();
+    if (!uid) return;
+    const isMine = contact?.assignedTo === uid;
     void saveField(
-      { assignedTo: isMine ? null : ctx.uid },
+      { assignedTo: isMine ? null : uid },
       isMine ? "Responsable removido" : "Asignado a mí"
     );
   }
@@ -220,18 +220,13 @@ export function ContactPanel({ phone, conv, contact, onClose, onModeChanged }: C
 
   async function handleSaveContact() {
     if (pendingAction) return;
-    const ctx = requireCtx();
-    if (!ctx) return;
     setPendingAction("saveContact");
     try {
-      await upsertContact(
-        ctx.fs,
-        phone,
-        { name: name.trim() || undefined, status: "nuevo", createdAt: serverTimestamp() as unknown as WhatsAppContact["createdAt"] },
-        ctx.uid,
-        "Contacto guardado"
-      );
+      // createdAt ya no se pasa: el repo lo fija automáticamente la primera
+      // vez que la fila se crea (ver src/lib/db/repos/whatsapp-contacts.ts).
+      await upsertContact(phone, { name: name.trim() || undefined, status: "nuevo" }, "Contacto guardado");
       toast.success("Contacto guardado");
+      refetchContacts();
     } catch (err) {
       toast.error(`No se pudo guardar el contacto: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
@@ -241,8 +236,6 @@ export function ContactPanel({ phone, conv, contact, onClose, onModeChanged }: C
 
   async function handleConvertToClient() {
     if (pendingAction) return;
-    const ctx = requireCtx();
-    if (!ctx) return;
     setPendingAction("convertToClient");
     try {
       const id = crm.addClient({
@@ -254,14 +247,9 @@ export function ContactPanel({ phone, conv, contact, onClose, onModeChanged }: C
         notes: "Origen: WhatsApp Inbox",
       });
       if (!id) return; // addClient ya mostró el toast de error
-      await upsertContact(
-        ctx.fs,
-        phone,
-        { linkedClientId: id, classification: "cliente" },
-        ctx.uid,
-        "Convertido en cliente CRM"
-      );
+      await upsertContact(phone, { linkedClientId: id, classification: "cliente" }, "Convertido en cliente CRM");
       toast.success("Cliente creado y vinculado");
+      refetchContacts();
     } catch (err) {
       toast.error(`No se pudo vincular el cliente: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
@@ -279,8 +267,7 @@ export function ContactPanel({ phone, conv, contact, onClose, onModeChanged }: C
 
   async function handleCreateFollowUp() {
     if (pendingAction) return;
-    const ctx = requireCtx();
-    if (!ctx || !linkedClient || !followUpProject) return;
+    if (!linkedClient || !followUpProject) return;
     setPendingAction("createFollowUp");
     try {
       crm.addTask(linkedClient.id, followUpProject.id, {
@@ -296,8 +283,7 @@ export function ContactPanel({ phone, conv, contact, onClose, onModeChanged }: C
 
   async function handleCreateTicket() {
     if (pendingAction) return;
-    const ctx = requireCtx();
-    if (!ctx) return;
+    if (!firestore) return;
     const problema = ticketProblem.trim();
     if (!problema) {
       toast.error("Describe el problema antes de crear el ticket");
@@ -306,7 +292,8 @@ export function ContactPanel({ phone, conv, contact, onClose, onModeChanged }: C
     const ticketId = `WA-${Date.now().toString(36).toUpperCase()}`;
     setPendingAction("createTicket");
     try {
-      await addDoc(collection(ctx.fs, "tickets"), {
+      // `tickets` sigue en Firestore — fuera de alcance de esta migración.
+      await addDoc(collection(firestore, "tickets"), {
         ticketId,
         problema,
         estado: "abierto",
@@ -315,10 +302,11 @@ export function ContactPanel({ phone, conv, contact, onClose, onModeChanged }: C
         source: "whatsapp",
         createdAt: serverTimestamp(),
       });
-      await upsertContact(ctx.fs, phone, {}, ctx.uid, `Ticket creado: ${ticketId}`);
+      await upsertContact(phone, {}, `Ticket creado: ${ticketId}`);
       toast.success(`Ticket creado: ${ticketId}`);
       setTicketProblem("");
       setTicketOpen(false);
+      refetchContacts();
     } catch (err) {
       toast.error(`No se pudo crear el ticket: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
@@ -327,13 +315,12 @@ export function ContactPanel({ phone, conv, contact, onClose, onModeChanged }: C
   }
 
   async function handleAddNote() {
-    const ctx = requireCtx();
-    if (!ctx) return;
     const text = noteInput.trim();
     if (!text) return;
     try {
-      await addContactNote(ctx.fs, phone, text, ctx.uid);
+      await addContactNote(phone, text);
       setNoteInput("");
+      refetchNotes();
     } catch (err) {
       toast.error(`No se pudo añadir la nota: ${err instanceof Error ? err.message : String(err)}`);
     }

@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { MessageCircle, Settings2 } from "lucide-react";
+import { useInboxContacts } from "@/hooks/use-inbox-contacts";
 import { useInboxConversations } from "@/hooks/use-inbox-conversations";
-import { useWhatsappContacts } from "@/hooks/use-whatsapp-contacts";
 import { ChatThread } from "./ChatThread";
 import { ContactPanel } from "./ContactPanel";
 import { ConversationList, type CategoryId, type QuickFilterId } from "./ConversationList";
@@ -26,7 +26,7 @@ export function InboxShell({ tenantId, onOpenConfig }: InboxShellProps) {
   const [panelOpen, setPanelOpen] = useState(true);
   const [category, setCategory] = useState<CategoryId>("todos");
   const [quickFilter, setQuickFilter] = useState<QuickFilterId | null>(null);
-  const { contactsByPhone } = useWhatsappContacts();
+  const { contactsByPhone, refetch: refetchContacts } = useInboxContacts();
   const {
     conversations,
     loading: conversationsLoading,
@@ -86,6 +86,7 @@ export function InboxShell({ tenantId, onOpenConfig }: InboxShellProps) {
             contact={contactsByPhone.get(selectedPhone)}
             onOpenPanel={() => setPanelOpen((v) => !v)}
             refetchConversations={refetchConversations}
+            refetchContacts={refetchContacts}
           />
         ) : (
           <div className="flex h-full items-center justify-center p-6">
@@ -140,6 +141,7 @@ export function InboxShell({ tenantId, onOpenConfig }: InboxShellProps) {
               contact={contactsByPhone.get(selectedPhone)}
               onClose={() => setPanelOpen(false)}
               onModeChanged={refetchConversations}
+              refetchContacts={refetchContacts}
             />
           </div>
         </>

@@ -3,9 +3,8 @@
 import { useState } from "react";
 import { Send, StickyNote } from "lucide-react";
 import { toast } from "sonner";
-import { useFirestore, useUser } from "@/firebase";
 import { cn } from "@/lib/utils";
-import { addContactNote } from "@/lib/whatsapp-inbox/contacts";
+import { addContactNote } from "@/lib/whatsapp-inbox/contacts-client";
 import type { SendResult, WhatsAppMode } from "@/types/whatsapp-inbox";
 
 interface ComposerProps {
@@ -13,17 +12,13 @@ interface ComposerProps {
   mode: WhatsAppMode;
   windowOpen: boolean;
   onSent?: () => void;
+  /** Notifica a ChatThread (dueño de useInboxContactNotes) que refetchee tras guardar una nota. */
+  onNoteSaved?: () => void;
 }
 
 type ComposerMode = "message" | "note";
 
-// Composer obtiene Firestore/uid directamente (useFirestore/useUser) en vez de
-// recibirlos como props del hilo: las notas son una escritura directa a
-// Firestore independiente del flujo de envío por la API del bot, y así
-// ChatThread no tiene que cablear props extra solo para esto.
-export function Composer({ phone, mode, windowOpen, onSent }: ComposerProps) {
-  const firestore = useFirestore();
-  const user = useUser();
+export function Composer({ phone, mode, windowOpen, onSent, onNoteSaved }: ComposerProps) {
   const [composerMode, setComposerMode] = useState<ComposerMode>("message");
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
@@ -68,15 +63,11 @@ export function Composer({ phone, mode, windowOpen, onSent }: ComposerProps) {
   }
 
   async function saveNote(trimmed: string) {
-    if (!firestore) return;
-    if (!user?.uid) {
-      toast.error("No se pudo identificar tu usuario.");
-      return;
-    }
     setSending(true);
     try {
-      await addContactNote(firestore, phone, trimmed, user.uid);
+      await addContactNote(phone, trimmed);
       setText("");
+      onNoteSaved?.();
     } catch (err) {
       toast.error(`Error guardando la nota: ${err instanceof Error ? err.message : String(err)}`);
     } finally {

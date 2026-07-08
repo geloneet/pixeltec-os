@@ -185,14 +185,22 @@ service cloud.firestore {
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // WhatsApp atención — datos del dashboard (contacto, clasificación, notas).
-    // Escritos por el admin autenticado via client SDK; el bot NUNCA los toca.
+    // WhatsApp atención — RETIRADA (Fase B, 2026-07-08). Último remanente
+    // de Firestore del módulo WhatsApp Inbox (contacto, clasificación,
+    // tags, notas) migrado a Postgres — el dashboard lee/escribe todo vía
+    // /api/whatsapp-inbox/contacts* (ver src/lib/db/repos/whatsapp-contacts.ts).
+    // Cerrado a cal/agua: nadie debe leer ni escribir aquí.
+    // ⚠️ GATE DE DEPLOY: esta regla y el código de Fase B (pixeltec-os)
+    // deben desplegarse JUNTOS. Si esta regla se despliega ANTES que ese
+    // código, se rompe la ficha de contacto del inbox en producción (el
+    // dashboard viejo todavía lee/escribe whatsappContacts/** vía
+    // onSnapshot/setDoc).
     // ═══════════════════════════════════════════════════════════════
     match /whatsappContacts/{phone} {
-      allow read, write: if request.auth != null;
+      allow read, write: if false;
     }
     match /whatsappContacts/{phone}/{path=**} {
-      allow read, write: if request.auth != null;
+      allow read, write: if false;
     }
   }
 }
