@@ -1,7 +1,12 @@
-import { Timestamp } from "firebase-admin/firestore";
 import type { BotContext } from "../context";
-import { db, COL } from "../../firebase-admin";
+import {
+  createAlertRule,
+  getAlertRuleById,
+  listAlertRulesByUser,
+  updateAlertRule,
+} from "@/lib/db/repos/crypto-intel";
 import type { AlertRule } from "../../types";
+import { dbRuleToAlertRule } from "../../alert-engine";
 import { WATCHLIST } from "../../watchlist";
 import { alertsView } from "../views/templates";
 import { alertsKeyboard, alertsEmptyKeyboard } from "../keyboards/alerts";
@@ -11,16 +16,9 @@ type RuleWithId = AlertRule & { id: string };
 
 export async function handleAlertsList(ctx: BotContext): Promise<void> {
   const userId = String(ctx.from!.id);
-  const snap = await db()
-    .collection(COL.alertRules)
-    .where("userId", "==", userId)
-    .where("active", "==", true)
-    .get();
+  const rows = await listAlertRulesByUser(userId, { activeOnly: true });
 
-  const rules: RuleWithId[] = snap.docs.map((d) => ({
-    ...(d.data() as AlertRule),
-    id: d.id,
-  }));
+  const rules: RuleWithId[] = rows.map(dbRuleToAlertRule);
 
   const text = alertsView(rules);
   const markup = rules.length > 0 ? alertsKeyboard(rules) : alertsEmptyKeyboard();
@@ -37,15 +35,14 @@ export async function handleAlertDelete(
   alertId: string
 ): Promise<void> {
   const userId = String(ctx.from!.id);
-  const ref = db().collection(COL.alertRules).doc(alertId);
-  const doc = await ref.get();
+  const rule = await getAlertRuleById(alertId);
 
-  if (!doc.exists || doc.data()?.userId !== userId) {
+  if (!rule || rule.userId !== userId) {
     await ctx.answerCallbackQuery({ text: "Alerta no encontrada.", show_alert: true });
     return;
   }
 
-  await ref.update({ active: false });
+  await updateAlertRule(alertId, { active: false });
   await ctx.answerCallbackQuery({ text: "✅ Alerta eliminada" });
   await handleAlertsList(ctx);
 }
@@ -130,30 +127,30 @@ export async function handleAlertFlow(ctx: BotContext): Promise<boolean> {
       return true;
     }
 
-    const rule: AlertRule = {
+    const symbol = draft.symbol!;
+    const params = {
+      threshold,
+      ...(draft.type === "change_percent"
+        ? { window: "24h" as const, direction: "down" as const }
+        : {}),
+    };
+
+    const created = await createAlertRule({
       userId: String(ctx.from!.id),
-      symbol: draft.symbol!,
+      symbol,
       type: draft.type!,
-      params: {
-        threshold,
-        ...(draft.type === "change_percent"
-          ? { window: "24h" as const, direction: "down" as const }
-          : {}),
-      },
+      params,
       channels: ["telegram"],
       cooldownMinutes: 60,
       active: true,
-      createdAt: Timestamp.now(),
-    };
-
-    const ref = await db().collection(COL.alertRules).add(rule);
+    });
     ctx.session.flow = undefined;
     ctx.session.draft = undefined;
 
     await ctx.reply(
       `✅ <b>Alerta creada</b>\n\n` +
-      `ID: <code>${ref.id}</code>\n` +
-      `Asset: <b>${rule.symbol}</b>\n` +
+      `ID: <code>${created.id}</code>\n` +
+      `Asset: <b>${symbol}</b>\n` +
       `Umbral: ${threshold}\n\n` +
       `<i>Te notificaré cuando se dispare. Cooldown: 60 min.</i>`,
       { parse_mode: "HTML", reply_markup: mainMenuKeyboard(ctx.isAdmin) }

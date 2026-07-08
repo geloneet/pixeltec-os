@@ -154,14 +154,13 @@ export function getBot(): Bot<BotContext> {
       await ctx.reply("Usa el botón 🗑 en /alertas para borrar.", { parse_mode: "HTML" });
       return;
     }
-    const { db, COL } = await import("../firebase-admin");
-    const ref = db().collection(COL.alertRules).doc(id);
-    const doc = await ref.get();
-    if (!doc.exists || doc.data()?.userId !== String(ctx.from!.id)) {
+    const { getAlertRuleById, updateAlertRule } = await import("@/lib/db/repos/crypto-intel");
+    const rule = await getAlertRuleById(id);
+    if (!rule || rule.userId !== String(ctx.from!.id)) {
       await ctx.reply("Alerta no encontrada o no te pertenece.", { parse_mode: "HTML" });
       return;
     }
-    await ref.update({ active: false });
+    await updateAlertRule(id, { active: false });
     await ctx.reply("✅ Alerta desactivada.", {
       parse_mode: "HTML",
       reply_markup: mainMenuKeyboard(ctx.isAdmin),

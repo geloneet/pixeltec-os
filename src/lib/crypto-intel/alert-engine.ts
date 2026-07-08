@@ -3,8 +3,11 @@
 // En Fase 1 soporta price_below, price_above y change_percent.
 // Fase 2 añadirá rsi_extreme, ma_cross, volume_spike.
 
-import { Timestamp } from "firebase-admin/firestore";
-import { db, COL } from "./firebase-admin";
+import {
+  bumpAlertRuleTrigger,
+  createAlertEvent,
+  listActiveAlertRules,
+} from "@/lib/db/repos/crypto-intel";
 import { getLatestPrice } from "./price-engine";
 import { sendTelegramAlert } from "./telegram/sender";
 import { log } from "./logger";
@@ -17,9 +20,30 @@ interface EvaluationSummary {
   errors: number;
 }
 
+export function dbRuleToAlertRule(
+  row: Awaited<ReturnType<typeof listActiveAlertRules>>[number]
+): AlertRule & { id: string } {
+  return {
+    id: row.id,
+    userId: row.userId,
+    symbol: row.symbol,
+    type: row.type,
+    params: row.params as AlertRule["params"],
+    channels: row.channels as AlertRule["channels"],
+    cooldownMinutes: row.cooldownMinutes,
+    active: row.active,
+    lastTriggeredAt: row.lastTriggeredAt ?? undefined,
+    createdAt: row.createdAt,
+    telegramChatId: row.telegramChatId ?? undefined,
+    displayName: row.displayName ?? undefined,
+    triggerCount: row.triggerCount,
+    updatedAt: row.updatedAt,
+    deletedAt: row.deletedAt,
+  };
+}
+
 export async function evaluateAllAlerts(): Promise<EvaluationSummary> {
-  const firestore = db();
-  const now = Timestamp.now();
+  const now = new Date();
   const summary: EvaluationSummary = {
     evaluated: 0,
     triggered: 0,
@@ -27,25 +51,21 @@ export async function evaluateAllAlerts(): Promise<EvaluationSummary> {
     errors: 0,
   };
 
-  const rulesSnap = await firestore
-    .collection(COL.alertRules)
-    .where("active", "==", true)
-    .get();
+  const rows = await listActiveAlertRules();
 
-  await log("alert-engine", "info", "Evaluación iniciada", { rulesCount: rulesSnap.size });
+  await log("alert-engine", "info", "Evaluación iniciada", { rulesCount: rows.length });
 
-  // Cache precios para no pegarle N veces a firestore
+  // Cache precios para no pegarle N veces a la DB
   const priceCache = new Map<string, PriceSnapshot>();
 
-  for (const doc of rulesSnap.docs) {
+  for (const row of rows) {
     summary.evaluated++;
-    const rule = { id: doc.id, ...doc.data() } as AlertRule;
+    const rule = dbRuleToAlertRule(row);
 
     try {
       // Cooldown check
       if (rule.lastTriggeredAt && rule.cooldownMinutes > 0) {
-        const elapsed =
-          now.toMillis() - rule.lastTriggeredAt.toMillis();
+        const elapsed = now.getTime() - rule.lastTriggeredAt.getTime();
         if (elapsed < rule.cooldownMinutes * 60 * 1000) {
           summary.skippedCooldown++;
           continue;
@@ -71,7 +91,7 @@ export async function evaluateAllAlerts(): Promise<EvaluationSummary> {
       let deliveredOk = false;
 
       if (rule.channels.includes("telegram")) {
-        const chatId = (rule as AlertRule & { telegramChatId?: string }).telegramChatId;
+        const chatId = rule.telegramChatId;
         if (!chatId) {
           console.warn(`[alert-engine] regla ${rule.id} sin telegramChatId configurado — omitiendo entrega`);
         } else {
@@ -85,23 +105,20 @@ export async function evaluateAllAlerts(): Promise<EvaluationSummary> {
         }
       }
 
-      const event: AlertEvent = {
-        ruleId: rule.id!,
+      await createAlertEvent({
+        ruleId: rule.id,
         userId: rule.userId,
         symbol: rule.symbol,
         message: result.message,
         payload: { price: price.priceUsd, rule: rule.params },
         deliveredTo,
-        createdAt: now,
-      };
-
-      await firestore.collection(COL.alerts).add(event);
+      });
 
       // Solo consumimos el cooldown si la entrega tuvo éxito en al menos un canal
       // (o si no había canales configurados) — un envío fallido debe poder
       // reintentarse en la próxima corrida del cron.
       if (deliveredOk || rule.channels.length === 0) {
-        await doc.ref.update({ lastTriggeredAt: now });
+        await bumpAlertRuleTrigger(rule.id, now);
       }
 
       summary.triggered++;

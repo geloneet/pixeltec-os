@@ -13,8 +13,7 @@
 import { config } from "dotenv";
 config({ path: ".env.local" });
 
-import { db, COL } from "../src/lib/crypto-intel/firebase-admin";
-import { Timestamp } from "firebase-admin/firestore";
+import { upsertTelegramUser } from "../src/lib/db/repos/crypto-intel";
 
 async function main() {
   const telegramId = process.argv[2];
@@ -26,13 +25,13 @@ async function main() {
 
   const firstName = process.argv[3] ?? "Miguel";
 
-  await db().collection(COL.telegramUsers).doc(telegramId).set({
+  await upsertTelegramUser({
+    telegramId,
     telegramUserId: Number(telegramId),
     firstName,
     timezone: "America/Mexico_City",
     role: "owner",
     authorized: true,
-    createdAt: Timestamp.now(),
   });
 
   console.log(`✅ Usuario ${telegramId} (${firstName}) autorizado como owner.`);

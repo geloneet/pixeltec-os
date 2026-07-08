@@ -32,7 +32,7 @@ const ACTIONS: ActionConfig[] = [
   {
     key: "sync",
     label: "Forzar sync de precios",
-    description: "Llama a CoinGecko y actualiza todos los precios en Firestore.",
+    description: "Llama a CoinGecko y actualiza todos los precios en Postgres.",
     icon: <RefreshCw className="h-4 w-4" />,
     confirmText: "Ejecutar sync",
   },

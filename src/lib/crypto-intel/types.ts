@@ -1,7 +1,8 @@
 // src/lib/crypto-intel/types.ts
 // Tipos centralizados del módulo. Importar desde aquí siempre para mantener consistencia.
-
-import type { Timestamp } from "firebase-admin/firestore";
+//
+// Postgres/Drizzle es el datastore (ver src/lib/db/schema.ts y
+// src/lib/db/repos/crypto-intel.ts) — los campos de fecha son `Date` nativo.
 
 export type AssetSymbol = string; // "BTC", "ETH", etc.
 
@@ -12,7 +13,7 @@ export interface Asset {
   binanceSymbol: string; // "BTCUSDT"
   rank: number;
   active: boolean;
-  addedAt: Timestamp;
+  addedAt: Date;
 }
 
 export interface PriceSnapshot {
@@ -24,14 +25,14 @@ export interface PriceSnapshot {
   volume24h: number;
   marketCap: number;
   source: "binance" | "coingecko";
-  updatedAt: Timestamp;
+  updatedAt: Date;
 }
 
 export interface PricePoint {
   symbol: AssetSymbol;
   price: number;
   volume: number;
-  timestamp: Timestamp;
+  timestamp: Date;
   interval: "1m" | "1h" | "1d";
 }
 
@@ -58,14 +59,14 @@ export interface AlertRule {
   channels: Array<"telegram" | "dashboard">;
   cooldownMinutes: number;
   active: boolean;
-  lastTriggeredAt?: Timestamp;
-  createdAt: Timestamp;
+  lastTriggeredAt?: Date;
+  createdAt: Date;
   // Phase 3A additions (backward-compat: all optional)
   telegramChatId?: string;
   displayName?: string;
   triggerCount?: number;
-  updatedAt?: Timestamp;
-  deletedAt?: Timestamp | null;
+  updatedAt?: Date;
+  deletedAt?: Date | null;
 }
 
 export interface AlertEvent {
@@ -76,7 +77,7 @@ export interface AlertEvent {
   message: string;
   payload: Record<string, unknown>;
   deliveredTo: string[];
-  createdAt: Timestamp;
+  createdAt: Date;
 }
 
 // --- Usuario del bot ---
@@ -88,7 +89,7 @@ export interface TelegramUser {
   timezone: string; // IANA, default "America/Mexico_City"
   role: "owner" | "operator";
   authorized: boolean;
-  createdAt: Timestamp;
+  createdAt: Date;
 }
 
 // --- Respuesta tipada de Binance !ticker@arr ---

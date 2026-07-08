@@ -1,5 +1,5 @@
 import type { BotContext } from "../context";
-import { db, COL } from "../../firebase-admin";
+import { listActiveAlertRules, listAuthorizedTelegramUsers } from "@/lib/db/repos/crypto-intel";
 import { syncPrices } from "../../price-engine";
 import { adminStatusView } from "../views/templates";
 import { adminKeyboard } from "../keyboards/admin";
@@ -21,14 +21,11 @@ export async function handleAdminStatus(ctx: BotContext): Promise<void> {
     return;
   }
 
-  const alertsSnap = await db()
-    .collection(COL.alertRules)
-    .where("active", "==", true)
-    .get();
+  const activeRules = await listActiveAlertRules();
 
   const text = adminStatusView({
     uptime: formatUptime(process.uptime()),
-    alertRules: alertsSnap.size,
+    alertRules: activeRules.length,
   });
 
   const markup = adminKeyboard();
@@ -89,17 +86,14 @@ export async function handleAdminUsers(ctx: BotContext): Promise<void> {
     return;
   }
 
-  const snap = await db()
-    .collection(COL.telegramUsers)
-    .where("authorized", "==", true)
-    .get();
+  const rows = await listAuthorizedTelegramUsers();
 
-  const lines = snap.docs.map(
-    (d) => `• <code>${d.id}</code> — ${d.data().firstName ?? "—"}`
+  const lines = rows.map(
+    (r) => `• <code>${r.telegramId}</code> — ${r.firstName ?? "—"}`
   );
 
   const text =
-    `👥 <b>Usuarios autorizados (${snap.size})</b>\n` +
+    `👥 <b>Usuarios autorizados (${rows.length})</b>\n` +
     `━━━━━━━━━━━━━━━\n\n` +
     (lines.length > 0 ? lines.join("\n") : "Ninguno registrado.");
 

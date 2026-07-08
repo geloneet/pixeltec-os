@@ -1,7 +1,11 @@
 "use server";
 import { revalidatePath } from "next/cache";
-import { Timestamp } from "firebase-admin/firestore";
-import { db, COL } from "../firebase-admin";
+import {
+  createAlertRule,
+  getAlertRuleById,
+  softDeleteAlertRule,
+  updateAlertRule,
+} from "@/lib/db/repos/crypto-intel";
 import { getSessionUid } from "../auth";
 import { log } from "../logger";
 import { CreateAlertSchema, UpdateAlertSchema } from "../schemas/alert";
@@ -11,15 +15,15 @@ async function assertAlertOwnership(
   id: string,
   uid: string
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const snap = await db().collection(COL.alertRules).doc(id).get();
-  if (!snap.exists) {
+  const rule = await getAlertRuleById(id);
+  if (!rule) {
     return { ok: false, error: "Alerta no encontrada" };
   }
-  if (snap.data()?.userId !== uid) {
+  if (rule.userId !== uid) {
     void log("admin", "warn", "IDOR attempt blocked on alertRules", {
       alertId: id,
       attemptedBy: uid,
-      ownerUid: snap.data()?.userId,
+      ownerUid: rule.userId,
     });
     return { ok: false, error: "Sin permisos sobre esta alerta" };
   }
@@ -39,7 +43,7 @@ export async function createAlert(
 
   const { symbol, type, threshold, pctWindow, pctDirection, channels, telegramChatId, cooldownMinutes, displayName } = parsed.data;
 
-  await db().collection(COL.alertRules).add({
+  await createAlertRule({
     userId: uid,
     symbol,
     type,
@@ -55,8 +59,6 @@ export async function createAlert(
     cooldownMinutes,
     triggerCount: 0,
     active: true,
-    createdAt: Timestamp.now(),
-    updatedAt: Timestamp.now(),
     deletedAt: null,
     lastTriggeredAt: null,
   });
@@ -82,7 +84,7 @@ export async function updateAlert(
 
   const { symbol, type, threshold, pctWindow, pctDirection, channels, telegramChatId, cooldownMinutes, displayName, active } = parsed.data;
 
-  const updateData: Record<string, unknown> = { updatedAt: Timestamp.now() };
+  const updateData: Parameters<typeof updateAlertRule>[1] = { updatedAt: new Date() };
   if (symbol !== undefined) updateData.symbol = symbol;
   if (type !== undefined) updateData.type = type;
   if (threshold !== undefined) {
@@ -99,7 +101,7 @@ export async function updateAlert(
   if (displayName !== undefined) updateData.displayName = displayName;
   if (active !== undefined) updateData.active = active;
 
-  await db().collection(COL.alertRules).doc(id).update(updateData);
+  await updateAlertRule(id, updateData);
   revalidatePath("/crypto-intel/alertas");
   return { ok: true };
 }
@@ -114,10 +116,7 @@ export async function toggleAlert(
   const ownership = await assertAlertOwnership(id, uid);
   if (!ownership.ok) return ownership;
 
-  await db().collection(COL.alertRules).doc(id).update({
-    active,
-    updatedAt: Timestamp.now(),
-  });
+  await updateAlertRule(id, { active, updatedAt: new Date() });
   revalidatePath("/crypto-intel/alertas");
   return { ok: true };
 }
@@ -132,11 +131,7 @@ export async function deleteAlert(
   if (!ownership.ok) return ownership;
 
   // Soft delete
-  await db().collection(COL.alertRules).doc(id).update({
-    deletedAt: Timestamp.now(),
-    active: false,
-    updatedAt: Timestamp.now(),
-  });
+  await softDeleteAlertRule(id);
   revalidatePath("/crypto-intel/alertas");
   return { ok: true };
 }

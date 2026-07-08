@@ -1,7 +1,7 @@
 import { requireAdmin } from "@/lib/crypto-intel/auth";
 import { listAuthorizedUsers } from "@/lib/crypto-intel/queries/users";
 import { listLogs, getMetrics } from "@/lib/crypto-intel/queries/logs";
-import { db, COL } from "@/lib/crypto-intel/firebase-admin";
+import { getLatestPrice, listActiveAlertRules } from "@/lib/db/repos/crypto-intel";
 import { WATCHLIST } from "@/lib/crypto-intel/watchlist";
 import { UsersTile } from "@/components/crypto-intel/admin/users-tile";
 import { LogsTile } from "@/components/crypto-intel/admin/logs-tile";
@@ -13,27 +13,22 @@ export const dynamic = "force-dynamic";
 export default async function AdminPage() {
   await requireAdmin();
 
-  const [users, logs, metrics, priceDocs] = await Promise.all([
+  const [users, logs, metrics, priceRows] = await Promise.all([
     listAuthorizedUsers(),
     listLogs({ limit: 50 }),
     getMetrics(),
-    Promise.all(WATCHLIST.map((w) => db().collection(COL.prices).doc(w.symbol).get())),
+    Promise.all(WATCHLIST.map((w) => getLatestPrice(w.symbol))),
   ]);
 
-  const prices = priceDocs.filter((d) => d.exists).map((d) => d.data());
+  const prices = priceRows.filter((r): r is NonNullable<typeof r> => r !== null);
 
   const oldestPriceMs = prices.reduce<number>((min, p) => {
-    const t = (p?.updatedAt as { toMillis?: () => number } | undefined)?.toMillis?.() ?? Infinity;
+    const t = p.updatedAt.getTime();
     return t < min ? t : min;
   }, Infinity);
 
-  // Count active alert rules
-  const activeAlertsSnap = await db()
-    .collection(COL.alertRules)
-    .where("active", "==", true)
-    .where("deletedAt", "==", null)
-    .get()
-    .catch(() => db().collection(COL.alertRules).where("active", "==", true).get());
+  // Count active alert rules (ya excluye soft-deleted — active=false al borrar)
+  const activeAlertRules = await listActiveAlertRules();
 
   return (
     <div className="space-y-8 text-white">
@@ -49,7 +44,7 @@ export default async function AdminPage() {
         <MetricsTile
           metrics={metrics}
           oldestPriceMs={oldestPriceMs === Infinity ? null : oldestPriceMs}
-          activeAlertCount={activeAlertsSnap.size}
+          activeAlertCount={activeAlertRules.length}
         />
         <LogsTile logs={logs} />
         <QuickActionsTile />

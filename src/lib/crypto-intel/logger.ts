@@ -1,19 +1,16 @@
-import { Timestamp } from "firebase-admin/firestore";
-import { db } from "./firebase-admin";
+import { createLog } from "@/lib/db/repos/crypto-intel";
 
 export type LogLevel = "info" | "warn" | "error";
 export type LogSource = "price-sync" | "alert-engine" | "telegram-webhook" | "admin";
 
 export interface LogEntry {
   id?: string;
-  timestamp: Timestamp;
+  timestamp: Date;
   source: LogSource;
   level: LogLevel;
   message: string;
   metadata: Record<string, unknown>;
 }
-
-const COLLECTION = "cryptoIntelLogs";
 
 export async function log(
   source: LogSource,
@@ -22,13 +19,12 @@ export async function log(
   metadata: Record<string, unknown> = {}
 ): Promise<void> {
   try {
-    await db().collection(COLLECTION).add({
-      timestamp: Timestamp.now(),
+    await createLog({
       source,
       level,
       message,
       metadata,
-    } satisfies Omit<LogEntry, "id">);
+    });
   } catch {
     // Never let logging crash the caller
     console.error("[logger] failed to write log", { source, level, message });

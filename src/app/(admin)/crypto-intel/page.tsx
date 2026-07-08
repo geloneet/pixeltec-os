@@ -1,8 +1,9 @@
 // src/app/(admin)/crypto-intel/page.tsx
 // Dashboard del módulo. Fase 1: market pulse + alertas activas.
-// Server Component que lee de Firestore. Auto-revalida cada 60s.
+// Server Component que lee de Postgres. Auto-revalida cada 60s.
 
-import { db, COL } from "@/lib/crypto-intel/firebase-admin";
+import { getLatestPrice as repoGetLatestPrice, listActiveAlertRules } from "@/lib/db/repos/crypto-intel";
+import { dbRuleToAlertRule } from "@/lib/crypto-intel/alert-engine";
 import { WATCHLIST } from "@/lib/crypto-intel/watchlist";
 import type { PriceSnapshot, AlertRule } from "@/lib/crypto-intel/types";
 import { MarketPulseCard } from "@/components/crypto-intel/MarketPulseCard";
@@ -14,21 +15,25 @@ export const dynamic = "force-dynamic";
 
 async function loadPrices(): Promise<PriceSnapshot[]> {
   const symbols = WATCHLIST.map((w) => w.symbol);
-  const docs = await Promise.all(
-    symbols.map((s) => db().collection(COL.prices).doc(s).get())
-  );
-  return docs
-    .filter((d) => d.exists)
-    .map((d) => d.data() as PriceSnapshot);
+  const rows = await Promise.all(symbols.map((s) => repoGetLatestPrice(s)));
+  return rows
+    .filter((r): r is NonNullable<typeof r> => r !== null)
+    .map((r) => ({
+      symbol: r.symbol,
+      priceUsd: Number(r.priceUsd),
+      change1h: Number(r.change1h),
+      change24h: Number(r.change24h),
+      change7d: Number(r.change7d),
+      volume24h: Number(r.volume24h),
+      marketCap: Number(r.marketCap),
+      source: r.source,
+      updatedAt: r.updatedAt,
+    }));
 }
 
 async function loadActiveAlerts(): Promise<(AlertRule & { id: string })[]> {
-  const snap = await db()
-    .collection(COL.alertRules)
-    .where("active", "==", true)
-    .limit(20)
-    .get();
-  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as AlertRule) }));
+  const rows = await listActiveAlertRules();
+  return rows.slice(0, 20).map(dbRuleToAlertRule);
 }
 
 export default async function CryptoIntelDashboard() {
@@ -38,7 +43,7 @@ export default async function CryptoIntelDashboard() {
   ]);
 
   const oldestPrice = prices.reduce<number | null>((min, p) => {
-    const t = p.updatedAt.toMillis();
+    const t = p.updatedAt.getTime();
     return min === null || t < min ? t : min;
   }, null);
 

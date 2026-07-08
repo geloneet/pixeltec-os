@@ -89,9 +89,9 @@ export function AlertHistoryDrawer({ alert, open, onOpenChange }: AlertHistoryDr
   );
 }
 
-function formatTimestamp(ts: { toMillis?: () => number } | number | null | undefined): string {
+function formatTimestamp(ts: Date | string | number | null | undefined): string {
   if (!ts) return "—";
-  const ms = typeof ts === "number" ? ts : ts.toMillis?.() ?? 0;
+  const ms = typeof ts === "number" ? ts : new Date(ts).getTime();
   return new Date(ms).toLocaleString("es-MX", {
     dateStyle: "short",
     timeStyle: "short",

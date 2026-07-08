@@ -78,7 +78,7 @@ export function pricesView(prices: PriceSnapshot[]): string {
   });
 
   const oldestMs = prices.reduce(
-    (min, p) => Math.min(min, p.updatedAt.toMillis()),
+    (min, p) => Math.min(min, p.updatedAt.getTime()),
     Infinity
   );
   const age = oldestMs === Infinity ? "—" : `hace ${ageMinutes(oldestMs)} min`;
@@ -93,7 +93,7 @@ export function pricesView(prices: PriceSnapshot[]): string {
 
 export function priceDetailView(p: PriceSnapshot): string {
   const icon = p.change24h >= 0 ? "🟢" : "🔴";
-  const age = ageMinutes(p.updatedAt.toMillis());
+  const age = ageMinutes(p.updatedAt.getTime());
 
   return (
     `${icon} <b>${p.symbol} — Detalle</b>\n` +

@@ -1,7 +1,6 @@
 "use server";
 import { revalidatePath } from "next/cache";
-import { Timestamp } from "firebase-admin/firestore";
-import { db, COL } from "../firebase-admin";
+import { deauthorizeTelegramUser, upsertTelegramUser } from "@/lib/db/repos/crypto-intel";
 import { requireAdmin } from "../auth";
 import { AddTelegramUserSchema } from "../schemas/user";
 import type { AddTelegramUserInput } from "../schemas/user";
@@ -18,14 +17,14 @@ export async function addAuthorizedUser(
 
   const { telegramId, firstName, role } = parsed.data;
 
-  await db().collection(COL.telegramUsers).doc(telegramId).set({
+  await upsertTelegramUser({
+    telegramId,
     telegramUserId: parseInt(telegramId, 10),
     firstName: firstName ?? null,
     timezone: "America/Mexico_City",
     role,
     authorized: true,
-    createdAt: Timestamp.now(),
-  }, { merge: true });
+  });
 
   revalidatePath("/crypto-intel/admin");
   return { ok: true };
@@ -36,9 +35,7 @@ export async function deauthorizeUser(
 ): Promise<{ ok: boolean; error?: string }> {
   await requireAdmin();
 
-  await db().collection(COL.telegramUsers).doc(telegramId).update({
-    authorized: false,
-  });
+  await deauthorizeTelegramUser(telegramId);
 
   revalidatePath("/crypto-intel/admin");
   return { ok: true };

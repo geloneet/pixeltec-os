@@ -1,6 +1,8 @@
-import { db, COL } from "../firebase-admin";
+import { getAlertHistory as repoGetAlertHistory, getAlertRuleById, listAlertRulesByUser } from "@/lib/db/repos/crypto-intel";
+import { db } from "@/lib/db";
+import { cryptoAlertRules } from "@/lib/db/schema";
+import { desc, isNull } from "drizzle-orm";
 import type { AlertRule, AlertEvent } from "../types";
-import type { Timestamp } from "firebase-admin/firestore";
 
 export type AlertRuleWithId = AlertRule & { id: string };
 export type AlertEventWithId = AlertEvent & { id: string };
@@ -13,50 +15,55 @@ export type AlertRuleSerialized = Omit<AlertRuleWithId, "createdAt" | "updatedAt
   lastTriggeredAt?: string;
 };
 
-function tsToIso(ts: Timestamp): string {
-  return ts.toDate().toISOString();
+function dateToIso(d: Date): string {
+  return d.toISOString();
 }
 
-function serializeAlert(id: string, data: AlertRule): AlertRuleSerialized {
-  const { createdAt, updatedAt, deletedAt, lastTriggeredAt, ...rest } = data;
+function serializeAlert(row: typeof cryptoAlertRules.$inferSelect): AlertRuleSerialized {
   return {
-    id,
-    ...rest,
-    createdAt: tsToIso(createdAt),
-    ...(updatedAt !== undefined ? { updatedAt: tsToIso(updatedAt) } : {}),
-    ...(deletedAt !== undefined ? { deletedAt: deletedAt ? tsToIso(deletedAt) : null } : {}),
-    ...(lastTriggeredAt !== undefined ? { lastTriggeredAt: tsToIso(lastTriggeredAt) } : {}),
+    id: row.id,
+    userId: row.userId,
+    symbol: row.symbol,
+    type: row.type,
+    params: row.params as AlertRule["params"],
+    channels: row.channels as AlertRule["channels"],
+    cooldownMinutes: row.cooldownMinutes,
+    active: row.active,
+    telegramChatId: row.telegramChatId ?? undefined,
+    displayName: row.displayName ?? undefined,
+    triggerCount: row.triggerCount,
+    createdAt: dateToIso(row.createdAt),
+    updatedAt: dateToIso(row.updatedAt),
+    deletedAt: row.deletedAt ? dateToIso(row.deletedAt) : null,
+    ...(row.lastTriggeredAt ? { lastTriggeredAt: dateToIso(row.lastTriggeredAt) } : {}),
   };
 }
 
 export async function listAlerts(includeDeleted = false): Promise<AlertRuleSerialized[]> {
-  let query = db().collection(COL.alertRules) as FirebaseFirestore.Query;
-  if (!includeDeleted) {
-    query = query.where("deletedAt", "==", null);
-  }
-  const snap = await query.orderBy("createdAt", "desc").get().catch(async () => {
-    // Fallback when composite index is not yet deployed — omit deletedAt filter
-    return db().collection(COL.alertRules).where("active", "==", true).orderBy("createdAt", "desc").get();
-  });
+  const query = db.select().from(cryptoAlertRules);
+  const rows = includeDeleted
+    ? await query.orderBy(desc(cryptoAlertRules.createdAt))
+    : await query.where(isNull(cryptoAlertRules.deletedAt)).orderBy(desc(cryptoAlertRules.createdAt));
 
-  return snap.docs
-    .map(d => serializeAlert(d.id, d.data() as AlertRule))
-    .filter(a => includeDeleted || !a.deletedAt);
+  return rows.map(serializeAlert).filter((a) => includeDeleted || !a.deletedAt);
 }
 
 export async function getAlert(id: string): Promise<AlertRuleSerialized | null> {
-  const doc = await db().collection(COL.alertRules).doc(id).get();
-  if (!doc.exists) return null;
-  return serializeAlert(doc.id, doc.data() as AlertRule);
+  const row = await getAlertRuleById(id);
+  if (!row) return null;
+  return serializeAlert(row);
 }
 
 export async function getAlertHistory(alertId: string): Promise<AlertEventWithId[]> {
-  const snap = await db()
-    .collection(COL.alerts)
-    .where("ruleId", "==", alertId)
-    .get();
-  return snap.docs
-    .map(d => ({ id: d.id, ...(d.data() as AlertEvent) }))
-    .sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis())
-    .slice(0, 50);
+  const rows = await repoGetAlertHistory(alertId, 50);
+  return rows.map((r) => ({
+    id: r.id,
+    ruleId: r.ruleId,
+    userId: r.userId,
+    symbol: r.symbol,
+    message: r.message,
+    payload: r.payload as Record<string, unknown>,
+    deliveredTo: r.deliveredTo as string[],
+    createdAt: r.createdAt,
+  }));
 }

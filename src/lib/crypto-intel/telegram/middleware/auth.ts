@@ -1,5 +1,5 @@
 import type { MiddlewareFn } from "grammy";
-import { db, COL } from "../../firebase-admin";
+import { getTelegramUserById } from "@/lib/db/repos/crypto-intel";
 import type { BotContext } from "../context";
 
 export const ADMIN_ID = 1154245961;
@@ -8,12 +8,9 @@ export const authMiddleware: MiddlewareFn<BotContext> = async (ctx, next) => {
   const userId = ctx.from?.id;
   if (!userId) return;
 
-  const userDoc = await db()
-    .collection(COL.telegramUsers)
-    .doc(String(userId))
-    .get();
+  const user = await getTelegramUserById(String(userId));
 
-  if (!userDoc.exists || !userDoc.data()?.authorized) {
+  if (!user || !user.authorized) {
     await ctx.reply(
       `⛔ <b>Acceso restringido</b>\n\n` +
       `Este bot es privado. Tu Telegram ID:\n` +

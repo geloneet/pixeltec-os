@@ -2,8 +2,7 @@
 // Ingesta de precios vía CoinGecko (más simple para MVP; WS de Binance se agrega en Fase 2).
 // Llamado desde el cron /api/crypto-intel/prices/sync cada minuto.
 
-import { FieldValue, Timestamp } from "firebase-admin/firestore";
-import { db, COL } from "./firebase-admin";
+import { appendPricePoint, getLatestPrice as repoGetLatestPrice, upsertPrice } from "@/lib/db/repos/crypto-intel";
 import { WATCHLIST } from "./watchlist";
 import type { PriceSnapshot } from "./types";
 
@@ -67,9 +66,7 @@ export async function syncPrices(): Promise<{
     throw err;
   }
 
-  const firestore = db();
-  const batch = firestore.batch();
-  const now = Timestamp.now();
+  const now = new Date();
   let synced = 0;
 
   for (const entry of WATCHLIST) {
@@ -91,40 +88,36 @@ export async function syncPrices(): Promise<{
       continue;
     }
 
-    const snapshot: PriceSnapshot = {
+    const change1h = market.price_change_percentage_1h_in_currency ?? 0;
+    const change24h = market.price_change_percentage_24h_in_currency ?? 0;
+    const change7d = market.price_change_percentage_7d_in_currency ?? 0;
+    const volume24h = Number.isFinite(market.total_volume) ? market.total_volume : 0;
+    const marketCap = Number.isFinite(market.market_cap) ? market.market_cap : 0;
+
+    // "Latest" sobre-escrito (upsert por symbol PK)
+    await upsertPrice({
       symbol: entry.symbol,
-      priceUsd: market.current_price,
-      change1h: market.price_change_percentage_1h_in_currency ?? 0,
-      change24h: market.price_change_percentage_24h_in_currency ?? 0,
-      change7d: market.price_change_percentage_7d_in_currency ?? 0,
-      volume24h: Number.isFinite(market.total_volume) ? market.total_volume : 0,
-      marketCap: Number.isFinite(market.market_cap) ? market.market_cap : 0,
+      priceUsd: String(market.current_price),
+      change1h: String(change1h),
+      change24h: String(change24h),
+      change7d: String(change7d),
+      volume24h: String(volume24h),
+      marketCap: String(marketCap),
       source: "coingecko",
       updatedAt: now,
-    };
+    });
 
-    // Doc "latest" sobre-escrito
-    const priceRef = firestore.collection(COL.prices).doc(entry.symbol);
-    batch.set(priceRef, snapshot);
-
-    // Append a histórico (sub-colección points)
-    const pointRef = firestore
-      .collection(COL.priceSnapshots)
-      .doc(entry.symbol)
-      .collection("points")
-      .doc();
-    batch.set(pointRef, {
+    // Append a histórico
+    await appendPricePoint({
       symbol: entry.symbol,
-      price: market.current_price,
-      volume: market.total_volume,
+      price: String(market.current_price),
+      volume: String(volume24h),
       timestamp: now,
       interval: "1m",
     });
 
     synced++;
   }
-
-  await batch.commit();
 
   return {
     synced,
@@ -139,7 +132,17 @@ export async function syncPrices(): Promise<{
 export async function getLatestPrice(
   symbol: string
 ): Promise<PriceSnapshot | null> {
-  const snap = await db().collection(COL.prices).doc(symbol.toUpperCase()).get();
-  if (!snap.exists) return null;
-  return snap.data() as PriceSnapshot;
+  const row = await repoGetLatestPrice(symbol);
+  if (!row) return null;
+  return {
+    symbol: row.symbol,
+    priceUsd: Number(row.priceUsd),
+    change1h: Number(row.change1h),
+    change24h: Number(row.change24h),
+    change7d: Number(row.change7d),
+    volume24h: Number(row.volume24h),
+    marketCap: Number(row.marketCap),
+    source: row.source,
+    updatedAt: row.updatedAt,
+  };
 }
