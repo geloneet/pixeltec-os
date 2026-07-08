@@ -1,18 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
-import {
-  collection,
-  doc,
-  limitToLast,
-  orderBy,
-  query,
-  type DocumentReference,
-  type Query,
-} from "firebase/firestore";
 import { ArrowLeft, LoaderCircle, PanelRight } from "lucide-react";
 import { toast } from "sonner";
-import { useCollection, useDoc, useFirestore, useUser } from "@/firebase";
+import { useCollection, useFirestore, useUser } from "@/firebase";
+import { useInboxMessages } from "@/hooks/use-inbox-messages";
 import { cn } from "@/lib/utils";
 import { notesQuery, upsertContact } from "@/lib/whatsapp-inbox/contacts";
 import { parseCanonical } from "@/lib/whatsapp-inbox/time";
@@ -36,12 +28,11 @@ import { Composer } from "./Composer";
 import { ModeToggle } from "./ModeToggle";
 
 const WINDOW_MS = 24 * 60 * 60 * 1000;
-const MAX_MESSAGES = 200;
 
 function formatTime(msg: InboxMessage): string {
   const ts = msg.metaTimestamp ?? msg.createdAt;
   if (!ts) return "";
-  return ts.toDate().toLocaleString("es-MX", {
+  return parseCanonical(ts).toLocaleString("es-MX", {
     day: "numeric",
     month: "short",
     hour: "2-digit",
@@ -70,43 +61,31 @@ type TimelineItem =
 interface ChatThreadProps {
   tenantId: string;
   phone: string;
+  conv?: InboxConversation;
   onBack: () => void;
   contact?: WhatsAppContact;
   onOpenPanel: () => void;
+  refetchConversations: () => void;
 }
 
-export function ChatThread({ tenantId, phone, onBack, contact, onOpenPanel }: ChatThreadProps) {
+export function ChatThread({
+  phone,
+  conv,
+  onBack,
+  contact,
+  onOpenPanel,
+  refetchConversations,
+}: ChatThreadProps) {
   const firestore = useFirestore();
   const user = useUser();
   const bottomRef = useRef<HTMLDivElement>(null);
-
-  const convRef = useMemo(() => {
-    if (!firestore) return null;
-    return doc(
-      firestore,
-      "tenants",
-      tenantId,
-      "conversations",
-      phone
-    ) as DocumentReference<InboxConversation>;
-  }, [firestore, tenantId, phone]);
-
-  const messagesRef = useMemo(() => {
-    if (!firestore) return null;
-    return query(
-      collection(firestore, "tenants", tenantId, "conversations", phone, "messages"),
-      orderBy("createdAt", "asc"),
-      limitToLast(MAX_MESSAGES)
-    ) as Query<InboxMessage>;
-  }, [firestore, tenantId, phone]);
 
   const notesRef = useMemo(() => {
     if (!firestore) return null;
     return notesQuery(firestore, phone);
   }, [firestore, phone]);
 
-  const { data: conv } = useDoc<InboxConversation>(convRef, { listen: true });
-  const { data: messages, loading } = useCollection<InboxMessage>(messagesRef, { listen: true });
+  const { messages, loading, refetch: refetchMessages } = useInboxMessages(phone);
   const { data: notes } = useCollection<ContactNote>(notesRef, { listen: true });
 
   useEffect(() => {
@@ -122,19 +101,22 @@ export function ChatThread({ tenantId, phone, onBack, contact, onOpenPanel }: Ch
       .find((m) => m.direction === "inbound");
     const ts = lastInbound?.metaTimestamp ?? lastInbound?.createdAt;
     if (!ts) return false;
-    return Date.now() - ts.toDate().getTime() < WINDOW_MS;
+    return Date.now() - parseCanonical(ts).getTime() < WINDOW_MS;
   }, [messages]);
 
   // Timeline mergeada: mensajes + notas internas ordenados por hora.
   // Fallback a `new Date()` si createdAt aún no resolvió (serverTimestamp pendiente),
   // así el item más reciente cae al final en vez de al principio.
   const timeline = useMemo<TimelineItem[]>(() => {
-    const msgItems: TimelineItem[] = (messages ?? []).map((m) => ({
-      kind: "message",
-      id: m.id,
-      time: (m.createdAt ?? m.metaTimestamp)?.toDate() ?? new Date(),
-      data: m,
-    }));
+    const msgItems: TimelineItem[] = (messages ?? []).map((m) => {
+      const ts = m.createdAt ?? m.metaTimestamp;
+      return {
+        kind: "message" as const,
+        id: m.id,
+        time: ts ? parseCanonical(ts) : new Date(),
+        data: m,
+      };
+    });
     const noteItems: TimelineItem[] = (notes ?? []).map((n) => ({
       kind: "note",
       id: n.id,
@@ -295,7 +277,7 @@ export function ChatThread({ tenantId, phone, onBack, contact, onOpenPanel }: Ch
         >
           <PanelRight className="h-4 w-4" />
         </button>
-        <ModeToggle phone={phone} mode={mode} />
+        <ModeToggle phone={phone} mode={mode} onChanged={refetchConversations} />
       </div>
 
       {/* Banners de estado del bot + sugerencia */}
@@ -346,7 +328,15 @@ export function ChatThread({ tenantId, phone, onBack, contact, onOpenPanel }: Ch
         />
       </div>
 
-      <Composer phone={phone} mode={mode} windowOpen={windowOpen} />
+      <Composer
+        phone={phone}
+        mode={mode}
+        windowOpen={windowOpen}
+        onSent={() => {
+          refetchMessages();
+          refetchConversations();
+        }}
+      />
     </div>
   );
 }

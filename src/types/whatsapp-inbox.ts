@@ -15,7 +15,7 @@ export interface InboxConversation {
   lastMessagePreview?: string;
   lastMessageDirection?: 'inbound' | 'outbound';
   mode?: WhatsAppMode; // ausente en docs previos al takeover → tratar como 'BOT'
-  updatedAt?: Timestamp;
+  updatedAt?: string;
   pausedUntil?: string | null;
   suggestedClassification?: ContactClassification;
 }
@@ -33,10 +33,10 @@ export interface InboxMessage {
   text?: string | null;
   mediaUrl?: string | null;
   caption?: string | null;
-  metaTimestamp?: Timestamp;
+  metaTimestamp?: string;
   deliveryStatus?: string | null;
   systemEvent?: string | null;
-  createdAt?: Timestamp;
+  createdAt?: string;
 }
 
 /** Respuestas del bot vía los proxies /api/whatsapp-inbox/*. */

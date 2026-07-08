@@ -1,16 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import {
-  addDoc,
-  collection,
-  doc,
-  serverTimestamp,
-  type DocumentReference,
-} from "firebase/firestore";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { Check, Copy, LoaderCircle, Plus, Ticket, X } from "lucide-react";
 import { toast } from "sonner";
-import { useCollection, useDoc, useFirestore, useUser } from "@/firebase";
+import { useCollection, useFirestore, useUser } from "@/firebase";
 import { useCRM } from "@/components/crm/CRMContextCore";
 import { cn } from "@/lib/utils";
 import {
@@ -89,11 +83,13 @@ function SectionCard({ title, children }: { title: string; children: React.React
 interface ContactPanelProps {
   tenantId: string;
   phone: string;
+  conv?: InboxConversation;
   contact?: WhatsAppContact;
   onClose: () => void;
+  onModeChanged: () => void;
 }
 
-export function ContactPanel({ tenantId, phone, contact, onClose }: ContactPanelProps) {
+export function ContactPanel({ phone, conv, contact, onClose, onModeChanged }: ContactPanelProps) {
   const firestore = useFirestore();
   const user = useUser();
   const crm = useCRM();
@@ -109,18 +105,6 @@ export function ContactPanel({ tenantId, phone, contact, onClose }: ContactPanel
 
   useEffect(() => setName(contact?.name ?? ""), [contact?.name]);
   useEffect(() => setOrigin(contact?.origin ?? ""), [contact?.origin]);
-
-  const convRef = useMemo(() => {
-    if (!firestore) return null;
-    return doc(
-      firestore,
-      "tenants",
-      tenantId,
-      "conversations",
-      phone
-    ) as DocumentReference<InboxConversation>;
-  }, [firestore, tenantId, phone]);
-  const { data: conv } = useDoc<InboxConversation>(convRef, { listen: true });
 
   const notesRef = useMemo(() => (firestore ? notesQuery(firestore, phone) : null), [firestore, phone]);
   const { data: notes } = useCollection<ContactNote>(notesRef, { listen: true });
@@ -509,7 +493,7 @@ export function ContactPanel({ tenantId, phone, contact, onClose }: ContactPanel
               <span className="text-[11px] text-amber-300">hasta {pausedUntilLabel}</span>
             )}
           </div>
-          <ModeToggle phone={phone} mode={mode} />
+          <ModeToggle phone={phone} mode={mode} onChanged={onModeChanged} />
         </SectionCard>
 
         {/* Acciones */}

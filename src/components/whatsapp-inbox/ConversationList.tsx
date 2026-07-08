@@ -1,9 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { collection, orderBy, query, type Query } from "firebase/firestore";
 import { Bot, Hand, LoaderCircle, PauseCircle, Search } from "lucide-react";
-import { useCollection, useFirestore } from "@/firebase";
 import { cn } from "@/lib/utils";
 import { parseCanonical } from "@/lib/whatsapp-inbox/time";
 import {
@@ -131,6 +129,9 @@ function formatRelative(canonical?: string): string {
 
 interface ConversationListProps {
   tenantId: string;
+  conversations: InboxConversation[];
+  loading: boolean;
+  error: string | null;
   contactsByPhone: Map<string, WhatsAppContact>;
   selectedPhone: string | null;
   onSelect: (phone: string) => void;
@@ -141,7 +142,9 @@ interface ConversationListProps {
 }
 
 export function ConversationList({
-  tenantId,
+  conversations,
+  loading,
+  error,
   contactsByPhone,
   selectedPhone,
   onSelect,
@@ -150,22 +153,7 @@ export function ConversationList({
   quickFilter,
   onQuickFilterChange,
 }: ConversationListProps) {
-  const firestore = useFirestore();
   const [search, setSearch] = useState("");
-
-  // Nota: orderBy('lastMessageAt') excluye docs sin ese campo — solo aparecen
-  // conversaciones con al menos un mensaje proyectado, que es lo deseado.
-  const ref = useMemo(() => {
-    if (!firestore || !tenantId) return null;
-    return query(
-      collection(firestore, "tenants", tenantId, "conversations"),
-      orderBy("lastMessageAt", "desc")
-    ) as Query<InboxConversation>;
-  }, [firestore, tenantId]);
-
-  const { data: conversations, loading, error } = useCollection<InboxConversation>(ref, {
-    listen: true,
-  });
 
   const q = search.trim().toLowerCase();
 
@@ -218,10 +206,10 @@ export function ConversationList({
     );
   }
 
-  if (error) {
+  if (error && !conversations?.length) {
     return (
       <div className="p-4 text-sm text-red-400">
-        Error cargando conversaciones: {error.message}
+        Error cargando conversaciones: {error}
       </div>
     );
   }
@@ -236,6 +224,13 @@ export function ConversationList({
 
   return (
     <div className="flex h-full flex-col">
+      {/* Error no bloqueante: pixelbot momentáneamente inalcanzable — se conserva
+          la última lista conocida en vez de vaciar la pantalla (polling la reintenta solo). */}
+      {error && (
+        <div className="flex-shrink-0 border-b border-red-500/20 bg-red-500/5 px-4 py-1.5 text-[11px] text-red-400">
+          No se pudo actualizar — mostrando la última lista conocida.
+        </div>
+      )}
       {/* Cabecera fija: título + búsqueda + carpetas + filtros rápidos */}
       <div className="flex-shrink-0 space-y-2.5 border-b border-zinc-800/60 px-4 py-3">
         <div className="flex items-center justify-between gap-2">

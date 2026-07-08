@@ -12,6 +12,7 @@ interface ComposerProps {
   phone: string;
   mode: WhatsAppMode;
   windowOpen: boolean;
+  onSent?: () => void;
 }
 
 type ComposerMode = "message" | "note";
@@ -20,7 +21,7 @@ type ComposerMode = "message" | "note";
 // recibirlos como props del hilo: las notas son una escritura directa a
 // Firestore independiente del flujo de envío por la API del bot, y así
 // ChatThread no tiene que cablear props extra solo para esto.
-export function Composer({ phone, mode, windowOpen }: ComposerProps) {
+export function Composer({ phone, mode, windowOpen, onSent }: ComposerProps) {
   const firestore = useFirestore();
   const user = useUser();
   const [composerMode, setComposerMode] = useState<ComposerMode>("message");
@@ -56,7 +57,9 @@ export function Composer({ phone, mode, windowOpen }: ComposerProps) {
       } else {
         setText("");
       }
-      // El eco del mensaje llega vía Firestore (outbox del bot) en unos segundos.
+      // El mensaje ya quedó persistido en pixelbot (enviado o no); refetch vía
+      // polling para reflejarlo en el hilo y en la lista de conversaciones.
+      onSent?.();
     } catch (err) {
       toast.error(`Error enviando: ${err instanceof Error ? err.message : String(err)}`);
     } finally {

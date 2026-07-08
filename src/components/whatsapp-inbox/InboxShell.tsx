@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { MessageCircle, Settings2 } from "lucide-react";
+import { useInboxConversations } from "@/hooks/use-inbox-conversations";
 import { useWhatsappContacts } from "@/hooks/use-whatsapp-contacts";
 import { ChatThread } from "./ChatThread";
 import { ContactPanel } from "./ContactPanel";
@@ -26,6 +27,13 @@ export function InboxShell({ tenantId, onOpenConfig }: InboxShellProps) {
   const [category, setCategory] = useState<CategoryId>("todos");
   const [quickFilter, setQuickFilter] = useState<QuickFilterId | null>(null);
   const { contactsByPhone } = useWhatsappContacts();
+  const {
+    conversations,
+    loading: conversationsLoading,
+    error: conversationsError,
+    refetch: refetchConversations,
+  } = useInboxConversations();
+  const selectedConv = conversations.find((c) => c.id === selectedPhone);
 
   if (!tenantId) {
     return (
@@ -53,6 +61,9 @@ export function InboxShell({ tenantId, onOpenConfig }: InboxShellProps) {
       >
         <ConversationList
           tenantId={tenantId}
+          conversations={conversations}
+          loading={conversationsLoading}
+          error={conversationsError}
           contactsByPhone={contactsByPhone}
           selectedPhone={selectedPhone}
           onSelect={setSelectedPhone}
@@ -70,9 +81,11 @@ export function InboxShell({ tenantId, onOpenConfig }: InboxShellProps) {
             key={selectedPhone}
             tenantId={tenantId}
             phone={selectedPhone}
+            conv={selectedConv}
             onBack={() => setSelectedPhone(null)}
             contact={contactsByPhone.get(selectedPhone)}
             onOpenPanel={() => setPanelOpen((v) => !v)}
+            refetchConversations={refetchConversations}
           />
         ) : (
           <div className="flex h-full items-center justify-center p-6">
@@ -123,8 +136,10 @@ export function InboxShell({ tenantId, onOpenConfig }: InboxShellProps) {
               key={selectedPhone}
               tenantId={tenantId}
               phone={selectedPhone}
+              conv={selectedConv}
               contact={contactsByPhone.get(selectedPhone)}
               onClose={() => setPanelOpen(false)}
+              onModeChanged={refetchConversations}
             />
           </div>
         </>

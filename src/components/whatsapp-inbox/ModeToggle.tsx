@@ -29,9 +29,10 @@ const PAUSE_OPTIONS: { label: string; ms: number | null; toast: string }[] = [
 interface ModeToggleProps {
   phone: string;
   mode: WhatsAppMode;
+  onChanged?: () => void;
 }
 
-export function ModeToggle({ phone, mode }: ModeToggleProps) {
+export function ModeToggle({ phone, mode, onChanged }: ModeToggleProps) {
   const [pending, setPending] = useState<WhatsAppMode | null>(null);
 
   async function changeMode(next: WhatsAppMode, pausedUntil?: string, successMsg?: string) {
@@ -54,6 +55,7 @@ export function ModeToggle({ phone, mode }: ModeToggleProps) {
             ? "Tomaste el control — el bot ya no responde en esta conversación"
             : "Conversación devuelta al bot")
       );
+      onChanged?.();
     } catch (err) {
       toast.error(`No se pudo cambiar el modo: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
