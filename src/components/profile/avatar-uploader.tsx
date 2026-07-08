@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { updateCurrentUser } from "firebase/auth";
-import { useAuth, useUser } from "@/firebase";
+import { useSession } from "next-auth/react";
+import { useUser } from "@/firebase";
 import { uploadAvatar, deleteAvatar } from "@/lib/profile/actions";
 import {
   AlertDialog,
@@ -27,9 +27,9 @@ function getInitials(displayName: string | null, email: string | null): string {
   return "U";
 }
 
-export function AvatarUploader() {
+export function AvatarUploader({ initialPhotoUrl }: { initialPhotoUrl?: string | null }) {
   const user = useUser();
-  const auth = useAuth();
+  const { update: updateSession } = useSession();
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -46,7 +46,8 @@ export function AvatarUploader() {
   if (!user) return null;
 
   const initials = getInitials(user.displayName, user.email);
-  const currentPhoto = preview ?? uploadedUrl ?? user.photoURL ?? null;
+  const savedPhoto = uploadedUrl ?? initialPhotoUrl ?? user.photoURL ?? null;
+  const currentPhoto = preview ?? savedPhoto;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -91,18 +92,13 @@ export function AvatarUploader() {
         return;
       }
       if (result.url) setUploadedUrl(result.url);
-      if (auth?.currentUser) {
-        console.log("[AvatarUploader] photoURL before reload:", auth.currentUser.photoURL);
-        await auth.currentUser.reload();
-        console.log("[AvatarUploader] photoURL after reload:", auth.currentUser.photoURL);
-        // Force onAuthStateChanged to re-emit so useUser() picks up the new photoURL
-        await updateCurrentUser(auth, auth.currentUser);
-      }
+      // Refresca el JWT de NextAuth para que el header muestre la foto nueva
+      await updateSession({ image: result.url ?? null });
       if (preview) URL.revokeObjectURL(preview);
       setPreview(null);
       setSelectedFile(null);
-      router.refresh();
       toast.success("Foto actualizada");
+      router.refresh();
     });
   };
 
@@ -121,11 +117,9 @@ export function AvatarUploader() {
         return;
       }
       setUploadedUrl(null);
-      if (auth?.currentUser) {
-        await auth.currentUser.reload();
-      }
-      router.refresh();
+      await updateSession({ image: null });
       toast.success("Foto eliminada");
+      router.refresh();
     });
   };
 
@@ -189,7 +183,7 @@ export function AvatarUploader() {
           </Button>
         )}
 
-        {user.photoURL && !selectedFile && (
+        {savedPhoto && !selectedFile && (
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button

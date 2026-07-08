@@ -1,20 +1,17 @@
 /**
  * Centralized security event logging for the OTP portal.
  *
- * Writes to Firestore collection `portalSecurityEvents`.
- * TTL policy (90 days) configured manually by the admin in Firebase Console.
- *
- * NOTA: eventos creados antes de la v1 de este módulo pueden tener schema
- * previo (campo `attemptedSlug` en vez de `slug`). El widget de visualización
- * debe leer ambos campos como fallback.
+ * Fase 4: escribe a la tabla Postgres `portal_security_events` (antes
+ * Firestore `portalSecurityEvents`; los eventos viejos se quedan allí hasta
+ * expirar su TTL de 90 días — esta tabla arranca vacía).
  *
  * NEVER log: cookie value, HMAC secret, OTP code, clientId from cookie payload.
  * OK to log: slug (public URL segment), resolvedSlug, IP, truncated userAgent.
  */
 
 import { headers } from 'next/headers';
-import { getAdminFirestore } from '@/lib/firebase-admin';
-import { FieldValue } from 'firebase-admin/firestore';
+import { db } from '@/lib/db';
+import { portalSecurityEvents } from '@/lib/db/schema';
 
 export type PortalSecurityEventType =
   | 'auth-no-session'         // requirePortalSession: no cookie present
@@ -47,18 +44,17 @@ export async function logSecurityEvent(input: SecurityEventInput): Promise<void>
             ?? 'unknown';
     const ua = (h.get('user-agent') ?? 'unknown').slice(0, 200);
 
-    await getAdminFirestore().collection('portalSecurityEvents').add({
+    await db.insert(portalSecurityEvents).values({
       type:         input.type,
       slug:         input.slug         ?? null,
       resolvedSlug: input.resolvedSlug ?? null,
       reason:       input.reason       ?? null,
       ip,
       userAgent:    ua,
-      createdAt:    FieldValue.serverTimestamp(),
     });
   } catch {
     if (process.env.NODE_ENV !== 'production') {
-      console.error('[security-log] write failed — check PORTAL_SESSION_SECRET and Firestore config');
+      console.error('[security-log] write failed — check DATABASE_URL / portal_security_events');
     }
   }
 }

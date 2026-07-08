@@ -4,6 +4,7 @@ import { useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { updateProfile } from "@/lib/profile/actions";
 import { UpdateProfileSchema, type UpdateProfileInput } from "@/lib/profile/schemas";
 import {
@@ -30,6 +31,7 @@ interface ProfileFormProps {
 
 export function ProfileForm({ initialValues }: ProfileFormProps) {
   const router = useRouter();
+  const { update: updateSession } = useSession();
   const [isPending, startTransition] = useTransition();
 
   const form = useForm<UpdateProfileInput>({
@@ -49,8 +51,10 @@ export function ProfileForm({ initialValues }: ProfileFormProps) {
         return;
       }
       form.reset(data);
-      router.refresh();
       toast.success("Perfil actualizado");
+      // Refresca el JWT para que el header muestre el nombre nuevo
+      await updateSession({ name: data.displayName });
+      router.refresh();
     });
   };
 

@@ -5,11 +5,11 @@ import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { LogOut, LayoutDashboard, FolderKanban, FileText, LifeBuoy, LoaderCircle } from 'lucide-react';
-import { useAuth, useUser } from '@/firebase';
+import { useAuth } from '@/firebase';
+import { useFirebaseUser as useUser } from '@/firebase/auth/use-firebase-user';
 import { signOut } from 'firebase/auth';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { useUserProfile } from '@/firebase/auth/use-user-profile';
 
 // Define navigation items
 const navItems = [
@@ -21,14 +21,12 @@ const navItems = [
 
 export default function PortalLayout({ children }: { children: ReactNode }) {
     const user = useUser();
-    const { userProfile, loading: profileLoading } = useUserProfile();
     const auth = useAuth();
     const router = useRouter();
     const pathname = usePathname();
 
     const handleLogout = async () => {
         if (auth) {
-            await fetch('/api/auth/session', { method: 'DELETE' });
             await signOut(auth);
             router.push('/login');
         }
@@ -52,7 +50,7 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
     }
 
     // Loading state
-    if (user === undefined || profileLoading) {
+    if (user === undefined) {
         return (
             <div className="flex h-screen w-full items-center justify-center bg-[#030303]">
                 <LoaderCircle className="h-10 w-10 animate-spin text-cyan-400" />
@@ -104,7 +102,7 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
                 {/* Right Side */}
                 <div className="flex items-center gap-4">
                      <div className="text-right">
-                        <p className="text-sm font-semibold text-white">{userProfile?.displayName || user.email}</p>
+                        <p className="text-sm font-semibold text-white">{user.displayName || user.email}</p>
                         <p className="text-xs text-zinc-500">Cliente</p>
                     </div>
                     <Button

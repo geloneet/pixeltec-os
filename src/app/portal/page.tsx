@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useFirestore, useUser } from '@/firebase';
+import { useFirestore } from '@/firebase';
+import { useFirebaseUser as useUser } from '@/firebase/auth/use-firebase-user';
 import { collection, query, where, onSnapshot, doc, getDocs, limit, orderBy } from 'firebase/firestore';
 import { motion } from 'framer-motion';
 import {

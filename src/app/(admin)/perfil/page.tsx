@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
-import { getAdminApp, getAdminAuth } from "@/lib/firebase-admin";
-import { getFirestore } from "firebase-admin/firestore";
-import { getSessionUid } from "@/lib/crypto-intel/auth";
+import { eq } from "drizzle-orm";
+import { auth } from "@/lib/auth/config";
+import { db } from "@/lib/db";
+import { users } from "@/lib/db/schema";
 import { AvatarUploader } from "@/components/profile/avatar-uploader";
 import { ProfileForm } from "@/components/profile/profile-form";
 import { SecuritySettings } from "@/components/perfil/security-settings";
@@ -14,29 +15,19 @@ export const metadata: Metadata = {
 };
 
 export default async function PerfilPage() {
-  const uid = await getSessionUid();
-  if (!uid) redirect("/login?redirect=/perfil");
+  // Fase 4: perfil desde la tabla `users` de Postgres (antes Firebase Auth +
+  // doc Firestore `users/{uid}`).
+  const session = await auth();
+  if (!session?.user?.id) redirect("/login?redirect=/perfil");
 
-  const auth = getAdminAuth();
-  const authUser = await auth.getUser(uid);
-
-  let phone = "";
-  let bio = "";
-  try {
-    const db = getFirestore(getAdminApp());
-    const doc = await db.collection("users").doc(uid).get();
-    const data = doc.data();
-    phone = (data?.phone as string) ?? "";
-    bio = (data?.bio as string) ?? "";
-  } catch (err) {
-    console.error("[perfil/page] failed to read Firestore user doc", err);
-  }
+  const [row] = await db.select().from(users).where(eq(users.id, session.user.id)).limit(1);
+  if (!row) redirect("/login?redirect=/perfil");
 
   const initialValues = {
-    displayName: authUser.displayName ?? "",
-    email: authUser.email ?? "",
-    phone,
-    bio,
+    displayName: row.name,
+    email: row.email,
+    phone: row.phone ?? "",
+    bio: row.bio ?? "",
   };
 
   return (
@@ -51,7 +42,7 @@ export default async function PerfilPage() {
       {/* Foto de perfil */}
       <section className="rounded-xl border border-white/5 bg-white/[0.03] p-6">
         <h2 className="mb-4 text-base font-semibold text-zinc-100">Foto de perfil</h2>
-        <AvatarUploader />
+        <AvatarUploader initialPhotoUrl={row.image} />
       </section>
 
       {/* Información personal */}
