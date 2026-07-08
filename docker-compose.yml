@@ -1,15 +1,21 @@
 # ==================================================================
 # PixelTEC OS (CRM) — docker-compose.yml
 # ==================================================================
-# Este compose gestiona SOLO la app Next.js del CRM.
+# Este compose gestiona la app Next.js del CRM + su base de datos Postgres
+# (migración en curso hacia Postgres+Drizzle+NextAuth — ver
+# docs/superpowers/plans/2026-07-07-firebase-to-postgres-drizzle-nextauth-migration.md).
 # Nginx y Certbot viven en pixeltec-infra/docker-compose.yml.
 #
-# Ambos composes se comunican por la red `web-network` (external).
+# `app` habla con nginx/otros containers por `web-network` (external) y con
+# `db` por la red interna dedicada `pixeltec-os-internal` (NO expuesta a
+# web-network — ningún otro container del VPS puede alcanzar la DB).
 #
 # Operaciones:
 #   - Rebuild + deploy:  docker compose build --no-cache app && docker compose up -d app
 #   - Logs:              docker compose logs -f app
 #   - Restart:           docker compose restart app
+#   - Migraciones:       docker compose --profile tools run --rm migrator
+#   - Seed inicial:      docker compose --profile tools run --rm seed
 # ==================================================================
 
 services:
@@ -30,9 +36,74 @@ services:
       - .env.production
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    depends_on:
+      db:
+        condition: service_healthy
     networks:
       - web-network
+      - pixeltec-os-internal
+
+  db:
+    container_name: pixeltec-os-db
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: pixeltec_os
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: pixeltec_os
+    volumes:
+      - pixeltec-os-db-data:/var/lib/postgresql/data
+    # Solo 127.0.0.1 (regla de seguridad de puertos del VPS, ver
+    # pixeltec-infra/runbooks/docker-port-hardening.md): permite que
+    # `npm run dev` en el host (dev.pixeltec.mx) alcance la DB sin exponerla
+    # a la red pública — Docker bypasea ufw vía PREROUTING DNAT si el bind
+    # fuera 0.0.0.0.
+    ports:
+      - "127.0.0.1:5437:5432"
+    networks:
+      - pixeltec-os-internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pixeltec_os"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ── Tools (bajo demanda: docker compose --profile tools run --rm <servicio>) ──
+  migrator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: tools
+    command: ["npx", "drizzle-kit", "migrate"]
+    env_file: .env.production
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - pixeltec-os-internal
+    profiles:
+      - tools
+
+  seed:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: tools
+    command: ["npx", "tsx", "scripts/seed.ts"]
+    env_file: .env.production
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - pixeltec-os-internal
+    profiles:
+      - tools
 
 networks:
   web-network:
     external: true
+  pixeltec-os-internal:
+    driver: bridge
+
+volumes:
+  pixeltec-os-db-data:

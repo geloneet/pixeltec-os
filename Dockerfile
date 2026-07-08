@@ -26,7 +26,14 @@ ARG NEXT_PUBLIC_FIREBASE_APP_ID
 
 RUN npm run build
 
-# Stage 3: Production runner
+# Stage 3: Tools — migraciones Drizzle / seed (bajo demanda, perfil "tools" en docker-compose)
+FROM node:20-alpine AS tools
+RUN apk add --no-cache libc6-compat
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+
+# Stage 4: Production runner
 FROM node:20-alpine AS runner
 WORKDIR /app
 
