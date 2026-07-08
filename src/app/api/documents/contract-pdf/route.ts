@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import { requireSession } from "@/lib/vpsClient";
-import { getAdminFirestore } from "@/lib/firebase-admin";
+import { findContractByPublicId } from "@/lib/documents/pg";
 import { resolveToken } from "@/lib/portal/token";
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
@@ -31,25 +31,10 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       portalClientId = resolved.clientId;
     }
 
-    // Fetch contract from Firestore
-    const snap = await getAdminFirestore()
-      .collection("contracts")
-      .doc(contractId)
-      .get();
-
-    if (!snap.exists) {
+    const contract = await findContractByPublicId(contractId);
+    if (!contract) {
       return new NextResponse("Contract not found", { status: 404 });
     }
-
-    const contract = snap.data() as {
-      uid: string;
-      clientId: string;
-      title: string;
-      content: string;
-      status: string;
-      version: number;
-      createdAt: string;
-    };
 
     // Verify ownership
     if (contract.uid !== ownerUid) {

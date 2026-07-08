@@ -1,16 +1,24 @@
-import { getAdminFirestore } from "@/lib/firebase-admin";
+// Acceso server-side por token público (Fase 4: Postgres — antes Admin SDK
+// sobre la colección `proposals`). Lo usan /p/[token] y las rutas
+// /api/proposals/track|action y /api/documents/proposal-pdf.
+import { eq } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { proposals, clients, users } from "@/lib/db/schema";
 import type { Proposal, ProposalViewEvent } from "@/types/documents";
-
-const COL = "proposals";
+import { resolveProposalRow, serializeProposal } from "./pg";
 
 export async function getProposalByToken(
   token: string,
 ): Promise<(Proposal & { id: string }) | null> {
-  const db = getAdminFirestore();
-  const snap = await db.collection(COL).where("publicToken", "==", token).limit(1).get();
-  if (snap.empty) return null;
-  const doc = snap.docs[0];
-  return { id: doc.id, ...(doc.data() as Omit<Proposal, "id">) };
+  const [r] = await db
+    .select({ doc: proposals, clientFsId: clients.firestoreId, ownerUid: users.firebaseUid })
+    .from(proposals)
+    .innerJoin(clients, eq(proposals.clientId, clients.id))
+    .innerJoin(users, eq(proposals.ownerId, users.id))
+    .where(eq(proposals.publicToken, token))
+    .limit(1);
+  if (!r) return null;
+  return serializeProposal(r.doc, r.clientFsId ?? r.doc.clientId, r.ownerUid ?? "");
 }
 
 export async function logProposalView(
@@ -18,51 +26,46 @@ export async function logProposalView(
   ip?: string,
   userAgent?: string,
 ): Promise<void> {
-  const db = getAdminFirestore();
-  const now = new Date().toISOString();
+  const row = await resolveProposalRow(proposal.id);
+  if (!row) return;
 
+  const now = new Date();
   const event: ProposalViewEvent = {
-    timestamp: now,
+    timestamp: now.toISOString(),
     ...(ip ? { ip } : {}),
     ...(userAgent ? { userAgent: userAgent.slice(0, 200) } : {}),
   };
 
-  const prevEvents: ProposalViewEvent[] = proposal.viewEvents ?? [];
+  const prevEvents = (row.viewEvents as ProposalViewEvent[]) ?? [];
   const newEvents = [...prevEvents, event].slice(-20); // keep last 20
 
-  const updates: Partial<Proposal> = {
-    viewCount: (proposal.viewCount ?? 0) + 1,
-    viewEvents: newEvents,
-    updatedAt: now,
-  };
-
-  if (!proposal.viewedAt) {
-    updates.viewedAt = now;
-  }
-  if (proposal.status === "enviada") {
-    updates.status = "vista";
-  }
-
-  await db.collection(COL).doc(proposal.id).update(updates);
+  await db
+    .update(proposals)
+    .set({
+      viewCount: (row.viewCount ?? 0) + 1,
+      viewEvents: newEvents,
+      updatedAt: now,
+      ...(!row.viewedAt ? { viewedAt: now } : {}),
+      ...(row.status === "enviada" ? { status: "vista" as const } : {}),
+    })
+    .where(eq(proposals.id, row.id));
 }
 
 export async function updateProposalActionStatus(
   proposal: Proposal & { id: string },
   action: "aceptada" | "rechazada",
 ): Promise<{ ok: boolean; reason?: string }> {
-  if (proposal.status === "aceptada" || proposal.status === "rechazada") {
+  const row = await resolveProposalRow(proposal.id);
+  if (!row) return { ok: false, reason: "not_found" };
+
+  if (row.status === "aceptada" || row.status === "rechazada") {
     return { ok: false, reason: "already_decided" };
   }
 
-  const db = getAdminFirestore();
-  const now = new Date().toISOString();
-
-  const updates: Partial<Proposal> = {
-    status: action,
-    acceptedAt: now,
-    updatedAt: now,
-  };
-
-  await db.collection(COL).doc(proposal.id).update(updates);
+  const now = new Date();
+  await db
+    .update(proposals)
+    .set({ status: action, acceptedAt: now, updatedAt: now })
+    .where(eq(proposals.id, row.id));
   return { ok: true };
 }

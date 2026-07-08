@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { FileText, Receipt, FileSignature, FileCheck } from "lucide-react";
-import { useFirestore, useUser } from "@/firebase";
+import { useUser } from "@/firebase";
 import { getInvoices } from "@/lib/documents/invoices";
 import { getContracts } from "@/lib/documents/contracts";
 import { getProposals } from "@/lib/documents/proposals";
@@ -26,7 +26,6 @@ function StatTile({ label, value, icon: Icon, color }: StatCard) {
 }
 
 export default function DocumentosPage() {
-  const firestore = useFirestore();
   const user = useUser();
 
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -36,13 +35,13 @@ export default function DocumentosPage() {
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    if (!firestore || !user) { setLoading(false); return; }
+    if (!user) { setLoading(false); return; }
     setLoading(true);
     try {
       const [inv, con, pro] = await Promise.all([
-        getInvoices(firestore, user.uid),
-        getContracts(firestore, user.uid),
-        getProposals(firestore, user.uid),
+        getInvoices(user.uid),
+        getContracts(user.uid),
+        getProposals(user.uid),
       ]);
       setInvoices(inv);
       setContracts(con);
@@ -54,7 +53,7 @@ export default function DocumentosPage() {
     } finally {
       setLoading(false);
     }
-  }, [firestore, user]);
+  }, [user]);
 
   useEffect(() => { load(); }, [load]);
 

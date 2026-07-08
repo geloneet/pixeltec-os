@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import type { IATemplate, IATemplateType } from "@/types/documents";
 import { IA_TEMPLATE_TYPES, IA_TEMPLATE_TYPE_LABELS } from "@/types/documents";
-import { extractVariables } from "@/lib/documents/ia-templates";
+import { extractVariables } from "@/lib/documents/template-vars";
 import { cn } from "@/lib/utils";
 
 interface Props {

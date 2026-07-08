@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Plus, Sparkles } from "lucide-react";
-import { useFirestore } from "@/firebase";
 import { useUser } from "@/firebase";
 import type { IATemplate, IATemplateType } from "@/types/documents";
 import { IA_TEMPLATE_TYPES, IA_TEMPLATE_TYPE_LABELS } from "@/types/documents";
@@ -14,7 +13,6 @@ import { IATemplateEditor } from "@/components/ia/IATemplateEditor";
 import { cn } from "@/lib/utils";
 
 export default function IAFactoryPage() {
-  const firestore = useFirestore();
   const user = useUser();
   const [templates, setTemplates] = useState<IATemplate[]>([]);
   const [loading, setLoading] = useState(true);
@@ -23,31 +21,30 @@ export default function IAFactoryPage() {
   // undefined = editor closed, null = create mode, IATemplate = edit mode
 
   const load = useCallback(async () => {
-    if (!user || !firestore) return;
+    if (!user) return;
     setLoading(true);
     try {
-      const data = await getTemplates(firestore, user.uid, activeType === "all" ? undefined : activeType);
+      const data = await getTemplates(user.uid, activeType === "all" ? undefined : activeType);
       setTemplates(data);
     } finally {
       setLoading(false);
     }
-  }, [firestore, user, activeType]);
+  }, [user, activeType]);
 
   useEffect(() => { load(); }, [load]);
 
   const handleSave = async (data: Omit<IATemplate, "id" | "uid" | "createdAt" | "updatedAt">) => {
-    if (!user || !firestore) return;
+    if (!user) return;
     if (editorTemplate) {
-      await updateTemplate(firestore, editorTemplate.id, data);
+      await updateTemplate(editorTemplate.id, data);
     } else {
-      await createTemplate(firestore, user.uid, data);
+      await createTemplate(user.uid, data);
     }
     await load();
   };
 
   const handleDelete = async (id: string) => {
-    if (!firestore) return;
-    await deleteTemplate(firestore, id);
+    await deleteTemplate(id);
     setTemplates((prev) => prev.filter((t) => t.id !== id));
   };
 

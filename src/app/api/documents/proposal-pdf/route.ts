@@ -3,7 +3,7 @@ import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import { getProposalByToken } from "@/lib/documents/proposals-admin";
 import { cookies } from "next/headers";
 import { requireSession } from "@/lib/vpsClient";
-import { getAdminFirestore } from "@/lib/firebase-admin";
+import { findProposalByPublicId } from "@/lib/documents/pg";
 import type { Proposal } from "@/types/documents";
 
 // Colors
@@ -30,11 +30,10 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       const session = await requireSession(sessionCookie);
       if (!session.ok) return new NextResponse("Unauthorized", { status: 401 });
 
-      const snap = await getAdminFirestore().collection("proposals").doc(proposalId).get();
-      if (!snap.exists) return new NextResponse("Not found", { status: 404 });
-      const data = snap.data() as Omit<Proposal, "id">;
-      if (data.uid !== session.uid) return new NextResponse("Forbidden", { status: 403 });
-      proposal = { id: snap.id, ...data };
+      const found = await findProposalByPublicId(proposalId);
+      if (!found) return new NextResponse("Not found", { status: 404 });
+      if (found.uid !== session.uid) return new NextResponse("Forbidden", { status: 403 });
+      proposal = found;
     }
 
     if (!proposal) return new NextResponse("Not found", { status: 404 });

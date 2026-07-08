@@ -1,61 +1,78 @@
-import {
-  collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc,
-} from "firebase/firestore";
-import type { Firestore } from "firebase/firestore";
+'use server';
+
+// Fase 4 (rebanada Documentos): Postgres — antes Firestore `ia_templates` vía
+// client SDK. `extractVariables` se movió a ./template-vars (es síncrona y la
+// usa también el cliente).
+import { and, desc, eq } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { iaTemplates } from "@/lib/db/schema";
 import type { IATemplate, IATemplateType } from "@/types/documents";
+import { extractVariables } from "./template-vars";
+import { requireOwner, resolveIATemplateRow, serializeIATemplate } from "./pg";
 
-const COL = "ia_templates";
-
-export function extractVariables(content: string): string[] {
-  const matches = content.match(/\{\{([^}]+)\}\}/g) ?? [];
-  return [...new Set(matches.map((m) => m.replace(/\{\{|\}\}/g, "").trim()))];
-}
-
-export async function getTemplates(
-  firestore: Firestore,
-  uid: string,
-  type?: IATemplateType,
-): Promise<IATemplate[]> {
-  const ref = collection(firestore, COL);
-  const constraints = type
-    ? [where("uid", "==", uid), where("type", "==", type)]
-    : [where("uid", "==", uid)];
-  const snap = await getDocs(query(ref, ...constraints));
-  const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as IATemplate));
-  return docs.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+export async function getTemplates(_uid: string, type?: IATemplateType): Promise<IATemplate[]> {
+  const { uid, ownerId } = await requireOwner();
+  const conds = [eq(iaTemplates.ownerId, ownerId)];
+  if (type) conds.push(eq(iaTemplates.type, type));
+  const rows = await db
+    .select()
+    .from(iaTemplates)
+    .where(and(...conds))
+    .orderBy(desc(iaTemplates.createdAt));
+  return rows.map((row) => serializeIATemplate(row, uid));
 }
 
 export async function createTemplate(
-  firestore: Firestore,
-  uid: string,
+  _uid: string,
   data: Omit<IATemplate, "id" | "uid" | "createdAt" | "updatedAt">,
 ): Promise<string> {
-  const now = new Date().toISOString();
-  const ref = await addDoc(collection(firestore, COL), {
-    ...data,
-    uid,
-    variables: extractVariables(data.content),
-    createdAt: now,
-    updatedAt: now,
-  });
-  return ref.id;
+  const { ownerId } = await requireOwner();
+  const [row] = await db
+    .insert(iaTemplates)
+    .values({
+      ownerId,
+      type: data.type,
+      name: data.name,
+      description: data.description ?? "",
+      content: data.content,
+      variables: extractVariables(data.content),
+      industry: data.industry ?? null,
+      isDefault: data.isDefault ?? false,
+      aiSystemPrompt: data.aiSystemPrompt ?? null,
+      version: data.version ?? 1,
+    })
+    .returning({ id: iaTemplates.id });
+  return row.id;
 }
 
 export async function updateTemplate(
-  firestore: Firestore,
   id: string,
   data: Partial<Omit<IATemplate, "id" | "uid" | "createdAt">>,
 ): Promise<void> {
-  const updates = { ...data, updatedAt: new Date().toISOString() };
+  const { ownerId } = await requireOwner();
+  const row = await resolveIATemplateRow(id);
+  if (!row || row.ownerId !== ownerId) throw new Error("Plantilla no encontrada");
+
+  const set: Partial<typeof iaTemplates.$inferInsert> = { updatedAt: new Date() };
+  if (data.type !== undefined) set.type = data.type;
+  if (data.name !== undefined) set.name = data.name;
+  if (data.description !== undefined) set.description = data.description;
+  if (data.industry !== undefined) set.industry = data.industry;
+  if (data.isDefault !== undefined) set.isDefault = data.isDefault;
+  if (data.aiSystemPrompt !== undefined) set.aiSystemPrompt = data.aiSystemPrompt;
+  if (data.version !== undefined) set.version = data.version;
+  if (data.variables !== undefined) set.variables = data.variables;
   if (data.content !== undefined) {
-    updates.variables = extractVariables(data.content);
+    set.content = data.content;
+    set.variables = extractVariables(data.content);
   }
-  await updateDoc(doc(firestore, COL, id), updates);
+
+  await db.update(iaTemplates).set(set).where(eq(iaTemplates.id, row.id));
 }
 
-export async function deleteTemplate(
-  firestore: Firestore,
-  id: string,
-): Promise<void> {
-  await deleteDoc(doc(firestore, COL, id));
+export async function deleteTemplate(id: string): Promise<void> {
+  const { ownerId } = await requireOwner();
+  const row = await resolveIATemplateRow(id);
+  if (!row || row.ownerId !== ownerId) throw new Error("Plantilla no encontrada");
+  await db.delete(iaTemplates).where(eq(iaTemplates.id, row.id));
 }

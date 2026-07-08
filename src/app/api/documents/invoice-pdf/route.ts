@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import { requireSession } from "@/lib/vpsClient";
-import { getAdminFirestore } from "@/lib/firebase-admin";
+import { findInvoiceByPublicId } from "@/lib/documents/pg";
 import type { Invoice, InvoiceItem } from "@/types/documents";
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
@@ -17,10 +17,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const session = await requireSession(sessionCookie);
     if (!session.ok) return new NextResponse("Unauthorized", { status: 401 });
 
-    const snap = await getAdminFirestore().collection("invoices").doc(invoiceId).get();
-    if (!snap.exists) return new NextResponse("Invoice not found", { status: 404 });
-
-    const invoice = { id: snap.id, ...snap.data() } as Invoice;
+    const invoice = await findInvoiceByPublicId(invoiceId);
+    if (!invoice) return new NextResponse("Invoice not found", { status: 404 });
     if (invoice.uid !== session.uid) return new NextResponse("Forbidden", { status: 403 });
 
     const pdf = await buildInvoicePdf(invoice);
