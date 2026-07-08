@@ -43,6 +43,12 @@ export async function POST(req: NextRequest) {
           { status: 400 }
         );
       }
+      if (ms <= Date.now()) {
+        return NextResponse.json(
+          { error: "pausedUntil debe ser una fecha futura" },
+          { status: 400 }
+        );
+      }
       pausedUntilCanonical = new Date(ms).toISOString().slice(0, 19).replace("T", " ");
     }
 

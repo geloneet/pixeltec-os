@@ -134,6 +134,14 @@ export function ChatThread({
     });
   }, [conv?.pausedUntil]);
 
+  // La pausa puede haber expirado ya en pixelbot (auto-reanuda a BOT) pero el
+  // polling todavía no trajo el nuevo `mode` — evita mostrar "en pausa" con un
+  // "hasta HH:MM" que ya pasó.
+  const pausedExpired = useMemo(() => {
+    if (!conv?.pausedUntil) return false;
+    return parseCanonical(conv.pausedUntil).getTime() < Date.now();
+  }, [conv?.pausedUntil]);
+
   const suggestedClassification = conv?.suggestedClassification;
   const showSuggestionChip = Boolean(
     suggestedClassification && contact?.classification !== suggestedClassification
@@ -283,8 +291,10 @@ export function ChatThread({
       {/* Banners de estado del bot + sugerencia */}
       {mode === "PAUSED" && (
         <div className="border-b border-zinc-800/60 bg-amber-500/5 px-4 py-2 text-xs text-amber-300">
-          ⏸ Bot en pausa{pausedUntilLabel ? ` hasta las ${pausedUntilLabel}` : " hasta que lo reactives"} — nadie
-          responde automáticamente
+          {pausedExpired
+            ? "⏸ Pausa expirada — el bot ya debería reanudarse, actualizando…"
+            : <>⏸ Bot en pausa{pausedUntilLabel ? ` hasta las ${pausedUntilLabel}` : " hasta que lo reactives"} — nadie
+              responde automáticamente</>}
         </div>
       )}
       {mode === "HUMAN" && (

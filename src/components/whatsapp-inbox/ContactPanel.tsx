@@ -118,6 +118,13 @@ export function ContactPanel({ phone, conv, contact, onClose, onModeChanged }: C
     });
   }, [conv?.pausedUntil]);
 
+  // Igual que en ChatThread: la pausa puede haber expirado ya en pixelbot
+  // (auto-reanuda a BOT) antes de que el polling traiga el nuevo `mode`.
+  const pausedExpired = useMemo(() => {
+    if (!conv?.pausedUntil) return false;
+    return parseCanonical(conv.pausedUntil).getTime() < Date.now();
+  }, [conv?.pausedUntil]);
+
   function requireCtx(): { fs: NonNullable<typeof firestore>; uid: string } | null {
     if (!firestore) return null;
     if (!user?.uid) {
@@ -489,7 +496,10 @@ export function ContactPanel({ phone, conv, contact, onClose, onModeChanged }: C
             >
               {MODE_META[mode]?.label ?? mode}
             </span>
-            {mode === "PAUSED" && pausedUntilLabel && (
+            {mode === "PAUSED" && pausedExpired && (
+              <span className="text-[11px] text-amber-300">pausa expirada</span>
+            )}
+            {mode === "PAUSED" && !pausedExpired && pausedUntilLabel && (
               <span className="text-[11px] text-amber-300">hasta {pausedUntilLabel}</span>
             )}
           </div>

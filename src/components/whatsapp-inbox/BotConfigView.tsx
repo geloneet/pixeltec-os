@@ -67,6 +67,10 @@ function ListEditor({ label, hint, items, onChange, accent = "default" }: ListEd
   function handleAdd() {
     const trimmed = input.trim();
     if (!trimmed) return;
+    if (items.includes(trimmed)) {
+      setInput("");
+      return;
+    }
     if (items.length >= MAX_ITEMS) {
       toast.error(`Máximo ${MAX_ITEMS} elementos en esta lista`);
       return;
