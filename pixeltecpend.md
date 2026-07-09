@@ -2,6 +2,59 @@
 
 ---
 
+## Sesión 4 — Diagnóstico Inteligente, portal unificado + hotfix de seguridad (2026-07-09)
+
+**Estado al cerrar:** main pusheado a origin (`3d1024a`), dev server arriba, sin deploy a producción (por decisión de Miguel — pendiente de confirmación explícita).
+
+### Qué se hizo
+
+1. **Diagnóstico Inteligente** — wizard público de 6 pasos en `/diagnostico` (+ modal en home), scoring determinista (`src/lib/diagnostic/logic.ts`), persiste lead enriquecido y notifica al equipo por email + WhatsApp. Botón "Quiero que me contacten".
+2. **Login** — "Olvidaste tu contraseña" (modo dev/staff) ahora envía correo real con token de un solo uso (`password_reset_tokens`). Texto "Somos // \<palabra rotativa\>" en el panel izquierdo.
+3. **Portal de clientes unificado** — password portal (`source='portal'`) y token portal (`source='crm_blob'`) se gestionan desde el mismo tab "Portal" en `/clientes/[id]`, ramificado según el `source` del cliente.
+4. **Fix de hidratación** — ofuscación de email de Cloudflare (`ObfuscatedMailto` en home, sección de newsletter).
+5. **Code review (`/code-review` alto esfuerzo, 8 finder angles + verify)** encontró 8 bugs reales, todos corregidos como hotfix en el mismo commit:
+   - Login del portal legado ahora filtra estrictamente `source='portal'` (antes cualquier cliente `crm_blob` podía entrar) + rechazo determinístico si hay email duplicado (columna sin unique constraint) en vez de autenticar contra una fila al azar.
+   - Restaurado el control completo del portal por token (generar/rotar/revocar) que se había perdido al reescribir `PortalTab.tsx`.
+   - Reiniciar una contraseña ya NO reactiva un portal desactivado a propósito (antes lo hacía en silencio).
+   - Recreada la vista general de estado de portales en `/portal-legado` (se había perdido, sin reemplazo).
+   - `DiagnosticWizard`: si el submit falla server-side, ya no se muestra una pantalla de "éxito" falsa — se queda en el formulario con el error visible + link de WhatsApp de respaldo.
+   - `requestDiagnosticContactAction`: el WhatsApp ya no bloquea la respuesta (contradecía su propio comentario de "best-effort").
+   - `StepResult`: `catch` explícito en vez de `try/finally` sin catch (evitaba una promesa rechazada sin capturar y mostraba "enviado" incluso si fallaba el transporte).
+
+### Validado esta sesión
+
+- TypeScript: 0 errores (`node_modules/.bin/tsc --noEmit`, binario real — `npx tsc` cae en el paquete placeholder de npm en este entorno, no usarlo para verificar).
+- Diagnóstico exitoso y fallido (honeypot) probados end-to-end con Playwright — ya no hay pantalla de éxito falsa.
+- Login de portal probado con clientes de prueba temporales (creados y borrados en la misma sesión, nunca tocó datos ni cuenta de Miguel):
+  - `source='portal'` con contraseña correcta y activo → entra a `/portal` correctamente.
+  - `source='crm_blob'` con hash+enabled seteados a mano (simulando dato legado) → login rechazado.
+  - Dos clientes `source='portal'` con el mismo correo → login rechazado con mensaje de ambigüedad, no autenticación al azar.
+- "No reactivación silenciosa" verificado por lectura de código: no queda ninguna llamada a `/toggle` dentro de `handleSavePassword`.
+
+### Pendientes vivos — QA manual (requiere sesión de admin real de Miguel)
+
+No se creó cuenta admin temporal ni se usó la sesión de Miguel para estas pruebas (bloqueado intencionalmente — requiere su usuario real). Pendiente para la próxima sesión conjunta:
+
+1. **Rotar token** de un portal existente (`/clientes/[id]` → tab Portal, cliente `source='crm_blob'`) — confirmar que el link viejo deja de funcionar y el nuevo sí.
+2. **Revocar token** — confirmar que el link deja de ser accesible (`/portal/[token]` → 404 o rechazo) y que el estado se refleja en la UI.
+3. **Desactivar portal + resetear contraseña** en un cliente `source='portal'` real desde la UI de `/clientes/[id]` — confirmar en vivo (clic real, no solo lectura de código) que el portal sigue inactivo después del reset hasta activarlo explícitamente con el interruptor.
+
+### Para reanudar en nueva sesión
+
+```
+Continuamos en PixelTEC OS. Cerramos una sesión de hotfix de seguridad sobre el
+portal de clientes + Diagnóstico Inteligente (HEAD: 3d1024a, tsc clean, pusheado
+a origin/main). Quedan 3 items de QA manual pendientes que necesitan mi sesión de
+admin real (no se probaron con cuenta temporal a propósito):
+1. Rotar token de portal existente
+2. Revocar token de portal existente
+3. Desactivar portal + resetear contraseña de un cliente source='portal' desde
+   la UI de /clientes/[id], confirmando que NO se reactiva solo
+El detalle completo está en pixeltecpend.md, sección "Sesión 4".
+```
+
+---
+
 ## Sesión 3 — Sincronización de estado y limpieza (2026-07-02)
 
 **Estado al cerrar:** main pusheado a origin (`d469136`), dev server arriba, sin deploy (por decisión de Miguel).
