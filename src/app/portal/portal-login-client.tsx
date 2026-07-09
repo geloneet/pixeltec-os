@@ -35,8 +35,8 @@ export function PortalLoginClient() {
     setPhase('sending');
     setMessage(null);
     const result = await requestClientPortalCodeAction(email);
-    if (result.success) {
-      setMessage(result.data!.message);
+    if (result.success && result.data) {
+      setMessage(result.data.message);
       setPhase('code-sent');
       startCountdown(60);
     } else {
