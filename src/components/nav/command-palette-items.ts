@@ -52,7 +52,7 @@ export const PALETTE_NAV_ITEMS: PaletteNavItem[] = [
   {
     href: "/clientes",
     label: "Clientes",
-    description: "Workspace completo por cliente: proyectos, contratos, facturación y portal",
+    description: "Workspace completo por cliente: proyectos, contratos y facturación",
     icon: Users,
     section: "trabajo",
   },
@@ -129,13 +129,6 @@ export const PALETTE_NAV_ITEMS: PaletteNavItem[] = [
     label: "Configuración",
     description: "Perfil, notificaciones y preferencias del sistema",
     icon: Settings2,
-    section: "sistema",
-  },
-  {
-    href: "/portal-legado",
-    label: "Portal legado",
-    description: "Contraseñas de acceso al portal legado de clientes",
-    icon: KeyRound,
     section: "sistema",
   },
   // ── Crecimiento (Growth Suite) ────────────────────────────────────────────

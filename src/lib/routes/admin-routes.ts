@@ -7,7 +7,7 @@
  *      in src/middleware.ts — Next.js requires a static literal array there,
  *      so it cannot be derived dynamically at build time.
  *
- * Everything else (PROTECTED_PATHS, KNOWN_ROUTES) is derived automatically.
+ * PROTECTED_PATHS is derived automatically.
  */
 export const ADMIN_ROUTES = [
   'hoy',
@@ -25,30 +25,9 @@ export const ADMIN_ROUTES = [
   'crecimiento',
   'documentos',
   'ia-factory',
-  'portal-legado',
 ] as const;
 
 export type AdminRoute = typeof ADMIN_ROUTES[number];
 
 /** Paths that require a valid session cookie. Used by middleware at request time. */
 export const PROTECTED_PATHS = ADMIN_ROUTES.map(r => `/${r}`);
-
-/**
- * Known single-segment paths that are NOT client portal slugs.
- *
- * `portal` vive aquí (no en ADMIN_ROUTES): es el portal LEGADO de clientes
- * (`src/app/portal/*`), con su propia sesión (auth propio, Fase D retiro
- * Firebase — ver src/lib/portal/legacy-session.ts), no con NextAuth — su
- * propio `PortalLayout` hace el gate client-side, no el middleware. Distinto
- * del portal OTP en `/[slug]`.
- */
-export const KNOWN_ROUTES = new Set<string>([
-  ...ADMIN_ROUTES,
-  'portal',
-  // Public site routes
-  'about', 'contact', 'services', 'blog', 'metodologia', 'equipo',
-  'industrias', 'privacy-policy', 'aviso-de-privacidad', 'terminos-de-servicio',
-  'data-deletion', 'guias-transformacion', 'login', 'api', 'diagnostico', 'reset-password',
-  // Public proposal pages
-  'p',
-]);

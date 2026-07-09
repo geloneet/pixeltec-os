@@ -10,7 +10,6 @@ import { db } from "@/lib/db";
 import { clients } from "@/lib/db/schema";
 import { requireSession } from "@/lib/vpsClient";
 import { findContractByPublicId, resolveClientPgId } from "@/lib/documents/pg";
-import { resolveToken } from "@/lib/portal/token";
 import type { Contract } from "@/types/documents";
 
 const execFileAsync = promisify(execFile);
@@ -56,23 +55,11 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       return new NextResponse("Missing contractId", { status: 400 });
     }
 
-    // Auth — session cookie (admin) OR portal token (public portal)
+    // Auth — session cookie (admin) only.
     const cookieStore = await cookies();
     const sessionCookie = cookieStore.get("__session")?.value ?? "";
     const session = await requireSession(sessionCookie);
-
-    let ownerUid: string;
-    let portalClientId: string | null = null;
-    if (session.ok) {
-      ownerUid = session.uid;
-    } else {
-      const portalToken = req.nextUrl.searchParams.get("token");
-      if (!portalToken) return new NextResponse("Unauthorized", { status: 401 });
-      const resolved = await resolveToken(portalToken);
-      if (!resolved) return new NextResponse("Unauthorized", { status: 401 });
-      ownerUid = resolved.uid;
-      portalClientId = resolved.clientId;
-    }
+    if (!session.ok) return new NextResponse("Unauthorized", { status: 401 });
 
     const contract = await findContractByPublicId(contractId);
     if (!contract) {
@@ -80,12 +67,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     }
 
     // Verify ownership
-    if (contract.uid !== ownerUid) {
-      return new NextResponse("Forbidden", { status: 403 });
-    }
-    // Verify the portal token's client owns this contract — multiple clients
-    // of the same consultant share `uid`, so `uid` alone is not sufficient.
-    if (portalClientId !== null && contract.clientId !== portalClientId) {
+    if (contract.uid !== session.uid) {
       return new NextResponse("Forbidden", { status: 403 });
     }
 

@@ -5,15 +5,14 @@
 // client SDK desde componentes 'use client'. Ahora: Drizzle/Postgres desde
 // server actions y rutas de servidor.
 //
-// Convenciones de frontera (mismas que src/lib/blog/pg.ts y
-// src/lib/portal/pg.ts):
+// Convenciones de frontera (mismas que src/lib/blog/pg.ts):
 //   - Los ids públicos que circulan en la UI son los ids originales de
 //     Firestore para filas migradas (columna firestore_id) y uuids de
 //     Postgres para filas nuevas — los resolvers aceptan ambos.
 //   - El shape de dominio (src/types/documents.ts) usa `uid` (Firebase UID)
 //     y `clientId` (id público del cliente). Postgres usa ownerId
 //     (users.id) y clientId (clients.id). Se traduce aquí.
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   users,
@@ -337,10 +336,9 @@ export function serializeIATemplate(row: IATemplateRow, uid: string): IATemplate
   };
 }
 
-// ── Lecturas server-side sin sesión (portal por token / rutas PDF) ──────────
-// Estas se usan donde la identidad NO viene de la sesión sino de un token ya
-// validado (resolveToken) o de requireSession — el caller hace los checks de
-// autorización con los valores devueltos.
+// ── Lecturas server-side sin sesión (rutas PDF públicas) ─────────────────────
+// Estas se usan donde la identidad NO viene de la sesión sino de requireSession
+// — el caller hace los checks de autorización con los valores devueltos.
 
 /** Propuesta por id público, con uid del dueño para el check de la ruta PDF. */
 export async function findProposalByPublicId(publicId: string): Promise<Proposal | null> {
@@ -383,55 +381,6 @@ export async function findInvoiceByPublicId(publicId: string): Promise<Invoice |
     ownerFirebaseUidFor(row.ownerId),
   ]);
   return serializeInvoice(row, items, clientPublicId, uid);
-}
-
-/**
- * Estrategia del cliente para el portal público (/portal/[token]).
- * Filtra por dueño (firebaseUid) Y cliente — mismo scoping que la query
- * Firestore original (where uid == && clientId ==).
- */
-export async function getStrategyForClient(
-  firebaseUid: string,
-  publicClientId: string,
-): Promise<Strategy | null> {
-  const [ownerId, clientPgId] = await Promise.all([
-    resolveOwnerPgId(firebaseUid),
-    resolveClientPgId(publicClientId),
-  ]);
-  if (!ownerId || !clientPgId) return null;
-  const [row] = await db
-    .select()
-    .from(strategies)
-    .where(and(eq(strategies.ownerId, ownerId), eq(strategies.clientId, clientPgId)))
-    .limit(1);
-  return row ? serializeStrategy(row, publicClientId, firebaseUid) : null;
-}
-
-/**
- * Contratos firmados del cliente para el portal público. Igual que la query
- * Firestore original: uid == && clientId == && status == 'firmado' — el
- * doble filtro dueño+cliente preserva la protección anti-IDOR.
- */
-export async function getSignedContractsForClient(
-  firebaseUid: string,
-  publicClientId: string,
-): Promise<Contract[]> {
-  const [ownerId, clientPgId] = await Promise.all([
-    resolveOwnerPgId(firebaseUid),
-    resolveClientPgId(publicClientId),
-  ]);
-  if (!ownerId || !clientPgId) return [];
-  const rows = await db
-    .select()
-    .from(contracts)
-    .where(
-      and(
-        eq(contracts.ownerId, ownerId),
-        eq(contracts.clientId, clientPgId),
-        eq(contracts.status, "firmado"),
-      ),
-    );
-  return rows.map((row) => serializeContract(row, publicClientId, firebaseUid));
 }
 
 // ── Ids ordenables para invoice_items ────────────────────────────────────────

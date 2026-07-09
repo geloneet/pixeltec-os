@@ -1,8 +1,6 @@
 /**
  * Password-reset link email — sent to a staff/team member (`users` table,
  * NextAuth login) when they request "¿Olvidaste tu contraseña?" on /login.
- * Patrón espejo de ClientAccessEmail.ts, pero con un link en vez de un
- * código de dígitos (es un reset de contraseña, no un acceso OTP).
  */
 
 import { clientLayout, escapeHtml } from './shared';

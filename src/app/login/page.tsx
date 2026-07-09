@@ -3,26 +3,14 @@
 import { memo, useRef, useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Lock, Mail, Users, Terminal, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Lock, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import Image from 'next/image';
 import { signIn, useSession } from 'next-auth/react';
-import { loginLegacyPortal } from '@/lib/portal/legacy-auth';
 import { requestPasswordResetAction } from '@/app/actions';
-import { ObfuscatedMailto } from '@/components/ui/obfuscated-mailto';
-
-const TEAM_EMAIL = 'equipo@pixeltec.mx';
-
-type LoginMode = 'picker' | 'cliente' | 'dev';
-
-function modeFromParam(param: string | null): LoginMode {
-  if (param === 'cliente') return 'cliente';
-  if (param === 'dev') return 'dev';
-  return 'picker';
-}
 
 // Decorative backdrop shared by both columns — memoized so the grid + glow
 // never repaint when the form's state changes (every keystroke would
@@ -133,9 +121,6 @@ export default function LoginPage() {
   // mostrar nada nuevo — evita el flicker que ya se había resuelto antes.
   const [showDelayedLoader, setShowDelayedLoader] = useState(false);
 
-  // "¿Olvidaste tu contraseña?" — solo aplica a modo 'dev' (tabla `users` /
-  // NextAuth). El portal de clientes (modo 'cliente') usa su propio acceso
-  // passwordless por slug + código OTP, no contraseña.
   const [forgotOpen, setForgotOpen] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotSubmitting, setForgotSubmitting] = useState(false);
@@ -145,7 +130,6 @@ export default function LoginPage() {
 
   const searchParams = useSearchParams();
   const redirectParam = searchParams.get('redirect');
-  const [mode, setMode] = useState<LoginMode>(() => modeFromParam(searchParams.get('modo')));
   const { data: session, status } = useSession();
 
   // Redirect if already logged in vía NextAuth (equipo interno). Independiente
@@ -169,15 +153,6 @@ export default function LoginPage() {
     const timer = setTimeout(() => setShowDelayedLoader(true), 400);
     return () => clearTimeout(timer);
   }, [isLoading]);
-
-  const selectMode = (next: LoginMode) => {
-    setError(null);
-    setEmail('');
-    setPassword('');
-    setForgotOpen(false);
-    setForgotMessage(null);
-    setMode(next);
-  };
 
   const handleForgotSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -211,20 +186,6 @@ export default function LoginPage() {
     setError(null);
 
     try {
-      if (mode === 'cliente') {
-        // Portal legado de clientes — auth propio contra Postgres (Fase D
-        // retiro Firebase), no NextAuth.
-        const result = await loginLegacyPortal(email, password);
-        if (result.ok) {
-          setIsRedirecting(true);
-          window.location.assign('/portal');
-          return;
-        }
-        setError(result.error ?? 'No se pudo iniciar sesión.');
-        setIsLoading(false);
-        return;
-      }
-
       // Equipo interno (admin/staff) — NextAuth contra Postgres.
       const result = await signIn('credentials', {
         email,
@@ -320,76 +281,16 @@ export default function LoginPage() {
             />
           </motion.div>
 
-          <AnimatePresence mode="wait">
-            {mode === 'picker' ? (
-              <motion.div
-                key="picker"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.35, ease: 'easeOut' }}
-              >
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, ease: 'easeOut' }}
+          >
                 <h1 className="mt-6 text-center font-logo text-3xl font-extrabold tracking-tight text-white sm:text-4xl md:text-left">
                   Acceso
                 </h1>
                 <p className="mt-2 text-center text-sm text-zinc-400 md:text-left">
-                  Elige cómo quieres ingresar
-                </p>
-
-                <div className="mt-10 space-y-3">
-                  <button
-                    type="button"
-                    onClick={() => selectMode('cliente')}
-                    className="group flex w-full items-center gap-4 rounded-lg border border-white/10 bg-black/50 px-5 py-4 text-left transition-colors duration-200 hover:border-primary/50 hover:bg-black/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
-                  >
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-                      <Users className="h-5 w-5" />
-                    </span>
-                    <span className="flex-1">
-                      <span className="block text-sm font-semibold text-white">Acceso Clientes</span>
-                      <span className="block text-xs text-zinc-500">Proyectos, facturas y soporte</span>
-                    </span>
-                    <ChevronRight className="h-4 w-4 shrink-0 text-zinc-600 transition-colors duration-200 group-hover:text-primary" />
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => selectMode('dev')}
-                    className="group flex w-full items-center gap-4 rounded-lg border border-white/10 bg-black/50 px-5 py-4 text-left transition-colors duration-200 hover:border-primary/50 hover:bg-black/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
-                  >
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-                      <Terminal className="h-5 w-5" />
-                    </span>
-                    <span className="flex-1">
-                      <span className="block text-sm font-semibold text-white">Acceso Dev</span>
-                      <span className="block text-xs text-zinc-500">Dashboard interno del equipo</span>
-                    </span>
-                    <ChevronRight className="h-4 w-4 shrink-0 text-zinc-600 transition-colors duration-200 group-hover:text-primary" />
-                  </button>
-                </div>
-              </motion.div>
-            ) : (
-              <motion.div
-                key="form"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.35, ease: 'easeOut' }}
-              >
-                <button
-                  type="button"
-                  onClick={() => selectMode('picker')}
-                  className="inline-flex items-center gap-1 text-xs text-zinc-500 transition-colors hover:text-zinc-300"
-                >
-                  <ChevronLeft className="h-3.5 w-3.5" />
-                  Volver
-                </button>
-
-                <h1 className="mt-4 text-center font-logo text-3xl font-extrabold tracking-tight text-white sm:text-4xl md:text-left">
-                  Acceso
-                </h1>
-                <p className="mt-2 text-center text-sm text-zinc-400 md:text-left">
-                  {mode === 'cliente' ? 'Portal seguro para clientes' : 'Acceso para el equipo interno'}
+                  Acceso para el equipo interno
                 </p>
 
                 <form onSubmit={handleSubmit} className="mt-10 space-y-5">
@@ -474,66 +375,54 @@ export default function LoginPage() {
                 </form>
 
                 <div className="mt-4 text-center md:text-left">
-                  {mode === 'dev' ? (
-                    forgotOpen ? (
-                      <form onSubmit={handleForgotSubmit} className="space-y-2">
-                        {forgotMessage ? (
-                          <p className="text-xs leading-relaxed text-zinc-400">{forgotMessage}</p>
-                        ) : (
-                          <div className="flex gap-2">
-                            <Input
-                              type="email"
-                              required
-                              autoFocus
-                              placeholder="Tu correo"
-                              value={forgotEmail}
-                              onChange={(e) => setForgotEmail(e.target.value)}
-                              disabled={forgotSubmitting}
-                              className="h-9 flex-1 rounded-md border-white/10 bg-black/50 text-xs text-white placeholder:text-zinc-500"
-                            />
-                            <Button
-                              type="submit"
-                              size="sm"
-                              disabled={forgotSubmitting}
-                              className="h-9 shrink-0 text-xs"
-                            >
-                              {forgotSubmitting ? <Spinner size="sm" /> : 'Enviar'}
-                            </Button>
-                          </div>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setForgotOpen(false);
-                            setForgotMessage(null);
-                          }}
-                          className="text-xs text-zinc-600 transition-colors hover:text-zinc-400"
-                        >
-                          Cancelar
-                        </button>
-                      </form>
-                    ) : (
+                  {forgotOpen ? (
+                    <form onSubmit={handleForgotSubmit} className="space-y-2">
+                      {forgotMessage ? (
+                        <p className="text-xs leading-relaxed text-zinc-400">{forgotMessage}</p>
+                      ) : (
+                        <div className="flex gap-2">
+                          <Input
+                            type="email"
+                            required
+                            autoFocus
+                            placeholder="Tu correo"
+                            value={forgotEmail}
+                            onChange={(e) => setForgotEmail(e.target.value)}
+                            disabled={forgotSubmitting}
+                            className="h-9 flex-1 rounded-md border-white/10 bg-black/50 text-xs text-white placeholder:text-zinc-500"
+                          />
+                          <Button
+                            type="submit"
+                            size="sm"
+                            disabled={forgotSubmitting}
+                            className="h-9 shrink-0 text-xs"
+                          >
+                            {forgotSubmitting ? <Spinner size="sm" /> : 'Enviar'}
+                          </Button>
+                        </div>
+                      )}
                       <button
                         type="button"
-                        onClick={() => setForgotOpen(true)}
-                        className="text-xs text-zinc-500 transition-colors hover:text-zinc-300"
+                        onClick={() => {
+                          setForgotOpen(false);
+                          setForgotMessage(null);
+                        }}
+                        className="text-xs text-zinc-600 transition-colors hover:text-zinc-400"
                       >
-                        ¿Olvidaste tu contraseña?
+                        Cancelar
                       </button>
-                    )
+                    </form>
                   ) : (
-                    <ObfuscatedMailto
-                      email={TEAM_EMAIL}
-                      subject="Recuperar acceso"
+                    <button
+                      type="button"
+                      onClick={() => setForgotOpen(true)}
                       className="text-xs text-zinc-500 transition-colors hover:text-zinc-300"
                     >
                       ¿Olvidaste tu contraseña?
-                    </ObfuscatedMailto>
+                    </button>
                   )}
                 </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          </motion.div>
 
           <motion.div
             initial={{ opacity: 0 }}

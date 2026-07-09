@@ -8,7 +8,6 @@ import { ContratosTab } from "@/components/crm/workspace-tabs/ContratosTab";
 import { PropuestaTab } from "@/components/crm/workspace-tabs/PropuestaTab";
 import { DiscoveryTab } from "@/components/crm/workspace-tabs/DiscoveryTab";
 import { EstrategiaTab } from "@/components/crm/workspace-tabs/EstrategiaTab";
-import { PortalTab } from "@/components/crm/workspace-tabs/PortalTab";
 import { FacturacionTab } from "@/components/crm/workspace-tabs/FacturacionTab";
 import { ProyectosTab } from "@/components/crm/workspace-tabs/ProyectosTab";
 
@@ -19,8 +18,7 @@ export type WorkspaceTab =
   | "contratos"
   | "documentos"
   | "discovery"
-  | "estrategia"
-  | "portal";
+  | "estrategia";
 
 const WORKSPACE_TABS: { id: WorkspaceTab; label: string }[] = [
   { id: "resumen",    label: "Resumen" },
@@ -30,7 +28,6 @@ const WORKSPACE_TABS: { id: WorkspaceTab; label: string }[] = [
   { id: "documentos", label: "Documentos" },
   { id: "discovery",  label: "Discovery" },
   { id: "estrategia", label: "Estrategia" },
-  { id: "portal",     label: "Portal" },
 ];
 
 type ModalPayload = { type: string; data?: Record<string, string> } | null;
@@ -126,11 +123,6 @@ export function ClientWorkspace({ client, onBack, navigateToProject, setModal, d
         {activeTab === "estrategia" && (
           <div className="p-6">
             <EstrategiaTab clientId={client.id} />
-          </div>
-        )}
-        {activeTab === "portal" && (
-          <div className="p-6">
-            <PortalTab clientId={client.id} clientName={client.name} />
           </div>
         )}
       </div>
