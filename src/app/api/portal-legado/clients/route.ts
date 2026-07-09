@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
 import { requireAdmin } from "@/lib/auth-guards";
 import { db } from "@/lib/db";
 import { clients } from "@/lib/db/schema";
 
 export const runtime = "nodejs";
 
-/** Lista de clientes del portal legado (source='portal') para la UI de administración de contraseñas. Nunca devuelve el hash, solo si ya tiene una fijada. */
+/**
+ * Vista general (solo lectura) de estado de portal por cliente — restaurada
+ * tras el code review del 2026-07-09: sin esto no había forma de ver de un
+ * vistazo qué clientes tienen portal activo/inactivo. Cubre AMBOS
+ * mecanismos (ver PortalTab.tsx): password (source='portal') y token
+ * (source='crm_blob'). Las acciones (fijar contraseña, rotar/revocar token)
+ * viven en la ficha de cada cliente — esta vista no las duplica.
+ */
 export async function GET(req: NextRequest) {
   const guard = await requireAdmin(req.cookies.get("__session")?.value, {
     route: "/api/portal-legado/clients",
@@ -18,16 +24,27 @@ export async function GET(req: NextRequest) {
   }
 
   const rows = await db
-    .select({ id: clients.id, name: clients.name, email: clients.email, passwordHash: clients.legacyPasswordHash })
+    .select({
+      id: clients.id,
+      name: clients.name,
+      email: clients.email,
+      source: clients.source,
+      passwordHash: clients.legacyPasswordHash,
+      passwordEnabled: clients.legacyPortalEnabled,
+      portalToken: clients.portalToken,
+      tokenEnabled: clients.portalEnabled,
+    })
     .from(clients)
-    .where(eq(clients.source, "portal"))
     .orderBy(clients.name);
 
   const result = rows.map((r) => ({
     id: r.id,
     name: r.name,
     email: r.email,
-    hasPassword: Boolean(r.passwordHash),
+    source: r.source,
+    mechanism: r.source === "portal" ? "password" : "token",
+    hasPortal: r.source === "portal" ? Boolean(r.passwordHash) : Boolean(r.portalToken),
+    enabled: r.source === "portal" ? r.passwordEnabled : r.tokenEnabled,
   }));
 
   return NextResponse.json({ clients: result });

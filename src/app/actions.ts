@@ -11,12 +11,16 @@ import {
   sendEmail,
   sendContactConfirmation,
   sendContactNotification,
+  sendDiagnosticNotification,
+  sendPasswordResetEmail,
   sendNewsletterWelcome,
   type EmailResult,
 } from '@/lib/email';
 import { assertEmailEnv } from '@/lib/email-env-guard';
 import { enforceRateLimit, formatRetryAfter } from '@/lib/rate-limit';
-import { createLead, updateLeadEmailDelivery } from '@/lib/leads-repo';
+import { createLead, createDiagnosticLead, updateLeadEmailDelivery, markLeadWantsContact } from '@/lib/leads-repo';
+import { computeDiagnostic, type DiagnosticAnswers, type DiagnosticResult } from '@/lib/diagnostic/logic';
+import { sendWhatsApp } from '@/lib/whatsapp/sender';
 import { subscribeOrReactivate, normalizeEmail } from '@/lib/newsletter-repo';
 import { logSystemAlert } from '@/lib/system-alerts';
 import { hashIp } from '@/lib/privacy';
@@ -28,9 +32,10 @@ import { renderClientAccessEmail } from '@/emails/ClientAccessEmail';
 import { renderProjectUpdateEmail } from '@/emails/ProjectUpdateEmail';
 import { headers } from 'next/headers';
 import crypto from 'node:crypto';
-import { desc, asc, eq } from 'drizzle-orm';
+import { desc, asc, eq, and, isNull, gt } from 'drizzle-orm';
 import { db as pgDb } from '@/lib/db';
-import { clients as clientsTable, clientPortalUpdates, clientPortalProjects } from '@/lib/db/schema';
+import { clients as clientsTable, clientPortalUpdates, clientPortalProjects, users as usersTable, passwordResetTokens, leads as leadsTable } from '@/lib/db/schema';
+import bcrypt from 'bcryptjs';
 import { findPortalClientBySlug, resolvePortalClient, portalClientPublicId } from '@/lib/portal/pg';
 import { generateAccessCode, generateSlug, type PortalSession } from '@/lib/portal';
 import {
@@ -233,6 +238,357 @@ export async function submitContactForm(
     message: '¡Gracias! Te enviamos una confirmación a tu correo. Te respondemos en menos de 24 h.',
     isSuccess: true,
   };
+}
+
+// ─── Diagnóstico Inteligente ────────────────────────────────────────────────
+
+const diagnosticSchema = z.object({
+  name: z.string().min(2, 'Tu nombre debe tener al menos 2 caracteres.'),
+  email: z.string().email('Ingresa un correo electrónico válido.'),
+  phone: z.string().optional(),
+  empresa: z.string().optional(),
+  companyType: z.string().min(1, 'Selecciona el tipo de empresa.'),
+  problems: z.array(z.string()).min(1, 'Selecciona al menos un problema.'),
+  companySize: z.string().min(1, 'Selecciona el tamaño de tu empresa.'),
+  priority: z.string().min(1, 'Selecciona tu prioridad.'),
+  consent: z.literal('on', {
+    errorMap: () => ({ message: 'Debes aceptar el Aviso de Privacidad para continuar.' }),
+  }),
+});
+
+export type DiagnosticFormInput = {
+  name: string;
+  email: string;
+  phone?: string;
+  empresa?: string;
+  companyType: string;
+  problems: string[];
+  companySize: string;
+  priority: string;
+  consent: string;
+  /** Honeypot — debe llegar vacío. */
+  website?: string;
+};
+
+export type SubmitDiagnosticState =
+  | { ok: true; leadId: string; result: DiagnosticResult }
+  | { ok: false; message: string; errors?: Record<string, string[] | undefined> };
+
+const DIAGNOSTIC_RATE_LIMIT = { max: 5, windowMs: 60 * 60 * 1000 } as const; // 5/hour
+
+/** Público — llamado desde el wizard de Diagnóstico Inteligente al terminar el último paso. */
+export async function submitDiagnostic(input: DiagnosticFormInput): Promise<SubmitDiagnosticState> {
+  // 1) Honeypot — silent-ish failure, NO persistence, NO notificaciones.
+  if ((input.website ?? '').trim() !== '') {
+    console.warn('[diagnostic] honeypot tripped, dropping submission');
+    // El wizard ya mostró el resultado (calculado en cliente) antes de este
+    // submit — no hace falta devolver un resultado real, un bot no lo verá.
+    return { ok: false, message: 'No se pudo procesar tu solicitud.' };
+  }
+
+  // 2) Validate
+  const validated = diagnosticSchema.safeParse(input);
+  if (!validated.success) {
+    return {
+      ok: false,
+      message: 'Por favor corrige los errores señalados.',
+      errors: validated.error.flatten().fieldErrors,
+    };
+  }
+  const { name, email, phone, empresa, companyType, problems, companySize, priority } = validated.data;
+
+  // 3) Env guard
+  const envCheck = await assertEmailEnv('diagnostic');
+  if (!envCheck.ok) {
+    return {
+      ok: false,
+      message: 'Servicio no disponible temporalmente. Escríbenos a contacto@pixeltec.mx mientras lo resolvemos.',
+    };
+  }
+
+  // 4) Rate limit
+  const { ip, userAgent } = await getRequestContext();
+  const rl = await enforceRateLimit({
+    ip,
+    bucket: 'diagnostic',
+    max: DIAGNOSTIC_RATE_LIMIT.max,
+    windowMs: DIAGNOSTIC_RATE_LIMIT.windowMs,
+  });
+  if (!rl.allowed) {
+    return { ok: false, message: `Demasiados intentos. Intenta en ${formatRetryAfter(rl.retryAfterSec)}.` };
+  }
+
+  // 5) Recompute the result server-side — never trust a client-sent score.
+  const answers: DiagnosticAnswers = {
+    companyType,
+    problems,
+    companySize,
+    priority,
+    name,
+    email,
+    phone,
+    empresa,
+  };
+  const result = computeDiagnostic(answers);
+
+  // 6) Persist FIRST — never lose a lead to an email/WhatsApp outage.
+  let leadId: string | null = null;
+  try {
+    leadId = await createDiagnosticLead({
+      email,
+      name,
+      phone,
+      empresa,
+      industry: companyType,
+      companySize,
+      problems,
+      priority,
+      suggestedServices: result.recommendedServices,
+      score: result.score,
+      answers: { ...answers, result },
+      userAgent,
+      ipHash: hashIp(ip),
+    });
+  } catch (err) {
+    console.error('[diagnostic] createDiagnosticLead failed:', err);
+    await logSystemAlert({
+      severity: 'critical',
+      source: 'diagnostic',
+      message: 'createDiagnosticLead failed — visitor saw a generic error',
+      context: { error: String(err) },
+    });
+    return { ok: false, message: 'Ocurrió un error inesperado. Inténtalo de nuevo en unos minutos.' };
+  }
+
+  // 7) Notify the team — email + WhatsApp, in parallel. Neither can lose the
+  // lead: it's already safe in Postgres by this point.
+  const submittedAt = new Date().toLocaleString('es-MX', {
+    dateStyle: 'full',
+    timeStyle: 'short',
+    timeZone: 'America/Mexico_City',
+  });
+
+  const [emailResult, whatsappResult] = await Promise.all([
+    sendDiagnosticNotification({
+      name,
+      email,
+      phone,
+      empresa,
+      industry: companyType,
+      companySize,
+      problems,
+      priority,
+      score: result.score,
+      recommendedServices: result.recommendedServices,
+      timeline: result.timeline,
+      submittedAt,
+    }),
+    // sendWhatsApp() THROWS on failure (unlike sendEmail) — a missing
+    // allowlist entry or expired token must never take down an already
+    // persisted lead, so this is wrapped locally.
+    sendWhatsApp(
+      `🧭 Nuevo Diagnóstico — ${name}${empresa ? ` (${empresa})` : ''}\n` +
+        `Industria: ${companyType} · Tamaño: ${companySize}\n` +
+        `Madurez: ${result.score}% · Prioridad: ${priority}\n` +
+        `Servicios: ${result.recommendedServices.join(', ')}\n` +
+        `Contacto: ${email}${phone ? ` / ${phone}` : ''}`
+    ).catch((err) => {
+      console.error('[diagnostic] sendWhatsApp failed:', err);
+      return null;
+    }),
+  ]);
+
+  const emailOk = emailResult.success;
+  await updateLeadEmailDelivery(leadId, emailOk ? 'sent' : 'failed', emailOk ? undefined : emailResult.error);
+
+  if (!emailOk || !whatsappResult) {
+    await logSystemAlert({
+      severity: emailOk ? 'warning' : 'critical',
+      source: 'diagnostic',
+      message: `Notificación de diagnóstico incompleta (lead ${leadId})`,
+      context: { emailOk, whatsappOk: !!whatsappResult, leadId },
+    });
+  }
+
+  // El visitante siempre ve su resultado — la notificación interna es
+  // best-effort y nunca bloquea la experiencia del wizard.
+  return { ok: true, leadId, result };
+}
+
+const DIAGNOSTIC_CONTACT_RATE_LIMIT = { max: 10, windowMs: 60 * 60 * 1000 }; // 10/hora por IP
+
+/**
+ * Público — botón "Quiero que me contacten" en la pantalla de resultado del
+ * diagnóstico. El lead ya existe (creado por submitDiagnostic); esto solo
+ * marca la señal fuerte de intención + avisa al equipo de inmediato.
+ */
+export async function requestDiagnosticContactAction(leadId: string): Promise<{ ok: boolean }> {
+  if (!leadId) return { ok: false };
+
+  const { ip } = await getRequestContext();
+  const rl = await enforceRateLimit({
+    ip,
+    bucket: 'diagnostic_contact',
+    max: DIAGNOSTIC_CONTACT_RATE_LIMIT.max,
+    windowMs: DIAGNOSTIC_CONTACT_RATE_LIMIT.windowMs,
+  });
+  if (!rl.allowed) return { ok: false };
+
+  try {
+    const [lead] = await pgDb.select().from(leadsTable).where(eq(leadsTable.id, leadId)).limit(1);
+    if (!lead || lead.source !== 'diagnostic') return { ok: false };
+
+    await markLeadWantsContact(leadId);
+
+    // HOTFIX (code review 2026-07-09): antes se hacía `await` sobre esto,
+    // contradiciendo el propio comentario de "best-effort, nunca bloquea" —
+    // el visitante esperaba el round-trip completo a la API de WhatsApp. Sin
+    // `await`: la función retorna en cuanto el lead queda marcado, y el
+    // envío sigue en segundo plano (proceso Node.js de larga duración en
+    // este VPS, no serverless — la promesa no se corta al responder).
+    sendWhatsApp(
+      `🔥 Lead pidió que lo contacten — ${lead.name ?? 'sin nombre'}${lead.empresa ? ` (${lead.empresa})` : ''}\n` +
+        `Score: ${lead.score ?? '—'}% · Contacto: ${lead.email}${lead.phone ? ` / ${lead.phone}` : ''}`
+    ).catch((err) => console.error('[diagnostic] wantsContact sendWhatsApp failed:', err));
+
+    return { ok: true };
+  } catch (err) {
+    console.error('[diagnostic] requestDiagnosticContactAction error:', err);
+    return { ok: false };
+  }
+}
+
+// ─── Password Reset (equipo interno / tabla `users`, login NextAuth) ───────
+//
+// El portal de clientes (mode==='cliente') NO usa este flujo — tiene su
+// propio acceso passwordless por slug + código OTP (requestPortalCodeAction).
+// Esto es solo para /login?modo=dev (staff).
+
+const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hora
+const RESET_REQUEST_RATE_LIMIT = { max: 5, windowMs: 60 * 60 * 1000 }; // 5/hora por IP
+const RESET_CONFIRM_RATE_LIMIT = { max: 10, windowMs: 60 * 60 * 1000 }; // 10/hora por IP
+
+function hashResetToken(token: string): string {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
+
+// SIEMPRE el mismo mensaje exista o no el correo, esté o no rate-limited —
+// evita que este formulario público sirva para enumerar correos válidos del
+// equipo interno.
+const GENERIC_RESET_MESSAGE =
+  'Si el correo existe en nuestro sistema, te enviamos instrucciones para restablecer tu contraseña.';
+
+/** Público — /login (modo dev) → "¿Olvidaste tu contraseña?". */
+export async function requestPasswordResetAction(email: string): Promise<{ message: string }> {
+  const normalizedEmail = email.trim().toLowerCase();
+  if (!normalizedEmail || !/\S+@\S+\.\S+/.test(normalizedEmail)) {
+    return { message: GENERIC_RESET_MESSAGE };
+  }
+
+  const { ip } = await getRequestContext();
+  const rl = await enforceRateLimit({
+    ip,
+    bucket: 'password_reset',
+    max: RESET_REQUEST_RATE_LIMIT.max,
+    windowMs: RESET_REQUEST_RATE_LIMIT.windowMs,
+  });
+  if (!rl.allowed) return { message: GENERIC_RESET_MESSAGE };
+
+  try {
+    const [user] = await pgDb.select().from(usersTable).where(eq(usersTable.email, normalizedEmail)).limit(1);
+    if (!user) return { message: GENERIC_RESET_MESSAGE };
+
+    const envCheck = await assertEmailEnv('password_reset');
+    if (!envCheck.ok) return { message: GENERIC_RESET_MESSAGE };
+
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    await pgDb.insert(passwordResetTokens).values({
+      userId: user.id,
+      // El token nunca se guarda en texto plano — un leak de esta tabla no
+      // permite resetear ninguna cuenta.
+      tokenHash: hashResetToken(rawToken),
+      expiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MS),
+    });
+
+    const resetUrl = `${APP_URL}/reset-password?token=${rawToken}`;
+    const result = await sendPasswordResetEmail({
+      email: user.email,
+      name: user.name,
+      resetUrl,
+      expiresIn: '1 hora',
+    });
+    if (!result.success) {
+      console.error('[password-reset] sendPasswordResetEmail failed:', result.error);
+      await logSystemAlert({
+        severity: 'warning',
+        source: 'password_reset',
+        message: `Envío de reset de contraseña falló para ${user.id}`,
+        context: { error: result.error },
+      });
+    }
+  } catch (err) {
+    console.error('[password-reset] requestPasswordResetAction error:', err);
+  }
+
+  return { message: GENERIC_RESET_MESSAGE };
+}
+
+export type ResetPasswordResult = { ok: true } | { ok: false; message: string };
+
+/** Público — /reset-password?token=... → nueva contraseña. */
+export async function resetPasswordAction(token: string, newPassword: string): Promise<ResetPasswordResult> {
+  if (!token) return { ok: false, message: 'Enlace inválido o incompleto.' };
+  if (newPassword.length < 8) {
+    return { ok: false, message: 'La contraseña debe tener al menos 8 caracteres.' };
+  }
+
+  const { ip } = await getRequestContext();
+  const rl = await enforceRateLimit({
+    ip,
+    bucket: 'password_reset_confirm',
+    max: RESET_CONFIRM_RATE_LIMIT.max,
+    windowMs: RESET_CONFIRM_RATE_LIMIT.windowMs,
+  });
+  if (!rl.allowed) {
+    return { ok: false, message: 'Demasiados intentos. Inténtalo más tarde.' };
+  }
+
+  try {
+    const tokenHash = hashResetToken(token);
+    const [row] = await pgDb
+      .select()
+      .from(passwordResetTokens)
+      .where(
+        and(
+          eq(passwordResetTokens.tokenHash, tokenHash),
+          isNull(passwordResetTokens.usedAt),
+          gt(passwordResetTokens.expiresAt, new Date())
+        )
+      )
+      .limit(1);
+
+    if (!row) {
+      return { ok: false, message: 'Este enlace ya no es válido o expiró. Solicita uno nuevo.' };
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+
+    await pgDb.transaction(async (tx) => {
+      await tx
+        .update(usersTable)
+        .set({ passwordHash, updatedAt: new Date() })
+        .where(eq(usersTable.id, row.userId));
+      await tx
+        .update(passwordResetTokens)
+        .set({ usedAt: new Date() })
+        .where(eq(passwordResetTokens.id, row.id));
+    });
+
+    return { ok: true };
+  } catch (err) {
+    console.error('[password-reset] resetPasswordAction error:', err);
+    return { ok: false, message: 'Ocurrió un error inesperado. Inténtalo de nuevo.' };
+  }
 }
 
 // ─── Newsletter ───────────────────────────────────────────────────────────────

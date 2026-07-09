@@ -11,6 +11,8 @@ import { Spinner } from '@/components/ui/spinner';
 import Image from 'next/image';
 import { signIn, useSession } from 'next-auth/react';
 import { loginLegacyPortal } from '@/lib/portal/legacy-auth';
+import { requestPasswordResetAction } from '@/app/actions';
+import { ObfuscatedMailto } from '@/components/ui/obfuscated-mailto';
 
 const TEAM_EMAIL = 'equipo@pixeltec.mx';
 
@@ -86,6 +88,38 @@ const BlinkingCursor = memo(function BlinkingCursor() {
   );
 });
 
+const ROTATING_WORDS = ['Tecnología', 'Eficiencia', 'Estratégicos', 'Automatización', 'PixelTEC'];
+const ROTATING_WORD_INTERVAL_MS = 2800;
+
+// Slow word-cycling label ("Somos // <word>"). Starts at a fixed index (0)
+// so server and client render the same word on first paint — no hydration
+// mismatch — then advances client-side only via setInterval.
+const RotatingWord = memo(function RotatingWord() {
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setIndex((i) => (i + 1) % ROTATING_WORDS.length);
+    }, ROTATING_WORD_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, []);
+
+  return (
+    <AnimatePresence mode="wait">
+      <motion.span
+        key={ROTATING_WORDS[index]}
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -6 }}
+        transition={{ duration: 0.5, ease: 'easeInOut' }}
+        className="inline-block"
+      >
+        {ROTATING_WORDS[index]}
+      </motion.span>
+    </AnimatePresence>
+  );
+});
+
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -98,6 +132,14 @@ export default function LoginPage() {
   // isLoading se mantiene true hasta que el navegador navega) nunca llega a
   // mostrar nada nuevo — evita el flicker que ya se había resuelto antes.
   const [showDelayedLoader, setShowDelayedLoader] = useState(false);
+
+  // "¿Olvidaste tu contraseña?" — solo aplica a modo 'dev' (tabla `users` /
+  // NextAuth). El portal de clientes (modo 'cliente') usa su propio acceso
+  // passwordless por slug + código OTP, no contraseña.
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotSubmitting, setForgotSubmitting] = useState(false);
+  const [forgotMessage, setForgotMessage] = useState<string | null>(null);
 
   const passwordRef = useRef<HTMLInputElement>(null);
 
@@ -132,7 +174,24 @@ export default function LoginPage() {
     setError(null);
     setEmail('');
     setPassword('');
+    setForgotOpen(false);
+    setForgotMessage(null);
     setMode(next);
+  };
+
+  const handleForgotSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (forgotSubmitting) return;
+    setForgotSubmitting(true);
+    setForgotMessage(null);
+    try {
+      const { message } = await requestPasswordResetAction(forgotEmail);
+      setForgotMessage(message);
+    } catch {
+      setForgotMessage('Si el correo existe en nuestro sistema, te enviamos instrucciones para restablecer tu contraseña.');
+    } finally {
+      setForgotSubmitting(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -235,18 +294,11 @@ export default function LoginPage() {
             PixelTEC
           </h2>
           <p className="mt-3 font-mono text-xs font-medium uppercase tracking-[0.25em] text-zinc-500">
-            <span>System OS</span>
+            <span>Somos</span>
             <span className="mx-2 text-primary">//</span>
-            <span>Authentication</span>
+            <RotatingWord />
             <BlinkingCursor />
           </p>
-          <div className="mt-10 flex items-center gap-2 text-[11px] font-mono uppercase tracking-[0.15em] text-zinc-600">
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
-            </span>
-            <span>Secure channel established</span>
-          </div>
         </motion.div>
       </div>
 
@@ -422,12 +474,62 @@ export default function LoginPage() {
                 </form>
 
                 <div className="mt-4 text-center md:text-left">
-                  <a
-                    href={`mailto:${TEAM_EMAIL}?subject=Recuperar%20acceso`}
-                    className="text-xs text-zinc-500 transition-colors hover:text-zinc-300"
-                  >
-                    ¿Olvidaste tu contraseña?
-                  </a>
+                  {mode === 'dev' ? (
+                    forgotOpen ? (
+                      <form onSubmit={handleForgotSubmit} className="space-y-2">
+                        {forgotMessage ? (
+                          <p className="text-xs leading-relaxed text-zinc-400">{forgotMessage}</p>
+                        ) : (
+                          <div className="flex gap-2">
+                            <Input
+                              type="email"
+                              required
+                              autoFocus
+                              placeholder="Tu correo"
+                              value={forgotEmail}
+                              onChange={(e) => setForgotEmail(e.target.value)}
+                              disabled={forgotSubmitting}
+                              className="h-9 flex-1 rounded-md border-white/10 bg-black/50 text-xs text-white placeholder:text-zinc-500"
+                            />
+                            <Button
+                              type="submit"
+                              size="sm"
+                              disabled={forgotSubmitting}
+                              className="h-9 shrink-0 text-xs"
+                            >
+                              {forgotSubmitting ? <Spinner size="sm" /> : 'Enviar'}
+                            </Button>
+                          </div>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setForgotOpen(false);
+                            setForgotMessage(null);
+                          }}
+                          className="text-xs text-zinc-600 transition-colors hover:text-zinc-400"
+                        >
+                          Cancelar
+                        </button>
+                      </form>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setForgotOpen(true)}
+                        className="text-xs text-zinc-500 transition-colors hover:text-zinc-300"
+                      >
+                        ¿Olvidaste tu contraseña?
+                      </button>
+                    )
+                  ) : (
+                    <ObfuscatedMailto
+                      email={TEAM_EMAIL}
+                      subject="Recuperar acceso"
+                      className="text-xs text-zinc-500 transition-colors hover:text-zinc-300"
+                    >
+                      ¿Olvidaste tu contraseña?
+                    </ObfuscatedMailto>
+                  )}
                 </div>
               </motion.div>
             )}

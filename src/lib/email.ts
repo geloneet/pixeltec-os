@@ -17,6 +17,8 @@ import { renderTaskAssignedEmail, type TaskAssignedEmailProps } from '@/emails/T
 import { renderSupportTicketEmail, type SupportTicketEmailProps } from '@/emails/SupportTicketEmail';
 import { renderContactConfirmationEmail, type ContactConfirmationEmailProps } from '@/emails/ContactConfirmationEmail';
 import { renderContactNotificationEmail, type ContactNotificationEmailProps } from '@/emails/ContactNotificationEmail';
+import { renderDiagnosticNotificationEmail, type DiagnosticNotificationEmailProps } from '@/emails/DiagnosticNotificationEmail';
+import { renderPasswordResetEmail, type PasswordResetEmailProps } from '@/emails/PasswordResetEmail';
 import { renderNewsletterWelcomeEmail, type NewsletterWelcomeEmailProps } from '@/emails/NewsletterWelcomeEmail';
 import { renderProposalEmail, type ProposalEmailProps } from '@/emails/ProposalEmail';
 
@@ -151,6 +153,24 @@ export async function sendContactNotification(
   const html = renderContactNotificationEmail(props);
   const subject = `✦ Nuevo contacto web — ${props.name}${props.empresa ? ` (${props.empresa})` : ''}`;
   return sendEmail(TEAM_EMAIL, subject, html);
+}
+
+/** Sent to the internal team when a visitor completes the Diagnóstico Inteligente wizard. */
+export async function sendDiagnosticNotification(
+  props: DiagnosticNotificationEmailProps
+): Promise<EmailResult> {
+  const html = renderDiagnosticNotificationEmail(props);
+  const subject = `🧭 Nuevo Diagnóstico — ${props.name}${props.empresa ? ` (${props.empresa})` : ''} — ${props.score}%`;
+  return sendEmail(TEAM_EMAIL, subject, html);
+}
+
+/** Sent to a staff member who requests a password reset on /login. */
+export async function sendPasswordResetEmail(
+  props: PasswordResetEmailProps & { email: string }
+): Promise<EmailResult> {
+  const { email, ...templateProps } = props;
+  const html = renderPasswordResetEmail(templateProps);
+  return sendEmail(email, 'Restablece tu contraseña — PixelTEC OS', html);
 }
 
 /** Sent to a visitor who subscribes to the newsletter. */

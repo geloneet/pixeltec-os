@@ -14,3 +14,6 @@ nginx/ssl/
 tsconfig.tsbuildinfo
 *.tsbuildinfo
 .worktrees/
+
+# Dev server output (not source)
+dev.log

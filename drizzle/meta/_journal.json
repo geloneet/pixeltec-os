@@ -50,6 +50,34 @@
       "when": 1783551824080,
       "tag": "0006_mighty_captain_universe",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1783622361571,
+      "tag": "0007_careful_wild_pack",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1783623632561,
+      "tag": "0008_daffy_overlord",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1783624951522,
+      "tag": "0009_flawless_sharon_ventura",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1783625270993,
+      "tag": "0010_sturdy_newton_destine",
+      "breakpoints": true
     }
   ]
 }

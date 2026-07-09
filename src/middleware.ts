@@ -29,22 +29,53 @@ const NOT_FOUND_HTML = `<!DOCTYPE html>
   <title>404 — Página no encontrada · PixelTEC</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:system-ui,-apple-system,sans-serif;background:#050505;color:#fff;
-         display:flex;align-items:center;justify-content:center;min-height:100vh}
-    .w{text-align:center;padding:2rem;max-width:400px}
-    .code{color:#22d3ee;font-size:.7rem;letter-spacing:.3em;font-weight:700;text-transform:uppercase;margin-bottom:.5rem}
-    h1{font-size:1.5rem;font-weight:700;margin-bottom:.75rem}
-    p{color:#71717a;font-size:.875rem;margin-bottom:1.5rem}
-    a{display:inline-block;background:#fff;color:#050505;padding:.5rem 1.5rem;
-      border-radius:9999px;font-size:.875rem;font-weight:600;text-decoration:none}
+    body{
+      font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+      background:#030303;color:#fff;
+      min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
+      padding:2rem 1rem;text-align:center;position:relative;overflow:hidden;
+    }
+    .glow{
+      position:fixed;inset:0;pointer-events:none;
+      background:radial-gradient(ellipse at top,rgba(34,211,238,0.08),transparent 55%);
+    }
+    .eyebrow{
+      font-size:.7rem;font-weight:700;letter-spacing:.3em;text-transform:uppercase;
+      color:#71717a;margin-bottom:1rem;
+    }
+    .code{
+      font-size:clamp(4.5rem,16vw,9rem);font-weight:800;line-height:1;margin-bottom:.5rem;
+      background:linear-gradient(to bottom,rgba(255,255,255,0.22),rgba(255,255,255,0.05));
+      -webkit-background-clip:text;background-clip:text;color:transparent;user-select:none;
+    }
+    h1{font-size:1.375rem;font-weight:600;color:#f4f4f5;margin-bottom:.75rem}
+    p.desc{color:#71717a;font-size:.9rem;line-height:1.5;max-width:26rem;margin:0 auto 2rem}
+    .actions{display:flex;flex-wrap:wrap;gap:.75rem;align-items:center;justify-content:center}
+    a{
+      display:inline-flex;align-items:center;justify-content:center;height:2.75rem;padding:0 1.5rem;
+      border-radius:9999px;font-size:.875rem;font-weight:600;text-decoration:none;
+      transition:transform .15s ease,background-color .15s ease,border-color .15s ease;
+    }
+    a:hover{transform:translateY(-1px)}
+    a.primary{background:#f4f4f5;color:#030303;border:1px solid #f4f4f5}
+    a.secondary{background:rgba(255,255,255,.05);color:#d4d4d8;border:1px solid rgba(255,255,255,.1)}
+    a.accent{background:rgba(34,211,238,.1);color:#22d3ee;border:1px solid rgba(34,211,238,.3)}
+    .logo{height:2.5rem;width:2.5rem;margin-bottom:1.5rem}
   </style>
 </head>
 <body>
-  <div class="w">
-    <p class="code">Error 404</p>
-    <h1>Página no encontrada</h1>
-    <p>La URL que buscas no existe o fue movida.</p>
-    <a href="/">Volver al inicio</a>
+  <div class="glow" aria-hidden="true"></div>
+  <img class="logo" src="/ptlogox.png" alt="PixelTEC" width="40" height="40" />
+  <p class="eyebrow">Error 404</p>
+  <p class="code" aria-hidden="true">404</p>
+  <h1>Esta página no existe</h1>
+  <p class="desc">La URL que buscas no existe o fue movida. Usa los accesos directos para retomar el camino.</p>
+  <div class="actions">
+    <a class="primary" href="/">Volver al inicio</a>
+    <a class="secondary" href="/services">Servicios</a>
+    <a class="secondary" href="/industrias">Industrias</a>
+    <a class="secondary" href="/blog">Blog</a>
+    <a class="accent" href="/contact">Contacto</a>
   </div>
 </body>
 </html>`;

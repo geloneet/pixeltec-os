@@ -9,8 +9,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ContactCard } from '@/components/ui/contact-card';
-import { Mail, Phone, MapPin } from 'lucide-react';
+import { Mail, Phone, MapPin, Sparkles } from 'lucide-react';
 import { ShinyButton } from '../ui/shiny-button';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { DiagnosticWizard } from '@/components/diagnostico/DiagnosticWizard';
+import { ObfuscatedMailto } from '@/components/ui/obfuscated-mailto';
 
 const initialState = {
   message: '',
@@ -22,7 +25,14 @@ const contactInfo = [
   {
       icon: Mail,
       label: 'Email',
-      value: 'contacto@pixeltec.mx',
+      // ObfuscatedMailto, no texto plano: Cloudflare reescribe cualquier
+      // email visible en el HTML crudo (Scrape Shield) antes de que React
+      // hidrate, lo que producía "Hydration failed" en esta sección.
+      value: (
+        <ObfuscatedMailto email="contacto@pixeltec.mx" className="text-muted-foreground hover:text-foreground transition-colors">
+          contacto@pixeltec.mx
+        </ObfuscatedMailto>
+      ),
   },
   {
       icon: Phone,
@@ -41,6 +51,7 @@ export default function ContactSection() {
   const { toast } = useToast();
   const formRef = useRef<HTMLFormElement>(null);
   const [consent, setConsent] = useState(false);
+  const [diagnosticOpen, setDiagnosticOpen] = useState(false);
 
   useEffect(() => {
     if (state.message && !state.isSuccess) {
@@ -58,6 +69,33 @@ export default function ContactSection() {
   return (
     <section id="contact" className="py-20 md:py-32 bg-background dark:bg-[#0A0A0B]">
       <div className="container mx-auto px-4 md:px-6">
+        <div className="mb-8 rounded-2xl border border-cyan-500/20 bg-cyan-950/10 p-6 sm:p-8 flex flex-col sm:flex-row items-center gap-5 sm:gap-6 justify-between">
+          <div className="flex items-center gap-4 text-center sm:text-left">
+            <div className="hidden sm:flex p-3 rounded-xl bg-cyan-950/40 border border-cyan-500/20 shrink-0">
+              <Sparkles className="h-6 w-6 text-cyan-400" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-white">Diagnóstico Inteligente</h3>
+              <p className="text-sm text-zinc-400">
+                Responde 5 preguntas y recibe una recomendación personalizada en minutos.
+              </p>
+            </div>
+          </div>
+          <ShinyButton type="button" onClick={() => setDiagnosticOpen(true)} className="shrink-0 px-6">
+            Iniciar Diagnóstico Inteligente
+          </ShinyButton>
+        </div>
+
+        <Dialog open={diagnosticOpen} onOpenChange={setDiagnosticOpen}>
+          <DialogContent className="max-w-2xl bg-transparent border-none shadow-none p-0">
+            <DialogTitle className="sr-only">Diagnóstico Inteligente PixelTEC</DialogTitle>
+            <DialogDescription className="sr-only">
+              Responde unas preguntas y recibe una recomendación personalizada para tu empresa.
+            </DialogDescription>
+            <DiagnosticWizard variant="modal" onClose={() => setDiagnosticOpen(false)} />
+          </DialogContent>
+        </Dialog>
+
         <ContactCard
             title="¿Listo para automatizar tu éxito?"
             description="Hablemos de tu próximo gran desafío tecnológico. Llena el formulario y nuestro equipo de consultores se pondrá en contacto contigo a la brevedad."
@@ -116,7 +154,7 @@ export default function ContactSection() {
                   className="w-full"
                   disabled={!consent}
                 >
-                  Agendar Diagnóstico de Innovación
+                  Enviar mensaje
                 </ShinyButton>
               </div>
                {state.isSuccess && (

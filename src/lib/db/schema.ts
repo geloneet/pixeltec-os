@@ -139,7 +139,7 @@ export const iaTemplateTypeEnum = pgEnum("ia_template_type", [
   "propuesta",
 ]);
 
-export const leadSourceEnum = pgEnum("lead_source", ["contact_form", "newsletter"]);
+export const leadSourceEnum = pgEnum("lead_source", ["contact_form", "newsletter", "diagnostic"]);
 export const leadStatusEnum = pgEnum("lead_status", ["new", "contacted", "qualified", "lost"]);
 export const emailDeliveryStatusEnum = pgEnum("email_delivery_status", [
   "pending",
@@ -241,6 +241,28 @@ export const users = pgTable(
   ]
 );
 
+/**
+ * Tokens de recuperación de contraseña (login "¿Olvidaste tu contraseña?",
+ * solo para el equipo interno vía NextAuth — la tabla `users`). Igual que
+ * `clients.accessCodeHash`, nunca se guarda el token en texto plano: un leak
+ * de esta tabla no permite resetear ninguna cuenta.
+ */
+export const passwordResetTokens = pgTable(
+  "password_reset_tokens",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("password_reset_tokens_user_id_idx").on(t.userId),
+    uniqueIndex("password_reset_tokens_token_hash_idx").on(t.tokenHash),
+  ]
+);
+
 export const userStreak = pgTable("user_streak", {
   userId: uuid("user_id")
     .primaryKey()
@@ -322,6 +344,12 @@ export const clients = pgTable(
     // reemplaza el array `documents` que vivía directo en el doc de
     // Firestore (nunca tuvo datos reales al momento de esta migración).
     legacyPasswordHash: text("legacy_password_hash"),
+    // Permite desactivar el acceso sin perder la contraseña fijada (para
+    // reactivar después sin pedirle a Miguel que la vuelva a escribir).
+    // Unifica la creación de portal para CUALQUIER cliente (source
+    // 'crm_blob' o 'portal') desde su ficha en /clientes — antes solo
+    // funcionaba para source='portal' vía la página separada /portal-legado.
+    legacyPortalEnabled: boolean("legacy_portal_enabled").notNull().default(false),
     documents: jsonb("documents").notNull().default([]), // ClientDocument[]
   },
   (t) => [
@@ -1181,6 +1209,22 @@ export const leads = pgTable(
     emailDeliveryError: text("email_delivery_error"),
     consentTimestamp: timestamp("consent_timestamp", { withTimezone: true }).notNull().defaultNow(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    // ── Diagnóstico Inteligente (source: 'diagnostic') — nullable: no aplica
+    // a leads de contact_form/newsletter. Ver src/lib/diagnostic/logic.ts.
+    empresa: text("empresa"),
+    phone: text("phone"),
+    industry: text("industry"),
+    companySize: text("company_size"),
+    problems: text("problems").array(),
+    suggestedServices: text("suggested_services").array(),
+    priority: text("priority"),
+    score: integer("score"),
+    answers: jsonb("answers"),
+    // Botón "Quiero que me contacten" en la pantalla de resultado del
+    // diagnóstico — señal explícita de intención de compra, distinta del
+    // envío inicial del formulario.
+    wantsContact: boolean("wants_contact").notNull().default(false),
+    wantsContactAt: timestamp("wants_contact_at", { withTimezone: true }),
   },
   (t) => [
     index("leads_email_idx").on(t.email),

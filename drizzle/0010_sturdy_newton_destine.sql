@@ -1,0 +1,1 @@
+ALTER TABLE "clients" ADD COLUMN "legacy_portal_enabled" boolean DEFAULT false NOT NULL;

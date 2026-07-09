@@ -48,7 +48,7 @@ export const KNOWN_ROUTES = new Set<string>([
   // Public site routes
   'about', 'contact', 'services', 'blog', 'metodologia', 'equipo',
   'industrias', 'privacy-policy', 'aviso-de-privacidad', 'terminos-de-servicio',
-  'data-deletion', 'guias-transformacion', 'login', 'api',
+  'data-deletion', 'guias-transformacion', 'login', 'api', 'diagnostico', 'reset-password',
   // Public proposal pages
   'p',
 ]);

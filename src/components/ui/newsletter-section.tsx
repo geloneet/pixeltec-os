@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils"
+import { ObfuscatedMailto } from "@/components/ui/obfuscated-mailto"
 
 interface NewsletterSectionProps extends React.HTMLAttributes<HTMLElement> {
   title?: string
@@ -38,12 +39,13 @@ export function NewsletterSection({
               Pronto lanzaremos nuestro newsletter. Si quieres estar entre los primeros en recibirlo, escríbenos con asunto{' '}
               <span className="font-semibold text-foreground">NEWSLETTER</span>:
             </p>
-            <a
-              href="mailto:hola@pixeltec.mx?subject=NEWSLETTER"
+            <ObfuscatedMailto
+              email="hola@pixeltec.mx"
+              subject="NEWSLETTER"
               className="inline-flex items-center gap-2 text-primary hover:text-primary/80 dark:text-cyan-400 dark:hover:text-cyan-300 font-medium text-sm transition-colors"
             >
               hola@pixeltec.mx
-            </a>
+            </ObfuscatedMailto>
           </div>
         </div>
       </div>

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { buildMetadata } from "@/lib/seo";
 import Link from "next/link";
-import { Truck, Stethoscope, Store, Package, CheckCircle } from "lucide-react";
+import { Truck, Stethoscope, Store, Package, Building2, CheckCircle } from "lucide-react";
 import Header from "@/components/header";
 import { Footer } from "@/components/ui/footer-section";
 import { ShinyButton } from "@/components/ui/shiny-button";
@@ -69,7 +69,33 @@ const industries = [
       "Dashboard de analíticas de producto",
     ],
   },
+  {
+    icon: Building2,
+    slug: "inmobiliarias",
+    title: "Inmobiliarias y Desarrollos",
+    description:
+      "Digitalizamos la venta y gestión de propiedades: portales de listados con búsqueda avanzada, catálogos de desarrollos, captura de prospectos y CRM inmobiliario integrado.",
+    stack: ["Next.js", "Firebase", "Google Maps", "WhatsApp API"],
+    problems: [
+      "Portal de propiedades con filtros y galerías",
+      "Captura y seguimiento de prospectos (leads)",
+      "CRM de agentes y comisiones",
+      "Micrositios por desarrollo o preventa",
+    ],
+  },
 ];
+
+// Mapea el slug de esta página al `value` de COMPANY_TYPES en
+// src/lib/diagnostic/logic.ts, para preseleccionar el tipo de empresa en el
+// wizard de /diagnostico. Los que no tienen equivalente cercano se omiten —
+// el wizard simplemente no preselecciona nada, no es un error.
+const DIAGNOSTIC_INDUSTRY_MAP: Record<string, string> = {
+  logistica: 'logistica',
+  salud: 'clinica',
+  retail: 'ecommerce',
+  saas: 'servicios',
+  inmobiliarias: 'otra',
+};
 
 export default function IndustriasPage() {
   return (
@@ -146,7 +172,7 @@ export default function IndustriasPage() {
                   {/* CTA */}
                   <div className="mt-auto pt-2">
                     <Link
-                      href={`/contact?industry=${industry.slug}`}
+                      href={`/diagnostico?industry=${DIAGNOSTIC_INDUSTRY_MAP[industry.slug] ?? ''}`}
                       className="inline-flex items-center text-sm font-semibold text-cyan-400 hover:text-cyan-300 transition-colors group-hover:underline underline-offset-4"
                     >
                       Conversar sobre este vertical →

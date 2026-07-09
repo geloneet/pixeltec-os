@@ -9,7 +9,7 @@ import {
 type ContactInfoProps = React.ComponentProps<'div'> & {
 	icon: LucideIcon;
 	label: string;
-	value: string;
+	value: React.ReactNode;
 };
 
 type ContactCardProps = React.ComponentProps<'div'> & {

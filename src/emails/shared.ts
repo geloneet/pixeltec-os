@@ -59,7 +59,11 @@ export function internalLayout(opts: {
 }
 
 /**
- * Client-facing email layout — dark background, 560px card with gradient accent.
+ * Client-facing email layout — light body (se ve bien en cualquier cliente
+ * de correo / modo del dispositivo), con la tarjeta de información en negro
+ * / gris fuerte para mantener la identidad de marca. Antes el `<body>`
+ * entero era oscuro — muchos clientes de correo (Outlook, Gmail en modo
+ * claro, etc.) lo renderizaban mal o con contraste roto fuera de la tarjeta.
  */
 export function clientLayout(opts: {
   title: string;
@@ -83,17 +87,17 @@ export function clientLayout(opts: {
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>${title}</title>
 </head>
-<body style="margin:0;padding:0;background:#09090b;font-family:${FONT_STACK};">
+<body style="margin:0;padding:0;background:#f4f4f5;font-family:${FONT_STACK};">
   <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 20px;">
     <tr>
       <td align="center">
         <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;">
           <tr>
             <td style="text-align:center;padding-bottom:32px;">
-              <p style="margin:0;font-size:24px;font-weight:800;color:#ffffff;letter-spacing:-1px;">
+              <p style="margin:0;font-size:24px;font-weight:800;color:#09090b;letter-spacing:-1px;">
                 Pixel<span style="color:#06b6d4;">TEC</span>
               </p>
-              <p style="margin:4px 0 0;font-size:11px;color:#52525b;text-transform:uppercase;letter-spacing:3px;">
+              <p style="margin:4px 0 0;font-size:11px;color:#71717a;text-transform:uppercase;letter-spacing:3px;">
                 ${subtitle}
               </p>
             </td>
@@ -108,7 +112,7 @@ export function clientLayout(opts: {
           </tr>
           <tr>
             <td style="text-align:center;padding-top:24px;">
-              <p style="margin:0;font-size:12px;color:#3f3f46;">
+              <p style="margin:0;font-size:12px;color:#71717a;">
                 ${footerNote ?? `&copy; ${YEAR} PixelTEC &middot; Guadalajara, M&eacute;xico`}
               </p>
             </td>
