@@ -14,7 +14,7 @@ Este documento especifica ese portal nuevo.
 **Incluye:**
 - Una única ruta pública `/portal` con acceso por correo + código OTP.
 - Dashboard de cliente: proyectos, facturas, documentos/contratos firmados, tickets de soporte (solo lectura), feed de actualizaciones.
-- Control admin en `/clientes/[id]`: activar/desactivar el portal por cliente, publicar actualizaciones del feed.
+- Control admin en `/portal-admin` (panel propio, no dentro de `/clientes/[id]` — ver sección "Control admin"): activar/desactivar el portal por cliente, publicar actualizaciones del feed.
 - Endpoint de descarga de contrato con su propia validación de sesión de portal.
 
 **No incluye (fuera de alcance del MVP):**
@@ -51,7 +51,7 @@ No hay rutas por slug ni por token. El middleware no necesita ninguna validació
 clients.portalAccessEnabled: boolean not null default false
 ```
 
-Interruptor manual — un cliente solo puede pedir/usar el OTP si este flag es `true`. Se controla desde el tab "Portal" en `/clientes/[id]`.
+Interruptor manual — un cliente solo puede pedir/usar el OTP si este flag es `true`. Se controla desde el panel `/portal-admin` (ver sección "Control admin").
 
 ### Columnas reusadas de `clients` (ya existen, sin cambios de schema)
 
@@ -110,11 +110,15 @@ Cada tarjeta muestra un estado vacío propio cuando no hay datos (mismo patrón 
 
 ## Control admin
 
-Nuevo tab **"Portal"** en `ClientWorkspace` (`/clientes/[id]`):
+**Corrección post-diseño (2026-07-09, durante planeación):** `/clientes` y `/clientes/[id]` (`ClientWorkspace`) obtienen sus datos de `useCRM()` → `getFullCrmData()`, que filtra explícitamente `source='crm_blob'` (`src/lib/db/repos/crm-sync.ts:461`). De los 13 clientes reales, solo 3 son `crm_blob` — los otros 10 (`source='portal'`) no aparecen en `/clientes` en absoluto. Poner el control del portal dentro de `ClientWorkspace` lo haría alcanzar solo a 3 de 13 clientes, violando el requisito de "todos los clientes sin importar su source". Se decidió **no** extender `useCRM()` (mezclaría responsabilidades y arriesgaría los ~18 archivos que lo consumen) y en su lugar construir un panel admin **separado**, mismo patrón que ya existía en el `/portal-legado` borrado.
 
-- Interruptor "Portal activo" → escribe `clients.portalAccessEnabled`.
-- Composer simple: texto + imagen opcional (URL) → inserta en `clientPortalUpdates` con `createdBy` del admin actual.
+**Panel nuevo: `/portal-admin`** (ruta plana, mismo nivel que `/clientes`, `/vps`, `/blog-admin` — este proyecto no usa un prefijo `/admin/...`, así que no se introduce uno solo para este módulo):
+
+- Lista **todos** los clientes del owner (sin el filtro `source='crm_blob'`), vía `listAllClientsForPortalAdmin()` en `src/lib/client-portal/pg.ts` — capa de datos propia, independiente de `useCRM()`/`crm-sync.ts`.
+- Por cliente: interruptor "Portal activo" → escribe `clients.portalAccessEnabled`.
+- Por cliente: composer simple (texto + imagen opcional URL) → inserta en `clientPortalUpdates` con `createdBy` del admin actual.
 - Sin generación de link, slug ni token — nada que copiar/compartir. El cliente siempre entra por `pixeltec.mx/portal` con su propio correo.
+- Sigue la misma convención de todos los dominios de `src/lib/` (capa `pg.ts` + archivo de server actions por dominio) — sin carpeta `services/` nueva, sin prefijo de ruta nuevo. Prioridad: consistencia con el proyecto existente sobre cualquier reorganización teórica.
 
 ## Seguridad
 
@@ -153,7 +157,8 @@ Nuevo tab **"Portal"** en `ClientWorkspace` (`/clientes/[id]`):
 - [ ] Descargar un contrato propio desde el portal → PDF válido.
 - [ ] Intentar descargar un contrato de otro cliente (manipulando `contractId`) → 403.
 - [ ] Con sesión de cliente abierta, admin desactiva `portalAccessEnabled` → la siguiente carga del dashboard expulsa al cliente al login.
-- [ ] Admin publica una actualización desde el tab "Portal" → aparece en el feed del cliente.
+- [ ] Admin publica una actualización desde `/portal-admin` → aparece en el feed del cliente.
+- [ ] `/portal-admin` lista clientes `source='crm_blob'` y `source='portal'` por igual (no solo los que aparecen en `/clientes`).
 - [ ] Logout limpia la cookie correctamente.
 - [ ] Todas las tarjetas sin datos muestran su estado vacío, no un error.
 
