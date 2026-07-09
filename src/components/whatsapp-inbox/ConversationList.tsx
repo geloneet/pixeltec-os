@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Bot, Hand, LoaderCircle, PauseCircle, Search } from "lucide-react";
+import { Bot, Hand, PauseCircle, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Spinner } from "@/components/ui/spinner";
 import { parseCanonical } from "@/lib/whatsapp-inbox/time";
 import {
   CLASSIFICATION_META,
@@ -201,7 +202,7 @@ export function ConversationList({
   if (loading) {
     return (
       <div className="flex h-40 items-center justify-center">
-        <LoaderCircle className="h-5 w-5 animate-spin text-zinc-500" />
+        <Spinner size="md" className="text-zinc-500" />
       </div>
     );
   }

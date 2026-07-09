@@ -12,6 +12,8 @@ export interface CRMTask {
   prio: "urgent_important" | "important" | "urgent" | "low";
   createdAt: string;
   pomoSessions: number;
+  /** Sesión de trabajo en la que se creó esta tarea (si vino de "Convertir en tarea"). */
+  sessionId?: string;
 }
 
 export const PROJECT_LOG_CATEGORIES = [

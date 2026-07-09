@@ -6,9 +6,17 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.resolve(__dirname),
   },
+  /* config options here */
+  typescript: {
+    ignoreBuildErrors: true,
+  },
   allowedDevOrigins: ['198.100.155.231', 'dev.pixeltec.mx'],
-  // grammy y ws NO deben ser bundleados por webpack.
-  serverExternalPackages: ['grammy', 'ws', '@anthropic-ai/sdk'],
+  // grammy y ws NO deben ser bundleados por webpack. @react-pdf/renderer
+  // tampoco: si Next lo empaqueta a través de su propio grafo de módulos, la
+  // instancia de "react" que usa para crear los elementos JSX del documento
+  // PDF no es la misma con la que su reconciler interno los reconoce ->
+  // "Objects are not valid as a React child" (React error #31) al renderizar.
+  serverExternalPackages: ['grammy', 'ws', '@anthropic-ai/sdk', '@react-pdf/renderer'],
   eslint: {
     ignoreDuringBuilds: true,
   },

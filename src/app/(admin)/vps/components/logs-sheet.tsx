@@ -1,6 +1,7 @@
 "use client";
 
-import { FileText, RefreshCw, AlertCircle, Loader2 } from "lucide-react";
+import { FileText, RefreshCw, AlertCircle } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Sheet,
   SheetContent,
@@ -58,7 +59,7 @@ export function LogsSheet({
         <div className="mt-4 flex-1 overflow-hidden">
           {isLoading && !data && (
             <div className="flex h-full items-center justify-center">
-              <Loader2 className="h-6 w-6 animate-spin text-zinc-500" />
+              <Spinner size="md" className="text-zinc-500" />
             </div>
           )}
 

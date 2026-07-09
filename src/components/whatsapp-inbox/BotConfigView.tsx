@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { LoaderCircle, X } from "lucide-react";
+import { X } from "lucide-react";
 import { toast } from "sonner";
+import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import { parseCanonical } from "@/lib/whatsapp-inbox/time";
 import { Badge } from "@/components/ui/badge";
@@ -259,7 +260,7 @@ export function BotConfigView() {
   if (loading) {
     return (
       <div className="flex h-full min-h-0 flex-1 items-center justify-center">
-        <LoaderCircle className="h-6 w-6 animate-spin text-zinc-500" />
+        <Spinner size="md" className="text-zinc-500" />
       </div>
     );
   }
@@ -497,7 +498,7 @@ export function BotConfigView() {
           disabled={!dirty || saving}
           className="h-8 bg-cyan-600 text-xs text-white hover:bg-cyan-500"
         >
-          {saving && <LoaderCircle className="h-3.5 w-3.5 animate-spin" />}
+          {saving && <Spinner size="sm" />}
           Guardar cambios
         </Button>
       </div>

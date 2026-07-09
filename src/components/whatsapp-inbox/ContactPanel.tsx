@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Check, Copy, LoaderCircle, Plus, Ticket, X } from "lucide-react";
+import { Check, Copy, Plus, Ticket, X } from "lucide-react";
 import { toast } from "sonner";
+import { Spinner } from "@/components/ui/spinner";
 import { useUser } from "@/hooks/use-user";
 import { useCRM } from "@/components/crm/CRMContextCore";
 import { useInboxContactNotes } from "@/hooks/use-inbox-contact-notes";
@@ -488,7 +489,7 @@ export function ContactPanel({ phone, conv, contact, onClose, onModeChanged, ref
                 disabled={pendingAction !== null}
                 className="h-8 w-full bg-cyan-600 text-xs text-white hover:bg-cyan-500"
               >
-                {pendingAction === "saveContact" && <LoaderCircle className="h-3.5 w-3.5 animate-spin" />}
+                {pendingAction === "saveContact" && <Spinner size="sm" />}
                 Guardar contacto
               </Button>
             )}
@@ -506,7 +507,7 @@ export function ContactPanel({ phone, conv, contact, onClose, onModeChanged, ref
                 size="sm"
                 className="h-8 w-full border-zinc-800 bg-zinc-900/60 text-xs text-zinc-300 hover:bg-zinc-800/60"
               >
-                {pendingAction === "convertToClient" && <LoaderCircle className="h-3.5 w-3.5 animate-spin" />}
+                {pendingAction === "convertToClient" && <Spinner size="sm" />}
                 Convertir en cliente
               </Button>
             )}
@@ -535,7 +536,7 @@ export function ContactPanel({ phone, conv, contact, onClose, onModeChanged, ref
                   size="sm"
                   className="h-8 w-full border-zinc-800 bg-zinc-900/60 text-xs text-zinc-300 hover:bg-zinc-800/60 disabled:opacity-40"
                 >
-                  {pendingAction === "createFollowUp" && <LoaderCircle className="h-3.5 w-3.5 animate-spin" />}
+                  {pendingAction === "createFollowUp" && <Spinner size="sm" />}
                   Crear seguimiento
                 </Button>
               </div>
@@ -571,7 +572,7 @@ export function ContactPanel({ phone, conv, contact, onClose, onModeChanged, ref
                   disabled={pendingAction !== null}
                   className="h-8 w-full bg-cyan-600 text-xs text-white hover:bg-cyan-500"
                 >
-                  {pendingAction === "createTicket" && <LoaderCircle className="h-3.5 w-3.5 animate-spin" />}
+                  {pendingAction === "createTicket" && <Spinner size="sm" />}
                   Crear ticket
                 </Button>
               </PopoverContent>

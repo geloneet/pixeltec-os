@@ -38,6 +38,7 @@ import {
   timestamp,
   uniqueIndex,
   uuid,
+  type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
@@ -99,6 +100,28 @@ export const invoiceStatusEnum = pgEnum("invoice_status", [
   "pagada",
   "vencida",
   "cancelada",
+]);
+
+export const billingFrequencyEnum = pgEnum("billing_frequency", [
+  "unico",
+  "mensual",
+  "trimestral",
+  "semestral",
+  "anual",
+]);
+
+export const billingStatusEnum = pgEnum("billing_status", [
+  "pendiente",
+  "pagado",
+  "vencido",
+  "parcial",
+  "cancelado",
+]);
+
+export const paymentMethodEnum = pgEnum("payment_method", [
+  "efectivo",
+  "transferencia",
+  "tarjeta",
 ]);
 
 export const discoveryStatusEnum = pgEnum("discovery_status", [
@@ -459,11 +482,15 @@ export const tasks = pgTable(
     prio: taskPrioEnum("prio").notNull().default("important"),
     pomoSessions: integer("pomo_sessions").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    // Referencia circular a work_sessions (definida más abajo en este archivo) —
+    // la sesión de trabajo en la que se creó esta tarea (vía "Convertir en tarea").
+    sessionId: uuid("session_id").references((): AnyPgColumn => workSessions.id, { onDelete: "set null" }),
   },
   (t) => [
     index("tasks_project_idx").on(t.projectId),
     index("tasks_status_idx").on(t.status),
     uniqueIndex("tasks_firestore_id_idx").on(t.firestoreId),
+    index("tasks_session_idx").on(t.sessionId),
   ]
 );
 
@@ -696,6 +723,15 @@ export const contracts = pgTable(
     signers: jsonb("signers").notNull().default([]),
     pdfUrl: text("pdf_url"),
     notes: text("notes"),
+    // Plantilla base fija versionada (Contratos serios — puente Propuesta →
+    // Contrato → Cobro). `sections` son las cláusulas generadas/editables;
+    // `content` se conserva como texto aplanado para el PDF/compat existente.
+    templateVersion: integer("template_version").notNull().default(1),
+    sections: jsonb("sections").notNull().default([]),
+    startDate: date("start_date"),
+    endDate: date("end_date"),
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
+    signedAt: timestamp("signed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -706,6 +742,61 @@ export const contracts = pgTable(
     index("contracts_client_idx").on(t.clientId),
     uniqueIndex("contracts_firestore_id_idx").on(t.firestoreId),
   ]
+);
+
+export const billingItems = pgTable(
+  "billing_items",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    clientId: uuid("client_id")
+      .notNull()
+      .references(() => clients.id, { onDelete: "cascade" }),
+    contractId: uuid("contract_id").references(() => contracts.id, { onDelete: "set null" }),
+    proposalId: uuid("proposal_id").references(() => proposals.id, { onDelete: "set null" }),
+    projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
+    concept: text("concept").notNull(),
+    amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+    currency: text("currency").notNull().default("MXN"),
+    frequency: billingFrequencyEnum("frequency").notNull(),
+    status: billingStatusEnum("status").notNull().default("pendiente"),
+    // Vencimiento del período vivo actual. `nextDueDate` es solo el próximo
+    // cobro (nunca se generan cobros futuros infinitos desde el inicio).
+    dueDate: date("due_date").notNull(),
+    nextDueDate: date("next_due_date"),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("billing_items_owner_idx").on(t.ownerId),
+    index("billing_items_client_idx").on(t.clientId),
+    index("billing_items_contract_idx").on(t.contractId),
+    index("billing_items_status_idx").on(t.status),
+  ]
+);
+
+export const paymentRecords = pgTable(
+  "payment_records",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    billingItemId: uuid("billing_item_id")
+      .notNull()
+      .references(() => billingItems.id, { onDelete: "cascade" }),
+    amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+    method: paymentMethodEnum("method").notNull(),
+    paidAt: date("paid_at").notNull(),
+    // Período que cubre este pago (para recurrentes) — igual al `dueDate`
+    // del billing item al momento de registrar el pago.
+    periodKey: date("period_key").notNull(),
+    reference: text("reference"),
+    note: text("note"),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("payment_records_billing_item_idx").on(t.billingItemId)]
 );
 
 export const invoices = pgTable(

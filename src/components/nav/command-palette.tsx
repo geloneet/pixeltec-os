@@ -23,6 +23,7 @@ import {
   MAX_RECENT_ROUTES,
   type PaletteNavItem,
 } from "./command-palette-items";
+import { NAV_AREA_ORDER, NAV_AREA_LABELS, getItemArea, type NavArea } from "./nav-config";
 import { cn } from "@/lib/utils";
 
 // ─── Recent routes ────────────────────────────────────────────────────────────
@@ -116,6 +117,19 @@ export function CommandPalette() {
     );
   }, [query]);
 
+  // Agrupa los resultados de "Navegar" por área (la misma taxonomía de la
+  // Top Navigation) en vez de una lista plana.
+  const navItemsByArea = useMemo(() => {
+    const map = new Map<NavArea, PaletteNavItem[]>();
+    for (const item of filteredNavItems) {
+      const area = getItemArea(item.href);
+      if (!area) continue;
+      if (!map.has(area)) map.set(area, []);
+      map.get(area)!.push(item);
+    }
+    return map;
+  }, [filteredNavItems]);
+
   const recentNavItems = useMemo<PaletteNavItem[]>(
     () =>
       recentRoutes
@@ -201,39 +215,47 @@ export function CommandPalette() {
                   : "Empieza a escribir..."}
               </Cmdk.Empty>
 
-              {/* Navegar */}
-              {filteredNavItems.length > 0 && (
-                <Cmdk.Group heading="Navegar" className={GROUP_CLS}>
-                  {filteredNavItems.map((item) => {
-                    const Icon = item.icon;
-                    return (
-                      <Cmdk.Item
-                        key={item.href}
-                        value={`nav-${item.href}`}
-                        onSelect={() => handleNavigate(item.href)}
-                        className={ITEM_CLS}
-                      >
-                        <span
-                          className={cn(
-                            ICON_CLS,
-                            "text-muted-foreground aria-selected:text-cyan-600 dark:aria-selected:text-cyan-400 group-aria-selected:text-cyan-600 dark:group-aria-selected:text-cyan-400 group-aria-selected:border-cyan-500/30 dark:group-aria-selected:border-cyan-900/50 group-aria-selected:bg-cyan-500/10 dark:group-aria-selected:bg-cyan-950/30"
-                          )}
+              {/* Navegar — agrupado por área (misma taxonomía de la Top Navigation) */}
+              {NAV_AREA_ORDER.map((area) => {
+                const items = navItemsByArea.get(area);
+                if (!items || items.length === 0) return null;
+                return (
+                  <Cmdk.Group
+                    key={area}
+                    heading={NAV_AREA_LABELS[area]}
+                    className={GROUP_CLS}
+                  >
+                    {items.map((item) => {
+                      const Icon = item.icon;
+                      return (
+                        <Cmdk.Item
+                          key={item.href}
+                          value={`nav-${item.href}`}
+                          onSelect={() => handleNavigate(item.href)}
+                          className={ITEM_CLS}
                         >
-                          <Icon className="h-4 w-4" strokeWidth={1.75} />
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium text-foreground truncate">
-                            {item.label}
+                          <span
+                            className={cn(
+                              ICON_CLS,
+                              "text-muted-foreground aria-selected:text-cyan-600 dark:aria-selected:text-cyan-400 group-aria-selected:text-cyan-600 dark:group-aria-selected:text-cyan-400 group-aria-selected:border-cyan-500/30 dark:group-aria-selected:border-cyan-900/50 group-aria-selected:bg-cyan-500/10 dark:group-aria-selected:bg-cyan-950/30"
+                            )}
+                          >
+                            <Icon className="h-4 w-4" strokeWidth={1.75} />
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium text-foreground truncate">
+                              {item.label}
+                            </div>
+                            <div className="text-xs text-muted-foreground truncate">
+                              {item.description}
+                            </div>
                           </div>
-                          <div className="text-xs text-muted-foreground truncate">
-                            {item.description}
-                          </div>
-                        </div>
-                      </Cmdk.Item>
-                    );
-                  })}
-                </Cmdk.Group>
-              )}
+                        </Cmdk.Item>
+                      );
+                    })}
+                  </Cmdk.Group>
+                );
+              })}
 
               {/* Recientes (only when no query) */}
               {!query && recentNavItems.length > 0 && (

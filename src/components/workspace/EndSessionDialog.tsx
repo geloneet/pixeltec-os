@@ -2,15 +2,20 @@
 
 import { useState, useEffect } from "react";
 import type { WorkSession } from "@/types/session";
+import type { CRMTask } from "@/types/crm";
+import { STATUS_CONFIG } from "@/types/crm";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { LoaderCircle, Sparkles } from "lucide-react";
+import { Sparkles, PenLine } from "lucide-react";
+import { TaskStatusDropdown } from "@/components/crm/TaskStatusDropdown";
+import { Spinner } from "@/components/ui/spinner";
 
 interface Props {
   open: boolean;
   session: WorkSession;
+  task: CRMTask;
   elapsed: number; // seconds
-  onConfirm: (deployStatus: "yes" | "no" | "na", commitStatus: boolean, bitacoraEntry: string) => void;
+  onConfirm: (deployStatus: "yes" | "no" | "na", commitStatus: boolean, bitacoraEntry: string, taskStatus: CRMTask["status"]) => void;
   onCancel: () => void;
 }
 
@@ -41,9 +46,10 @@ const DEPLOY_DISPLAY: Record<"yes" | "no" | "na", string> = {
   na: "No aplica",
 };
 
-export function EndSessionDialog({ open, session, elapsed, onConfirm, onCancel }: Props) {
+export function EndSessionDialog({ open, session, task, elapsed, onConfirm, onCancel }: Props) {
   const [deployStatus, setDeployStatus] = useState<"yes" | "no" | "na" | null>(null);
   const [commitStatus, setCommitStatus] = useState<boolean | null>(null);
+  const [taskStatus, setTaskStatus] = useState<CRMTask["status"]>(task.status);
   const [step, setStep] = useState<"blockers-review" | "checklist" | "ai-summary" | "summary">("checklist");
   const [summaryData, setSummaryData] = useState<{
     summary: string;
@@ -52,6 +58,9 @@ export function EndSessionDialog({ open, session, elapsed, onConfirm, onCancel }
   } | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [summaryError, setSummaryError] = useState(false);
+  // "choice" = preguntar manual vs IA; luego pasa a "ai" o "manual".
+  const [summaryMode, setSummaryMode] = useState<"choice" | "ai" | "manual">("choice");
+  const [editableBitacora, setEditableBitacora] = useState("");
 
   useEffect(() => {
     if (open) {
@@ -59,9 +68,12 @@ export function EndSessionDialog({ open, session, elapsed, onConfirm, onCancel }
       setStep(hasActiveBlockers ? "blockers-review" : "checklist");
       setDeployStatus(null);
       setCommitStatus(null);
+      setTaskStatus(task.status);
       setSummaryData(null);
       setSummaryLoading(false);
       setSummaryError(false);
+      setSummaryMode("choice");
+      setEditableBitacora("");
     }
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -72,9 +84,13 @@ export function EndSessionDialog({ open, session, elapsed, onConfirm, onCancel }
 
   const canProceed = deployStatus !== null && commitStatus !== null;
 
-  const handleProceed = async () => {
+  const handleProceed = () => {
     if (!canProceed) return;
     setStep("ai-summary");
+  };
+
+  const handleGenerateWithAi = async () => {
+    setSummaryMode("ai");
     setSummaryLoading(true);
     setSummaryError(false);
     try {
@@ -86,6 +102,7 @@ export function EndSessionDialog({ open, session, elapsed, onConfirm, onCancel }
       if (!res.ok) throw new Error("fetch failed");
       const data = await res.json();
       setSummaryData(data);
+      setEditableBitacora(data.bitacoraEntry ?? "");
     } catch {
       setSummaryError(true);
     } finally {
@@ -93,9 +110,15 @@ export function EndSessionDialog({ open, session, elapsed, onConfirm, onCancel }
     }
   };
 
+  const handleWriteManually = () => {
+    setSummaryMode("manual");
+    setSummaryData(null);
+    setEditableBitacora("");
+  };
+
   const handleConfirm = () => {
     if (deployStatus === null || commitStatus === null) return;
-    onConfirm(deployStatus, commitStatus, summaryData?.bitacoraEntry ?? "");
+    onConfirm(deployStatus, commitStatus, editableBitacora, taskStatus);
   };
 
   return (
@@ -189,6 +212,12 @@ export function EndSessionDialog({ open, session, elapsed, onConfirm, onCancel }
               </div>
             </div>
 
+            {/* Task status */}
+            <div className="mb-6">
+              <p className="mb-2 text-sm font-medium text-zinc-300">Estado de la tarea</p>
+              <TaskStatusDropdown status={taskStatus} onChange={setTaskStatus} />
+            </div>
+
             <div className="flex gap-2">
               <button
                 onClick={handleProceed}
@@ -207,23 +236,66 @@ export function EndSessionDialog({ open, session, elapsed, onConfirm, onCancel }
           </div>
         )}
 
-        {step === "ai-summary" && (
+        {step === "ai-summary" && summaryMode === "choice" && (
+          <div className="p-6">
+            <h2 className="mb-1 text-base font-bold text-zinc-100">Bitácora de la sesión</h2>
+            <p className="mb-5 text-sm text-zinc-500">¿Cómo quieres redactarla?</p>
+
+            <div className="space-y-2 mb-4">
+              <button
+                onClick={handleGenerateWithAi}
+                className="flex w-full items-center gap-3 rounded-lg border border-cyan-500/20 bg-cyan-500/[0.06] px-4 py-3 text-left transition-all hover:bg-cyan-500/10"
+              >
+                <Sparkles className="h-4 w-4 flex-shrink-0 text-cyan-400" />
+                <div>
+                  <p className="text-sm font-medium text-cyan-300">Generar con IA</p>
+                  <p className="text-xs text-zinc-500">Resume la sesión automáticamente, editable después</p>
+                </div>
+              </button>
+              <button
+                onClick={handleWriteManually}
+                className="flex w-full items-center gap-3 rounded-lg border border-white/[0.06] bg-zinc-900/40 px-4 py-3 text-left transition-all hover:bg-zinc-900/60"
+              >
+                <PenLine className="h-4 w-4 flex-shrink-0 text-zinc-400" />
+                <div>
+                  <p className="text-sm font-medium text-zinc-200">Escribir yo</p>
+                  <p className="text-xs text-zinc-500">Redacta tu propia entrada para la bitácora</p>
+                </div>
+              </button>
+            </div>
+
+            <button
+              onClick={onCancel}
+              className="w-full rounded-lg border border-white/[0.06] px-4 py-2.5 text-sm text-zinc-500 hover:text-zinc-300 transition-all"
+            >
+              Cancelar
+            </button>
+          </div>
+        )}
+
+        {step === "ai-summary" && summaryMode !== "choice" && (
           <div className="p-6">
             <div className="mb-4 flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-cyan-400" />
-              <h2 className="text-sm font-bold text-zinc-100">Resumen IA</h2>
+              {summaryMode === "ai" ? (
+                <Sparkles className="h-4 w-4 text-cyan-400" />
+              ) : (
+                <PenLine className="h-4 w-4 text-zinc-400" />
+              )}
+              <h2 className="text-sm font-bold text-zinc-100">
+                {summaryMode === "ai" ? "Resumen IA" : "Escribir bitácora"}
+              </h2>
             </div>
 
             {summaryLoading && (
               <div className="flex flex-col items-center justify-center py-8 gap-3">
-                <LoaderCircle className="h-6 w-6 animate-spin text-cyan-400" />
+                <Spinner size="md" className="text-cyan-400" />
                 <p className="text-xs text-zinc-500">Generando resumen...</p>
               </div>
             )}
 
             {summaryError && (
               <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/5 p-4">
-                <p className="text-xs text-red-400">No se pudo generar el resumen. Puedes continuar sin él.</p>
+                <p className="text-xs text-red-400">No se pudo generar el resumen. Puedes escribirla manualmente abajo.</p>
               </div>
             )}
 
@@ -233,14 +305,23 @@ export function EndSessionDialog({ open, session, elapsed, onConfirm, onCancel }
                   <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-zinc-500">Resumen</p>
                   <p className="text-xs text-zinc-300 leading-relaxed">{summaryData.summary}</p>
                 </div>
-                <div className="rounded-xl border border-white/[0.06] bg-zinc-900/20 p-4">
-                  <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-zinc-500">Entrada para Bitácora</p>
-                  <p className="text-xs text-zinc-300 leading-relaxed whitespace-pre-line">{summaryData.bitacoraEntry}</p>
-                </div>
                 <div className="rounded-xl border border-cyan-500/10 bg-cyan-500/[0.03] p-3">
                   <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-cyan-600">Siguiente paso</p>
                   <p className="text-xs text-cyan-300">{summaryData.nextStep}</p>
                 </div>
+              </div>
+            )}
+
+            {!summaryLoading && (
+              <div className="mb-4">
+                <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-zinc-500">Entrada para Bitácora</p>
+                <textarea
+                  value={editableBitacora}
+                  onChange={(e) => setEditableBitacora(e.target.value)}
+                  rows={5}
+                  placeholder="Describe qué se hizo en esta sesión..."
+                  className="w-full resize-none rounded-lg border border-white/[0.06] bg-zinc-900/40 px-3 py-2 text-xs text-zinc-300 placeholder:text-zinc-600 focus:border-cyan-500/30 focus:outline-none transition-colors"
+                />
               </div>
             )}
 
@@ -253,10 +334,11 @@ export function EndSessionDialog({ open, session, elapsed, onConfirm, onCancel }
                 {summaryLoading ? "Generando..." : "Continuar"}
               </button>
               <button
-                onClick={onCancel}
-                className="rounded-lg border border-white/[0.06] px-4 py-2.5 text-sm text-zinc-500 hover:text-zinc-300 transition-all"
+                onClick={() => setSummaryMode("choice")}
+                disabled={summaryLoading}
+                className="rounded-lg border border-white/[0.06] px-4 py-2.5 text-sm text-zinc-500 hover:text-zinc-300 transition-all disabled:opacity-40"
               >
-                Cancelar
+                Volver
               </button>
             </div>
           </div>
@@ -324,18 +406,22 @@ export function EndSessionDialog({ open, session, elapsed, onConfirm, onCancel }
                   {commitStatus ? "Sí" : "No"}
                 </span>
               </div>
+              <div className="flex justify-between">
+                <span className="text-zinc-500">Estado de la tarea</span>
+                <span className={STATUS_CONFIG[taskStatus].text}>
+                  {STATUS_CONFIG[taskStatus].label}
+                </span>
+              </div>
             </div>
 
-            {summaryData?.bitacoraEntry && (
+            {editableBitacora.trim() ? (
               <div className="mb-4 rounded-xl border border-white/[0.06] bg-zinc-900/20 p-3">
                 <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-zinc-500">Se escribirá en Bitácora</p>
-                <p className="text-xs text-zinc-500 leading-relaxed line-clamp-3">{summaryData.bitacoraEntry}</p>
+                <p className="text-xs text-zinc-500 leading-relaxed line-clamp-3">{editableBitacora}</p>
               </div>
-            )}
-
-            {summaryError && !summaryData && (
+            ) : (
               <div className="mb-4 rounded-xl border border-amber-500/20 bg-amber-500/5 p-3">
-                <p className="text-xs text-amber-400">No se generó la entrada de Bitácora automáticamente. Puedes agregarla manualmente.</p>
+                <p className="text-xs text-amber-400">No hay entrada de Bitácora. Puedes agregarla manualmente después.</p>
               </div>
             )}
 

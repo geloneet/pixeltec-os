@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Plus, Pencil, Trash2, Check, X, ChevronUp, ChevronDown } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 import { useUser } from "@/hooks/use-user";
 import type { Strategy, StrategyObjective, StrategyKPI, RoadmapItem } from "@/types/documents";
 import { getStrategy, createStrategy, updateStrategy } from "@/lib/documents/strategies";
@@ -297,7 +298,7 @@ export function EstrategiaTab({ clientId }: Props) {
     <div className="space-y-8">
       {loading && (
         <div className="flex items-center justify-center py-16">
-          <div className="h-5 w-5 animate-spin rounded-full border-2 border-zinc-600 border-t-cyan-400" />
+          <Spinner size="md" className="text-cyan-400" />
         </div>
       )}
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { AnimatePresence, motion } from "framer-motion";
@@ -20,6 +20,9 @@ interface Props {
   onAdd: (type: BlockerType, description: string, impact: BlockerImpact, source: BlockerSource) => void;
   onUpdateStatus: (blockerId: string, status: BlockerStatus) => void;
   stats?: BlockerStats;
+  /** Pre-llena y abre el formulario de reporte — usado por "Crear bloqueo" desde una observación. */
+  prefillDescription?: string | null;
+  onPrefillHandled?: () => void;
 }
 
 const BLOCKER_TYPES: BlockerType[] = ["error_api", "acceso_faltante", "pendiente_cliente", "dependencia_externa"];
@@ -123,12 +126,25 @@ function BlockerCard({
   );
 }
 
-export function BlockTracker({ blockers, onAdd, onUpdateStatus, stats }: Props) {
+export function BlockTracker({ blockers, onAdd, onUpdateStatus, stats, prefillDescription, onPrefillHandled }: Props) {
   const [open, setOpen] = useState(false);
   const [type, setType] = useState<BlockerType>("error_api");
   const [description, setDescription] = useState("");
   const [impact, setImpact] = useState<BlockerImpact>("medium");
   const [source, setSource] = useState<BlockerSource>("technical");
+
+  // "Crear bloqueo" desde una observación — abre este mismo formulario
+  // pre-llenado en vez de crear el bloqueo a ciegas con un tipo fijo.
+  useEffect(() => {
+    if (!prefillDescription) return;
+    setDescription(prefillDescription);
+    setType("error_api");
+    setImpact("medium");
+    setSource("technical");
+    setOpen(true);
+    onPrefillHandled?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefillDescription]);
 
   const handleSubmit = () => {
     if (!description.trim()) return;

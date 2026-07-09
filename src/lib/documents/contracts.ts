@@ -6,7 +6,7 @@
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { contracts, clients, proposals } from "@/lib/db/schema";
-import type { Contract } from "@/types/documents";
+import type { BillingItemDraft, Contract, ContractSection } from "@/types/documents";
 import {
   requireOwner,
   resolveClientPgId,
@@ -16,6 +16,12 @@ import {
   publicDocId,
   serializeContract,
 } from "./pg";
+import { createBillingItemsForContract } from "./billing";
+import {
+  buildContractSections,
+  flattenSections,
+  CONTRACT_TEMPLATE_VERSION,
+} from "@/lib/contracts/base-template";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -140,6 +146,15 @@ export async function createContractVersion(
       status: "borrador",
       title: existing.title,
       content: existing.content,
+      // `sections` (cláusulas estructuradas) y `templateVersion`/`startDate`/
+      // `endDate` se quedaban en el default de la columna ([] / 1 / null) al
+      // crear una versión nueva — el PDF rediseñado depende de `sections`
+      // para renderizar las cláusulas numeradas, así que se heredan de la
+      // versión anterior en vez de perderse.
+      sections: existing.sections ?? [],
+      templateVersion: existing.templateVersion,
+      startDate: existing.startDate,
+      endDate: existing.endDate,
       variables: existing.variables ?? {},
       signers: existing.signers ?? [],
       pdfUrl: null, // igual que antes: la nueva versión no hereda el PDF
@@ -147,4 +162,102 @@ export async function createContractVersion(
     })
     .returning({ id: contracts.id });
   return row.id;
+}
+
+export interface ConfirmContractFromWizardInput {
+  clientId: string; // id público del cliente
+  proposalId?: string; // id público de la propuesta relacionada, opcional
+  title: string;
+  startDate: string;
+  endDate?: string;
+  scope?: string;
+  deliverables?: string;
+  billingItems: BillingItemDraft[];
+  /** Override opcional del cuerpo de una cláusula, por key de sección. */
+  sectionOverrides?: Record<string, string>;
+}
+
+/**
+ * Flujo del wizard de Contratos: genera las cláusulas desde la plantilla
+ * base fija (versionada), crea el contrato y sus billing items en una sola
+ * transacción. Idempotente vía `createBillingItemsForContract` — confirmar
+ * dos veces el mismo contrato no duplica cobros.
+ */
+export async function confirmContractFromWizard(data: ConfirmContractFromWizardInput): Promise<string> {
+  if (!data.title.trim()) throw new Error("El contrato necesita un título");
+  if (data.billingItems.length === 0) {
+    throw new Error("Agrega al menos un concepto de cobro antes de confirmar");
+  }
+  if (data.billingItems.some((item) => !(item.amount > 0))) {
+    throw new Error("Todos los conceptos de cobro necesitan un monto mayor a cero");
+  }
+
+  const { ownerId } = await requireOwner();
+  const clientPgId = await resolveClientPgId(data.clientId);
+  if (!clientPgId) throw new Error("Cliente no encontrado");
+
+  const [client] = await db
+    .select({ name: clients.name })
+    .from(clients)
+    .where(eq(clients.id, clientPgId))
+    .limit(1);
+  if (!client) throw new Error("Cliente no encontrado");
+
+  const proposalPgId = data.proposalId ? await resolveProposalPgId(data.proposalId) : null;
+  let proposalReference: string | undefined;
+  if (proposalPgId) {
+    const [p] = await db
+      .select({ reference: proposals.reference })
+      .from(proposals)
+      .where(eq(proposals.id, proposalPgId))
+      .limit(1);
+    proposalReference = p?.reference ?? undefined;
+  }
+
+  let sections: ContractSection[] = buildContractSections({
+    clientName: client.name,
+    contractTitle: data.title,
+    startDate: data.startDate,
+    endDate: data.endDate,
+    proposalReference,
+    scope: data.scope,
+    deliverables: data.deliverables,
+    billingItems: data.billingItems,
+  });
+  if (data.sectionOverrides) {
+    const overrides = data.sectionOverrides;
+    sections = sections.map((s) => (overrides[s.key] !== undefined ? { ...s, body: overrides[s.key] } : s));
+  }
+
+  return db.transaction(async (tx) => {
+    const [row] = await tx
+      .insert(contracts)
+      .values({
+        ownerId,
+        clientId: clientPgId,
+        proposalId: proposalPgId,
+        version: 1,
+        status: "borrador",
+        title: data.title,
+        content: flattenSections(sections),
+        variables: {},
+        signers: [],
+        templateVersion: CONTRACT_TEMPLATE_VERSION,
+        sections,
+        startDate: data.startDate,
+        endDate: data.endDate ?? null,
+        approvedAt: new Date(),
+      })
+      .returning({ id: contracts.id });
+
+    await createBillingItemsForContract(tx, {
+      ownerId,
+      clientPgId,
+      contractPgId: row.id,
+      proposalPgId,
+      items: data.billingItems,
+    });
+
+    return row.id;
+  });
 }

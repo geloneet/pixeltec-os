@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
-import { ArrowLeft, LoaderCircle, PanelRight } from "lucide-react";
+import { ArrowLeft, PanelRight } from "lucide-react";
 import { toast } from "sonner";
+import { Spinner } from "@/components/ui/spinner";
 import { useUser } from "@/hooks/use-user";
 import { useInboxContactNotes } from "@/hooks/use-inbox-contact-notes";
 import { useInboxMessages } from "@/hooks/use-inbox-messages";
@@ -318,7 +319,7 @@ export function ChatThread({
         <div className="scrollbar-soft h-full space-y-2 overflow-y-auto p-4">
           {loading && (
             <div className="flex justify-center py-8">
-              <LoaderCircle className="h-5 w-5 animate-spin text-zinc-500" />
+              <Spinner size="md" className="text-zinc-500" />
             </div>
           )}
           {nodes}

@@ -1,10 +1,10 @@
 "use client";
 
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { LoaderCircle } from "lucide-react";
 import { useCRM } from "@/components/crm/CRMContextCore";
 import { useCRMShell } from "@/components/crm/CRMShellProvider";
 import { ProjectView } from "@/components/crm/ProjectView";
+import { Spinner } from "@/components/ui/spinner";
 
 type LegacyView = "asistente" | "clients" | "client" | "project" | "search";
 
@@ -18,7 +18,7 @@ export default function ProyectoDetailPage() {
   if (crm.loading) {
     return (
       <div className="flex h-full w-full items-center justify-center">
-        <LoaderCircle className="h-8 w-8 animate-spin text-cyan-400" />
+        <Spinner size="lg" className="text-cyan-400" />
       </div>
     );
   }
@@ -76,7 +76,6 @@ export default function ProyectoDetailPage() {
       setProjectTab={setProjectTab}
       setView={setView}
       setModal={shell.setModal}
-      cycleTaskStatus={crm.cycleTaskStatus}
       deleteTask={crm.deleteTask}
       deleteKey={crm.deleteKey}
       deleteProject={crm.deleteProject}

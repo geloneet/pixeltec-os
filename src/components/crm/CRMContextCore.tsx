@@ -45,7 +45,7 @@ interface CRMContextValue {
   addProject: (clientId: string, data: Omit<CRMProject, "id" | "keys" | "tasks" | "charges" | "createdAt" | "guides" | "accounts" | "readme" | "prompt" | "quickNotes">) => void;
   updateProject: (clientId: string, projectId: string, data: Partial<CRMProject>) => void;
   deleteProject: (clientId: string, projectId: string) => void;
-  addTask: (clientId: string, projectId: string, data: Pick<CRMTask, "name" | "desc" | "prio">) => void;
+  addTask: (clientId: string, projectId: string, data: Pick<CRMTask, "name" | "desc" | "prio"> & Partial<Pick<CRMTask, "sessionId">>) => void;
   updateTask: (clientId: string, projectId: string, taskId: string, data: Partial<CRMTask>) => void;
   deleteTask: (clientId: string, projectId: string, taskId: string) => void;
   cycleTaskStatus: (clientId: string, projectId: string, taskId: string) => void;
@@ -271,15 +271,16 @@ export function CRMProvider({ children }: { children: ReactNode }) {
   }, [update]);
 
   // CRUD: Tasks
-  const addTask = useCallback((clientId: string, projectId: string, data: Pick<CRMTask, "name" | "desc" | "prio">) => {
-    const validation = taskSchema.safeParse(data);
+  const addTask = useCallback((clientId: string, projectId: string, data: Pick<CRMTask, "name" | "desc" | "prio"> & Partial<Pick<CRMTask, "sessionId">>) => {
+    const { sessionId, ...taskFields } = data;
+    const validation = taskSchema.safeParse(taskFields);
     if (!validation.success) {
       toast.error('Datos inválidos', {
         description: validation.error.errors[0]?.message || 'Revisa los campos',
       });
       return;
     }
-    const t: CRMTask = { ...data, id: uid(), status: "pendiente", createdAt: new Date().toISOString(), pomoSessions: 0 };
+    const t: CRMTask = { ...taskFields, id: uid(), status: "pendiente", createdAt: new Date().toISOString(), pomoSessions: 0, sessionId };
     const next = dataRef.current.clients.map(c =>
       c.id === clientId ? { ...c, projects: c.projects.map(p => p.id === projectId ? { ...p, tasks: [...p.tasks, t] } : p) } : c
     );

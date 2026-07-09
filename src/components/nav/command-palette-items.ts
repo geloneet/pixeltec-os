@@ -17,6 +17,7 @@ import {
   CalendarDays,
   BarChart3,
   Send,
+  Bell,
   type LucideIcon,
 } from "lucide-react";
 
@@ -179,6 +180,15 @@ export const PALETTE_NAV_ITEMS: PaletteNavItem[] = [
     description: "Métricas de engagement y rendimiento de contenido",
     icon: BarChart3,
     section: "crecimiento",
+    hidden: true,
+  },
+  // ── Overflow (solo visible en el menú "Más…" de la Top Navigation) ──────────
+  {
+    href: "/notificaciones",
+    label: "Notificaciones",
+    description: "Centro de notificaciones del sistema",
+    icon: Bell,
+    section: "sistema",
     hidden: true,
   },
 ];

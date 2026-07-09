@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Sparkles } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 import { useUser } from "@/hooks/use-user";
 import type { DiscoverySession } from "@/types/documents";
 import { DISCOVERY_INDUSTRIES } from "@/types/documents";
@@ -126,7 +127,7 @@ export function DiscoveryTab({ clientId, clientName }: Props) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16">
-        <span className="h-5 w-5 animate-spin rounded-full border-2 border-zinc-700 border-t-cyan-400" />
+        <Spinner size="md" className="text-cyan-400" />
       </div>
     );
   }
@@ -167,7 +168,7 @@ export function DiscoveryTab({ clientId, clientName }: Props) {
           className="flex items-center gap-2 rounded-lg border border-cyan-500/20 bg-cyan-500/10 px-4 py-2 text-xs font-medium text-cyan-300 transition-all hover:bg-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {generating ? (
-            <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-cyan-700 border-t-cyan-300" />
+            <Spinner size="sm" className="text-cyan-300" />
           ) : (
             <Sparkles className="h-3.5 w-3.5" />
           )}

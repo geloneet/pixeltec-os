@@ -3,8 +3,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, Mail, RefreshCw, ArrowRight, AlertCircle } from 'lucide-react';
+import { Mail, RefreshCw, ArrowRight, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
 import OTPInput from '@/components/portal/OTPInput';
 import {
   requestPortalCodeAction,
@@ -133,7 +134,7 @@ export default function PortalEntryClient({ slug, companyName }: Props) {
                     className="w-full h-12 bg-cyan-500 hover:bg-cyan-400 text-black font-bold text-sm rounded-xl"
                   >
                     {phase === 'sending' ? (
-                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Enviando código...</>
+                      <><Spinner size="sm" className="mr-2" />Enviando código...</>
                     ) : (
                       <><Mail className="mr-2 h-4 w-4" />Enviar Código por Email</>
                     )}
@@ -168,7 +169,7 @@ export default function PortalEntryClient({ slug, companyName }: Props) {
                     className="w-full h-12 bg-cyan-500 hover:bg-cyan-400 text-black font-bold rounded-xl"
                   >
                     {phase === 'verifying' ? (
-                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Verificando...</>
+                      <><Spinner size="sm" className="mr-2" />Verificando...</>
                     ) : (
                       <><ArrowRight className="mr-2 h-4 w-4" />Ingresar al Portal</>
                     )}

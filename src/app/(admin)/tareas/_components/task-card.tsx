@@ -20,7 +20,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Loader2, Star } from 'lucide-react';
+import { Star } from 'lucide-react';
+import { Spinner } from '@/components/ui/spinner';
 import { CATEGORIES, STATUSES } from '@/lib/assistant/constants';
 import { formatTimeMX } from '@/lib/assistant/week-helpers';
 import { setTaskStatus, deleteTask } from '@/lib/assistant/actions/tasks';
@@ -104,7 +105,7 @@ export function TaskCard({ task, onStatusChange, onDelete, onEdit }: Props) {
 
             {isInProgress && (
               <div className="flex items-center gap-1 mt-1">
-                <Loader2 className="w-2.5 h-2.5 text-amber-400 animate-spin" />
+                <Spinner size="sm" className="text-amber-400" />
                 <span className="text-[10px] text-amber-400">En progreso</span>
               </div>
             )}

@@ -36,6 +36,20 @@
       "when": 1783488627851,
       "tag": "0004_wealthy_black_bolt",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1783544758089,
+      "tag": "0005_lowly_forge",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1783551824080,
+      "tag": "0006_mighty_captain_universe",
+      "breakpoints": true
     }
   ]
 }

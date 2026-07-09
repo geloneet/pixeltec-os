@@ -3,8 +3,9 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Sparkles, Loader2, CheckCircle2, Clock, Zap } from 'lucide-react';
+import { Sparkles, CheckCircle2, Clock, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
 import { CREDIT_COSTS } from '@/lib/growth/credits/costs';
 import type { CampaignClient } from '@/lib/growth/actions/campaigns';
 
@@ -58,7 +59,7 @@ export function CampaignDetail({ campaign }: Props) {
         {!strategy && (
           <Button onClick={handleGenerateStrategy} disabled={generatingStrategy} className="gap-2">
             {generatingStrategy
-              ? <><Loader2 className="h-4 w-4 animate-spin" /> Generando...</>
+              ? <><Spinner size="sm" /> Generando...</>
               : <><Sparkles className="h-4 w-4" /> Generar estrategia ({CREDIT_COSTS.campaign_strategy} créditos)</>
             }
           </Button>
@@ -122,7 +123,7 @@ export function CampaignDetail({ campaign }: Props) {
                   <div className={`shrink-0 font-roboto text-xs ${STATUS_COLORS[plan.status] ?? ''}`}>
                     {plan.status === 'done' && <CheckCircle2 className="h-4 w-4" />}
                     {plan.status === 'pending' && <Clock className="h-4 w-4" />}
-                    {plan.status === 'generating' && <Loader2 className="h-4 w-4 animate-spin" />}
+                    {plan.status === 'generating' && <Spinner size="sm" />}
                   </div>
                 </div>
               ))}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useId, useState } from 'react';
+import { Spinner } from '@/components/ui/spinner';
 
 type RenderState = 'loading' | 'rendered' | 'error';
 
@@ -46,7 +47,7 @@ export default function MermaidDiagram({ content }: { content: string }) {
     <div className="my-6 overflow-x-auto rounded-lg border border-white/10 bg-white/5 p-4">
       {state === 'loading' ? (
         <div className="flex items-center justify-center py-8">
-          <div className="h-5 w-5 animate-spin rounded-full border-2 border-blue-500/30 border-t-blue-500" />
+          <Spinner size="md" className="text-blue-500" />
         </div>
       ) : (
         <div dangerouslySetInnerHTML={{ __html: svg }} />

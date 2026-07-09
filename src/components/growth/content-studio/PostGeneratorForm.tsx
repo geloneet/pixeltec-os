@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { Zap, Loader2 } from 'lucide-react';
+import { Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
 import { useBrands } from '@/hooks/growth/use-brands';
 import { useCredits, canAfford } from '@/hooks/growth/use-credits';
 import { CreditBalance } from '@/components/growth/shared/CreditBalance';
@@ -156,7 +157,7 @@ export function PostGeneratorForm({ defaultBrandId, onGenerated, onGenerating }:
         className="w-full gap-2"
       >
         {loading ? (
-          <><Loader2 className="h-4 w-4 animate-spin" /> Generando...</>
+          <><Spinner size="sm" /> Generando...</>
         ) : (
           <><Zap className="h-4 w-4" /> Generar ({cost} créditos)</>
         )}

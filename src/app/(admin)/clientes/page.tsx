@@ -1,10 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { LoaderCircle } from "lucide-react";
 import { useCRM } from "@/components/crm/CRMContextCore";
 import { useCRMShell } from "@/components/crm/CRMShellProvider";
 import { ClientsView } from "@/components/crm/ClientsView";
+import { Spinner } from "@/components/ui/spinner";
 
 export default function ClientesPage() {
   const crm = useCRM();
@@ -14,7 +14,7 @@ export default function ClientesPage() {
   if (crm.loading) {
     return (
       <div className="flex h-full w-full items-center justify-center">
-        <LoaderCircle className="h-8 w-8 animate-spin text-cyan-400" />
+        <Spinner size="lg" className="text-cyan-400" />
       </div>
     );
   }

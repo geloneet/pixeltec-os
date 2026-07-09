@@ -85,13 +85,13 @@ interface KanbanCardProps {
   clientId: string;
   projectId: string;
   sessions: WorkSession[];
-  cycleTaskStatus: (cid: string, pid: string, tid: string) => void;
+  updateTask: (cid: string, pid: string, tid: string, data: Partial<CRMTask>) => void;
   deleteTask: (cid: string, pid: string, tid: string) => void;
   onStartSession: (taskId: string) => void;
   setModal: (m: { type: string; data?: Record<string, string> } | null) => void;
 }
 
-function KanbanCard({ task, clientId, projectId, sessions, cycleTaskStatus, deleteTask, onStartSession, setModal }: KanbanCardProps) {
+function KanbanCard({ task, clientId, projectId, sessions, updateTask, deleteTask, onStartSession, setModal }: KanbanCardProps) {
   const isCompleted = task.status === "completado";
   const isBlocked = task.status === "bloqueado";
   const activeSession = sessions.find((s) => s.taskId === task.id && s.status === "active");
@@ -121,8 +121,7 @@ function KanbanCard({ task, clientId, projectId, sessions, cycleTaskStatus, dele
       <div className="flex items-center justify-between pl-3.5">
         <TaskStatusDropdown
           status={task.status}
-          onChange={() => {/* status change handled via cycleTaskStatus */}}
-          disabled
+          onChange={(s) => updateTask(clientId, projectId, task.id, { status: s })}
         />
         {!isCompleted && !isBlocked && (
           <button
@@ -149,7 +148,6 @@ interface ProjectViewProps {
   setProjectTab: (t: string) => void;
   setView: (v: "asistente" | "clients" | "client" | "project" | "search") => void;
   setModal: (m: { type: string; data?: Record<string, string> } | null) => void;
-  cycleTaskStatus: (cid: string, pid: string, tid: string) => void;
   deleteTask: (cid: string, pid: string, tid: string) => void;
   deleteKey: (cid: string, pid: string, kid: string) => void;
   deleteProject: (cid: string, pid: string) => void;
@@ -178,7 +176,7 @@ const TABS = [
 
 export function ProjectView({
   client, project, projectTab, setProjectTab, setView, setModal,
-  cycleTaskStatus, deleteTask, deleteKey, deleteProject,
+  deleteTask, deleteKey, deleteProject,
   startPomo, pomoRunning, pomoTaskRef, pomoSeconds, pomoMode, pomoSessions,
   stopPomo, resetPomo, deleteCharge, updateCharge,
 }: ProjectViewProps) {
@@ -540,7 +538,7 @@ export function ProjectView({
                           clientId={client.id}
                           projectId={project.id}
                           sessions={crm.sessions}
-                          cycleTaskStatus={cycleTaskStatus}
+                          updateTask={crm.updateTask}
                           deleteTask={deleteTask}
                           onStartSession={handleStartSession}
                           setModal={setModal}

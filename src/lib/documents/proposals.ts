@@ -7,6 +7,7 @@ import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { proposals, clients } from "@/lib/db/schema";
 import type { Proposal, ProposalVersion } from "@/types/documents";
+import { sendProposalAccessEmail } from "@/lib/email";
 import {
   requireOwner,
   resolveClientPgId,
@@ -103,7 +104,7 @@ export async function updateProposal(
 }
 
 /** Generate or refresh the public token for a proposal. Creates a version snapshot. */
-export async function publishProposal(proposal: Proposal): Promise<string> {
+export async function publishProposal(proposal: { id: string }): Promise<string> {
   const { ownerId } = await requireOwner();
   const row = await resolveProposalRow(proposal.id);
   if (!row || row.ownerId !== ownerId) throw new Error("Propuesta no encontrada");
@@ -145,4 +146,27 @@ export async function publishProposal(proposal: Proposal): Promise<string> {
     .where(eq(proposals.id, row.id));
 
   return token;
+}
+
+/**
+ * Emails the public proposal link to the client. Publishes the proposal
+ * first (generating a token) if it hasn't been published yet.
+ */
+export async function sendProposalEmail(id: string, clientEmail: string): Promise<{ token: string }> {
+  const { ownerId } = await requireOwner();
+  const row = await resolveProposalRow(id);
+  if (!row || row.ownerId !== ownerId) throw new Error("Propuesta no encontrada");
+
+  const token = row.publicToken ?? (await publishProposal({ id: row.id }));
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://pixeltec.mx";
+  const result = await sendProposalAccessEmail({
+    email: clientEmail,
+    clientName: row.clientName,
+    proposalTitle: row.title,
+    publicUrl: `${appUrl}/p/${token}`,
+  });
+  if (!result.success) throw new Error(result.error ?? "No se pudo enviar el correo");
+
+  return { token };
 }

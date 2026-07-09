@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Bot, ChevronDown, Hand, LoaderCircle, PauseCircle } from "lucide-react";
+import { Bot, ChevronDown, Hand, PauseCircle } from "lucide-react";
 import { toast } from "sonner";
+import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
@@ -81,7 +82,7 @@ export function ModeToggle({ phone, mode, onChanged }: ModeToggleProps) {
             mode === m ? activeClass : "text-zinc-400 hover:text-zinc-200"
           )}
         >
-          {pending === m ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <Icon className="h-3.5 w-3.5" />}
+          {pending === m ? <Spinner size="sm" /> : <Icon className="h-3.5 w-3.5" />}
           {label}
         </button>
       ))}
@@ -97,7 +98,7 @@ export function ModeToggle({ phone, mode, onChanged }: ModeToggleProps) {
             )}
           >
             {pending === "PAUSED" ? (
-              <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+              <Spinner size="sm" />
             ) : (
               <PauseCircle className="h-3.5 w-3.5" />
             )}

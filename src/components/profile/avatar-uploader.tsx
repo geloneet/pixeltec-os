@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useUser } from "@/hooks/use-user";
 import { uploadAvatar, deleteAvatar } from "@/lib/profile/actions";
+import { Spinner } from "@/components/ui/spinner";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -144,7 +145,7 @@ export function AvatarUploader({ initialPhotoUrl }: { initialPhotoUrl?: string |
         )}
         {isPending && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+            <Spinner size="lg" className="text-white" />
           </div>
         )}
       </div>

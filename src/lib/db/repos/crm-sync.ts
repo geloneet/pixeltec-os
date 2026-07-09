@@ -100,11 +100,11 @@ export async function syncCrmClients(ownerId: string, payload: CRMClient[]): Pro
         },
       })
       .returning({ id: clients.id });
-    await syncProjectsForClient(row.id, c.projects ?? []);
+    await syncProjectsForClient(row.id, c.projects ?? [], ownerId);
   }
 }
 
-async function syncProjectsForClient(clientPgId: string, payload: CRMProject[]): Promise<void> {
+async function syncProjectsForClient(clientPgId: string, payload: CRMProject[], ownerId: string): Promise<void> {
   const existing = await db
     .select({ id: projects.id, firestoreId: projects.firestoreId })
     .from(projects)
@@ -153,7 +153,7 @@ async function syncProjectsForClient(clientPgId: string, payload: CRMProject[]):
     const projectPgId = row.id;
 
     await Promise.all([
-      syncTasks(projectPgId, p.tasks ?? []),
+      syncTasks(projectPgId, p.tasks ?? [], ownerId),
       syncCharges(projectPgId, p.charges ?? []),
       syncKeys(projectPgId, p.keys ?? []),
       syncLogEntries(projectPgId, p.notesLog ?? []),
@@ -161,7 +161,7 @@ async function syncProjectsForClient(clientPgId: string, payload: CRMProject[]):
   }
 }
 
-async function syncTasks(projectPgId: string, payload: CRMTask[]): Promise<void> {
+async function syncTasks(projectPgId: string, payload: CRMTask[], ownerId: string): Promise<void> {
   const existing = await db
     .select({ id: tasks.id, firestoreId: tasks.firestoreId })
     .from(tasks)
@@ -169,7 +169,23 @@ async function syncTasks(projectPgId: string, payload: CRMTask[]): Promise<void>
   const payloadIds = new Set(payload.map((t) => t.id));
   await deleteMissing(existing, payloadIds, (ids) => db.delete(tasks).where(inArray(tasks.id, ids)));
 
+  // t.sessionId (si viene) es el firestoreId de la sesión que la creó — la
+  // sesión normalmente ya está sincronizada de un guardado anterior (se creó
+  // al iniciar la sesión, antes de que existiera esta tarea), pero si la
+  // carrera ocurriera de todas formas, sessionId simplemente queda null.
+  const needsSessionLookup = payload.some((t) => t.sessionId);
+  const sessionFsToPg = needsSessionLookup
+    ? new Map(
+        (await db
+          .select({ id: workSessions.id, firestoreId: workSessions.firestoreId })
+          .from(workSessions)
+          .where(eq(workSessions.ownerId, ownerId))
+        ).map((s) => [s.firestoreId, s.id])
+      )
+    : new Map<string | null, string>();
+
   for (const t of payload) {
+    const sessionPgId = t.sessionId ? sessionFsToPg.get(t.sessionId) ?? null : null;
     await db
       .insert(tasks)
       .values({
@@ -181,6 +197,7 @@ async function syncTasks(projectPgId: string, payload: CRMTask[]): Promise<void>
         prio: t.prio,
         pomoSessions: t.pomoSessions ?? 0,
         createdAt: new Date(toIso(t.createdAt)),
+        sessionId: sessionPgId,
       })
       .onConflictDoUpdate({
         target: tasks.firestoreId,
@@ -448,6 +465,11 @@ export async function getFullCrmData(ownerId: string): Promise<{
     : [];
   const projectPgIds = projectRows.map((p) => p.id);
 
+  // Se trae temprano (no depende de projectPgIds) para poder resolver
+  // tasks.sessionId -> firestoreId al armar el árbol de clients/tasks abajo.
+  const sessionRows = await db.select().from(workSessions).where(eq(workSessions.ownerId, ownerId));
+  const sessionPgToFs = new Map(sessionRows.map((s) => [s.id, s.firestoreId ?? s.id]));
+
   const [taskRows, chargeRows, keyRows, logRows] = projectPgIds.length
     ? await Promise.all([
         db.select().from(tasks).where(inArray(tasks.projectId, projectPgIds)),
@@ -499,6 +521,7 @@ export async function getFullCrmData(ownerId: string): Promise<{
             prio: t.prio,
             pomoSessions: t.pomoSessions,
             createdAt: t.createdAt.toISOString(),
+            sessionId: t.sessionId ? sessionPgToFs.get(t.sessionId) : undefined,
           })),
         charges: chargeRows
           .filter((ch) => ch.projectId === p.id)
@@ -562,7 +585,6 @@ export async function getFullCrmData(ownerId: string): Promise<{
     if (fsProjectId && fsClientId) assembledLinks[fsProjectId] = fsClientId;
   }
 
-  const sessionRows = await db.select().from(workSessions).where(eq(workSessions.ownerId, ownerId));
   const taskPgToFs = new Map(taskRows.map((t) => [t.id, t.firestoreId ?? t.id]));
   const assembledSessions: WorkSession[] = sessionRows.map((s) => ({
     id: s.firestoreId ?? s.id,

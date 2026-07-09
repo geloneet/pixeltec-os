@@ -7,10 +7,10 @@ import {
   Pause,
   Play,
   ScrollText,
-  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { ActionConfirmDialog } from "./action-confirm-dialog";
 import type {
   VpsAction,
@@ -124,7 +124,7 @@ function ActionButton({
       className="h-8 gap-1.5 border-zinc-800/70 bg-zinc-900/40 text-xs font-medium text-zinc-300 hover:border-zinc-700 hover:bg-zinc-800 hover:text-zinc-50 disabled:opacity-50"
     >
       {pending ? (
-        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        <Spinner size="sm" />
       ) : (
         <Icon className="h-3.5 w-3.5" />
       )}

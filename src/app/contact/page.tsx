@@ -16,9 +16,9 @@ import { useToast } from '@/hooks/use-toast';
 import { submitContactForm } from '@/app/actions';
 import { SocialLinks } from '@/components/ui/social-links';
 import { ShinyButton } from '@/components/ui/shiny-button';
+import { ObfuscatedMailto } from '@/components/ui/obfuscated-mailto';
 
 const contactInfo = [
-  { icon: Mail, title: 'Email', value: 'contacto@pixeltec.mx', href: 'mailto:contacto@pixeltec.mx' },
   { icon: MapPin, title: 'Oficina', value: 'Puerto Vallarta, Jalisco', href: '#' },
   { icon: Phone, title: 'Teléfono', value: '+52 (322) 137-8336', href: 'https://api.whatsapp.com/send?phone=523221378336&text=Hola,%20quiero%20informaci%C3%B3n.' },
 ];
@@ -102,6 +102,16 @@ export default function ContactPage() {
                 className="lg:col-span-2 flex flex-col justify-between"
             >
                 <div className="space-y-6">
+                    <ObfuscatedMailto
+                        email="contacto@pixeltec.mx"
+                        className="block bg-card border border-border p-6 rounded-2xl backdrop-blur-md hover:border-brand-blue/30 transition-colors duration-300 flex items-center gap-6"
+                    >
+                        <Mail className="h-8 w-8 text-brand-blue" />
+                        <div>
+                            <h3 className="font-semibold text-foreground">Email</h3>
+                            <p className="text-muted-foreground">contacto@pixeltec.mx</p>
+                        </div>
+                    </ObfuscatedMailto>
                     {contactInfo.map((item) => (
                         <a 
                             href={item.href} 

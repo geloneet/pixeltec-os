@@ -1,9 +1,53 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { eq } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { clients } from "@/lib/db/schema";
 import { requireSession } from "@/lib/vpsClient";
-import { findContractByPublicId } from "@/lib/documents/pg";
+import { findContractByPublicId, resolveClientPgId } from "@/lib/documents/pg";
 import { resolveToken } from "@/lib/portal/token";
+import type { Contract } from "@/types/documents";
+
+const execFileAsync = promisify(execFile);
+
+// El armado del <Document> (JSX de @react-pdf/renderer) vive en un proceso de
+// Node aparte — ver src/lib/documents/pdf-render-worker/render-contract.mjs
+// (mismo patrón que proposal-pdf, mismo motivo: React error #31).
+const WORKER_PATH = path.join(
+  process.cwd(),
+  "src/lib/documents/pdf-render-worker/render-contract.mjs",
+);
+
+async function resolveClientName(publicClientId: string): Promise<string> {
+  const clientPgId = await resolveClientPgId(publicClientId);
+  if (!clientPgId) return publicClientId;
+  const [client] = await db
+    .select({ name: clients.name })
+    .from(clients)
+    .where(eq(clients.id, clientPgId))
+    .limit(1);
+  return client?.name ?? publicClientId;
+}
+
+async function generateContractPdf(contract: Contract & { id: string }, clientName: string): Promise<Buffer> {
+  const dir = await mkdtemp(path.join(tmpdir(), "contract-pdf-"));
+  const inputPath = path.join(dir, "input.json");
+  const outputPath = path.join(dir, "output.pdf");
+  try {
+    await writeFile(inputPath, JSON.stringify({ ...contract, clientName }), "utf-8");
+    await execFileAsync(process.execPath, [WORKER_PATH, inputPath, outputPath], {
+      cwd: process.cwd(),
+    });
+    return await readFile(outputPath);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+}
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
   try {
@@ -22,7 +66,6 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     if (session.ok) {
       ownerUid = session.uid;
     } else {
-      // Fallback: portal token auth
       const portalToken = req.nextUrl.searchParams.get("token");
       if (!portalToken) return new NextResponse("Unauthorized", { status: 401 });
       const resolved = await resolveToken(portalToken);
@@ -46,63 +89,16 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       return new NextResponse("Forbidden", { status: 403 });
     }
 
-    // Generate PDF
-    const pdfDoc = await PDFDocument.create();
-    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-
-    const page = pdfDoc.addPage([595.28, 841.89]); // A4
-    const { width, height } = page.getSize();
-    const margin = 60;
-    const lineHeight = 16;
-
-    // Title — word-wrapped for long titles
-    const titleLines = wrapText(toWinAnsi(contract.title), boldFont, 18, width - margin * 2);
-    let titleY = height - margin - 20;
-    for (const tLine of titleLines) {
-      page.drawText(tLine, { x: margin, y: titleY, size: 18, font: boldFont, color: rgb(0.05, 0.05, 0.1) });
-      titleY -= 22;
-    }
-
-    // Meta line
-    const metaLine = toWinAnsi(`Version ${contract.version} · ${new Date(contract.createdAt).toLocaleDateString("es-MX")} · Estado: ${contract.status}`);
-    page.drawText(metaLine, {
-      x: margin,
-      y: titleY - 5,
-      size: 9,
-      font,
-      color: rgb(0.45, 0.45, 0.45),
-    });
-
-    // Divider
-    page.drawLine({
-      start: { x: margin, y: titleY - 18 },
-      end: { x: width - margin, y: titleY - 18 },
-      thickness: 0.5,
-      color: rgb(0.8, 0.8, 0.8),
-    });
-
-    // Content — word-wrapped text, multi-page
-    const contentLines = wrapText(toWinAnsi(contract.content ?? ""), font, 11, width - margin * 2);
-    let y = titleY - 35;
-    let currentPage = page;
-    for (const line of contentLines) {
-      if (y < margin + lineHeight) {
-        currentPage = pdfDoc.addPage([595.28, 841.89]);
-        y = currentPage.getSize().height - margin;
-      }
-      currentPage.drawText(line, { x: margin, y, size: 11, font, color: rgb(0.15, 0.15, 0.15) });
-      y -= lineHeight;
-    }
-
-    const pdfBytes = await pdfDoc.save();
+    const clientName = await resolveClientName(contract.clientId);
+    const pdf = await generateContractPdf(contract, clientName);
 
     const safeName = (contract.title
       .replace(/[^a-zA-Z0-9_\- ]/g, "")
       .trim()
       .replace(/\s+/g, "_")
       .slice(0, 100)) || "contrato";
-    return new NextResponse(Buffer.from(pdfBytes), {
+
+    return new NextResponse(new Uint8Array(pdf), {
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `attachment; filename="${safeName}_v${contract.version}.pdf"`,
@@ -113,49 +109,4 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     console.error("[contract-pdf]", err);
     return new NextResponse("Internal error", { status: 500 });
   }
-}
-
-/** Replaces common non-WinAnsi characters; strips the rest to prevent pdf-lib errors. */
-function toWinAnsi(text: string): string {
-  return text
-    .replace(/[‘’]/g, "'")
-    .replace(/[“”]/g, '"')
-    .replace(/–/g, "-")
-    .replace(/—/g, "--")
-    .replace(/…/g, "...")
-    // eslint-disable-next-line no-control-regex
-    .replace(/[^\x00-\xFF]/g, "?");
-}
-
-/**
- * Splits text into lines that fit within maxWidth pixels at given font size.
- * Handles pre-existing newlines in the source text.
- */
-function wrapText(
-  text: string,
-  font: { widthOfTextAtSize(t: string, s: number): number },
-  size: number,
-  maxWidth: number,
-): string[] {
-  const paragraphs = text.split("\n");
-  const result: string[] = [];
-  for (const para of paragraphs) {
-    if (para.trim() === "") {
-      result.push("");
-      continue;
-    }
-    const words = para.split(" ");
-    let currentLine = "";
-    for (const word of words) {
-      const candidate = currentLine ? `${currentLine} ${word}` : word;
-      if (font.widthOfTextAtSize(candidate, size) <= maxWidth) {
-        currentLine = candidate;
-      } else {
-        if (currentLine) result.push(currentLine);
-        currentLine = word;
-      }
-    }
-    if (currentLine) result.push(currentLine);
-  }
-  return result;
 }

@@ -3,13 +3,13 @@
 import { useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import type { CRMProject, CRMTask } from "@/types/crm";
-import type { BlockerType, BlockerImpact, BlockerSource } from "@/types/session";
 import { useWorkSession } from "@/hooks/use-work-session";
 import { useCRM } from "@/components/crm/CRMContextCore";
 import { WorkspaceHeader } from "./WorkspaceHeader";
 import { SessionGoals } from "./SessionGoals";
 import { ActivityWorkspace } from "./ActivityWorkspace";
 import { SessionObservations } from "./SessionObservations";
+import { SessionTasksPanel } from "./SessionTasksPanel";
 import { BlockTracker } from "./BlockTracker";
 import { SessionTimeline } from "./SessionTimeline";
 import { FocusGuard } from "./FocusGuard";
@@ -28,6 +28,7 @@ export function WorkspaceLayout({ sessionId, project, task, onSessionEnd }: Prop
   const router = useRouter();
   const crm = useCRM();
   const [showEndDialog, setShowEndDialog] = useState(false);
+  const [blockerPrefill, setBlockerPrefill] = useState<string | null>(null);
   const ws = useWorkSession(sessionId);
 
   // ── Blocker stats from historical project sessions ─────────────────────────
@@ -65,8 +66,12 @@ export function WorkspaceLayout({ sessionId, project, task, onSessionEnd }: Prop
     deployStatus: "yes" | "no" | "na",
     commitStatus: boolean,
     bitacoraEntry: string,
+    taskStatus: CRMTask["status"],
   ) => {
     ws.handleEndSession(deployStatus, commitStatus);
+    if (ws.session && taskStatus !== task.status) {
+      crm.updateTask(ws.session.clientId, ws.session.projectId, task.id, { status: taskStatus });
+    }
     setShowEndDialog(false);
     if (bitacoraEntry.trim()) {
       onSessionEnd?.(bitacoraEntry);
@@ -92,27 +97,18 @@ export function WorkspaceLayout({ sessionId, project, task, onSessionEnd }: Prop
     );
   }, [ws.session, crm]);
 
-  // Observations → convert to task
-  const handleConvertToTask = useCallback((content: string) => {
+  // Observations → convert to task (formulario real en SessionObservations,
+  // ya no se adivina el nombre/prioridad ni se crea a ciegas).
+  const handleConvertToTask = useCallback((data: { name: string; desc: string; prio: CRMTask["prio"] }) => {
     if (!ws.session) return;
-    crm.addTask(ws.session.clientId, ws.session.projectId, {
-      name: content.length > 60 ? content.slice(0, 58).trimEnd() + "…" : content,
-      desc: content,
-      prio: "low",
-    });
+    crm.addTask(ws.session.clientId, ws.session.projectId, { ...data, sessionId: ws.session.id });
   }, [ws.session, crm]);
 
-  // Observations → create blocker from content
+  // Observations → create blocker from content: abre el formulario real de
+  // BlockTracker pre-llenado en vez de crear con un tipo fijo ("error_api").
   const handleObservationToBlocker = useCallback((content: string) => {
-    if (!ws.session) return;
-    const desc = content.length > 120 ? content.slice(0, 118).trimEnd() + "…" : content;
-    ws.handleAddBlocker(
-      "error_api" as BlockerType,
-      desc,
-      "medium" as BlockerImpact,
-      "technical" as BlockerSource,
-    );
-  }, [ws]);
+    setBlockerPrefill(content);
+  }, []);
 
   if (!ws.session) {
     return (
@@ -157,11 +153,17 @@ export function WorkspaceLayout({ sessionId, project, task, onSessionEnd }: Prop
             onConvertToTask={handleConvertToTask}
             onCreateBlocker={handleObservationToBlocker}
           />
+          <SessionTasksPanel
+            tasks={project.tasks.filter((t) => t.sessionId === sessionId)}
+            projectId={project.id}
+          />
           <BlockTracker
             blockers={ws.session.blockers}
             onAdd={ws.handleAddBlocker}
             onUpdateStatus={ws.handleUpdateBlockerStatus}
             stats={blockerStats}
+            prefillDescription={blockerPrefill}
+            onPrefillHandled={() => setBlockerPrefill(null)}
           />
         </div>
 
@@ -191,6 +193,7 @@ export function WorkspaceLayout({ sessionId, project, task, onSessionEnd }: Prop
       <EndSessionDialog
         open={showEndDialog}
         session={ws.session}
+        task={task}
         elapsed={ws.elapsed}
         onConfirm={handleFinalizeConfirmed}
         onCancel={() => setShowEndDialog(false)}

@@ -80,7 +80,7 @@ const InfoCard = ({ icon, title, children }: { icon: React.ReactNode, title: str
 
 export default async function PortalOverviewPage() {
   const session = await readLegacyPortalSession();
-  if (!session) redirect('/portal/login');
+  if (!session) redirect('/login?modo=cliente');
 
   const [client] = await db.select().from(clients).where(eq(clients.id, session.clientId)).limit(1);
   if (!client) {

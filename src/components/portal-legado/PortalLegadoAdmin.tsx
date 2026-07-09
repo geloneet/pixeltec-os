@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { KeyRound, LoaderCircle } from "lucide-react";
+import { KeyRound } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Dialog,
   DialogContent,
@@ -64,7 +65,7 @@ export function PortalLegadoAdmin() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <LoaderCircle className="h-6 w-6 animate-spin text-zinc-500" />
+        <Spinner size="md" className="text-zinc-500" />
       </div>
     );
   }
@@ -118,7 +119,7 @@ export function PortalLegadoAdmin() {
               Cancelar
             </Button>
             <Button onClick={handleSave} disabled={saving}>
-              {saving ? <LoaderCircle className="h-4 w-4 animate-spin" /> : "Guardar"}
+              {saving ? <Spinner size="sm" /> : "Guardar"}
             </Button>
           </DialogFooter>
         </DialogContent>

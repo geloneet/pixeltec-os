@@ -2,10 +2,10 @@
 
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef } from "react";
-import { LoaderCircle } from "lucide-react";
 import { useCRM } from "@/components/crm/CRMContextCore";
 import { WorkspaceLayout } from "@/components/workspace/WorkspaceLayout";
 import type { CRMClient, CRMProject, CRMTask } from "@/types/crm";
+import { Spinner } from "@/components/ui/spinner";
 
 export default function SesionPage() {
   const params = useParams<{ id: string }>();
@@ -18,7 +18,7 @@ export default function SesionPage() {
   if (crm.loading) {
     return (
       <div className="flex h-full w-full items-center justify-center">
-        <LoaderCircle className="h-8 w-8 animate-spin text-cyan-400" />
+        <Spinner size="lg" className="text-cyan-400" />
       </div>
     );
   }
@@ -97,7 +97,7 @@ function SesionPageInner({
   if (!activeSession) {
     return (
       <div className="flex h-full w-full items-center justify-center">
-        <LoaderCircle className="h-8 w-8 animate-spin text-cyan-400" />
+        <Spinner size="lg" className="text-cyan-400" />
       </div>
     );
   }

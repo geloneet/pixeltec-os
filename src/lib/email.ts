@@ -18,6 +18,7 @@ import { renderSupportTicketEmail, type SupportTicketEmailProps } from '@/emails
 import { renderContactConfirmationEmail, type ContactConfirmationEmailProps } from '@/emails/ContactConfirmationEmail';
 import { renderContactNotificationEmail, type ContactNotificationEmailProps } from '@/emails/ContactNotificationEmail';
 import { renderNewsletterWelcomeEmail, type NewsletterWelcomeEmailProps } from '@/emails/NewsletterWelcomeEmail';
+import { renderProposalEmail, type ProposalEmailProps } from '@/emails/ProposalEmail';
 
 // ── Resend client ──────────────────────────────────────────────────────────────
 
@@ -86,6 +87,13 @@ export async function sendInvoiceEmail(props: InvoiceEmailProps): Promise<EmailR
 export async function sendTaskNotification(props: TaskAssignedEmailProps): Promise<EmailResult> {
   const html = renderTaskAssignedEmail(props);
   return sendEmail(TEAM_EMAIL, `📋 Nueva tarea: ${props.taskTitle}`, html);
+}
+
+/** Sent to the client when a proposal's public link is shared with them. */
+export async function sendProposalAccessEmail(props: ProposalEmailProps & { email: string }): Promise<EmailResult> {
+  const { email, ...templateProps } = props;
+  const html = renderProposalEmail(templateProps);
+  return sendEmail(email, 'Tu propuesta de PixelTEC está lista', html);
 }
 
 /** Sent to the internal team when a new support ticket is opened. */

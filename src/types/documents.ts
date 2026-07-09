@@ -54,6 +54,13 @@ export interface ContractSigner {
   signedAt?: string;
 }
 
+/** Cláusula generada a partir de la plantilla base fija (ver src/lib/contracts/base-template.ts). */
+export interface ContractSection {
+  key: string;
+  title: string;
+  body: string;
+}
+
 export interface Contract {
   id: string;
   uid: string;
@@ -68,8 +75,84 @@ export interface Contract {
   signers: ContractSigner[];
   pdfUrl?: string;
   notes?: string;
+  templateVersion?: number;
+  sections?: ContractSection[];
+  startDate?: string;
+  endDate?: string;
+  approvedAt?: string;
+  signedAt?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+// ── Cobros (Contrato → Cobro → Pago → Próximo cobro) ─────────────────────────
+
+export type BillingFrequency = "unico" | "mensual" | "trimestral" | "semestral" | "anual";
+export type BillingStatus = "pendiente" | "pagado" | "vencido" | "parcial" | "cancelado";
+export type PaymentMethod = "efectivo" | "transferencia" | "tarjeta";
+
+export const BILLING_FREQUENCY_LABELS: Record<BillingFrequency, string> = {
+  unico: "Pago único",
+  mensual: "Mensual",
+  trimestral: "Trimestral",
+  semestral: "Semestral",
+  anual: "Anual",
+};
+
+export const BILLING_STATUS_LABELS: Record<BillingStatus, string> = {
+  pendiente: "Pendiente",
+  pagado: "Pagado",
+  vencido: "Vencido",
+  parcial: "Parcial",
+  cancelado: "Cancelado",
+};
+
+export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
+  efectivo: "Efectivo",
+  transferencia: "Transferencia",
+  tarjeta: "Tarjeta",
+};
+
+export interface PaymentRecord {
+  id: string;
+  billingItemId: string;
+  amount: number;
+  method: PaymentMethod;
+  paidAt: string;
+  periodKey: string;
+  reference?: string;
+  note?: string;
+  createdBy?: string;
+  createdAt: string;
+}
+
+export interface BillingItem {
+  id: string;
+  clientId: string;
+  clientName?: string;
+  contractId?: string;
+  contractTitle?: string;
+  proposalId?: string;
+  projectId?: string;
+  concept: string;
+  amount: number;
+  currency: string;
+  frequency: BillingFrequency;
+  status: BillingStatus;
+  dueDate: string;
+  nextDueDate?: string;
+  notes?: string;
+  paymentHistory: PaymentRecord[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Línea de cobro capturada en el wizard de contrato, antes de persistirse. */
+export interface BillingItemDraft {
+  concept: string;
+  amount: number;
+  frequency: BillingFrequency;
+  dueDate: string;
 }
 
 // ── Factura ───────────────────────────────────────────────────────────────────

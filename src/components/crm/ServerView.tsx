@@ -11,6 +11,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Spinner } from "@/components/ui/spinner";
 import { useCRM } from "./CRMContextCore";
 
 interface ServerInfo {
@@ -97,10 +98,6 @@ function TypeBadge({ type }: { type: string }) {
       Manual
     </span>
   );
-}
-
-function Spinner() {
-  return <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />;
 }
 
 function SkeletonCard() {
@@ -425,7 +422,7 @@ export function ServerView() {
             disabled={healthLoading}
             className="flex items-center gap-2 rounded-lg border border-zinc-800 bg-[#0F0F12] px-3 py-2 text-[13px] text-zinc-400 hover:text-zinc-200 hover:border-zinc-700 transition-colors duration-150 disabled:opacity-50"
           >
-            {healthLoading ? <Spinner /> : (
+            {healthLoading ? <Spinner size="sm" /> : (
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
               </svg>
@@ -646,7 +643,7 @@ export function ServerView() {
                             : "border-amber-700/50 text-amber-400 hover:bg-amber-900/20 hover:text-amber-300"
                         }`}
                       >
-                        {isActioning === "pause" || isActioning === "resume" ? <Spinner /> : paused ? (
+                        {isActioning === "pause" || isActioning === "resume" ? <Spinner size="sm" /> : paused ? (
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <polygon points="5 3 19 12 5 21 5 3"/>
                           </svg>
@@ -665,7 +662,7 @@ export function ServerView() {
                         disabled={!!isActioning}
                         className="flex items-center gap-1.5 rounded-lg border border-zinc-700 px-3 py-1.5 text-[12px] text-zinc-300 hover:bg-zinc-800 hover:text-white transition-all duration-150 disabled:opacity-50"
                       >
-                        {isActioning === "restart" ? <Spinner /> : (
+                        {isActioning === "restart" ? <Spinner size="sm" /> : (
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
                           </svg>
@@ -682,7 +679,7 @@ export function ServerView() {
                       >
                         {isActioning === "deploy" ? (
                           <>
-                            <Spinner />
+                            <Spinner size="sm" />
                             Desplegando...
                           </>
                         ) : (
@@ -702,7 +699,7 @@ export function ServerView() {
                       className="flex items-center justify-center rounded-lg border border-zinc-800 p-1.5 text-zinc-600 hover:text-red-400 hover:border-red-800/50 transition-all duration-150 disabled:opacity-50"
                       title="Eliminar del monitoreo"
                     >
-                      {isActioning === "delete" ? <Spinner /> : (
+                      {isActioning === "delete" ? <Spinner size="sm" /> : (
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
                         </svg>
@@ -772,7 +769,7 @@ export function ServerView() {
                 disabled={logsModal.loading}
                 className="flex items-center gap-1.5 rounded-lg border border-zinc-700 px-3 py-1.5 text-[12px] text-zinc-300 hover:bg-zinc-800 hover:text-white transition-all duration-150 disabled:opacity-50"
               >
-                {logsModal.loading ? <Spinner /> : (
+                {logsModal.loading ? <Spinner size="sm" /> : (
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
                   </svg>
@@ -783,7 +780,7 @@ export function ServerView() {
 
             {logsModal.loading ? (
               <div className="flex justify-center py-8">
-                <Spinner />
+                <Spinner size="sm" />
               </div>
             ) : (
               <pre
@@ -927,7 +924,7 @@ export function ServerView() {
                 disabled={!addForm.name || !addForm.type || addLoading}
                 className="flex items-center gap-1.5 rounded-lg bg-[#0EA5E9] px-4 py-1.5 text-[12px] font-medium text-white hover:bg-[#0284C7] transition-all duration-150 disabled:opacity-50"
               >
-                {addLoading ? <Spinner /> : null}
+                {addLoading ? <Spinner size="sm" /> : null}
                 Agregar
               </button>
             </div>

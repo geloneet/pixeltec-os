@@ -49,6 +49,17 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+# El worker de generación de PDF de propuestas (src/lib/documents/pdf-render-worker)
+# se invoca vía child_process, no vía require/import estático, así que el tracer
+# de standalone de Next.js no captura de forma confiable ni el script ni el árbol
+# de dependencias de @react-pdf/renderer (~30 paquetes transitivos: fontkit,
+# yoga-layout, color-string, etc.). Se copian explícitamente las fuentes
+# vendorizadas y el node_modules completo del build (no solo el podado de
+# standalone) para que el worker tenga todo lo que necesita en runtime.
+COPY --from=builder --chown=nextjs:nodejs /app/src/lib/documents/pdf-render-worker ./src/lib/documents/pdf-render-worker
+COPY --from=builder --chown=nextjs:nodejs /app/src/lib/documents/fonts ./src/lib/documents/fonts
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
+
 USER nextjs
 
 EXPOSE 3000

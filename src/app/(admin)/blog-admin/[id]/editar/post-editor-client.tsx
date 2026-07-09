@@ -12,7 +12,8 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { X, Check, Loader2 } from "lucide-react";
+import { X, Check } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 import { updatePost, setPostStatus, approvePost, publishPost, archivePost } from "@/lib/blog/actions/posts";
 import { regenerateDraft } from "@/lib/blog/actions/drafts";
 import { BlogPostEditSchema, type BlogPostEditInput } from "@/lib/blog/schemas";
@@ -323,7 +324,7 @@ export function PostEditorClient({ post }: PostEditorClientProps) {
             <span className="text-xs text-zinc-500">
               {saveStatus === "saving" && (
                 <span className="flex items-center gap-1 text-zinc-400">
-                  <Loader2 className="h-3 w-3 animate-spin" />
+                  <Spinner size="sm" />
                   Guardando…
                 </span>
               )}
@@ -617,7 +618,7 @@ export function PostEditorClient({ post }: PostEditorClientProps) {
               className="w-full border-blue-500/30 text-blue-400 hover:bg-blue-500/10 hover:text-blue-300 disabled:opacity-50"
             >
               {isPending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Spinner size="sm" className="mr-2" />
               ) : saveStatus === "saved" ? (
                 <Check className="mr-2 h-4 w-4" />
               ) : null}
@@ -654,7 +655,7 @@ export function PostEditorClient({ post }: PostEditorClientProps) {
                 className="w-full bg-green-600 hover:bg-green-500 text-white font-semibold disabled:opacity-50"
               >
                 {isPending ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Spinner size="sm" className="mr-2" />
                 ) : null}
                 Publicar
               </Button>
@@ -670,7 +671,7 @@ export function PostEditorClient({ post }: PostEditorClientProps) {
                 className="w-full border-zinc-700 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-300 disabled:opacity-40"
               >
                 {isPending ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Spinner size="sm" className="mr-2" />
                 ) : null}
                 Regenerar con IA
               </Button>

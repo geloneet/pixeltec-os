@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import Link from 'next/link';
 import Header from '@/components/header';
 import { Footer } from '@/components/ui/footer-section';
+import { ObfuscatedMailto } from '@/components/ui/obfuscated-mailto';
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 
@@ -106,12 +107,10 @@ export default function DataDeletionPage() {
               </p>
               <div className="my-6 rounded-xl border border-white/10 bg-white/5 px-6 py-5">
                 <p className="text-sm text-zinc-500 mb-1">Correo de contacto</p>
-                <a
-                  href="mailto:contacto@pixeltec.mx"
+                <ObfuscatedMailto
+                  email="contacto@pixeltec.mx"
                   className="text-xl font-semibold text-cyan-400 hover:underline"
-                >
-                  contacto@pixeltec.mx
-                </a>
+                />
               </div>
               <p>
                 También puedes utilizar nuestra{' '}

@@ -9,12 +9,12 @@ import {
   XCircle,
   Zap,
   BellOff,
-  Loader2,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { useNotifications } from "@/hooks/use-notifications";
 import { cn } from "@/lib/utils";
+import { Spinner } from "@/components/ui/spinner";
 import type { Notification, NotificationType } from "@/lib/notifications/schemas";
 
 const TYPE_ICONS: Record<NotificationType, React.ReactNode> = {
@@ -182,7 +182,7 @@ export function NotificationsPage() {
       {/* Loading state */}
       {loading && (
         <div className="flex items-center justify-center py-20">
-          <Loader2 className="h-6 w-6 animate-spin text-zinc-500" />
+          <Spinner size="md" className="text-zinc-500" />
         </div>
       )}
 

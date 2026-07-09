@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { X, Loader2 } from "lucide-react";
+import { X } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 import { createBrief } from "@/lib/blog/actions/briefs";
 import { generateDraft } from "@/lib/blog/actions/drafts";
 import { BlogBriefSchema, type BlogBriefInput } from "@/lib/blog/schemas";
@@ -124,7 +125,7 @@ function TagInput({ value, onChange, error }: TagInputProps) {
 function GeneratingOverlay({ message }: { message: string }) {
   return (
     <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 rounded-xl bg-zinc-900/80 backdrop-blur-sm">
-      <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
+      <Spinner size="lg" className="text-blue-400" />
       <p className="text-sm font-medium text-zinc-300">{message}</p>
     </div>
   );
@@ -310,7 +311,7 @@ export function NuevoBriefForm() {
           >
             {isPending ? (
               <span className="flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Spinner size="sm" />
                 Generando…
               </span>
             ) : (

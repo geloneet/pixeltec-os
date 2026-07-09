@@ -4,11 +4,11 @@ import { useState, useEffect, useCallback } from "react";
 import {
   ArrowLeft, FileText, Sparkles, Link2, MessageCircle, Mail,
   Download, Eye, Clock, CheckCircle2, XCircle, Send, RefreshCw,
-  ChevronDown, ChevronUp, Copy, Check,
+  ChevronDown, ChevronUp, Copy, Check, Pencil, Printer,
 } from "lucide-react";
 import { useUser } from "@/hooks/use-user";
 import type { Proposal } from "@/types/documents";
-import { getProposals, createProposal, updateProposal, publishProposal } from "@/lib/documents/proposals";
+import { getProposals, createProposal, updateProposal, publishProposal, sendProposalEmail } from "@/lib/documents/proposals";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -28,6 +28,27 @@ function emailText(proposal: Proposal) {
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("es-MX");
+}
+
+/** Prints the proposal PDF via a hidden iframe — no new tab, no extra viewer chrome. */
+function printProposalPdf(proposalId: string) {
+  const iframe = document.createElement("iframe");
+  iframe.style.position = "fixed";
+  iframe.style.right = "0";
+  iframe.style.bottom = "0";
+  iframe.style.width = "0";
+  iframe.style.height = "0";
+  iframe.style.border = "0";
+  iframe.src = `/api/documents/proposal-pdf?proposalId=${proposalId}`;
+  iframe.onload = () => {
+    const win = iframe.contentWindow;
+    win?.focus();
+    win?.print();
+    win?.addEventListener("afterprint", () => {
+      document.body.removeChild(iframe);
+    });
+  };
+  document.body.appendChild(iframe);
 }
 
 // ── Status config ──────────────────────────────────────────────────────────────
@@ -53,6 +74,7 @@ const TIMELINE_STEPS = [
 interface Props {
   clientId: string;
   clientName: string;
+  clientEmail: string;
 }
 
 // ── CopyButton helper ─────────────────────────────────────────────────────────
@@ -77,15 +99,15 @@ function CopyButton({ text, children }: { text: string; children: React.ReactNod
 
 // ── Component ──────────────────────────────────────────────────────────────────
 
-export function PropuestaTab({ clientId, clientName }: Props) {
+export function PropuestaTab({ clientId, clientName, clientEmail }: Props) {
   const user = useUser();
 
-  const [view, setView] = useState<"list" | "create" | "detail">("list");
+  const [view, setView] = useState<"list" | "create" | "edit" | "detail">("list");
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [selected, setSelected] = useState<Proposal | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Create form
+  // Create/edit form (shared — the two views are mutually exclusive)
   const [title, setTitle]     = useState("");
   const [scope, setScope]     = useState("");
   const [budget, setBudget]   = useState("");
@@ -97,6 +119,8 @@ export function PropuestaTab({ clientId, clientName }: Props) {
   // Detail actions
   const [publishing, setPublishing] = useState(false);
   const [converting, setConverting] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
   const [showVersions, setShowVersions] = useState(false);
 
   // ── Data ─────────────────────────────────────────────────────────────────
@@ -114,7 +138,7 @@ export function PropuestaTab({ clientId, clientName }: Props) {
 
   useEffect(() => { loadProposals(); }, [loadProposals]);
 
-  // ── Handlers ─────────────────────────────────────────────────────────────
+  // ── Handlers: create ─────────────────────────────────────────────────────
 
   const handleGenerate = async () => {
     if (!scope.trim()) return;
@@ -132,11 +156,16 @@ export function PropuestaTab({ clientId, clientName }: Props) {
     }
   };
 
+  const resetForm = () => {
+    setTitle(""); setScope(""); setBudget(""); setTimeline("");
+    setGeneratedData(null);
+  };
+
   const handleSave = async () => {
     if (!title.trim() || !scope.trim() || !user) return;
     setSaving(true);
     try {
-      await createProposal(user.uid, clientId, clientName, {
+      const newId = await createProposal(user.uid, clientId, clientName, {
         title: title.trim(),
         scope: scope.trim(),
         solution: generatedData?.solution,
@@ -146,14 +175,66 @@ export function PropuestaTab({ clientId, clientName }: Props) {
         timeline: timeline.trim() || undefined,
         status: "borrador",
       });
-      setView("list");
-      setTitle(""); setScope(""); setBudget(""); setTimeline("");
-      setGeneratedData(null);
+      const data = await getProposals(user.uid, clientId);
+      setProposals(data);
+      resetForm();
+      const created = data.find(p => p.id === newId) ?? null;
+      if (created) {
+        setSelected(created);
+        setView("detail");
+      } else {
+        setView("list");
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ── Handlers: edit ───────────────────────────────────────────────────────
+
+  const handleOpenEdit = () => {
+    if (!selected) return;
+    setTitle(selected.title);
+    setScope(selected.scope);
+    setBudget(selected.budget ?? "");
+    setTimeline(selected.timeline ?? "");
+    setGeneratedData({
+      solution: selected.solution ?? "",
+      deliverables: selected.deliverables ?? "",
+      benefits: selected.benefits ?? "",
+    });
+    setView("edit");
+  };
+
+  const handleCancelEdit = () => {
+    resetForm();
+    setView("detail");
+  };
+
+  const handleSaveEdit = async () => {
+    if (!selected || !title.trim() || !scope.trim()) return;
+    setSaving(true);
+    try {
+      const patch = {
+        title: title.trim(),
+        scope: scope.trim(),
+        solution: generatedData?.solution || undefined,
+        deliverables: generatedData?.deliverables || undefined,
+        benefits: generatedData?.benefits || undefined,
+        budget: budget.trim() || undefined,
+        timeline: timeline.trim() || undefined,
+      };
+      await updateProposal(selected.id, patch);
+      setSelected(prev => prev ? { ...prev, ...patch } : prev);
+      resetForm();
+      setView("detail");
       await loadProposals();
     } finally {
       setSaving(false);
     }
   };
+
+  // ── Handlers: detail actions ─────────────────────────────────────────────
 
   const handlePublish = async () => {
     if (!selected) return;
@@ -165,6 +246,22 @@ export function PropuestaTab({ clientId, clientName }: Props) {
       await loadProposals();
     } finally {
       setPublishing(false);
+    }
+  };
+
+  const handleSendEmail = async () => {
+    if (!selected || !clientEmail || !user) return;
+    setSendingEmail(true);
+    try {
+      await sendProposalEmail(selected.id, clientEmail);
+      const data = await getProposals(user.uid, clientId);
+      setProposals(data);
+      const refreshed = data.find(p => p.id === selected.id);
+      if (refreshed) setSelected(refreshed);
+      setEmailSent(true);
+      setTimeout(() => setEmailSent(false), 2500);
+    } finally {
+      setSendingEmail(false);
     }
   };
 
@@ -273,15 +370,20 @@ export function PropuestaTab({ clientId, clientName }: Props) {
     );
   }
 
-  // ── CREATE ────────────────────────────────────────────────────────────────
+  // ── CREATE / EDIT (shared form) ──────────────────────────────────────────
 
-  if (view === "create") {
+  if (view === "create" || view === "edit") {
+    const isEdit = view === "edit";
+
     return (
       <div className="space-y-4">
-        <button onClick={() => setView("list")} className="flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-300 transition-colors">
+        <button
+          onClick={isEdit ? handleCancelEdit : () => setView("list")}
+          className="flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+        >
           <ArrowLeft className="h-3.5 w-3.5" /> Volver
         </button>
-        <h3 className="text-sm font-semibold text-zinc-300">Nueva propuesta</h3>
+        <h3 className="text-sm font-semibold text-zinc-300">{isEdit ? "Editar propuesta" : "Nueva propuesta"}</h3>
 
         <div>
           <label className="mb-1.5 block text-xs font-medium text-zinc-400">Título</label>
@@ -348,12 +450,16 @@ export function PropuestaTab({ clientId, clientName }: Props) {
 
         <div className="flex items-center gap-3">
           <button
-            onClick={handleSave} disabled={!title.trim() || !scope.trim() || saving}
+            onClick={isEdit ? handleSaveEdit : handleSave}
+            disabled={!title.trim() || !scope.trim() || saving}
             className="rounded-lg border border-cyan-500/20 bg-cyan-500/10 px-4 py-2 text-xs font-medium text-cyan-300 transition-all hover:bg-cyan-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {saving ? "Guardando..." : "Guardar propuesta"}
+            {saving ? "Guardando..." : isEdit ? "Guardar cambios" : "Guardar propuesta"}
           </button>
-          <button onClick={() => setView("list")} className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors">
+          <button
+            onClick={isEdit ? handleCancelEdit : () => setView("list")}
+            className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+          >
             Cancelar
           </button>
         </div>
@@ -385,6 +491,39 @@ export function PropuestaTab({ clientId, clientName }: Props) {
         <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium flex-shrink-0 ${STATUS_CONFIG[selected.status].classes}`}>
           {STATUS_CONFIG[selected.status].label}
         </span>
+      </div>
+
+      {/* Quick actions */}
+      <div className="flex flex-wrap gap-2">
+        <button
+          onClick={handleOpenEdit}
+          className="flex items-center gap-1.5 rounded-lg border border-white/[0.06] bg-zinc-900/40 px-3 py-1.5 text-xs text-zinc-400 hover:text-zinc-200 transition-all"
+        >
+          <Pencil className="h-3 w-3" /> Editar
+        </button>
+        <button
+          onClick={handleSendEmail}
+          disabled={sendingEmail || !clientEmail}
+          title={!clientEmail ? "Agrega un email al cliente para poder enviarle la propuesta" : undefined}
+          className="flex items-center gap-1.5 rounded-lg border border-white/[0.06] bg-zinc-900/40 px-3 py-1.5 text-xs text-zinc-400 hover:text-zinc-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {emailSent ? <Check className="h-3 w-3 text-green-400" /> : <Mail className="h-3 w-3" />}
+          {sendingEmail ? "Enviando..." : emailSent ? "¡Enviado!" : "Enviar por correo"}
+        </button>
+        <button
+          onClick={() => printProposalPdf(selected.id)}
+          className="flex items-center gap-1.5 rounded-lg border border-white/[0.06] bg-zinc-900/40 px-3 py-1.5 text-xs text-zinc-400 hover:text-zinc-200 transition-all"
+        >
+          <Printer className="h-3 w-3" /> Imprimir
+        </button>
+        <a
+          href={`/api/documents/proposal-pdf?proposalId=${selected.id}`}
+          target="_blank"
+          rel="noreferrer"
+          className="flex items-center gap-1.5 rounded-lg border border-white/[0.06] bg-zinc-900/40 px-3 py-1.5 text-xs text-zinc-400 hover:text-zinc-200 transition-all"
+        >
+          <Download className="h-3 w-3" /> Descargar PDF
+        </a>
       </div>
 
       {/* Timeline */}
@@ -476,15 +615,6 @@ export function PropuestaTab({ clientId, clientName }: Props) {
                 <Mail className="h-3 w-3" />
                 Borrador email
               </CopyButton>
-              <a
-                href={`/api/documents/proposal-pdf?token=${selected.publicToken}`}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center gap-1.5 rounded-lg border border-white/[0.06] bg-zinc-900/40 px-3 py-1.5 text-xs text-zinc-400 hover:text-zinc-200 transition-all"
-              >
-                <Download className="h-3 w-3" />
-                Descargar PDF
-              </a>
             </div>
 
             {/* Version history */}

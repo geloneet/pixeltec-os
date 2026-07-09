@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { ChevronDown, ChevronRight, LoaderCircle, Copy, Check, CornerDownLeft, AlertTriangle } from "lucide-react";
+import { ChevronDown, ChevronRight, Copy, Check, CornerDownLeft, AlertTriangle } from "lucide-react";
 import { motion } from "framer-motion";
 import type { WorkSession } from "@/types/session";
 import type { CRMProject } from "@/types/crm";
 import { getFinalizeState } from "./WorkspaceHeader";
+import { Spinner } from "@/components/ui/spinner";
 
 interface Props {
   session: WorkSession;
@@ -397,7 +398,7 @@ export function ExecutionAssistant({ session, project, elapsed, onSaveAsObservat
             {/* Loading */}
             {aiLoading && (
               <div className="flex items-center gap-2 py-2">
-                <LoaderCircle className="h-3.5 w-3.5 animate-spin text-cyan-400" />
+                <Spinner size="sm" className="text-cyan-400" />
                 <span className="text-xs text-zinc-600">Consultando asistente...</span>
               </div>
             )}

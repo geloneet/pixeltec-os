@@ -4,11 +4,12 @@ import { useEffect, type ReactNode } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { LogOut, LayoutDashboard, FolderKanban, FileText, LifeBuoy, LoaderCircle } from 'lucide-react';
+import { LogOut, LayoutDashboard, FolderKanban, FileText, LifeBuoy } from 'lucide-react';
 import { useLegacyPortalUser as useUser } from '@/hooks/use-legacy-portal-user';
 import { logoutLegacyPortal } from '@/lib/portal/legacy-auth';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
 
 // Define navigation items
 const navItems = [
@@ -25,22 +26,23 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
 
     const handleLogout = async () => {
         await logoutLegacyPortal();
-        router.push('/portal/login');
+        router.push('/login?modo=cliente');
     };
 
     // Authentication and Authorization check
     useEffect(() => {
-        // Skip auth for public token-based portal and for the login page itself
-        const isPublicPortal = /^\/portal\/[a-f0-9]{32}/.test(pathname) || pathname === '/portal/login';
+        // Skip auth for the public token-based portal (/portal/login ya no
+        // renderiza nada propio — redirige a /login?modo=cliente server-side).
+        const isPublicPortal = /^\/portal\/[a-f0-9]{32}/.test(pathname);
         // user is undefined during initial load, null if not logged in, object if logged in.
         if (!isPublicPortal && user === null) {
-            router.push('/portal/login');
+            router.push('/login?modo=cliente');
         }
     }, [user, router, pathname]);
 
 
-    // Public token-based portal and the legacy login page — bypass auth checks entirely
-    const isPublicPortal = /^\/portal\/[a-f0-9]{32}/.test(pathname) || pathname === '/portal/login';
+    // Public token-based portal — bypass auth checks entirely
+    const isPublicPortal = /^\/portal\/[a-f0-9]{32}/.test(pathname);
     if (isPublicPortal) {
         return <>{children}</>;
     }
@@ -49,7 +51,7 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
     if (user === undefined) {
         return (
             <div className="flex h-screen w-full items-center justify-center bg-[#030303]">
-                <LoaderCircle className="h-10 w-10 animate-spin text-cyan-400" />
+                <Spinner size="lg" className="text-cyan-400" />
             </div>
         );
     }

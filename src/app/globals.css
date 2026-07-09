@@ -40,7 +40,7 @@
   }
 
   .dark {
-    --background: 0 0% 2%; /* #050505 */
+    --background: 0 0% 1%; /* #030303 — igual al Portal de Cliente */
     --foreground: 0 0% 98%;
     --card: 0 0% 8%;
     --card-foreground: 0 0% 98%;

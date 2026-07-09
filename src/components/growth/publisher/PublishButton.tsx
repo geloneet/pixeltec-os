@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { Send, Loader2, ExternalLink } from 'lucide-react';
+import { Send, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
 import type { SocialAccountClient } from '@/lib/growth/actions/social-accounts';
 
 interface Props {
@@ -81,7 +82,7 @@ export function PublishButton({ postId, accounts, hasImage }: Props) {
         </select>
       )}
       <Button onClick={handlePublish} disabled={publishing} className="gap-2">
-        {publishing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+        {publishing ? <Spinner size="sm" /> : <Send className="h-4 w-4" />}
         {publishing ? 'Publicando...' : 'Publicar ahora'}
       </Button>
     </div>

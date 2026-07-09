@@ -6,18 +6,11 @@ import {
   Clock, CheckCircle2, AlertCircle, XCircle, FileCheck,
 } from "lucide-react";
 import { useUser } from "@/hooks/use-user";
-import type { Contract, ContractSigner, IATemplate } from "@/types/documents";
-import { getContracts, createContract, updateContract, createContractVersion } from "@/lib/documents/contracts";
-import { getTemplates } from "@/lib/documents/ia-templates";
+import type { Contract, ContractSigner } from "@/types/documents";
+import { getContracts, updateContract, createContractVersion } from "@/lib/documents/contracts";
+import { ContractWizard } from "@/components/crm/contracts/ContractWizard";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
-
-function hydrateContent(content: string, variables: Record<string, string>): string {
-  return Object.entries(variables).reduce(
-    (acc, [key, val]) => acc.replaceAll(`{{${key}}}`, val),
-    content,
-  );
-}
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("es-MX");
@@ -47,24 +40,18 @@ const STATUS_ORDER: Record<Contract["status"], number> = {
 
 interface Props {
   clientId: string;
+  clientName: string;
 }
 
 // ── Component ──────────────────────────────────────────────────────────────────
 
-export function ContratosTab({ clientId }: Props) {
+export function ContratosTab({ clientId, clientName }: Props) {
   const user = useUser();
 
   const [view, setView] = useState<"list" | "create" | "detail">("list");
   const [contracts, setContracts] = useState<Contract[]>([]);
-  const [templates, setTemplates] = useState<IATemplate[]>([]);
   const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
   const [loading, setLoading] = useState(true);
-
-  // Create form
-  const [selectedTemplate, setSelectedTemplate] = useState<IATemplate | null>(null);
-  const [newTitle, setNewTitle] = useState("");
-  const [varValues, setVarValues] = useState<Record<string, string>>({});
-  const [creating, setCreating] = useState(false);
 
   // Detail
   const [editingTitle, setEditingTitle] = useState(false);
@@ -91,14 +78,7 @@ export function ContratosTab({ clientId }: Props) {
     }
   }, [user, clientId]);
 
-  const loadTemplates = useCallback(async () => {
-    if (!user) return;
-    const data = await getTemplates(user.uid, "contrato");
-    setTemplates(data);
-  }, [user]);
-
   useEffect(() => { loadContracts(); }, [loadContracts]);
-  useEffect(() => { if (view === "create") loadTemplates(); }, [view, loadTemplates]);
 
   // ── Signer handlers ───────────────────────────────────────────────────────
 
@@ -206,116 +186,16 @@ export function ContratosTab({ clientId }: Props) {
     );
   }
 
-  // ── CREATE ────────────────────────────────────────────────────────────────
+  // ── CREATE (wizard) ─────────────────────────────────────────────────────
 
   if (view === "create") {
     return (
-      <div className="space-y-4">
-        <button onClick={() => setView("list")} className="flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-300 transition-colors">
-          <ArrowLeft className="h-3.5 w-3.5" /> Volver
-        </button>
-        <h3 className="text-sm font-semibold text-zinc-300">Nuevo contrato</h3>
-
-        {!selectedTemplate ? (
-          <div>
-            <p className="mb-2 text-xs text-zinc-500">Selecciona una plantilla para iniciar</p>
-            <div className="space-y-2">
-              {templates.map((t) => (
-                <button
-                  key={t.id}
-                  onClick={() => {
-                    setSelectedTemplate(t);
-                    setNewTitle(t.name);
-                    const init: Record<string, string> = {};
-                    t.variables.forEach((v) => { init[v] = ""; });
-                    setVarValues(init);
-                  }}
-                  className="w-full text-left rounded-xl border border-white/[0.06] bg-zinc-900/20 p-3 hover:border-cyan-500/20 transition-all"
-                >
-                  <span className="text-sm font-medium text-zinc-200">{t.name}</span>
-                  {t.description && (
-                    <p className="mt-0.5 text-xs text-zinc-500">{t.description}</p>
-                  )}
-                </button>
-              ))}
-              {templates.length === 0 && (
-                <p className="text-xs text-zinc-600">No hay plantillas de tipo &quot;Contrato&quot;. Créalas en Centro IA.</p>
-              )}
-              <button
-                onClick={() => {
-                  setSelectedTemplate({ id: "__blank__", name: "", variables: [], content: "", type: "contrato", uid: "", description: "", isDefault: false, version: 1, createdAt: "", updatedAt: "" });
-                  setNewTitle(""); setVarValues({});
-                }}
-                className="w-full text-left rounded-xl border border-dashed border-white/[0.06] p-3 hover:border-white/[0.12] transition-all text-xs text-zinc-500"
-              >
-                + Empezar en blanco
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <div>
-              <label className="mb-1.5 block text-xs font-medium text-zinc-400">Título</label>
-              <input
-                value={newTitle} onChange={e => setNewTitle(e.target.value)}
-                className="w-full rounded-lg border border-white/[0.06] bg-zinc-900/60 px-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-600 focus:border-cyan-500/40 focus:outline-none"
-                placeholder="Contrato de desarrollo web"
-              />
-            </div>
-
-            {selectedTemplate.variables.length > 0 && (
-              <div className="space-y-3">
-                <p className="text-xs font-medium text-zinc-400">Variables del contrato</p>
-                {selectedTemplate.variables.map((v) => (
-                  <div key={v}>
-                    <label className="mb-1 block font-mono text-xs text-zinc-500">{`{{${v}}}`}</label>
-                    <input
-                      value={varValues[v] ?? ""}
-                      onChange={e => setVarValues(prev => ({ ...prev, [v]: e.target.value }))}
-                      className="w-full rounded-lg border border-white/[0.06] bg-zinc-900/60 px-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-600 focus:border-cyan-500/40 focus:outline-none"
-                      placeholder={v.replace(/_/g, " ")}
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div className="flex gap-2">
-              <button
-                onClick={async () => {
-                  if (!newTitle.trim() || !user) return;
-                  setCreating(true);
-                  try {
-                    const content = selectedTemplate.id === "__blank__"
-                      ? ""
-                      : hydrateContent(selectedTemplate.content, varValues);
-                    await createContract(user.uid, clientId, {
-                      title: newTitle.trim(), content, status: "borrador",
-                      signers: [], variables: varValues,
-                      templateId: selectedTemplate.id === "__blank__" ? undefined : selectedTemplate.id,
-                    });
-                    setView("list");
-                    setSelectedTemplate(null); setNewTitle(""); setVarValues({});
-                    await loadContracts();
-                  } finally {
-                    setCreating(false);
-                  }
-                }}
-                disabled={!newTitle.trim() || creating}
-                className="flex-1 rounded-lg border border-cyan-500/20 bg-cyan-500/10 py-2.5 text-sm font-medium text-cyan-300 transition-all hover:bg-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                {creating ? "Creando..." : "Crear contrato"}
-              </button>
-              <button
-                onClick={() => { setSelectedTemplate(null); setNewTitle(""); setVarValues({}); }}
-                className="rounded-lg border border-white/[0.06] px-4 py-2.5 text-sm text-zinc-500 transition-all hover:text-zinc-300"
-              >
-                Atrás
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
+      <ContractWizard
+        clientId={clientId}
+        clientName={clientName}
+        onDone={() => { setView("list"); loadContracts(); }}
+        onCancel={() => setView("list")}
+      />
     );
   }
 
