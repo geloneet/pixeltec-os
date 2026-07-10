@@ -2,7 +2,7 @@ import { FolderKanban, FileText, LifeBuoy, FolderArchive, Megaphone } from 'luci
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
+import { cn, formatCurrency } from '@/lib/utils';
 import type { PortalDashboardData } from '@/lib/client-portal/pg';
 import { LogoutButton } from './logout-button';
 
@@ -20,9 +20,6 @@ const statusColors: Record<string, string> = {
   'Esperando cliente': 'bg-orange-900/50 text-orange-400 border-orange-500/30',
   'Resuelto': 'bg-green-900/50 text-green-400 border-green-500/30',
 };
-
-const formatCurrency = (value: number) =>
-  new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 0 }).format(value);
 
 function InfoCard({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
   return (
