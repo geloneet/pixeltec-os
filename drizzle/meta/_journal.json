@@ -78,6 +78,13 @@
       "when": 1783625270993,
       "tag": "0010_sturdy_newton_destine",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1783638364688,
+      "tag": "0011_long_strong_guy",
+      "breakpoints": true
     }
   ]
 }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { requireSession } from "@/lib/vpsClient";
-import { findContractByPublicId } from "@/lib/documents/pg";
+import { readPortalSessionClientId } from "@/lib/client-portal/cookie";
+import { resolveClientPgId, findContractByPublicId } from "@/lib/documents/pg";
+import { isPortalAccessEnabled } from "@/lib/client-portal/pg";
 import { resolveContractClientName, generateContractPdf, safeContractFilename } from "@/lib/documents/contract-pdf-render";
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
@@ -11,17 +11,20 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       return new NextResponse("Missing contractId", { status: 400 });
     }
 
-    // Auth — session cookie (admin) only.
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get("__session")?.value ?? "";
-    const session = await requireSession(sessionCookie);
-    if (!session.ok) return new NextResponse("Unauthorized", { status: 401 });
+    const publicClientId = await readPortalSessionClientId();
+    if (!publicClientId) return new NextResponse("Unauthorized", { status: 401 });
+
+    const clientPgId = await resolveClientPgId(publicClientId);
+    if (!clientPgId || !(await isPortalAccessEnabled(clientPgId))) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
 
     const contract = await findContractByPublicId(contractId);
-    if (!contract) {
-      return new NextResponse("Contract not found", { status: 404 });
-    }
-    if (contract.uid !== session.uid) {
+    if (!contract) return new NextResponse("Contract not found", { status: 404 });
+
+    // Anti-IDOR: el contrato debe pertenecer exactamente al cliente de la
+    // sesión Y estar firmado — mismo filtro que ve el dashboard.
+    if (contract.clientId !== publicClientId || contract.status !== "firmado") {
       return new NextResponse("Forbidden", { status: 403 });
     }
 
@@ -36,7 +39,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       },
     });
   } catch (err) {
-    console.error("[contract-pdf]", err);
+    console.error("[portal-contract-pdf]", err);
     return new NextResponse("Internal error", { status: 500 });
   }
 }

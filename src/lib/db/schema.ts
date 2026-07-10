@@ -350,6 +350,10 @@ export const clients = pgTable(
     // 'crm_blob' o 'portal') desde su ficha en /clientes — antes solo
     // funcionaba para source='portal' vía la página separada /portal-legado.
     legacyPortalEnabled: boolean("legacy_portal_enabled").notNull().default(false),
+    // Portal de Clientes v2 (2026-07-09) — interruptor único, independiente
+    // de portalEnabled/legacyPortalEnabled (sistemas viejos borrados). Único
+    // campo nuevo del proyecto — ver docs/superpowers/specs/2026-07-09-portal-clientes-design.md.
+    portalAccessEnabled: boolean("portal_access_enabled").notNull().default(false),
     documents: jsonb("documents").notNull().default([]), // ClientDocument[]
   },
   (t) => [

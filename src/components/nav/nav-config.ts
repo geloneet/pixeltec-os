@@ -54,6 +54,7 @@ const AREA_ITEMS: Record<NavArea, AreaItemRef[]> = {
   crm: [
     { href: "/clientes" },
     { href: "/whatsapp" },
+    { href: "/portal-admin", secondaryLabel: "Portal — acceso" },
   ],
   proyectos: [
     { href: "/proyectos", secondaryLabel: "Todos" },
