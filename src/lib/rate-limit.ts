@@ -8,7 +8,7 @@
  * while we recover.
  */
 
-import { sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { rateLimit } from '@/lib/db/schema';
 import { hashIp } from './privacy';
@@ -33,6 +33,24 @@ export interface RateLimitResult {
 function buildKey(bucket: string, ip: string): string {
   const safeBucket = bucket.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 32);
   return `${safeBucket}__${hashIp(ip || 'unknown')}`;
+}
+
+/**
+ * Borra el contador de un bucket específico — usado cuando un evento
+ * legítimo (ej. emitir un código OTP nuevo) debe darle a esa clave un
+ * presupuesto fresco, en vez de esperar a que expire la ventana de tiempo.
+ * Fail-open silencioso igual que enforceRateLimit: si Postgres falla, no
+ * bloquea el flujo principal (el peor caso es que el contador viejo siga
+ * vigente un poco más, no que el usuario se quede sin poder continuar).
+ */
+export async function resetRateLimit(input: Pick<RateLimitInput, 'ip' | 'bucket'>): Promise<void> {
+  const { ip, bucket } = input;
+  const id = buildKey(bucket, ip);
+  try {
+    await db.delete(rateLimit).where(eq(rateLimit.id, id));
+  } catch (err) {
+    console.error('[rateLimit] resetRateLimit backend error — ignoring', { bucket, err });
+  }
 }
 
 export async function enforceRateLimit(input: RateLimitInput): Promise<RateLimitResult> {

@@ -1,7 +1,7 @@
 'use server';
 
 import { headers } from 'next/headers';
-import { enforceRateLimit } from '@/lib/rate-limit';
+import { enforceRateLimit, resetRateLimit } from '@/lib/rate-limit';
 import { sendEmail } from '@/lib/email';
 import type { PortalActionResult } from '@/lib/action-types';
 import { renderClientPortalAccessEmail } from '@/emails/ClientPortalAccessEmail';
@@ -59,6 +59,7 @@ export async function requestClientPortalCodeAction(email: string): Promise<Port
 
   const code = generateAccessCode();
   await setClientAccessCode(client.id, hashAccessCode(code, portalSessionSecret()), new Date(Date.now() + OTP_TTL_MS));
+  await resetRateLimit({ ip: client.id, bucket: 'client_portal_otp_verify_client' });
 
   const html = renderClientPortalAccessEmail({
     clientName: client.name,
