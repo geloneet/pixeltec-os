@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { describe, expect, test } from "vitest";
 import { signPortalSessionToken, verifyPortalSessionToken } from "./session-token";
 
@@ -32,5 +33,12 @@ describe("signPortalSessionToken / verifyPortalSessionToken", () => {
 
   test("rejects a malformed token", () => {
     expect(verifyPortalSessionToken("not-a-valid-token", SECRET, NOW)).toBeNull();
+  });
+
+  test("rejects a token whose payload is the literal JSON value null", () => {
+    const payloadB64 = Buffer.from("null", "utf-8").toString("base64url");
+    const signature = crypto.createHmac("sha256", SECRET).update(payloadB64).digest("base64url");
+    const token = `${payloadB64}.${signature}`;
+    expect(verifyPortalSessionToken(token, SECRET, NOW)).toBeNull();
   });
 });

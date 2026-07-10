@@ -79,8 +79,32 @@ export async function verifyClientPortalCodeAction(email: string, code: string):
   const trimmedCode = code.trim().replace(/\D/g, '');
   if (trimmedCode.length !== 6) return { success: false, error: 'El código debe tener 6 dígitos.' };
 
+  const headersList = await headers();
+  const ip =
+    headersList.get('x-forwarded-for')?.split(',')[0].trim() ?? headersList.get('x-real-ip') ?? 'unknown';
+  const ipRl = await enforceRateLimit({ ip, bucket: 'client_portal_otp_verify_ip', max: 20, windowMs: 60 * 60 * 1000 });
+  if (!ipRl.allowed) return { success: false, error: 'Demasiados intentos. Inténtalo más tarde.' };
+
   const client = await findSinglePortalClientByEmail(email.trim());
   if (!client || !client.portalAccessEnabled) return { success: false, error: 'Código incorrecto.' };
+
+  // Límite de intentos fallidos por cliente, no solo por IP — un atacante
+  // podría rotar de IP para evitar el límite anterior. Reusa enforceRateLimit
+  // con el id del cliente como clave (no una IP real; ver el comentario de
+  // `ip` en RateLimitInput — solo es una cadena que se hashea para la
+  // clave del bucket). Agota el margen de fuerza bruta sobre un mismo
+  // código dentro de su propia ventana de vigencia (10 min) — al superarse,
+  // se invalida el código vigente y hay que solicitar uno nuevo.
+  const clientRl = await enforceRateLimit({
+    ip: client.id,
+    bucket: 'client_portal_otp_verify_client',
+    max: 5,
+    windowMs: 10 * 60 * 1000,
+  });
+  if (!clientRl.allowed) {
+    await clearClientAccessCode(client.id);
+    return { success: false, error: 'Demasiados intentos incorrectos. Solicita un código nuevo.' };
+  }
 
   const codeState = await getClientCodeState(client.id);
   if (!codeState?.accessCodeHash || !accessCodeMatches(codeState.accessCodeHash, trimmedCode, portalSessionSecret())) {

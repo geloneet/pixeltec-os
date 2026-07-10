@@ -32,6 +32,7 @@ export function verifyPortalSessionToken(token: string, secret: string, now: num
   } catch {
     return null;
   }
+  if (payload === null || typeof payload !== "object") return null;
   if (typeof payload.clientId !== "string" || typeof payload.exp !== "number") return null;
   if (payload.exp <= now) return null;
   return payload;
