@@ -2,6 +2,60 @@
 
 ---
 
+## Sesión 5 — Portal de Clientes v2: borrado de los 3 sistemas viejos + portal nuevo desde cero (2026-07-10)
+
+**Estado al cerrar:** trabajo en worktree `.claude/worktrees/portal-clientes-v2` (rama `worktree-portal-clientes-v2`), NO mergeado a `main`, sin deploy a producción (pendiente de que Miguel lo pida explícitamente).
+
+### Qué se hizo
+
+1. **Borrado de los 3 sistemas de portal viejos** (OTP por correo en `/[slug]`, contraseña en `/portal`, link público por token en `/portal/[token]`) — causaban confusión real: Miguel entró a un link esperando el flujo por correo y aterrizó en la vista pública por token. Commit `ba4405b` en `main`. Base de datos preservada intacta (sin migraciones de borrado).
+2. **Spec y plan nuevos** (`docs/superpowers/specs/2026-07-09-portal-clientes-design.md`, `docs/superpowers/plans/2026-07-09-portal-clientes.md`) vía brainstorming + writing-plans, con varias rondas de preguntas — decisiones clave:
+   - Ruta única `/portal` (correo + código OTP de 6 dígitos), sin slug ni token.
+   - Solo 1 columna nueva en la BD: `clients.portalAccessEnabled`. Todo lo demás reusa columnas/tablas existentes (`accessCodeHash`, `projects`, `contracts`, `finances`, `tickets`, `clientPortalUpdates`).
+   - **Corrección de arquitectura descubierta durante la planeación**: `/clientes` y `/clientes/[id]` (`useCRM()`) solo muestran clientes `source='crm_blob'` — 3 de 13 clientes reales. El control del portal (activar acceso, publicar actualizaciones) se construyó en un panel separado `/portal-admin`, con su propia capa de datos (`src/lib/client-portal/pg.ts`), sin tocar `useCRM()`/`crm-sync.ts`, para alcanzar a los 13 clientes reales.
+3. **Implementación con Subagent-Driven Development** — 16 tareas, un subagente implementador + un revisor por tarea, en worktree aislado. 3 hallazgos Important corregidos durante revisión (non-null assertion en vez de narrowing correcto en `portal-login-client.tsx`; `formatCurrency` duplicado en vez de reusar `src/lib/utils.ts`; y un `.eslintrc.json` sin `"root": true` que rompía `npm run lint` dentro de cualquier worktree — bug de infraestructura, no del feature).
+4. **Bug crítico encontrado en verificación end-to-end real (Task 16)** — ninguna revisión de código lo detectó porque requiere ejecutar el runtime exacto: `src/app/portal/page.tsx` llamaba a `clearPortalSessionCookie()` directo en el render de un Server Component, lo cual Next.js 15 prohíbe (solo Server Actions/Route Handlers pueden mutar cookies). Con una cookie válida de un cliente cuyo portal se desactiva, el usuario veía un 500 en vez del login. Reproducido en vivo contra un dev server real, corregido (se quita la llamada — la seguridad no depende de limpiar la cookie, ya que `getPortalDashboardData`/`isPortalAccessEnabled` revalidan `portalAccessEnabled` en cada uso), y re-verificado en vivo 3 veces.
+
+### Validado esta sesión (contra un dev server real en el worktree, con datos de prueba creados y borrados en la misma sesión — nunca tocó clientes reales)
+
+- `tsc --noEmit`: 0 errores. `npm run lint`: sin errores nuevos (los preexistentes son de archivos no relacionados). `vitest`: 38/38 tests pasan.
+- Ciclo OTP completo contra la BD real: generar código, hash HMAC, verificar correcto/incorrecto, expiración, uso único (se limpia tras verificar).
+- Correo duplicado entre dos clientes → rechazo determinístico (no autentica al azar).
+- `portalAccessEnabled=false` → `getPortalDashboardData` retorna `null`; con `true` → dashboard real con proyectos/facturas/contratos/tickets/feed.
+- `listAllClientsForPortalAdmin` confirmado en vivo: devuelve los 13 clientes reales (incluye `source='portal'` Y `'crm_blob'`), no solo los 3 que ve `/clientes` — la propiedad arquitectónica central del panel admin.
+- HTTP real contra `/portal`: sin cookie → login (200); con cookie válida y portal activo → dashboard (200); con cookie válida y portal desactivado → login, no error (200, tras el fix del bug crítico).
+- Descarga de contrato (`/api/portal/contract-pdf`): contrato propio firmado → 200 + PDF válido; contrato de OTRO cliente → 403; contrato propio sin firmar (borrador) → 403; sin sesión → 401.
+- `/portal-admin` sin sesión → redirige a `/login` (307).
+- Publicar actualización desde la capa de datos → aparece en el dashboard del cliente.
+
+### Pendientes vivos — QA manual con clic real (requiere sesión de admin real de Miguel, no se probó con cuenta temporal/vía curl a propósito)
+
+No se usó browser ni la sesión real de Miguel en esta sesión (sin herramienta de navegador disponible; todo se verificó por HTTP directo con cookies forjadas usando el secreto real, y por la capa de datos). Pendiente para la próxima sesión conjunta:
+
+1. **Flujo completo por navegador**: entrar a `/portal`, pedir código, confirmar que llega el correo real (Resend), escribirlo, ver el dashboard — el envío de email nunca se verificó contra una bandeja real, solo que la función `sendEmail` se llama correctamente.
+2. **Panel `/portal-admin` por clic real**: activar/desactivar el interruptor de un cliente real y publicar una actualización desde la UI (la lógica subyacente ya se verificó directo contra la BD, pero no el formulario/composer en el navegador).
+3. **Botón "Cerrar sesión"** del dashboard — el `onClick` no se probó literalmente (se infirió su efecto quitando la cookie manualmente y confirmando que `/portal` vuelve a mostrar el login).
+4. Confirmar en un build de producción (`next build && next start`) que el nombre del cliente ya no aparece en el payload RSC de depuración cuando el portal está desactivado — comportamiento visto solo en dev mode, no es un bug de este código, orthogonal al fix, pero vale la pena confirmar antes de deploy.
+
+### Para reanudar en nueva sesión
+
+```
+Continuamos en PixelTEC OS. Terminé el Portal de Clientes v2 completo (16 tareas,
+Subagent-Driven Development) en el worktree .claude/worktrees/portal-clientes-v2,
+rama worktree-portal-clientes-v2 — NO mergeado a main todavía. Corregí un bug
+crítico real (cookie mutation ilegal en Server Component) encontrado en la
+verificación end-to-end contra un dev server real, no solo en revisión de código.
+Quedan 4 items de QA manual con clic real (navegador + sesión de Miguel):
+1. Flujo completo /portal por navegador con email real de Resend
+2. Panel /portal-admin por clic real (toggle + publicar actualización)
+3. Botón "Cerrar sesión" (solo se infirió el efecto, no se clickeó)
+4. Confirmar en build de producción que no hay leak de datos en el payload RSC dev
+El detalle completo está en pixeltecpend.md, sección "Sesión 5". Falta decidir
+si mergear esta rama a main y cuándo — sin deploy a producción hasta que lo pidas.
+```
+
+---
+
 ## Sesión 4 — Diagnóstico Inteligente, portal unificado + hotfix de seguridad (2026-07-09)
 
 **Estado al cerrar:** main pusheado a origin (`3d1024a`), dev server arriba, sin deploy a producción (por decisión de Miguel — pendiente de confirmación explícita).
