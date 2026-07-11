@@ -39,10 +39,16 @@ export interface EmailResult {
 
 // ── Core send function ─────────────────────────────────────────────────────────
 
+export interface EmailAttachment {
+  filename: string;
+  content: Buffer;
+}
+
 export async function sendEmail(
   to: string | string[],
   subject: string,
-  html: string
+  html: string,
+  attachments?: EmailAttachment[]
 ): Promise<EmailResult> {
   try {
     const { data, error } = await resend.emails.send({
@@ -50,6 +56,7 @@ export async function sendEmail(
       to: Array.isArray(to) ? to : [to],
       subject,
       html,
+      ...(attachments && attachments.length > 0 ? { attachments } : {}),
     });
 
     if (error) {
@@ -57,7 +64,7 @@ export async function sendEmail(
       return { success: false, error: error.message };
     }
 
-    console.log(`[email] Sent "${subject}" → ${to} (id: ${data?.id})`);
+    console.log(`[email] Sent "${subject}" → ${to} (id: ${data?.id})${attachments?.length ? ` +${attachments.length} adjunto(s)` : ""}`);
     return { success: true, id: data?.id };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
