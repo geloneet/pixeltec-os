@@ -1,0 +1,1 @@
+ALTER TABLE "contracts" ADD COLUMN "pending_billing_items" jsonb DEFAULT '[]'::jsonb NOT NULL;

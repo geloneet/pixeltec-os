@@ -77,6 +77,7 @@ export interface Contract {
   notes?: string;
   templateVersion?: number;
   sections?: ContractSection[];
+  pendingBillingItems?: BillingItemDraft[];
   startDate?: string;
   endDate?: string;
   approvedAt?: string;

@@ -760,6 +760,10 @@ export const contracts = pgTable(
     // `content` se conserva como texto aplanado para el PDF/compat existente.
     templateVersion: integer("template_version").notNull().default(1),
     sections: jsonb("sections").notNull().default([]),
+    // Borrador de cobros capturados en el wizard, aún no convertidos en
+    // billing_items reales — signContract() los consume al firmar (Fase 2,
+    // Task 2). No confundir con `sections` (cláusulas de texto).
+    pendingBillingItems: jsonb("pending_billing_items").notNull().default([]),
     startDate: date("start_date"),
     endDate: date("end_date"),
     approvedAt: timestamp("approved_at", { withTimezone: true }),

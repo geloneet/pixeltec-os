@@ -17,6 +17,7 @@ import {
   serializeContract,
 } from "./pg";
 import { createBillingItemsForContract } from "./billing";
+import { canSignContract } from "./contract-status";
 import {
   buildContractSections,
   flattenSections,
@@ -260,4 +261,40 @@ export async function confirmContractFromWizard(data: ConfirmContractFromWizardI
 
     return row.id;
   });
+}
+
+/**
+ * Firma un contrato: valida la transición (canSignContract), marca
+ * status="firmado" + signedAt, y crea los billing items pendientes (los
+ * capturados en el wizard, guardados en `pendingBillingItems` hasta ahora)
+ * en la misma transacción. createBillingItemsForContract ya es idempotente
+ * por contractId — firmar dos veces por error de red no duplica cobros
+ * porque el segundo intento falla en canSignContract antes de llegar ahí.
+ */
+export async function signContract(contractId: string): Promise<{ ok: boolean; reason?: string }> {
+  const { ownerId } = await requireOwner();
+  const row = await resolveContractRow(contractId);
+  if (!row || row.ownerId !== ownerId) return { ok: false, reason: "not_found" };
+
+  const transition = canSignContract(row.status);
+  if (!transition.ok) return { ok: false, reason: transition.reason };
+
+  const billingItems = (row.pendingBillingItems as BillingItemDraft[]) ?? [];
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(contracts)
+      .set({ status: "firmado", signedAt: new Date(), updatedAt: new Date() })
+      .where(eq(contracts.id, row.id));
+
+    await createBillingItemsForContract(tx, {
+      ownerId,
+      clientPgId: row.clientId,
+      contractPgId: row.id,
+      proposalPgId: row.proposalId,
+      items: billingItems,
+    });
+  });
+
+  return { ok: true };
 }
