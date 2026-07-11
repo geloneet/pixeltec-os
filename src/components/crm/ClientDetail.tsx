@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import Link from "next/link";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,6 +33,7 @@ import {
   ArrowLeft,
   CircleDot,
   FileText,
+  Sparkles,
 } from "lucide-react";
 import type { CRMClient, CRMProject } from "@/types/crm";
 import {
@@ -277,11 +279,18 @@ export function ClientDetail({ client, setView, navigateToProject, setModal, del
           >
             Editar
           </button>
+          <Link
+            href={`/proyectos/definicion/nueva?client=${encodeURIComponent(client.id)}&name=${encodeURIComponent(client.name)}`}
+            className="flex items-center gap-1 rounded-lg border border-cyan-500/20 bg-cyan-500/10 px-3 py-1.5 text-xs font-medium text-cyan-300 transition-all hover:bg-cyan-500/20"
+          >
+            <Sparkles className="h-3 w-3" />
+            Nuevo Proyecto
+          </Link>
           <button
             onClick={() => setModal({ type: "addProject" })}
-            className="rounded-lg border border-cyan-500/20 bg-cyan-500/10 px-3 py-1.5 text-xs font-medium text-cyan-300 transition-all hover:bg-cyan-500/20"
+            className="rounded-lg border border-white/[0.06] bg-zinc-900/40 px-3 py-1.5 text-xs font-medium text-zinc-400 transition-all hover:border-white/[0.10] hover:text-zinc-200"
           >
-            + Proyecto
+            + Proyecto con avance
           </button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

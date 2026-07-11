@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import { Plus } from "lucide-react";
+import Link from "next/link";
+import { Plus, Sparkles } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 import { es } from "date-fns/locale";
 import {
@@ -144,13 +145,22 @@ export function ProyectosTab({ client, navigateToProject, setModal }: Props) {
           <h3 className="text-sm font-semibold text-zinc-100">Proyectos</h3>
           <p className="text-xs text-zinc-500 mt-0.5">{client.projects.length} proyecto{client.projects.length !== 1 ? "s" : ""}</p>
         </div>
-        <button
-          onClick={() => setModal({ type: "addProject", data: { clientId: client.id } })}
-          className="flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-zinc-300 transition-colors hover:bg-white/[0.08] hover:text-zinc-100"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Nuevo proyecto
-        </button>
+        <div className="flex items-center gap-2">
+          <Link
+            href={`/proyectos/definicion/nueva?client=${encodeURIComponent(client.id)}&name=${encodeURIComponent(client.name)}`}
+            className="flex items-center gap-1.5 rounded-lg border border-cyan-500/20 bg-cyan-500/10 px-3 py-1.5 text-xs font-medium text-cyan-300 transition-colors hover:bg-cyan-500/20"
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            Nuevo Proyecto
+          </Link>
+          <button
+            onClick={() => setModal({ type: "addProject", data: { clientId: client.id } })}
+            className="flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-zinc-300 transition-colors hover:bg-white/[0.08] hover:text-zinc-100"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Proyecto nuevo con avance
+          </button>
+        </div>
       </div>
 
       {client.projects.length === 0 ? (

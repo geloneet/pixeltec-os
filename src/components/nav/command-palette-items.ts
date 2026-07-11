@@ -70,6 +70,13 @@ export const PALETTE_NAV_ITEMS: PaletteNavItem[] = [
     icon: FolderKanban,
     section: "trabajo",
   },
+  {
+    href: "/proyectos/definicion",
+    label: "Definición de proyectos",
+    description: "Pipeline IA por estaciones para aterrizar ideas en entregables sellados",
+    icon: Sparkles,
+    section: "trabajo",
+  },
   // ── Finanzas ──────────────────────────────────────────────────────────────
   {
     href: "/cobros",
