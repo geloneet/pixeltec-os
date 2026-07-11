@@ -42,11 +42,12 @@ interface Props {
   clientId: string;
   clientName: string;
   initialProposalId?: string;
+  onInitialProposalConsumed?: () => void;
 }
 
 // ── Component ──────────────────────────────────────────────────────────────────
 
-export function ContratosTab({ clientId, clientName, initialProposalId }: Props) {
+export function ContratosTab({ clientId, clientName, initialProposalId, onInitialProposalConsumed }: Props) {
   const user = useUser();
 
   const [view, setView] = useState<"list" | "create" | "detail">("list");
@@ -82,7 +83,11 @@ export function ContratosTab({ clientId, clientName, initialProposalId }: Props)
   useEffect(() => { loadContracts(); }, [loadContracts]);
 
   useEffect(() => {
-    if (initialProposalId) setView("create");
+    if (initialProposalId) {
+      setView("create");
+      onInitialProposalConsumed?.();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialProposalId]);
 
   // ── Signer handlers ───────────────────────────────────────────────────────

@@ -120,6 +120,7 @@ export function ClientWorkspace({ client, onBack, navigateToProject, setModal, d
               clientId={client.id}
               clientName={client.name}
               initialProposalId={pendingProposalId}
+              onInitialProposalConsumed={() => setPendingProposalId(undefined)}
             />
           </div>
         )}
