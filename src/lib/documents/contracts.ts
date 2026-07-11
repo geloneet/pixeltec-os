@@ -180,9 +180,10 @@ export interface ConfirmContractFromWizardInput {
 
 /**
  * Flujo del wizard de Contratos: genera las cláusulas desde la plantilla
- * base fija (versionada), crea el contrato y sus billing items en una sola
- * transacción. Idempotente vía `createBillingItemsForContract` — confirmar
- * dos veces el mismo contrato no duplica cobros.
+ * base fija (versionada) y crea el contrato en estado "borrador" con sus
+ * billing items pendientes (se convierten en cobros reales al firmar, ver
+ * signContract). Si viene de una propuesta, la marca "aceptada" y la enlaza
+ * al contrato en la misma transacción.
  */
 export async function confirmContractFromWizard(data: ConfirmContractFromWizardInput): Promise<string> {
   if (!data.title.trim()) throw new Error("El contrato necesita un título");
@@ -245,19 +246,19 @@ export async function confirmContractFromWizard(data: ConfirmContractFromWizardI
         signers: [],
         templateVersion: CONTRACT_TEMPLATE_VERSION,
         sections,
+        pendingBillingItems: data.billingItems,
         startDate: data.startDate,
         endDate: data.endDate ?? null,
         approvedAt: new Date(),
       })
       .returning({ id: contracts.id });
 
-    await createBillingItemsForContract(tx, {
-      ownerId,
-      clientPgId,
-      contractPgId: row.id,
-      proposalPgId,
-      items: data.billingItems,
-    });
+    if (proposalPgId) {
+      await tx
+        .update(proposals)
+        .set({ status: "aceptada", contractId: row.id, updatedAt: new Date() })
+        .where(eq(proposals.id, proposalPgId));
+    }
 
     return row.id;
   });
