@@ -15,6 +15,7 @@ import {
   orderedItemIds,
   type InvoiceItemRow,
 } from "./pg";
+import type { Executor } from "./executor";
 
 export async function getInvoices(_uid: string, clientId?: string): Promise<Invoice[]> {
   const { uid, ownerId } = await requireOwner();
@@ -51,7 +52,17 @@ export async function getInvoices(_uid: string, clientId?: string): Promise<Invo
 
 export async function getNextInvoiceNumber(_uid: string): Promise<string> {
   const { ownerId } = await requireOwner();
-  const [{ n }] = await db
+  return getNextInvoiceNumberTx(db, ownerId);
+}
+
+/**
+ * Variante de `getNextInvoiceNumber` para usarse dentro de una transacción ya
+ * abierta y autenticada (p. ej. `createBillingItemsForContract`): recibe el
+ * `ownerId` directo en vez de resolverlo de la sesión, y el executor de la
+ * transacción en vez de abrir su propia sesión de DB.
+ */
+export async function getNextInvoiceNumberTx(executor: Executor, ownerId: string): Promise<string> {
+  const [{ n }] = await executor
     .select({ n: count() })
     .from(invoices)
     .where(eq(invoices.ownerId, ownerId));

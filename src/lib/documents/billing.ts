@@ -4,18 +4,18 @@
 // (billing_items, payment_records), sin dual-id de Firestore: no hay datos
 // migrados para este dominio, así que el id público es directamente el uuid.
 import { and, desc, eq, inArray } from "drizzle-orm";
-import { db, type DB } from "@/lib/db";
-import { billingItems, paymentRecords, clients, contracts } from "@/lib/db/schema";
+import { db } from "@/lib/db";
+import { billingItems, paymentRecords, clients, contracts, invoices, invoiceItems } from "@/lib/db/schema";
 import type { BillingItem, BillingItemDraft, PaymentMethod, PaymentRecord } from "@/types/documents";
 import { computeNextDueDate, isOverdue } from "@/lib/billing/next-due";
 import { computePaymentTransition } from "@/lib/billing/payment-transition";
-import { requireOwner, resolveClientPgId } from "./pg";
+import { requireOwner, resolveClientPgId, orderedItemIds } from "./pg";
+import { buildInvoiceItemFromBillingItem } from "./invoice-mapping";
+import { getNextInvoiceNumberTx } from "./invoices";
+import type { Executor } from "./executor";
 
 type BillingItemRow = typeof billingItems.$inferSelect;
 type PaymentRecordRow = typeof paymentRecords.$inferSelect;
-
-/** Cualquier ejecutor de queries Drizzle — `db` o el `tx` de una transacción. */
-type Executor = DB | Parameters<Parameters<DB["transaction"]>[0]>[0];
 
 function serializePaymentRecord(row: PaymentRecordRow): PaymentRecord {
   return {
@@ -65,10 +65,11 @@ function serializeBillingItem(
 }
 
 /**
- * Inserta los billing items de un contrato. Idempotente: si el contrato ya
- * tiene billing items (p. ej. doble click en "Confirmar"), no duplica.
- * Acepta un executor (`db` o un `tx`) para poder correr dentro de la misma
- * transacción que crea el contrato.
+ * Inserta los billing items de un contrato y, por cada uno, su factura en
+ * borrador (1 factura = 1 cobro, ver invoice-mapping.ts). Idempotente: si el
+ * contrato ya tiene billing items (p. ej. doble click en "Confirmar"), no
+ * duplica ni cobros ni facturas. Acepta un executor (`db` o un `tx`) para
+ * poder correr dentro de la misma transacción que crea el contrato.
  */
 export async function createBillingItemsForContract(
   executor: Executor,
@@ -88,19 +89,56 @@ export async function createBillingItemsForContract(
   if (existing.length > 0) return; // ya confirmado antes — no duplicar
   if (params.items.length === 0) return;
 
-  await executor.insert(billingItems).values(
-    params.items.map((item) => ({
-      ownerId: params.ownerId,
-      clientId: params.clientPgId,
-      contractId: params.contractPgId,
-      proposalId: params.proposalPgId ?? null,
-      concept: item.concept,
-      amount: String(item.amount),
-      frequency: item.frequency,
-      dueDate: item.dueDate,
-      nextDueDate: computeNextDueDate(item.dueDate, item.frequency),
-    })),
-  );
+  const inserted = await executor
+    .insert(billingItems)
+    .values(
+      params.items.map((item) => ({
+        ownerId: params.ownerId,
+        clientId: params.clientPgId,
+        contractId: params.contractPgId,
+        proposalId: params.proposalPgId ?? null,
+        concept: item.concept,
+        amount: String(item.amount),
+        frequency: item.frequency,
+        dueDate: item.dueDate,
+        nextDueDate: computeNextDueDate(item.dueDate, item.frequency),
+      })),
+    )
+    .returning({ id: billingItems.id, concept: billingItems.concept, amount: billingItems.amount, dueDate: billingItems.dueDate });
+
+  for (const bi of inserted) {
+    const invoiceItem = buildInvoiceItemFromBillingItem({ concept: bi.concept, amount: Number(bi.amount) });
+    const number = await getNextInvoiceNumberTx(executor, params.ownerId);
+    const [invoiceRow] = await executor
+      .insert(invoices)
+      .values({
+        ownerId: params.ownerId,
+        clientId: params.clientPgId,
+        billingItemId: bi.id,
+        number,
+        status: "borrador",
+        subtotal: String(invoiceItem.subtotal),
+        ivaRate: "0.16",
+        ivaAmount: String(Math.round(invoiceItem.subtotal * 0.16 * 100) / 100),
+        total: String(Math.round(invoiceItem.subtotal * 1.16 * 100) / 100),
+        currency: "MXN",
+        issueDate: bi.dueDate,
+        dueDate: bi.dueDate,
+      })
+      .returning({ id: invoices.id });
+
+    const ids = orderedItemIds(1);
+    await executor.insert(invoiceItems).values([
+      {
+        id: ids[0],
+        invoiceId: invoiceRow.id,
+        description: invoiceItem.description,
+        qty: String(invoiceItem.qty),
+        unitPrice: String(invoiceItem.unitPrice),
+        subtotal: String(invoiceItem.subtotal),
+      },
+    ]);
+  }
 }
 
 async function loadBillingItems(conds: ReturnType<typeof eq>[]): Promise<BillingItem[]> {
