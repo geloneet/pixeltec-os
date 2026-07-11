@@ -1,18 +1,18 @@
 /**
- * Configuración declarativa de las 4 estaciones del pipeline de Definición.
+ * System prompts y armado del mensaje de arranque por estación (lado servidor).
  *
- * TODO lo que varía entre estaciones vive aquí (persona/prompt, etiquetas,
- * cómo se arma el mensaje de arranque con el contexto upstream). El motor
- * (API route, actions, UI) es genérico e itera sobre esta config — es UNA
- * mecánica reutilizada 4 veces, no 4 desarrollos.
- *
- * El contexto entre estaciones viaja por los SELLOS, no por el historial de
- * chat: cada estación arranca conversación limpia y su `buildKickoffMessage`
- * inyecta los `sealedContent` upstream que necesita. Ver src/lib/definition/
- * types.ts para el orden canónico.
+ * Los metadatos de presentación (etiquetas, sealName, etc.) viven en
+ * station-meta.ts (client-safe). Aquí se les adjunta el system prompt del "PM
+ * retador" y el `buildKickoffMessage` que inyecta el contexto upstream. El
+ * contexto entre estaciones viaja por los SELLOS, no por el historial de chat:
+ * cada estación arranca conversación limpia.
  */
 import type { DefinitionStation } from "@/lib/definition/types";
-import { STATION_SEQUENCE } from "@/lib/definition/types";
+import {
+  STATION_META,
+  getStationMeta,
+  type StationMeta,
+} from "@/lib/definition/station-meta";
 
 export interface StationContext {
   clientName: string;
@@ -21,23 +21,7 @@ export interface StationContext {
   sealed: Partial<Record<DefinitionStation, string>>;
 }
 
-export interface StationConfig {
-  id: DefinitionStation;
-  order: number;
-  /** Etiqueta corta para el stepper. */
-  stepLabel: string;
-  /** Título completo de la estación. */
-  title: string;
-  /** Nombre del entregable y H1 del documento (contrato de salida). */
-  sealName: string;
-  /** Texto del botón de aprobación. */
-  approveLabel: string;
-  /** true si el sello es uno de los 3 documentos descargables finales. */
-  deliverable: boolean;
-  /** Slug de export (solo estaciones deliverable). */
-  exportSlug?: "origen" | "mvp" | "flujo";
-  /** Descripción de una línea para la UI. */
-  hint: string;
+export interface StationConfig extends StationMeta {
   systemPrompt: string;
   buildKickoffMessage: (ctx: StationContext) => string;
 }
@@ -57,7 +41,10 @@ CONTRATO DE SALIDA (obligatorio):
 - Si tienes retos, dudas o decisiones que el usuario debería confirmar, ponlos al final dentro de una sección "## Preguntas del PM" (máximo 5, priorizadas). El usuario las responde iterando.
 - Cuando el usuario te pida ajustes, reescribe el documento COMPLETO ya corregido (no mandes solo el cambio).`;
 
-function contextBlock(ctx: StationContext, parts: Array<[string, string | undefined]>): string {
+function contextBlock(
+  ctx: StationContext,
+  parts: Array<[string, string | undefined]>
+): string {
   const lines = [`Cliente: ${ctx.clientName}`];
   for (const [label, value] of parts) {
     if (value && value.trim()) {
@@ -67,20 +54,10 @@ function contextBlock(ctx: StationContext, parts: Array<[string, string | undefi
   return lines.join("\n");
 }
 
-// ── Estaciones ──────────────────────────────────────────────────────────────
+// ── System prompts + kickoffs por estación ──────────────────────────────────
 
-export const STATIONS: StationConfig[] = [
-  {
-    id: "boceto",
-    order: 0,
-    stepLabel: "Boceto",
-    title: "Estación 1 — Boceto",
-    sealName: "Origen Note",
-    approveLabel: "Esto es exactamente lo que quiero",
-    deliverable: true,
-    exportSlug: "origen",
-    hint: "La IA aterriza tu descarga mental en un boceto estructurado.",
-    systemPrompt: `${PM_PERSONA}
+const SYSTEM_PROMPTS: Record<DefinitionStation, string> = {
+  boceto: `${PM_PERSONA}
 
 ESTACIÓN 1 — BOCETO.
 A partir de la "descarga mental" del usuario (idea cruda, problemas a resolver, todo lo que trae en la cabeza), aterriza la idea en un boceto claro y estructurado.
@@ -93,21 +70,8 @@ El documento empieza con "# Origen Note" y contiene estas secciones:
 ## Supuestos y riesgos
 
 Reta lo que esté vago o contradictorio. Donde falte información, propón un supuesto explícito en vez de dejar el hueco.`,
-    buildKickoffMessage: (ctx) =>
-      `${contextBlock(ctx, [["Descarga mental del usuario", ctx.brainDump]])}
 
-Genera el "Origen Note" (boceto) a partir de esta descarga mental.`,
-  },
-  {
-    id: "funciones",
-    order: 1,
-    stepLabel: "Funciones",
-    title: "Estación 2a — Lista de funciones",
-    sealName: "Lista de funciones",
-    approveLabel: "Apruebo la lista",
-    deliverable: false,
-    hint: "La IA imagina la lista COMPLETA de funciones posibles (sin recortar todavía).",
-    systemPrompt: `${PM_PERSONA}
+  funciones: `${PM_PERSONA}
 
 ESTACIÓN 2a — LISTA DE FUNCIONES.
 Con base en el Origen Note ya sellado, genera la lista MÁS COMPLETA posible de funciones que este producto podría tener. Aquí NO se recorta nada — sé exhaustivo y ambicioso, imagina todo lo que aporte valor.
@@ -116,22 +80,8 @@ El documento empieza con "# Lista de funciones" y agrupa las funciones por domin
 - **Nombre de la función** — qué hace, en una línea.
 
 Mantén el formato de lista estable y parejo (la siguiente estación va a recortar sobre esta lista).`,
-    buildKickoffMessage: (ctx) =>
-      `${contextBlock(ctx, [["Origen Note (sellado)", ctx.sealed.boceto]])}
 
-Genera la lista completa de funciones imaginables para este producto.`,
-  },
-  {
-    id: "mvp",
-    order: 2,
-    stepLabel: "Recorte MVP",
-    title: "Estación 2b — Recorte MVP",
-    sealName: "MVP 1.0",
-    approveLabel: "Apruebo el MVP",
-    deliverable: true,
-    exportSlug: "mvp",
-    hint: "La IA recorta a la característica central sin la cual no hay producto.",
-    systemPrompt: `${PM_PERSONA}
+  mvp: `${PM_PERSONA}
 
 ESTACIÓN 2b — RECORTE MVP.
 A partir de la lista de funciones ya sellada, identifica LA característica central sin la cual el producto no tendría sentido, y define el MVP 1.0: el núcleo mínimo imprescindible alrededor de esa característica. Sé AGRESIVO recortando y defiende el recorte.
@@ -145,25 +95,8 @@ El documento tiene DOS secciones de primer nivel obligatorias:
 (Toda función que se recorta del MVP. Por cada una: nombre, razón de una línea del recorte, y la condición o momento en que valdría la pena descongelarla.)
 
 Empieza el documento con "# MVP 1.0".`,
-    buildKickoffMessage: (ctx) =>
-      `${contextBlock(ctx, [
-        ["Origen Note (sellado)", ctx.sealed.boceto],
-        ["Lista de funciones (sellada)", ctx.sealed.funciones],
-      ])}
 
-Recorta al MVP 1.0 y manda a la Congeladora lo que no sea imprescindible.`,
-  },
-  {
-    id: "flujo",
-    order: 3,
-    stepLabel: "Flujo",
-    title: "Estación 3 — Flujo de usuario",
-    sealName: "Flujo de Usuario",
-    approveLabel: "Apruebo el flujo",
-    deliverable: true,
-    exportSlug: "flujo",
-    hint: "La IA traza el flujo de usuario del MVP.",
-    systemPrompt: `${PM_PERSONA}
+  flujo: `${PM_PERSONA}
 
 ESTACIÓN 3 — FLUJO DE USUARIO.
 Con base en el MVP 1.0 ya sellado (ignora la Congeladora: esas funciones NO existen para este flujo), traza el flujo de usuario del producto.
@@ -175,37 +108,49 @@ Pasos numerados desde el primer contacto del usuario hasta que logra el valor ce
 Los momentos sin datos o donde algo puede salir mal, y cómo se resuelven.
 
 Solo sobre lo que quedó en el MVP 1.0.`,
-    buildKickoffMessage: (ctx) =>
-      `${contextBlock(ctx, [
-        ["Origen Note (sellado)", ctx.sealed.boceto],
-        ["MVP 1.0 (sellado)", ctx.sealed.mvp],
-      ])}
+};
+
+const KICKOFFS: Record<DefinitionStation, (ctx: StationContext) => string> = {
+  boceto: (ctx) =>
+    `${contextBlock(ctx, [["Descarga mental del usuario", ctx.brainDump]])}
+
+Genera el "Origen Note" (boceto) a partir de esta descarga mental.`,
+
+  funciones: (ctx) =>
+    `${contextBlock(ctx, [["Origen Note (sellado)", ctx.sealed.boceto]])}
+
+Genera la lista completa de funciones imaginables para este producto.`,
+
+  mvp: (ctx) =>
+    `${contextBlock(ctx, [
+      ["Origen Note (sellado)", ctx.sealed.boceto],
+      ["Lista de funciones (sellada)", ctx.sealed.funciones],
+    ])}
+
+Recorta al MVP 1.0 y manda a la Congeladora lo que no sea imprescindible.`,
+
+  flujo: (ctx) =>
+    `${contextBlock(ctx, [
+      ["Origen Note (sellado)", ctx.sealed.boceto],
+      ["MVP 1.0 (sellado)", ctx.sealed.mvp],
+    ])}
 
 Traza el flujo de usuario del MVP 1.0.`,
-  },
-];
+};
 
-// ── Helpers ─────────────────────────────────────────────────────────────────
+// ── Config completa (meta + prompt) ─────────────────────────────────────────
 
-const BY_ID = new Map(STATIONS.map((s) => [s.id, s]));
+export const STATIONS: StationConfig[] = STATION_META.map((meta) => ({
+  ...meta,
+  systemPrompt: SYSTEM_PROMPTS[meta.id],
+  buildKickoffMessage: KICKOFFS[meta.id],
+}));
 
 export function getStationConfig(id: DefinitionStation): StationConfig {
-  const cfg = BY_ID.get(id);
-  if (!cfg) throw new Error(`Estación desconocida: ${id}`);
-  return cfg;
-}
-
-/** Config por slug de export (origen/mvp/flujo). */
-export function getStationByExportSlug(
-  slug: string
-): StationConfig | undefined {
-  return STATIONS.find((s) => s.exportSlug === slug);
-}
-
-/** Las 3 estaciones cuyo sello es un documento descargable, en orden. */
-export const DELIVERABLE_STATIONS = STATIONS.filter((s) => s.deliverable);
-
-// Sanity: la config cubre exactamente la secuencia canónica.
-if (STATIONS.length !== STATION_SEQUENCE.length) {
-  throw new Error("STATIONS no coincide con STATION_SEQUENCE");
+  const meta = getStationMeta(id);
+  return {
+    ...meta,
+    systemPrompt: SYSTEM_PROMPTS[id],
+    buildKickoffMessage: KICKOFFS[id],
+  };
 }

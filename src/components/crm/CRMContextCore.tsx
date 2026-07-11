@@ -42,7 +42,7 @@ interface CRMContextValue {
   addClient: (data: Omit<CRMClient, "id" | "projects" | "createdAt">) => string | null;
   updateClient: (id: string, data: Partial<CRMClient>) => void;
   deleteClient: (id: string) => void;
-  addProject: (clientId: string, data: Omit<CRMProject, "id" | "keys" | "tasks" | "charges" | "createdAt" | "guides" | "accounts" | "readme" | "prompt" | "quickNotes">) => void;
+  addProject: (clientId: string, data: Omit<CRMProject, "id" | "keys" | "tasks" | "charges" | "createdAt" | "guides" | "accounts" | "readme" | "prompt" | "quickNotes">) => string | null;
   updateProject: (clientId: string, projectId: string, data: Partial<CRMProject>) => void;
   deleteProject: (clientId: string, projectId: string) => void;
   addTask: (clientId: string, projectId: string, data: Pick<CRMTask, "name" | "desc" | "prio"> & Partial<Pick<CRMTask, "sessionId">>) => void;
@@ -240,13 +240,13 @@ export function CRMProvider({ children }: { children: ReactNode }) {
   }, [update]);
 
   // CRUD: Projects
-  const addProject = useCallback((clientId: string, data: Omit<CRMProject, "id" | "keys" | "tasks" | "charges" | "createdAt" | "guides" | "accounts" | "readme" | "prompt" | "quickNotes">) => {
+  const addProject = useCallback((clientId: string, data: Omit<CRMProject, "id" | "keys" | "tasks" | "charges" | "createdAt" | "guides" | "accounts" | "readme" | "prompt" | "quickNotes">): string | null => {
     const validation = projectSchema.safeParse(data);
     if (!validation.success) {
       toast.error('Datos inválidos', {
         description: validation.error.errors[0]?.message || 'Revisa los campos',
       });
-      return;
+      return null;
     }
     const p: CRMProject = { ...data, id: uid(), keys: [], tasks: [], charges: [], guides: "", accounts: "", readme: "", prompt: "", quickNotes: "", notesLog: [], createdAt: new Date().toISOString() };
     const next = dataRef.current.clients.map(c =>
@@ -254,6 +254,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     );
     bumpStreak();
     update(next, dataRef.current.streak);
+    return p.id;
   }, [update, bumpStreak]);
 
   const updateProject = useCallback((clientId: string, projectId: string, data: Partial<CRMProject>) => {
