@@ -10,6 +10,7 @@ import { StationComposer } from "@/components/definition/StationComposer";
 import { ApproveBar } from "@/components/definition/ApproveBar";
 import { SealedStationView } from "@/components/definition/SealedStationView";
 import { DefinitionSummary } from "@/components/definition/DefinitionSummary";
+import { DefinitionAuditTrail } from "@/components/definition/DefinitionAuditTrail";
 import { getStationMeta, STATION_META } from "@/lib/definition/station-meta";
 import { stationOrder } from "@/lib/definition/types";
 import type { DefinitionStation } from "@/lib/definition/types";
@@ -232,6 +233,10 @@ export function DefinitionWorkspace({ data }: Props) {
           documentos están sellados y listos para descargar.
         </div>
       )}
+
+      <div className="mt-6">
+        <DefinitionAuditTrail events={data.events} />
+      </div>
     </div>
   );
 }
