@@ -1802,6 +1802,169 @@ export const whatsappContactNotes = pgTable(
 );
 
 // ════════════════════════════════════════════════════════════════════════
+// Definición de Proyecto — pipeline IA por estaciones (PM retador)
+//
+// Proceso guiado por IA para aterrizar una idea cruda ("descarga mental") en
+// entregables sellados, ANTES de que exista como proyecto CRM. Ligado a un
+// `clients`, separado de `projects` (al completar se puede convertir a
+// proyecto CRM con un clic — vía el contexto CRM client-side, nunca por repo,
+// para no chocar con la reconciliación de blob de crm-sync.ts).
+//
+// UNA mecánica (generar → aprobar/modificar → regenerar → sellar) reutilizada
+// en 4 estaciones: boceto (→ Origen Note), funciones, mvp (→ MVP 1.0 +
+// Congeladora), flujo. Chat de iteraciones ilimitadas => filas normalizadas
+// (inserts incrementales), NO un blob jsonb que se reescribe.
+// ════════════════════════════════════════════════════════════════════════
+
+export const definitionStationEnum = pgEnum("definition_station", [
+  "boceto",
+  "funciones",
+  "mvp",
+  "flujo",
+]);
+
+export const definitionStatusEnum = pgEnum("definition_status", [
+  "in_progress",
+  "completed",
+]);
+
+export const definitionStationStatusEnum = pgEnum("definition_station_status", [
+  "pending", // aún no alcanzada
+  "in_progress", // estación activa
+  "sealed", // aprobada/sellada (inmutable)
+  "invalidated", // su sello fue anulado por reapertura upstream
+]);
+
+export const definitionMessageRoleEnum = pgEnum("definition_message_role", [
+  "user",
+  "assistant",
+]);
+
+export const definitionEventTypeEnum = pgEnum("definition_event_type", [
+  "created",
+  "sealed",
+  "reopened",
+  "invalidated",
+  "converted",
+]);
+
+export const projectDefinitions = pgTable(
+  "project_definitions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    clientId: uuid("client_id")
+      .notNull()
+      .references(() => clients.id, { onDelete: "cascade" }),
+    // Id estilo CRM (firestoreId) del cliente — necesario para operar el
+    // contexto CRM client-side en la conversión final a proyecto.
+    clientCrmId: text("client_crm_id").notNull(),
+    title: text("title").notNull(),
+    brainDump: text("brain_dump").notNull(), // la descarga mental original, inmutable
+    currentStation: definitionStationEnum("current_station").notNull().default("boceto"),
+    status: definitionStatusEnum("status").notNull().default("in_progress"),
+    convertedProjectCrmId: text("converted_project_crm_id"),
+    convertedAt: timestamp("converted_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("project_definitions_owner_idx").on(t.ownerId),
+    index("project_definitions_client_idx").on(t.clientId),
+  ]
+);
+
+export const definitionStations = pgTable(
+  "definition_stations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    definitionId: uuid("definition_id")
+      .notNull()
+      .references(() => projectDefinitions.id, { onDelete: "cascade" }),
+    station: definitionStationEnum("station").notNull(),
+    status: definitionStationStatusEnum("status").notNull().default("pending"),
+    currentDraft: text("current_draft"), // última propuesta de la IA (markdown)
+    sealedContent: text("sealed_content"), // congelado al aprobar; NUNCA se edita
+    sealedAt: timestamp("sealed_at", { withTimezone: true }),
+    sealedBy: uuid("sealed_by").references(() => users.id, { onDelete: "set null" }),
+    sealedByName: text("sealed_by_name"), // desnormalizado para mostrar sin join
+    reopenCount: integer("reopen_count").notNull().default(0),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("definition_stations_def_station_idx").on(t.definitionId, t.station),
+  ]
+);
+
+export const definitionMessages = pgTable(
+  "definition_messages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    definitionId: uuid("definition_id")
+      .notNull()
+      .references(() => projectDefinitions.id, { onDelete: "cascade" }),
+    station: definitionStationEnum("station").notNull(),
+    role: definitionMessageRoleEnum("role").notNull(),
+    content: text("content").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("definition_messages_def_station_idx").on(
+      t.definitionId,
+      t.station,
+      t.createdAt
+    ),
+  ]
+);
+
+export const definitionEvents = pgTable(
+  "definition_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    definitionId: uuid("definition_id")
+      .notNull()
+      .references(() => projectDefinitions.id, { onDelete: "cascade" }),
+    station: definitionStationEnum("station"), // null para created/converted
+    type: definitionEventTypeEnum("type").notNull(),
+    actorId: uuid("actor_id").references(() => users.id, { onDelete: "set null" }),
+    actorName: text("actor_name").notNull(),
+    reason: text("reason"), // motivo de reapertura
+    snapshot: text("snapshot"), // sealedContent previo al reabrir/invalidar (auditoría)
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("definition_events_def_idx").on(t.definitionId, t.createdAt)]
+);
+
+export const projectDefinitionsRelations = relations(
+  projectDefinitions,
+  ({ many, one }) => ({
+    owner: one(users, {
+      fields: [projectDefinitions.ownerId],
+      references: [users.id],
+    }),
+    client: one(clients, {
+      fields: [projectDefinitions.clientId],
+      references: [clients.id],
+    }),
+    stations: many(definitionStations),
+    messages: many(definitionMessages),
+    events: many(definitionEvents),
+  })
+);
+
+export const definitionStationsRelations = relations(
+  definitionStations,
+  ({ one }) => ({
+    definition: one(projectDefinitions, {
+      fields: [definitionStations.definitionId],
+      references: [projectDefinitions.id],
+    }),
+  })
+);
+
+// ════════════════════════════════════════════════════════════════════════
 // Type exports
 // ════════════════════════════════════════════════════════════════════════
 
@@ -1885,3 +2048,12 @@ export type WhatsappContactRow = typeof whatsappContacts.$inferSelect;
 export type NewWhatsappContactRow = typeof whatsappContacts.$inferInsert;
 export type WhatsappContactNoteRow = typeof whatsappContactNotes.$inferSelect;
 export type NewWhatsappContactNoteRow = typeof whatsappContactNotes.$inferInsert;
+
+export type ProjectDefinition = typeof projectDefinitions.$inferSelect;
+export type NewProjectDefinition = typeof projectDefinitions.$inferInsert;
+export type DefinitionStationRow = typeof definitionStations.$inferSelect;
+export type NewDefinitionStationRow = typeof definitionStations.$inferInsert;
+export type DefinitionMessage = typeof definitionMessages.$inferSelect;
+export type NewDefinitionMessage = typeof definitionMessages.$inferInsert;
+export type DefinitionEvent = typeof definitionEvents.$inferSelect;
+export type NewDefinitionEvent = typeof definitionEvents.$inferInsert;

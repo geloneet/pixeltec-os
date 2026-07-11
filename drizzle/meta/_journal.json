@@ -85,6 +85,13 @@
       "when": 1783638364688,
       "tag": "0011_long_strong_guy",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1783800851669,
+      "tag": "0012_fine_maddog",
+      "breakpoints": true
     }
   ]
 }
