@@ -268,6 +268,7 @@ export function serializeInvoice(
     uid,
     clientId: clientPublicId,
     projectId: row.projectId ?? undefined,
+    billingItemId: row.billingItemId ?? undefined,
     number: row.number,
     status: row.status,
     items: items.map(serializeInvoiceItem),

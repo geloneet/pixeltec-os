@@ -843,6 +843,7 @@ export const invoices = pgTable(
       .notNull()
       .references(() => clients.id, { onDelete: "cascade" }),
     projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
+    billingItemId: uuid("billing_item_id").references(() => billingItems.id, { onDelete: "set null" }),
     number: text("number").notNull(),
     status: invoiceStatusEnum("status").notNull().default("borrador"),
     subtotal: numeric("subtotal", { precision: 12, scale: 2 }).notNull(),
@@ -862,6 +863,7 @@ export const invoices = pgTable(
     index("invoices_client_idx").on(t.clientId),
     uniqueIndex("invoices_number_idx").on(t.number),
     uniqueIndex("invoices_firestore_id_idx").on(t.firestoreId),
+    index("invoices_billing_item_idx").on(t.billingItemId),
   ]
 );
 

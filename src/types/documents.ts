@@ -170,6 +170,7 @@ export interface Invoice {
   uid: string;
   clientId: string;
   projectId?: string;
+  billingItemId?: string;
   number: string;   // "FAC-2026-001"
   status: "borrador" | "enviada" | "vista" | "pagada" | "vencida" | "cancelada";
   items: InvoiceItem[];

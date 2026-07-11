@@ -85,6 +85,13 @@
       "when": 1783638364688,
       "tag": "0011_long_strong_guy",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1783803740573,
+      "tag": "0012_majestic_the_fallen",
+      "breakpoints": true
     }
   ]
 }
