@@ -75,6 +75,7 @@ interface Props {
   clientId: string;
   clientName: string;
   clientEmail: string;
+  onGenerarContrato: (proposalId: string) => void;
 }
 
 // ── CopyButton helper ─────────────────────────────────────────────────────────
@@ -99,7 +100,7 @@ function CopyButton({ text, children }: { text: string; children: React.ReactNod
 
 // ── Component ──────────────────────────────────────────────────────────────────
 
-export function PropuestaTab({ clientId, clientName, clientEmail }: Props) {
+export function PropuestaTab({ clientId, clientName, clientEmail, onGenerarContrato }: Props) {
   const user = useUser();
 
   const [view, setView] = useState<"list" | "create" | "edit" | "detail">("list");
@@ -118,7 +119,6 @@ export function PropuestaTab({ clientId, clientName, clientEmail }: Props) {
 
   // Detail actions
   const [publishing, setPublishing] = useState(false);
-  const [converting, setConverting] = useState(false);
   const [sendingEmail, setSendingEmail] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
   const [showVersions, setShowVersions] = useState(false);
@@ -262,36 +262,6 @@ export function PropuestaTab({ clientId, clientName, clientEmail }: Props) {
       setTimeout(() => setEmailSent(false), 2500);
     } finally {
       setSendingEmail(false);
-    }
-  };
-
-  const handleConvertToContract = async () => {
-    if (!user || !selected) return;
-    setConverting(true);
-    try {
-      const { createContract } = await import("@/lib/documents/contracts");
-      const content = [
-        selected.scope && `ALCANCE:\n${selected.scope}`,
-        selected.solution && `\nSOLUCIÓN PROPUESTA:\n${selected.solution}`,
-        selected.deliverables && `\nENTREGABLES:\n${selected.deliverables}`,
-        selected.benefits && `\nBENEFICIOS:\n${selected.benefits}`,
-        selected.budget && `\nPRESUPUESTO: ${selected.budget}`,
-        selected.timeline && `\nTIMELINE: ${selected.timeline}`,
-      ].filter(Boolean).join("\n");
-
-      const newContractId = await createContract(user.uid, clientId, {
-        title: selected.title,
-        content,
-        status: "borrador",
-        signers: [],
-        variables: {},
-        proposalId: selected.id,
-      });
-      await updateProposal(selected.id, { status: "aceptada", contractId: newContractId });
-      setSelected(prev => prev ? { ...prev, status: "aceptada", contractId: newContractId } : prev);
-      await loadProposals();
-    } finally {
-      setConverting(false);
     }
   };
 
@@ -724,10 +694,10 @@ export function PropuestaTab({ clientId, clientName, clientEmail }: Props) {
 
         {!selected.contractId && selected.status !== "rechazada" && (
           <button
-            onClick={handleConvertToContract} disabled={converting}
-            className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-2 text-xs font-medium text-amber-300 transition-all hover:bg-amber-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => onGenerarContrato(selected.id)}
+            className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-2 text-xs font-medium text-amber-300 transition-all hover:bg-amber-500/20"
           >
-            {converting ? "Convirtiendo..." : "Convertir a contrato"}
+            Generar contrato
           </button>
         )}
 

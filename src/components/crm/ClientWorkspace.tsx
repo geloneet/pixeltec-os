@@ -51,6 +51,7 @@ function WorkspaceEmptyTab({ label, sprint }: { label: string; sprint: string })
 
 export function ClientWorkspace({ client, onBack, navigateToProject, setModal, deleteClient }: Props) {
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("resumen");
+  const [pendingProposalId, setPendingProposalId] = useState<string | undefined>(undefined);
 
   return (
     <div className="flex flex-col h-full">
@@ -102,12 +103,24 @@ export function ClientWorkspace({ client, onBack, navigateToProject, setModal, d
         )}
         {activeTab === "propuesta"  && (
           <div className="p-6">
-            <PropuestaTab clientId={client.id} clientName={client.name} clientEmail={client.email} />
+            <PropuestaTab
+              clientId={client.id}
+              clientName={client.name}
+              clientEmail={client.email}
+              onGenerarContrato={(proposalId) => {
+                setPendingProposalId(proposalId);
+                setActiveTab("contratos");
+              }}
+            />
           </div>
         )}
         {activeTab === "contratos"  && (
           <div className="p-6">
-            <ContratosTab clientId={client.id} clientName={client.name} />
+            <ContratosTab
+              clientId={client.id}
+              clientName={client.name}
+              initialProposalId={pendingProposalId}
+            />
           </div>
         )}
         {activeTab === "documentos" && (

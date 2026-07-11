@@ -30,9 +30,10 @@ interface Props {
   clientName: string;
   onDone: () => void;
   onCancel: () => void;
+  initialProposalId?: string;
 }
 
-export function ContractWizard({ clientId, clientName, onDone, onCancel }: Props) {
+export function ContractWizard({ clientId, clientName, onDone, onCancel, initialProposalId }: Props) {
   const user = useUser();
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
@@ -59,6 +60,16 @@ export function ContractWizard({ clientId, clientName, onDone, onCancel }: Props
   }, [user, clientId]);
 
   useEffect(() => { loadProposals(); }, [loadProposals]);
+
+  useEffect(() => {
+    if (initialProposalId && proposals.length > 0) {
+      const match = proposals.find((p) => p.id === initialProposalId);
+      if (match) {
+        setProposalId(match.id);
+        setTitle(match.title);
+      }
+    }
+  }, [initialProposalId, proposals]);
 
   const selectedProposal = proposals.find((p) => p.id === proposalId) ?? null;
   const effectiveTitle = title.trim() || `${contractType} — ${clientName}`;

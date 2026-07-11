@@ -41,11 +41,12 @@ const STATUS_ORDER: Record<Contract["status"], number> = {
 interface Props {
   clientId: string;
   clientName: string;
+  initialProposalId?: string;
 }
 
 // ── Component ──────────────────────────────────────────────────────────────────
 
-export function ContratosTab({ clientId, clientName }: Props) {
+export function ContratosTab({ clientId, clientName, initialProposalId }: Props) {
   const user = useUser();
 
   const [view, setView] = useState<"list" | "create" | "detail">("list");
@@ -79,6 +80,10 @@ export function ContratosTab({ clientId, clientName }: Props) {
   }, [user, clientId]);
 
   useEffect(() => { loadContracts(); }, [loadContracts]);
+
+  useEffect(() => {
+    if (initialProposalId) setView("create");
+  }, [initialProposalId]);
 
   // ── Signer handlers ───────────────────────────────────────────────────────
 
@@ -193,6 +198,7 @@ export function ContratosTab({ clientId, clientName }: Props) {
       <ContractWizard
         clientId={clientId}
         clientName={clientName}
+        initialProposalId={initialProposalId}
         onDone={() => { setView("list"); loadContracts(); }}
         onCancel={() => setView("list")}
       />
@@ -284,22 +290,28 @@ export function ContratosTab({ clientId, clientName }: Props) {
 
       {/* Actions row */}
       <div className="flex flex-wrap gap-2">
-        <select
-          value={selectedContract.status}
-          onChange={async e => {
-            const newStatus = e.target.value as Contract["status"];
-            await updateContract(selectedContract.id, { status: newStatus });
-            setSelectedContract(prev => prev ? { ...prev, status: newStatus } : prev);
-            loadContracts();
-          }}
-          className="rounded-lg border border-white/[0.06] bg-zinc-900/60 px-3 py-1.5 text-xs text-zinc-300 focus:outline-none"
-        >
-          <option value="borrador">Borrador</option>
-          <option value="en_revision">En revisión</option>
-          <option value="firmado">Firmado</option>
-          <option value="vencido">Vencido</option>
-          <option value="cancelado">Cancelado</option>
-        </select>
+        {selectedContract.status === "firmado" || selectedContract.status === "vencido" || selectedContract.status === "cancelado" ? (
+          <span className="rounded-lg border border-white/[0.06] bg-zinc-900/40 px-3 py-1.5 text-xs text-zinc-400">
+            {selectedContract.status === "firmado" ? "Firmado" : selectedContract.status === "vencido" ? "Vencido" : "Cancelado"}
+          </span>
+        ) : (
+          <button
+            onClick={async () => {
+              if (!window.confirm("¿Firmar este contrato? Se generarán los cobros y facturas asociados — esta acción no se puede deshacer.")) return;
+              const { signContract } = await import("@/lib/documents/contracts");
+              const result = await signContract(selectedContract.id);
+              if (!result.ok) {
+                alert(`No se pudo firmar: ${result.reason}`);
+                return;
+              }
+              setSelectedContract(prev => prev ? { ...prev, status: "firmado" } : prev);
+              loadContracts();
+            }}
+            className="rounded-lg border border-green-500/20 bg-green-500/10 px-3 py-1.5 text-xs font-medium text-green-300 transition-all hover:bg-green-500/20"
+          >
+            Firmar contrato
+          </button>
+        )}
 
         <button
           onClick={async () => {
