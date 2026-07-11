@@ -151,3 +151,68 @@ export async function sendWhatsApp(
   console.info("[whatsapp] sent", { messageId, to: masked });
   return { messageId, to };
 }
+
+export interface SendWhatsAppDocumentOptions extends SendWhatsAppOptions {
+  filename?: string;
+  caption?: string;
+}
+
+export async function sendWhatsAppDocument(
+  documentUrl: string,
+  options?: SendWhatsAppDocumentOptions
+): Promise<SendWhatsAppResult> {
+  const token = process.env.WHATSAPP_ACCESS_TOKEN;
+  const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+  const defaultTo = process.env.WHATSAPP_DEFAULT_TO;
+  const apiVersion = process.env.WHATSAPP_API_VERSION ?? "v21.0";
+
+  if (!token) throw new Error("WHATSAPP_ACCESS_TOKEN is not configured");
+  if (!phoneId) throw new Error("WHATSAPP_PHONE_NUMBER_ID is not configured");
+
+  const to = (options?.to ?? defaultTo)?.trim();
+  if (!to) throw new Error("No recipient — set WHATSAPP_DEFAULT_TO or pass options.to");
+  if (!documentUrl) throw new Error("documentUrl is empty");
+
+  const masked = maskPhone(to);
+  console.info("[whatsapp] sending document to", masked);
+
+  const url = `https://graph.facebook.com/${apiVersion}/${phoneId}/messages`;
+  const payload = {
+    messaging_product: "whatsapp",
+    recipient_type: "individual",
+    to,
+    type: "document",
+    document: {
+      link: documentUrl,
+      ...(options?.filename ? { filename: options.filename } : {}),
+      ...(options?.caption ? { caption: options.caption } : {}),
+    },
+  };
+
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    console.error("[whatsapp] send document failed (network)", { error: detail, to: masked });
+    throw new Error(`Meta WhatsApp API network error: ${detail}`);
+  }
+
+  const json = (await res.json().catch(() => ({}))) as MetaApiResponse;
+
+  if (!res.ok) {
+    const errMsg = json?.error?.message ?? "Unknown Meta API error";
+    const errCode = json?.error?.code ?? "unknown";
+    throw new Error(`Meta WhatsApp API failed (${res.status}): ${errMsg} [code=${errCode}]`);
+  }
+
+  const messageId = json?.messages?.[0]?.id;
+  if (!messageId) throw new Error("Meta returned 200 but no message id in response");
+
+  console.info("[whatsapp] document sent", { messageId, to: masked });
+  return { messageId, to };
+}
