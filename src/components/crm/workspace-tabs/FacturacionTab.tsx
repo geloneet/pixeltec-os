@@ -124,6 +124,18 @@ export function FacturacionTab({ clientId }: Props) {
       setStatusError("");
     } catch {
       setStatusError("Error al actualizar estado. Intenta de nuevo.");
+      return;
+    }
+
+    if (status === "enviada") {
+      try {
+        const { sendInvoiceForClient } = await import("@/lib/documents/invoice-send");
+        await sendInvoiceForClient(invoice.id);
+      } catch (err) {
+        // El estado ya se actualizó correctamente; un fallo aquí es solo del
+        // envío del correo (no debe revertir ni ocultar el cambio de estado).
+        console.error("Error al enviar factura al cliente:", err);
+      }
     }
   };
 

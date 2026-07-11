@@ -187,3 +187,26 @@ export async function sendNewsletterWelcome(
   const html = renderNewsletterWelcomeEmail(props);
   return sendEmail(props.email, 'Bienvenido al newsletter de PixelTEC', html);
 }
+
+/** Sent to the CLIENT when an invoice is marked "enviada" — distinct from sendInvoiceEmail (internal team notification on payment). */
+export async function sendInvoiceToClient(
+  clientEmail: string,
+  clientName: string,
+  invoiceNumber: string,
+  pdfBuffer: Buffer,
+): Promise<EmailResult> {
+  const html = `<!DOCTYPE html>
+<html lang="es"><head><meta charset="UTF-8" /></head>
+<body style="margin:0;padding:40px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f4f4f5;">
+  <div style="max-width:500px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;border:1px solid #e4e4e7;">
+    <div style="background:#000;padding:28px 32px;"><p style="margin:0;font-size:20px;font-weight:700;color:#fff;">Pixel<span style="color:#06b6d4;">TEC</span></p></div>
+    <div style="padding:32px;">
+      <h2 style="margin:0 0 12px;font-size:18px;color:#09090b;">Tu factura ${invoiceNumber}</h2>
+      <p style="margin:0 0 16px;font-size:14px;color:#52525b;">Hola ${clientName}, adjuntamos tu factura. Cualquier duda, responde este correo.</p>
+    </div>
+  </div>
+</body></html>`;
+  return sendEmail(clientEmail, `Factura ${invoiceNumber} — PixelTEC`, html, [
+    { filename: `${invoiceNumber}.pdf`, content: pdfBuffer },
+  ]);
+}
