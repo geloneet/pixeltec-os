@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-import { BotConfigView } from "./BotConfigView";
+import { BotConfigEditor } from "./BotConfigEditor";
 import { InboxShell } from "./InboxShell";
 
 type ModuleTab = "inbox" | "config";
@@ -57,7 +57,7 @@ export function WhatsAppModule({ tenantId }: WhatsAppModuleProps) {
         {activeTab === "inbox" ? (
           <InboxShell tenantId={tenantId} onOpenConfig={() => setActiveTab("config")} />
         ) : (
-          <BotConfigView />
+          <BotConfigEditor />
         )}
       </div>
     </div>
