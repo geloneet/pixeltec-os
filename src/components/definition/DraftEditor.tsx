@@ -4,56 +4,76 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Brain, FileText, Loader2, Save, Sparkles } from "lucide-react";
-import { createDefinitionAction } from "@/app/(admin)/proyectos/definicion/actions";
+import {
+  startDefinitionAction,
+  updateDraftAction,
+} from "@/app/(admin)/proyectos/definicion/actions";
+import type { DefinitionViewModel } from "@/components/definition/view-model";
 
 interface Props {
-  clientCrmId: string;
-  clientName: string;
+  data: DefinitionViewModel;
 }
 
 const MIN_BRAIN_DUMP = 20;
 
-/** Punto de entrada del pipeline de definición: nombre + "descarga mental". */
-export function NewDefinitionForm({ clientCrmId, clientName }: Props) {
+/** Editor de una definición en `draft`: nombre + descarga mental editables, sin IA todavía. */
+export function DraftEditor({ data }: Props) {
   const router = useRouter();
-  const [title, setTitle] = useState("");
-  const [brainDump, setBrainDump] = useState("");
-  const [busy, setBusy] = useState<"draft" | "start" | null>(null);
+  const [title, setTitle] = useState(data.title);
+  const [brainDump, setBrainDump] = useState(data.brainDump);
+  const [busy, setBusy] = useState<"save" | "start" | null>(null);
 
   const valid = title.trim().length > 0 && brainDump.trim().length >= MIN_BRAIN_DUMP;
 
-  const submit = async (start: boolean) => {
+  const saveDraft = async () => {
     if (!valid || busy) return;
-    setBusy(start ? "start" : "draft");
-    const r = await createDefinitionAction({
-      clientCrmId,
+    setBusy("save");
+    const r = await updateDraftAction({
+      definitionId: data.id,
       title: title.trim(),
       brainDump: brainDump.trim(),
-      start,
     });
-    if (!r.success || !r.data) {
-      toast.error(r.error ?? "No se pudo crear la definición");
+    setBusy(null);
+    if (!r.success) {
+      toast.error(r.error ?? "No se pudo guardar el borrador");
+      return;
+    }
+    toast.success("Borrador guardado");
+  };
+
+  const start = async () => {
+    if (!valid || busy) return;
+    setBusy("start");
+    // Persistir cualquier edición pendiente antes de arrancar.
+    const saved = await updateDraftAction({
+      definitionId: data.id,
+      title: title.trim(),
+      brainDump: brainDump.trim(),
+    });
+    if (!saved.success) {
+      toast.error(saved.error ?? "No se pudo guardar el borrador");
       setBusy(null);
       return;
     }
-    if (start) {
-      router.push(`/proyectos/definicion/${r.data.id}`);
-    } else {
-      toast.success("Borrador guardado");
-      router.push("/proyectos/definicion");
+    const r = await startDefinitionAction({ definitionId: data.id });
+    if (!r.success) {
+      toast.error(r.error ?? "No se pudo iniciar la definición");
+      setBusy(null);
+      return;
     }
+    router.refresh();
   };
 
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-8">
       <div className="mb-6">
         <div className="mb-1 flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-cyan-400" />
-          <h1 className="text-lg font-semibold text-zinc-100">Nuevo Proyecto</h1>
+          <Sparkles className="h-4 w-4 text-zinc-500" />
+          <h1 className="text-lg font-semibold text-zinc-100">Borrador</h1>
         </div>
         <p className="text-xs text-zinc-500">
-          Cliente: {clientName} · La IA (un PM retador) te va a acompañar por 4
-          estaciones para aterrizar la idea.
+          Cliente: {data.clientName} · Todavía no arranca — edita lo que necesites y
+          comienza la definición cuando estés listo.
         </p>
       </div>
 
@@ -66,7 +86,6 @@ export function NewDefinitionForm({ clientCrmId, clientName }: Props) {
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          autoFocus
           maxLength={200}
           placeholder="Ej. Rediseño del portal de clientes"
           className="w-full rounded-md border border-zinc-700/50 bg-zinc-800 px-3.5 py-2.5 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-cyan-400/40"
@@ -92,16 +111,16 @@ export function NewDefinitionForm({ clientCrmId, clientName }: Props) {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => submit(false)}
+              onClick={saveDraft}
               disabled={!valid || busy !== null}
               className="flex items-center gap-2 rounded-md border border-zinc-700/50 bg-transparent px-4 py-2 text-sm font-medium text-zinc-300 transition-colors hover:bg-white/[0.04] disabled:opacity-40"
             >
-              {busy === "draft" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              {busy === "save" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
               Guardar borrador
             </button>
             <button
               type="button"
-              onClick={() => submit(true)}
+              onClick={start}
               disabled={!valid || busy !== null}
               className="flex items-center gap-2 rounded-md bg-cyan-500 px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-cyan-400 disabled:opacity-40"
             >

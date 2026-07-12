@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth/config";
 import { getClientById } from "@/lib/db/repos/crm";
 import { getDefinitionFull } from "@/lib/db/repos/definitions";
 import { DefinitionWorkspace } from "@/components/definition/DefinitionWorkspace";
+import { DraftEditor } from "@/components/definition/DraftEditor";
 import { STATION_SEQUENCE } from "@/lib/definition/types";
 import type { DefinitionStation } from "@/lib/definition/types";
 import type {
@@ -73,6 +74,10 @@ export default async function DefinicionDetailPage({
     messagesByStation,
     events,
   };
+
+  if (data.status === "draft") {
+    return <DraftEditor data={data} />;
+  }
 
   return <DefinitionWorkspace data={data} />;
 }

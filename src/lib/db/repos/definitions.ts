@@ -162,11 +162,16 @@ export interface CreateDefinitionInput {
   title: string;
   brainDump: string;
   actor: Actor;
+  /** false => se crea como `draft`, sin arrancar la estación `boceto`. */
+  start: boolean;
 }
 
 /**
- * Crea la definición + las 4 filas de estación (boceto `in_progress`, resto
- * `pending`) + el evento `created`, en una transacción. Devuelve el id.
+ * Crea la definición + las 4 filas de estación + el evento `created`, en una
+ * transacción. Si `start` es true, arranca de una vez (status `in_progress`,
+ * `boceto` en `in_progress`) — igual que el flujo original. Si es false,
+ * queda en `draft` con las 4 estaciones en `pending` hasta que se llame a
+ * `startDefinition`. Devuelve el id.
  */
 export function createDefinition(input: CreateDefinitionInput): Promise<string> {
   return db.transaction(async (tx) => {
@@ -179,7 +184,7 @@ export function createDefinition(input: CreateDefinitionInput): Promise<string> 
         title: input.title,
         brainDump: input.brainDump,
         currentStation: "boceto",
-        status: "in_progress",
+        status: input.start ? "in_progress" : "draft",
       })
       .returning({ id: projectDefinitions.id });
 
@@ -187,7 +192,8 @@ export function createDefinition(input: CreateDefinitionInput): Promise<string> 
       STATION_SEQUENCE.map((station) => ({
         definitionId: def.id,
         station,
-        status: station === "boceto" ? ("in_progress" as const) : ("pending" as const),
+        status:
+          input.start && station === "boceto" ? ("in_progress" as const) : ("pending" as const),
       }))
     );
 
@@ -201,6 +207,68 @@ export function createDefinition(input: CreateDefinitionInput): Promise<string> 
 
     return def.id;
   });
+}
+
+/**
+ * Arranca una definición en `draft`: pasa a `in_progress` y activa la
+ * estación `boceto`. Deja evento `started`. Lanza si no está en `draft`.
+ */
+export function startDefinition(definitionId: string, ownerId: string, actor: Actor) {
+  return db.transaction(async (tx) => {
+    const [def] = await tx
+      .select()
+      .from(projectDefinitions)
+      .where(
+        and(eq(projectDefinitions.id, definitionId), eq(projectDefinitions.ownerId, ownerId))
+      )
+      .limit(1);
+    if (!def) throw new Error("Definición no encontrada");
+    if (def.status !== "draft") throw new Error("La definición ya fue iniciada");
+
+    const now = new Date();
+    await tx
+      .update(projectDefinitions)
+      .set({ status: "in_progress", updatedAt: now })
+      .where(eq(projectDefinitions.id, definitionId));
+
+    await tx
+      .update(definitionStations)
+      .set({ status: "in_progress", updatedAt: now })
+      .where(
+        and(eq(definitionStations.definitionId, definitionId), eq(definitionStations.station, "boceto"))
+      );
+
+    await tx.insert(definitionEvents).values({
+      definitionId,
+      station: null,
+      type: "started",
+      actorId: actor.id,
+      actorName: actor.name,
+    });
+  });
+}
+
+/**
+ * Edita nombre/descarga mental de una definición mientras siga en `draft`.
+ * Lanza si ya fue iniciada (la descarga mental es inmutable en ese punto).
+ */
+export async function updateDraft(
+  definitionId: string,
+  ownerId: string,
+  fields: { title: string; brainDump: string }
+) {
+  const [def] = await db
+    .select({ status: projectDefinitions.status })
+    .from(projectDefinitions)
+    .where(and(eq(projectDefinitions.id, definitionId), eq(projectDefinitions.ownerId, ownerId)))
+    .limit(1);
+  if (!def) throw new Error("Definición no encontrada");
+  if (def.status !== "draft") throw new Error("Solo se puede editar un borrador");
+
+  await db
+    .update(projectDefinitions)
+    .set({ title: fields.title, brainDump: fields.brainDump, updatedAt: new Date() })
+    .where(eq(projectDefinitions.id, definitionId));
 }
 
 export function appendMessage(

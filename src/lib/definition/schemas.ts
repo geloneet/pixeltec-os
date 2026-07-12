@@ -15,16 +15,30 @@ export const generateRequestSchema = z.object({
 });
 export type GenerateRequest = z.infer<typeof generateRequestSchema>;
 
-/** Input de la descarga mental al crear una definición. */
+/** Input de nombre + descarga mental al crear una definición (borrador o arranque directo). */
 export const createDefinitionSchema = z.object({
   clientCrmId: z.string().trim().min(1, "Falta el cliente"),
+  title: z.string().trim().min(1, "Falta el nombre del proyecto").max(200),
+  brainDump: z
+    .string()
+    .trim()
+    .min(20, "Escribe al menos un par de frases para que la IA tenga con qué trabajar")
+    .max(20000),
+  start: z.boolean(),
+});
+export type CreateDefinitionInputSchema = z.infer<typeof createDefinitionSchema>;
+
+/** Input para editar nombre/descarga mental de una definición en `draft`. */
+export const updateDraftSchema = z.object({
+  definitionId: z.string().uuid(),
+  title: z.string().trim().min(1, "Falta el nombre del proyecto").max(200),
   brainDump: z
     .string()
     .trim()
     .min(20, "Escribe al menos un par de frases para que la IA tenga con qué trabajar")
     .max(20000),
 });
-export type CreateDefinitionInputSchema = z.infer<typeof createDefinitionSchema>;
+export type UpdateDraftInputSchema = z.infer<typeof updateDraftSchema>;
 
 export const reopenSchema = z.object({
   definitionId: z.string().uuid(),

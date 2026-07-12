@@ -18,7 +18,7 @@ export interface WsStation {
 
 export interface WsEvent {
   id: string;
-  type: "created" | "sealed" | "reopened" | "invalidated" | "converted";
+  type: "created" | "started" | "sealed" | "reopened" | "invalidated" | "converted";
   station: DefinitionStation | null;
   actorName: string;
   reason: string | null;
@@ -32,7 +32,7 @@ export interface DefinitionViewModel {
   clientName: string;
   clientCrmId: string;
   currentStation: DefinitionStation;
-  status: "in_progress" | "completed";
+  status: "draft" | "in_progress" | "completed";
   convertedProjectCrmId: string | null;
   stations: WsStation[];
   messagesByStation: Record<DefinitionStation, ThreadMessage[]>;

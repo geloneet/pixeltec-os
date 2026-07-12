@@ -13,13 +13,19 @@ import { db } from "@/lib/db";
 import { clients } from "@/lib/db/schema";
 import {
   createDefinition,
+  startDefinition,
+  updateDraft,
   getDefinition,
   sealStation,
   reopenStation,
   markConverted,
   type Actor,
 } from "@/lib/db/repos/definitions";
-import { createDefinitionSchema, reopenSchema } from "@/lib/definition/schemas";
+import {
+  createDefinitionSchema,
+  updateDraftSchema,
+  reopenSchema,
+} from "@/lib/definition/schemas";
 import type { DefinitionStation } from "@/lib/definition/types";
 import type { PortalActionResult } from "@/lib/action-types";
 
@@ -36,15 +42,11 @@ async function requireAuth(): Promise<Auth> {
   return { ownerId, actor: { id: ownerId, name } };
 }
 
-function titleFromBrainDump(brainDump: string): string {
-  const firstLine = brainDump.trim().split("\n")[0]?.trim() ?? "";
-  const base = firstLine || brainDump.trim();
-  return base.length > 80 ? `${base.slice(0, 77)}…` : base || "Idea sin título";
-}
-
 export async function createDefinitionAction(input: {
   clientCrmId: string;
+  title: string;
   brainDump: string;
+  start: boolean;
 }): Promise<PortalActionResult<{ id: string }>> {
   try {
     const { ownerId, actor } = await requireAuth();
@@ -52,16 +54,24 @@ export async function createDefinitionAction(input: {
     if (!parsed.success) {
       return { success: false, error: parsed.error.errors[0]?.message };
     }
-    const { clientCrmId, brainDump } = parsed.data;
+    const { clientCrmId, title, brainDump, start } = parsed.data;
 
     // El id que manda el workspace es `firestoreId ?? pgId` (ver getFullCrmData).
+    // `clients.id` es uuid en Postgres: si clientCrmId es un id viejo de Firestore
+    // (no-uuid), comparar contra esa columna en la misma query revienta el bind
+    // del parámetro antes de evaluar el OR (mismo caso que getPostById).
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      clientCrmId
+    );
     const client = await db
       .select({ id: clients.id, firestoreId: clients.firestoreId })
       .from(clients)
       .where(
         and(
           eq(clients.ownerId, ownerId),
-          or(eq(clients.firestoreId, clientCrmId), eq(clients.id, clientCrmId))
+          isUuid
+            ? or(eq(clients.firestoreId, clientCrmId), eq(clients.id, clientCrmId))
+            : eq(clients.firestoreId, clientCrmId)
         )
       )
       .limit(1)
@@ -74,8 +84,9 @@ export async function createDefinitionAction(input: {
       clientId: client.id,
       // Id canónico que usa el contexto CRM (necesario para la conversión).
       clientCrmId: client.firestoreId ?? client.id,
-      title: titleFromBrainDump(brainDump),
+      title,
       brainDump,
+      start,
       actor,
     });
 
@@ -84,6 +95,50 @@ export async function createDefinitionAction(input: {
   } catch (err) {
     console.error("[createDefinitionAction]", err);
     return { success: false, error: "No se pudo crear la definición" };
+  }
+}
+
+export async function startDefinitionAction(input: {
+  definitionId: string;
+}): Promise<PortalActionResult> {
+  try {
+    const { ownerId, actor } = await requireAuth();
+    await startDefinition(input.definitionId, ownerId, actor);
+    revalidatePath(`/proyectos/definicion/${input.definitionId}`);
+    revalidatePath("/proyectos/definicion");
+    return { success: true };
+  } catch (err) {
+    console.error("[startDefinitionAction]", err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "No se pudo iniciar la definición",
+    };
+  }
+}
+
+export async function updateDraftAction(input: {
+  definitionId: string;
+  title: string;
+  brainDump: string;
+}): Promise<PortalActionResult> {
+  try {
+    const { ownerId } = await requireAuth();
+    const parsed = updateDraftSchema.safeParse(input);
+    if (!parsed.success) {
+      return { success: false, error: parsed.error.errors[0]?.message };
+    }
+    await updateDraft(parsed.data.definitionId, ownerId, {
+      title: parsed.data.title,
+      brainDump: parsed.data.brainDump,
+    });
+    revalidatePath(`/proyectos/definicion/${input.definitionId}`);
+    return { success: true };
+  } catch (err) {
+    console.error("[updateDraftAction]", err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "No se pudo guardar el borrador",
+    };
   }
 }
 

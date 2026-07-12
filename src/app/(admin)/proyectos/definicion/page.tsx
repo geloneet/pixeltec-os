@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Sparkles, CheckCircle2, Lock } from "lucide-react";
+import { Sparkles, CheckCircle2, FileEdit, Lock } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { auth } from "@/lib/auth/config";
@@ -46,6 +46,7 @@ export default async function DefinicionListPage() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {definitions.map((d) => {
             const completed = d.status === "completed";
+            const isDraft = d.status === "draft";
             const meta = getStationMeta(d.currentStation);
             return (
               <Link
@@ -67,6 +68,11 @@ export default async function DefinicionListPage() {
                     <span className="flex items-center gap-1 rounded bg-cyan-500/10 px-1.5 py-0.5 text-[11px] font-medium text-cyan-300">
                       <CheckCircle2 className="h-3 w-3" />
                       Completo
+                    </span>
+                  ) : isDraft ? (
+                    <span className="flex items-center gap-1 rounded bg-amber-500/10 px-1.5 py-0.5 text-[11px] font-medium text-amber-300">
+                      <FileEdit className="h-3 w-3" />
+                      Borrador
                     </span>
                   ) : (
                     <span

@@ -8,6 +8,7 @@ import type { WsEvent } from "@/components/definition/view-model";
 
 const EVENT_LABEL: Record<WsEvent["type"], string> = {
   created: "Definición creada",
+  started: "Definición iniciada",
   sealed: "Estación sellada",
   reopened: "Estación reabierta",
   invalidated: "Sello invalidado (cambio upstream)",
@@ -16,6 +17,7 @@ const EVENT_LABEL: Record<WsEvent["type"], string> = {
 
 const EVENT_COLOR: Record<WsEvent["type"], string> = {
   created: "text-zinc-400",
+  started: "text-zinc-400",
   sealed: "text-cyan-400",
   reopened: "text-amber-400",
   invalidated: "text-amber-500",

@@ -1824,6 +1824,7 @@ export const definitionStationEnum = pgEnum("definition_station", [
 ]);
 
 export const definitionStatusEnum = pgEnum("definition_status", [
+  "draft",
   "in_progress",
   "completed",
 ]);
@@ -1842,6 +1843,7 @@ export const definitionMessageRoleEnum = pgEnum("definition_message_role", [
 
 export const definitionEventTypeEnum = pgEnum("definition_event_type", [
   "created",
+  "started",
   "sealed",
   "reopened",
   "invalidated",
