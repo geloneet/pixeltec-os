@@ -3,9 +3,9 @@
 // Fase 4 (rebanada Documentos): Postgres — antes Firestore `contracts` vía
 // client SDK. El `uid`/`clientId` extra de algunas firmas se conserva por
 // compatibilidad pero el dueño real sale de la sesión.
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { contracts, clients, proposals } from "@/lib/db/schema";
+import { contracts, clients, proposals, projects, billingItems } from "@/lib/db/schema";
 import type { BillingItemDraft, Contract, ContractSection } from "@/types/documents";
 import {
   requireOwner,
@@ -179,9 +179,10 @@ export interface ConfirmContractFromWizardInput {
 
 /**
  * Flujo del wizard de Contratos: genera las cláusulas desde la plantilla
- * base fija (versionada), crea el contrato y sus billing items en una sola
- * transacción. Idempotente vía `createBillingItemsForContract` — confirmar
- * dos veces el mismo contrato no duplica cobros.
+ * base fija (versionada) y crea el contrato. Los conceptos de cobro
+ * definidos aquí quedan guardados como `billingItemDrafts` — los
+ * `billingItems` reales (los que ve Finanzas/Cobros) recién se crean al
+ * firmar el contrato (ver `signContract`), no al confirmarlo.
  */
 export async function confirmContractFromWizard(data: ConfirmContractFromWizardInput): Promise<string> {
   if (!data.title.trim()) throw new Error("El contrato necesita un título");
@@ -229,35 +230,126 @@ export async function confirmContractFromWizard(data: ConfirmContractFromWizardI
     sections = sections.map((s) => (overrides[s.key] !== undefined ? { ...s, body: overrides[s.key] } : s));
   }
 
-  return db.transaction(async (tx) => {
-    const [row] = await tx
-      .insert(contracts)
-      .values({
-        ownerId,
-        clientId: clientPgId,
-        proposalId: proposalPgId,
-        version: 1,
-        status: "borrador",
-        title: data.title,
-        content: flattenSections(sections),
-        variables: {},
-        signers: [],
-        templateVersion: CONTRACT_TEMPLATE_VERSION,
-        sections,
-        startDate: data.startDate,
-        endDate: data.endDate ?? null,
-        approvedAt: new Date(),
-      })
-      .returning({ id: contracts.id });
+  const [row] = await db
+    .insert(contracts)
+    .values({
+      ownerId,
+      clientId: clientPgId,
+      proposalId: proposalPgId,
+      version: 1,
+      status: "borrador",
+      title: data.title,
+      content: flattenSections(sections),
+      variables: {},
+      signers: [],
+      templateVersion: CONTRACT_TEMPLATE_VERSION,
+      sections,
+      billingItemDrafts: data.billingItems,
+      startDate: data.startDate,
+      endDate: data.endDate ?? null,
+      approvedAt: new Date(),
+    })
+    .returning({ id: contracts.id });
+
+  return row.id;
+}
+
+export interface SignContractResult {
+  status: Contract["status"];
+  /** uuid Postgres del proyecto ya vinculado, si `attachProjectToContract` ya corrió antes. */
+  projectId: string | null;
+}
+
+/**
+ * Firma el contrato: pone `status: "firmado"` + `signedAt`, y crea los
+ * `billingItems` reales desde los `billingItemDrafts` guardados en el
+ * wizard (antes de esto, un contrato sin firmar no genera cobros en
+ * Finanzas). Idempotente — si ya estaba firmado, no repite nada y solo
+ * devuelve el estado actual, para que el handler de firma se pueda
+ * reintentar sin duplicar cobros ni fallar.
+ */
+export async function signContract(id: string): Promise<SignContractResult> {
+  const { ownerId } = await requireOwner();
+  const row = await resolveContractRow(id);
+  if (!row || row.ownerId !== ownerId) throw new Error("Contrato no encontrado");
+
+  if (row.status === "firmado") {
+    return { status: row.status, projectId: row.projectId };
+  }
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(contracts)
+      .set({ status: "firmado", signedAt: new Date(), updatedAt: new Date() })
+      .where(eq(contracts.id, row.id));
 
     await createBillingItemsForContract(tx, {
       ownerId,
-      clientPgId,
+      clientPgId: row.clientId,
       contractPgId: row.id,
-      proposalPgId,
-      items: data.billingItems,
+      proposalPgId: row.proposalId,
+      items: (row.billingItemDrafts as BillingItemDraft[]) ?? [],
     });
-
-    return row.id;
   });
+
+  return { status: "firmado", projectId: row.projectId };
+}
+
+/**
+ * Vincula el proyecto CRM creado del lado cliente (`useCRM().addProject`) al
+ * contrato firmado, y de paso etiqueta los `billingItems` del contrato con
+ * ese proyecto. Idempotente — si el contrato ya tiene `projectId`, no lo
+ * pisa (evita huérfanos si se reintenta después de que el proyecto ya quedó
+ * vinculado).
+ *
+ * `clientProjectId` es el id que genera el cliente (`CRMProject.id`), NO el
+ * uuid de Postgres — `addProject()` dispara un guardado con debounce
+ * (~500ms) hacia `crm-sync.ts`, así que el proyecto puede tardar en
+ * aparecer todavía. Reintenta unas cuantas veces antes de rendirse, para
+ * que un solo clic del usuario no choque con esa carrera casi siempre.
+ */
+export async function attachProjectToContract(
+  contractId: string,
+  clientProjectId: string
+): Promise<{ projectId: string }> {
+  const { ownerId } = await requireOwner();
+  const row = await resolveContractRow(contractId);
+  if (!row || row.ownerId !== ownerId) throw new Error("Contrato no encontrado");
+  if (row.status !== "firmado") throw new Error("El contrato todavía no está firmado");
+
+  if (row.projectId) {
+    return { projectId: row.projectId };
+  }
+
+  let projectPgId: string | null = null;
+  for (let attempt = 0; attempt < 5 && !projectPgId; attempt++) {
+    if (attempt > 0) await new Promise((r) => setTimeout(r, 600));
+    const [project] = await db
+      .select({ id: projects.id })
+      .from(projects)
+      .where(eq(projects.firestoreId, clientProjectId))
+      .limit(1);
+    projectPgId = project?.id ?? null;
+  }
+  if (!projectPgId) {
+    throw new Error(
+      "El proyecto todavía se está guardando — espera un momento y reintenta."
+    );
+  }
+
+  await db.transaction(async (tx) => {
+    // El `isNull` re-verifica dentro de la transacción (contra la carrera de
+    // dos clics casi simultáneos) — si otro attach ya ganó, este update no
+    // toca nada y la siguiente lectura de `row.projectId` lo reflejará.
+    await tx
+      .update(contracts)
+      .set({ projectId: projectPgId, updatedAt: new Date() })
+      .where(and(eq(contracts.id, row.id), isNull(contracts.projectId)));
+    await tx
+      .update(billingItems)
+      .set({ projectId: projectPgId })
+      .where(eq(billingItems.contractId, row.id));
+  });
+
+  return { projectId: projectPgId };
 }

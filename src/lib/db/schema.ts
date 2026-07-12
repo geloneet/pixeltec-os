@@ -475,6 +475,10 @@ export const projects = pgTable(
     quickNotes: text("quick_notes").notNull().default(""),
     // Estado visible en el portal de clientes (Activo/En desarrollo/etc.)
     status: text("status").notNull().default("Activo"),
+    // Contrato del que nació este proyecto (creación automática al firmar).
+    // Sin FK — igual que proposals.contractId — porque `contracts` se
+    // declara más abajo en este archivo.
+    contractId: uuid("contract_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
@@ -760,6 +764,13 @@ export const contracts = pgTable(
     // `content` se conserva como texto aplanado para el PDF/compat existente.
     templateVersion: integer("template_version").notNull().default(1),
     sections: jsonb("sections").notNull().default([]),
+    // Conceptos de cobro definidos en el wizard, en espera de la firma. Los
+    // `billingItems` reales solo se crean al firmar (ver signContract) — un
+    // contrato sin firmar no debe generar cobros pendientes en Finanzas.
+    billingItemDrafts: jsonb("billing_item_drafts").notNull().default([]),
+    // Proyecto CRM creado automáticamente al firmar. Null hasta la firma (o
+    // si la creación del proyecto falló y quedó pendiente de reintento).
+    projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
     startDate: date("start_date"),
     endDate: date("end_date"),
     approvedAt: timestamp("approved_at", { withTimezone: true }),
@@ -1867,8 +1878,9 @@ export const projectDefinitions = pgTable(
     brainDump: text("brain_dump").notNull(), // la descarga mental original, inmutable
     currentStation: definitionStationEnum("current_station").notNull().default("boceto"),
     status: definitionStatusEnum("status").notNull().default("in_progress"),
-    convertedProjectCrmId: text("converted_project_crm_id"),
-    convertedAt: timestamp("converted_at", { withTimezone: true }),
+    // Propuesta comercial generada al sellar las 4 estaciones (reemplaza la
+    // conversión directa a proyecto). Null hasta que se genera una.
+    proposalId: uuid("proposal_id").references(() => proposals.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },

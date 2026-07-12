@@ -42,6 +42,7 @@ import type {
   StrategyKPI,
   RoadmapItem,
   IATemplate,
+  BillingItemDraft,
 } from "@/types/documents";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -238,6 +239,8 @@ export function serializeContract(
     notes: row.notes ?? undefined,
     templateVersion: row.templateVersion,
     sections: (row.sections as ContractSection[]) ?? [],
+    billingItemDrafts: (row.billingItemDrafts as BillingItemDraft[]) ?? [],
+    projectId: row.projectId ?? undefined,
     startDate: row.startDate ?? undefined,
     endDate: row.endDate ?? undefined,
     approvedAt: iso(row.approvedAt),

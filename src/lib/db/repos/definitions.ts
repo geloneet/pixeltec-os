@@ -109,7 +109,7 @@ export interface DefinitionListItem {
   clientName: string | null;
   currentStation: DefinitionStation;
   status: ProjectDefinition["status"];
-  convertedProjectCrmId: string | null;
+  proposalId: string | null;
   updatedAt: Date;
   createdAt: Date;
 }
@@ -126,7 +126,7 @@ export function listDefinitionsByOwner(
       clientName: clients.name,
       currentStation: projectDefinitions.currentStation,
       status: projectDefinitions.status,
-      convertedProjectCrmId: projectDefinitions.convertedProjectCrmId,
+      proposalId: projectDefinitions.proposalId,
       updatedAt: projectDefinitions.updatedAt,
       createdAt: projectDefinitions.createdAt,
     })
@@ -487,18 +487,18 @@ export function reopenStation(
   });
 }
 
-/** Registra la conversión a proyecto CRM (se llama después de crearlo vía contexto CRM). */
-export function markConverted(
+/** Registra la propuesta generada a partir de la definición sellada. */
+export function attachProposal(
   definitionId: string,
   ownerId: string,
-  projectCrmId: string,
+  proposalId: string,
   actor: Actor
 ) {
   return db.transaction(async (tx) => {
     const now = new Date();
     const updated = await tx
       .update(projectDefinitions)
-      .set({ convertedProjectCrmId: projectCrmId, convertedAt: now, updatedAt: now })
+      .set({ proposalId, updatedAt: now })
       .where(
         and(
           eq(projectDefinitions.id, definitionId),
@@ -514,7 +514,7 @@ export function markConverted(
       type: "converted",
       actorId: actor.id,
       actorName: actor.name,
-      reason: projectCrmId,
+      reason: proposalId,
     });
   });
 }

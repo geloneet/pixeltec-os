@@ -5,9 +5,17 @@ import {
   ArrowLeft, FileText, Download, UserPlus, X, Check,
   Clock, CheckCircle2, AlertCircle, XCircle, FileCheck,
 } from "lucide-react";
+import { toast } from "sonner";
 import { useUser } from "@/hooks/use-user";
+import { useCRM } from "@/components/crm/CRMContextCore";
 import type { Contract, ContractSigner } from "@/types/documents";
-import { getContracts, updateContract, createContractVersion } from "@/lib/documents/contracts";
+import {
+  getContracts,
+  updateContract,
+  createContractVersion,
+  signContract,
+  attachProjectToContract,
+} from "@/lib/documents/contracts";
 import { ContractWizard } from "@/components/crm/contracts/ContractWizard";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -47,11 +55,14 @@ interface Props {
 
 export function ContratosTab({ clientId, clientName }: Props) {
   const user = useUser();
+  const crm = useCRM();
 
   const [view, setView] = useState<"list" | "create" | "detail">("list");
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
   const [loading, setLoading] = useState(true);
+  const [signing, setSigning] = useState(false);
+  const [signError, setSignError] = useState<string | null>(null);
 
   // Detail
   const [editingTitle, setEditingTitle] = useState(false);
@@ -120,6 +131,62 @@ export function ContratosTab({ clientId, clientName }: Props) {
     await loadContracts();
   };
 
+  // ── Firma del contrato ──────────────────────────────────────────────────
+  // Un solo handler, un solo clic: firma + cobros (servidor, atómico) ->
+  // proyecto CRM (contexto cliente, único camino seguro para no chocar con
+  // la reconciliación de crm-sync) -> vincular projectId al contrato.
+  // Reintentable: si ya quedó firmado pero sin proyecto, retoma desde ahí
+  // sin volver a firmar ni duplicar cobros ni duplicar el proyecto (busca
+  // primero si el contexto CRM ya tiene un proyecto con este contractId).
+  const handleSignContract = async () => {
+    if (!selectedContract || signing) return;
+    setSigning(true);
+    setSignError(null);
+    try {
+      const result = await signContract(selectedContract.id);
+      setSelectedContract(prev => prev ? { ...prev, status: result.status } : prev);
+
+      let projectPgId = result.projectId;
+      if (!projectPgId) {
+        if (crm.loading) throw new Error("El CRM todavía está cargando — espera un momento y reintenta.");
+
+        const client = crm.clients.find(c => c.id === clientId);
+        const existingProject = client?.projects.find(p => p.contractId === selectedContract.id);
+
+        const clientProjectId = existingProject
+          ? existingProject.id
+          : crm.addProject(clientId, {
+              name: selectedContract.title,
+              domain: "",
+              budget: (selectedContract.billingItemDrafts ?? []).reduce((sum, i) => sum + i.amount, 0),
+              annual: 0,
+              budgetIva: "none",
+              annualIva: "none",
+              tech: "",
+              contractId: selectedContract.id,
+            });
+        if (!clientProjectId) {
+          // addProject ya mostró el toast de validación.
+          setSigning(false);
+          return;
+        }
+
+        const attached = await attachProjectToContract(selectedContract.id, clientProjectId);
+        projectPgId = attached.projectId;
+      }
+
+      setSelectedContract(prev => prev ? { ...prev, projectId: projectPgId ?? undefined } : prev);
+      toast.success("Contrato firmado y proyecto creado");
+      await loadContracts();
+    } catch (err) {
+      // El contrato NO se revierte: queda firmado, con el proyecto pendiente
+      // de vincular. El error es accionable — el mismo botón reintenta.
+      setSignError(err instanceof Error ? err.message : "No se pudo completar la firma");
+    } finally {
+      setSigning(false);
+    }
+  };
+
   // ── LIST ─────────────────────────────────────────────────────────────────
 
   if (view === "list") {
@@ -160,7 +227,7 @@ export function ContratosTab({ clientId, clientName }: Props) {
           return (
             <button
               key={contract.id}
-              onClick={() => { setSelectedContract(contract); setView("detail"); }}
+              onClick={() => { setSelectedContract(contract); setSignError(null); setView("detail"); }}
               className="w-full text-left rounded-xl border border-white/[0.06] bg-zinc-900/20 p-4 hover:border-white/[0.10] transition-all"
             >
               <div className="flex items-center justify-between gap-2 mb-1.5">
@@ -282,21 +349,42 @@ export function ContratosTab({ clientId, clientName }: Props) {
         </div>
       )}
 
+      {/* Firma pendiente de vincular proyecto — reintentable */}
+      {selectedContract.status === "firmado" && !selectedContract.projectId && (
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2">
+          <p className="text-xs text-amber-300">
+            {signError ?? "El contrato está firmado pero falta crear/vincular el proyecto CRM."}
+          </p>
+          <button
+            onClick={handleSignContract}
+            disabled={signing}
+            className="flex-shrink-0 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-300 hover:bg-amber-500/20 disabled:opacity-40"
+          >
+            {signing ? "Reintentando…" : "Reintentar"}
+          </button>
+        </div>
+      )}
+
       {/* Actions row */}
       <div className="flex flex-wrap gap-2">
         <select
           value={selectedContract.status}
+          disabled={signing}
           onChange={async e => {
             const newStatus = e.target.value as Contract["status"];
+            if (newStatus === "firmado") {
+              await handleSignContract();
+              return;
+            }
             await updateContract(selectedContract.id, { status: newStatus });
             setSelectedContract(prev => prev ? { ...prev, status: newStatus } : prev);
             loadContracts();
           }}
-          className="rounded-lg border border-white/[0.06] bg-zinc-900/60 px-3 py-1.5 text-xs text-zinc-300 focus:outline-none"
+          className="rounded-lg border border-white/[0.06] bg-zinc-900/60 px-3 py-1.5 text-xs text-zinc-300 focus:outline-none disabled:opacity-50"
         >
           <option value="borrador">Borrador</option>
           <option value="en_revision">En revisión</option>
-          <option value="firmado">Firmado</option>
+          <option value="firmado">{signing ? "Firmando…" : "Firmado"}</option>
           <option value="vencido">Vencido</option>
           <option value="cancelado">Cancelado</option>
         </select>

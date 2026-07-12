@@ -130,6 +130,7 @@ async function syncProjectsForClient(clientPgId: string, payload: CRMProject[], 
         readme: p.readme ?? "",
         prompt: p.prompt ?? "",
         quickNotes: p.quickNotes ?? "",
+        contractId: p.contractId ?? null,
         createdAt: new Date(toIso(p.createdAt)),
       })
       .onConflictDoUpdate({
@@ -147,6 +148,7 @@ async function syncProjectsForClient(clientPgId: string, payload: CRMProject[], 
           readme: p.readme ?? "",
           prompt: p.prompt ?? "",
           quickNotes: p.quickNotes ?? "",
+          contractId: p.contractId ?? null,
         },
       })
       .returning({ id: projects.id });
@@ -507,6 +509,7 @@ export async function getFullCrmData(ownerId: string): Promise<{
         readme: p.readme,
         prompt: p.prompt,
         quickNotes: p.quickNotes,
+        contractId: p.contractId ?? undefined,
         createdAt: p.createdAt.toISOString(),
         keys: keyRows
           .filter((k) => k.projectId === p.id)

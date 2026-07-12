@@ -77,6 +77,11 @@ export interface Contract {
   notes?: string;
   templateVersion?: number;
   sections?: ContractSection[];
+  // Conceptos de cobro en espera de la firma — los billingItems reales se
+  // crean recién al firmar (ver signContract en documents/contracts.ts).
+  billingItemDrafts?: BillingItemDraft[];
+  // Proyecto CRM creado automáticamente al firmar. Ausente hasta la firma.
+  projectId?: string;
   startDate?: string;
   endDate?: string;
   approvedAt?: string;

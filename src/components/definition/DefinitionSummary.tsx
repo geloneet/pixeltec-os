@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Download, FileText, ChevronDown, ChevronRight } from "lucide-react";
 import { SealedStationView } from "@/components/definition/SealedStationView";
-import { ConvertToProjectButton } from "@/components/definition/ConvertToProjectButton";
+import { CreateProposalButton } from "@/components/definition/CreateProposalButton";
 import { DELIVERABLE_META, getStationMeta } from "@/lib/definition/station-meta";
 import type { DefinitionStation } from "@/lib/definition/types";
 import type { DefinitionViewModel } from "@/components/definition/view-model";
@@ -66,15 +66,10 @@ export function DefinitionSummary({ data, onReopen }: Props) {
         </div>
 
         <div className="mt-5 border-t border-white/[0.06] pt-4">
-          <ConvertToProjectButton
-            definitionId={data.id}
-            title={data.title}
-            clientCrmId={data.clientCrmId}
-            convertedProjectCrmId={data.convertedProjectCrmId}
-          />
-          {data.convertedProjectCrmId && (
+          <CreateProposalButton definitionId={data.id} proposalId={data.proposalId} />
+          {data.proposalId && (
             <p className="mt-2 text-[11px] text-zinc-600">
-              Si reabres una estación después de convertir, el proyecto CRM no
+              Si reabres una estación después de generar la propuesta, esta no
               se revierte — solo se avisará que los documentos cambiaron.
             </p>
           )}

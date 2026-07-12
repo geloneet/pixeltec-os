@@ -16,11 +16,13 @@ import {
   startDefinition,
   updateDraft,
   getDefinition,
+  getDefinitionFull,
   sealStation,
   reopenStation,
-  markConverted,
+  attachProposal,
   type Actor,
 } from "@/lib/db/repos/definitions";
+import { createProposal } from "@/lib/documents/proposals";
 import {
   createDefinitionSchema,
   updateDraftSchema,
@@ -191,18 +193,56 @@ export async function reopenStationAction(input: {
   }
 }
 
-export async function markConvertedAction(input: {
+/**
+ * Genera una Propuesta comercial a partir del contenido sellado de una
+ * definición completa (boceto → scope, mvp → solution, flujo → deliverables).
+ * `benefits`/`budget`/`timeline` quedan vacíos para llenarse en la parte
+ * comercial. Idempotente: si la definición ya tiene una propuesta, la
+ * devuelve en vez de crear otra.
+ */
+export async function createProposalFromDefinitionAction(input: {
   definitionId: string;
-  projectCrmId: string;
-}): Promise<PortalActionResult> {
+}): Promise<PortalActionResult<{ proposalId: string }>> {
   try {
     const { ownerId, actor } = await requireAuth();
-    await markConverted(input.definitionId, ownerId, input.projectCrmId, actor);
+    const full = await getDefinitionFull(input.definitionId, ownerId);
+    if (!full) return { success: false, error: "Definición no encontrada" };
+
+    if (full.definition.proposalId) {
+      return { success: true, data: { proposalId: full.definition.proposalId } };
+    }
+    if (full.definition.status !== "completed") {
+      return { success: false, error: "La definición todavía no está completa" };
+    }
+
+    const sealedFor = (station: DefinitionStation) =>
+      full.stations.find((s) => s.station === station)?.sealedContent ?? "";
+
+    const [client] = await db
+      .select({ name: clients.name })
+      .from(clients)
+      .where(eq(clients.id, full.definition.clientId))
+      .limit(1);
+
+    const proposalId = await createProposal(
+      ownerId,
+      full.definition.clientCrmId,
+      client?.name ?? "Cliente",
+      {
+        title: full.definition.title,
+        scope: sealedFor("boceto"),
+        solution: sealedFor("mvp"),
+        deliverables: sealedFor("flujo"),
+        status: "borrador",
+      }
+    );
+
+    await attachProposal(input.definitionId, ownerId, proposalId, actor);
     revalidatePath(`/proyectos/definicion/${input.definitionId}`);
     revalidatePath("/proyectos/definicion");
-    return { success: true };
+    return { success: true, data: { proposalId } };
   } catch (err) {
-    console.error("[markConvertedAction]", err);
-    return { success: false, error: "No se pudo registrar la conversión" };
+    console.error("[createProposalFromDefinitionAction]", err);
+    return { success: false, error: "No se pudo generar la propuesta" };
   }
 }

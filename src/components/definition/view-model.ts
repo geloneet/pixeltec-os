@@ -33,7 +33,7 @@ export interface DefinitionViewModel {
   clientCrmId: string;
   currentStation: DefinitionStation;
   status: "draft" | "in_progress" | "completed";
-  convertedProjectCrmId: string | null;
+  proposalId: string | null;
   stations: WsStation[];
   messagesByStation: Record<DefinitionStation, ThreadMessage[]>;
   events: WsEvent[];

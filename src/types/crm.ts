@@ -53,6 +53,8 @@ export interface CRMProject {
   tasks: CRMTask[];
   charges: RecurringCharge[];
   createdAt: string;
+  /** Contrato del que nació este proyecto (creación automática al firmar). */
+  contractId?: string;
 }
 
 export interface CRMClient {

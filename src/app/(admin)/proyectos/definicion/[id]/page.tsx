@@ -69,7 +69,7 @@ export default async function DefinicionDetailPage({
     clientCrmId: full.definition.clientCrmId,
     currentStation: full.definition.currentStation,
     status: full.definition.status,
-    convertedProjectCrmId: full.definition.convertedProjectCrmId,
+    proposalId: full.definition.proposalId,
     stations,
     messagesByStation,
     events,

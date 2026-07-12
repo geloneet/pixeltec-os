@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Sparkles, CheckCircle2, FileEdit, Lock } from "lucide-react";
+import { Sparkles, CheckCircle2, FileEdit, FileText } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { auth } from "@/lib/auth/config";
@@ -84,10 +84,10 @@ export default async function DefinicionListPage() {
                       {meta.stepLabel}
                     </span>
                   )}
-                  {d.convertedProjectCrmId && (
+                  {d.proposalId && (
                     <span className="flex items-center gap-1 text-[11px] text-zinc-600">
-                      <Lock className="h-3 w-3" />
-                      Convertido
+                      <FileText className="h-3 w-3" />
+                      Propuesta generada
                     </span>
                   )}
                 </div>

@@ -12,7 +12,7 @@ const EVENT_LABEL: Record<WsEvent["type"], string> = {
   sealed: "Estación sellada",
   reopened: "Estación reabierta",
   invalidated: "Sello invalidado (cambio upstream)",
-  converted: "Convertido a proyecto CRM",
+  converted: "Propuesta generada",
 };
 
 const EVENT_COLOR: Record<WsEvent["type"], string> = {
