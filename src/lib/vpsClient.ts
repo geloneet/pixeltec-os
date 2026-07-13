@@ -6,8 +6,12 @@
  * fetchVpsApi() para hablar con el backend.
  *
  * Variables de entorno (en .env.production en el VPS):
- *   VPS_API_URL    URL base del vps-api (default: https://api.pixeltec.mx)
- *   CRON_SECRET    Secret para autenticar contra el vps-api
+ *   VPS_API_URL      URL base del vps-api (default: https://api.pixeltec.mx)
+ *   VPS_API_SECRET   Secret para autenticar contra el vps-api — DEBE ser el
+ *                    mismo valor que vps-api/.env's VPS_API_SECRET (ver
+ *                    vps-api/src/auth.js). NO es CRON_SECRET — ese es el
+ *                    secret de los crons internos de esta app, un valor
+ *                    completamente distinto que vps-api nunca acepta.
  */
 
 const DEFAULT_VPS_API_URL = "https://api.pixeltec.mx";
@@ -35,7 +39,7 @@ function getBaseUrl(): string {
 }
 
 function getSecret(): string {
-  return process.env.CRON_SECRET || "";
+  return process.env.VPS_API_SECRET || "";
 }
 
 export async function fetchVpsApi<T = unknown>(
@@ -44,7 +48,7 @@ export async function fetchVpsApi<T = unknown>(
 ): Promise<VpsResponse<T>> {
   const secret = getSecret();
   if (!secret) {
-    throw new Error("CRON_SECRET env var is not set — cannot authenticate to vps-api");
+    throw new Error("VPS_API_SECRET env var is not set — cannot authenticate to vps-api");
   }
 
   const baseUrl = getBaseUrl();
