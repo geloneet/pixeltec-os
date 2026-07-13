@@ -10,6 +10,7 @@ import { ServerStatsHeader } from "./components/server-stats-header";
 import { ProjectCard } from "./components/project-card";
 import { LogsSheet } from "./components/logs-sheet";
 import { HealthPanels } from "./components/health-panels";
+import { VpsActionBar } from "./components/action-bar";
 import { getNavLabel } from "@/components/nav/command-palette-items";
 
 function StatCardSkeleton() {
@@ -93,6 +94,10 @@ export function VpsDashboard() {
           Refrescar
         </Button>
       </header>
+
+      <div className="mb-8">
+        <VpsActionBar />
+      </div>
 
       {vpsError && (vpsError.status === 401 || vpsError.status === 403) ? (
         <div className="mb-6 flex items-start gap-4 rounded-2xl border border-zinc-800/50 bg-zinc-900/40 p-6 backdrop-blur-xl">

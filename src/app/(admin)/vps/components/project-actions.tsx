@@ -181,40 +181,51 @@ export function ProjectActions({
   const confirmConfig = confirmFor ? ACTION_CONFIG[confirmFor] : null;
   const isPaused = status === "paused";
   const anyPending = pending !== null;
+  // Los servicios `manual` no corren bajo docker/pm2 — no hay proceso que la
+  // API pueda deploy/restart/pause/resume, así que esos botones no aplican.
+  const isManual = project.type === "manual";
 
   return (
     <>
-      <div className="flex flex-wrap gap-1.5">
-        <ActionButton
-          icon={Rocket}
-          label="Deploy"
-          onClick={() => handleClick("deploy")}
-          pending={pending === "deploy"}
-          disabled={anyPending || isPaused}
-        />
-        <ActionButton
-          icon={RotateCw}
-          label="Restart"
-          onClick={() => handleClick("restart")}
-          pending={pending === "restart"}
-          disabled={anyPending || isPaused}
-        />
-        {isPaused ? (
-          <ActionButton
-            icon={Play}
-            label="Resume"
-            onClick={() => handleClick("resume")}
-            pending={pending === "resume"}
-            disabled={anyPending}
-          />
+      <div className="flex flex-wrap items-center gap-1.5">
+        {isManual ? (
+          <span className="font-roboto text-xs italic text-zinc-500">
+            Gestión manual — sin deploy/restart/pause automatizados
+          </span>
         ) : (
-          <ActionButton
-            icon={Pause}
-            label="Pause"
-            onClick={() => handleClick("pause")}
-            pending={pending === "pause"}
-            disabled={anyPending}
-          />
+          <>
+            <ActionButton
+              icon={Rocket}
+              label="Deploy"
+              onClick={() => handleClick("deploy")}
+              pending={pending === "deploy"}
+              disabled={anyPending || isPaused}
+            />
+            <ActionButton
+              icon={RotateCw}
+              label="Restart"
+              onClick={() => handleClick("restart")}
+              pending={pending === "restart"}
+              disabled={anyPending || isPaused}
+            />
+            {isPaused ? (
+              <ActionButton
+                icon={Play}
+                label="Resume"
+                onClick={() => handleClick("resume")}
+                pending={pending === "resume"}
+                disabled={anyPending}
+              />
+            ) : (
+              <ActionButton
+                icon={Pause}
+                label="Pause"
+                onClick={() => handleClick("pause")}
+                pending={pending === "pause"}
+                disabled={anyPending}
+              />
+            )}
+          </>
         )}
         <ActionButton
           icon={ScrollText}
