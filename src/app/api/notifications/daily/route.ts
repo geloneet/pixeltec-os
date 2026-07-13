@@ -107,7 +107,7 @@ export async function GET(req: NextRequest) {
           type: "info",
           title: "Resumen diario",
           body: summaryBody,
-          href: "/tareas",
+          href: "/proyectos",
           source: "daily-cron",
         });
       } catch (e) {

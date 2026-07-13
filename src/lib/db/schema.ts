@@ -1390,15 +1390,15 @@ export const cspViolations = pgTable("csp_violations", {
 });
 
 // ════════════════════════════════════════════════════════════════════════
-// Asistente (planner semanal — dominio separado de `tasks` del CRM)
+// Legacy — tasks (colección top-level de Firestore, dominio separado de
+// `tasks` del CRM)
 // ════════════════════════════════════════════════════════════════════════
 
 /**
  * Colección top-level `tasks` de Firestore — datos legacy muertos (nada los
- * lee en la app; distinta de `tasks` del CRM y de `assistantTasks` del
- * planner semanal). Shape simple confirmado contra datos reales:
- * {title, responsible, status, createdAt, dueDate}. Se preserva solo como
- * archivo histórico de la migración.
+ * lee en la app; distinta de `tasks` del CRM). Shape simple confirmado
+ * contra datos reales: {title, responsible, status, createdAt, dueDate}.
+ * Se preserva solo como archivo histórico de la migración.
  */
 export const legacyTasks = pgTable(
   "legacy_tasks",
