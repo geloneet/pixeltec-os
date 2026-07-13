@@ -1595,147 +1595,6 @@ export const assistantWeeklyReports = pgTable(
 );
 
 // ════════════════════════════════════════════════════════════════════════
-// Crypto-Intel — grammY (Telegram) + price/alert engine, in-process
-// (src/lib/crypto-intel/**). Firestore era su único datastore (sin bridge
-// desde otro sistema, a diferencia del WhatsApp Inbox). `userId` en
-// cryptoAlertRules es un string crudo sin FK a propósito: es polimórfico
-// (Firebase UID cuando la alerta se crea desde el dashboard, ID numérico de
-// Telegram como string cuando se crea desde el bot) — normalizar ambos
-// espacios de identidad está fuera de alcance, ver
-// docs/superpowers/plans/2026-07-07-firebase-to-postgres-drizzle-nextauth-migration.md.
-// `prices`/`priceSnapshots`/`alerts`/`cryptoIntelLogs` arrancan vacíos
-// (decisión aceptada — se auto-sanan o son de bajo valor histórico);
-// `assets`/`news`/`briefings`/`indicators`/`telegramSessions` de Firestore no
-// tienen tabla — cero uso en el código hoy.
-// ════════════════════════════════════════════════════════════════════════
-
-export const cryptoAlertTypeEnum = pgEnum("crypto_alert_type", [
-  "price_below",
-  "price_above",
-  "change_percent",
-  "rsi_extreme",
-  "ma_cross",
-  "volume_spike",
-]);
-
-export const cryptoPriceSourceEnum = pgEnum("crypto_price_source", ["binance", "coingecko"]);
-
-export const cryptoTelegramRoleEnum = pgEnum("crypto_telegram_role", ["owner", "operator"]);
-
-export const cryptoLogSourceEnum = pgEnum("crypto_log_source", [
-  "price-sync",
-  "alert-engine",
-  "telegram-webhook",
-  "admin",
-]);
-
-export const cryptoLogLevelEnum = pgEnum("crypto_log_level", ["info", "warn", "error"]);
-
-export const cryptoAlertRules = pgTable(
-  "crypto_alert_rules",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    firestoreId: text("firestore_id"),
-    // Crudo, sin FK — ver nota de arriba (userId polimórfico Firebase UID / Telegram ID).
-    userId: text("user_id").notNull(),
-    symbol: text("symbol").notNull(),
-    type: cryptoAlertTypeEnum("type").notNull(),
-    params: jsonb("params").notNull(), // { threshold?, window?, direction? }
-    channels: jsonb("channels").notNull().default([]), // Array<"telegram"|"dashboard">
-    cooldownMinutes: integer("cooldown_minutes").notNull().default(60),
-    active: boolean("active").notNull().default(true),
-    lastTriggeredAt: timestamp("last_triggered_at", { withTimezone: true }),
-    telegramChatId: text("telegram_chat_id"),
-    displayName: text("display_name"),
-    triggerCount: integer("trigger_count").notNull().default(0),
-    deletedAt: timestamp("deleted_at", { withTimezone: true }), // soft delete
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-  },
-  (t) => [
-    index("crypto_alert_rules_user_idx").on(t.userId),
-    index("crypto_alert_rules_active_idx").on(t.active),
-    uniqueIndex("crypto_alert_rules_firestore_id_idx").on(t.firestoreId),
-  ]
-);
-
-export const cryptoAlertEvents = pgTable(
-  "crypto_alert_events",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    ruleId: uuid("rule_id")
-      .notNull()
-      .references(() => cryptoAlertRules.id, { onDelete: "cascade" }),
-    userId: text("user_id").notNull(),
-    symbol: text("symbol").notNull(),
-    message: text("message").notNull(),
-    payload: jsonb("payload").notNull(),
-    deliveredTo: jsonb("delivered_to").notNull().default([]),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  },
-  (t) => [
-    index("crypto_alert_events_rule_idx").on(t.ruleId),
-    index("crypto_alert_events_created_idx").on(t.createdAt),
-  ]
-);
-
-// Excepción deliberada a la convención uuid PK: `telegramId` (el Telegram ID,
-// mismo doc-id que hoy en Firestore) es la PK directa — lookup en cada
-// mensaje del bot (hot path) y nada más lo referencia por FK.
-export const cryptoTelegramUsers = pgTable("crypto_telegram_users", {
-  telegramId: text("telegram_id").primaryKey(),
-  telegramUserId: bigint("telegram_user_id_num", { mode: "number" }).notNull(),
-  telegramUsername: text("telegram_username"),
-  firstName: text("first_name"),
-  timezone: text("timezone").notNull().default("America/Mexico_City"),
-  role: cryptoTelegramRoleEnum("role").notNull().default("operator"),
-  authorized: boolean("authorized").notNull().default(true),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
-
-export const cryptoPrices = pgTable("crypto_prices", {
-  symbol: text("symbol").primaryKey(),
-  priceUsd: numeric("price_usd").notNull(),
-  change1h: numeric("change_1h").notNull(),
-  change24h: numeric("change_24h").notNull(),
-  change7d: numeric("change_7d").notNull(),
-  volume24h: numeric("volume_24h").notNull(),
-  marketCap: numeric("market_cap").notNull(),
-  source: cryptoPriceSourceEnum("source").notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
-
-export const cryptoPricePoints = pgTable(
-  "crypto_price_points",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    symbol: text("symbol").notNull(),
-    price: numeric("price").notNull(),
-    volume: numeric("volume").notNull().default("0"),
-    interval: text("interval").notNull().default("1m"),
-    timestamp: timestamp("timestamp", { withTimezone: true }).notNull().defaultNow(),
-  },
-  (t) => [index("crypto_price_points_symbol_ts_idx").on(t.symbol, t.timestamp)]
-);
-
-export const cryptoIntelLogs = pgTable(
-  "crypto_intel_logs",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    source: cryptoLogSourceEnum("source").notNull(),
-    level: cryptoLogLevelEnum("level").notNull(),
-    message: text("message").notNull(),
-    metadata: jsonb("metadata").notNull().default({}),
-    timestamp: timestamp("timestamp", { withTimezone: true }).notNull().defaultNow(),
-  },
-  (t) => [
-    index("crypto_intel_logs_timestamp_idx").on(t.timestamp.desc()),
-    index("crypto_intel_logs_source_idx").on(t.source),
-    index("crypto_intel_logs_level_idx").on(t.level),
-  ]
-);
-
-// ════════════════════════════════════════════════════════════════════════
 // WhatsApp Inbox — contactos (Fase B, 2026-07-08). Único remanente de
 // Firestore de este módulo: conversations/messages ya migraron a pixelbot
 // SQLite/HTTP (src/app/api/whatsapp-inbox/*) en una sesión previa; esta
@@ -1761,8 +1620,7 @@ export const whatsappContactStatusEnum = pgEnum("whatsapp_contact_status", [
 ]);
 
 /**
- * Excepción deliberada a la convención uuid PK (mismo criterio que
- * `cryptoTelegramUsers`/`cryptoPrices` arriba): `phone` es el doc id de
+ * Excepción deliberada a la convención uuid PK: `phone` es el doc id de
  * siempre en Firestore, hot-path de lookup por teléfono en cada carga del
  * inbox, y nada más lo referencia por FK salvo `whatsappContactNotes` abajo.
  *
@@ -1775,8 +1633,7 @@ export const whatsappContactStatusEnum = pgEnum("whatsapp_contact_status", [
  * guardado aquí no es un uuid) y además hay una condición de carrera: el
  * dashboard guarda `linkedClientId` inmediatamente al convertir el contacto,
  * antes de que el insert debounced en `clients` complete. Se preserva como
- * texto libre, igual que `userId` en `cryptoAlertRules` (ver nota de esa
- * sección).
+ * texto libre.
  */
 export const whatsappContacts = pgTable("whatsapp_contacts", {
   phone: text("phone").primaryKey(),
@@ -2047,19 +1904,6 @@ export type NewsletterSubscriber = typeof newsletterSubscribers.$inferSelect;
 
 export type Notification = typeof notifications.$inferSelect;
 export type NewNotification = typeof notifications.$inferInsert;
-
-export type CryptoAlertRule = typeof cryptoAlertRules.$inferSelect;
-export type NewCryptoAlertRule = typeof cryptoAlertRules.$inferInsert;
-export type CryptoAlertEvent = typeof cryptoAlertEvents.$inferSelect;
-export type NewCryptoAlertEvent = typeof cryptoAlertEvents.$inferInsert;
-export type CryptoTelegramUser = typeof cryptoTelegramUsers.$inferSelect;
-export type NewCryptoTelegramUser = typeof cryptoTelegramUsers.$inferInsert;
-export type CryptoPrice = typeof cryptoPrices.$inferSelect;
-export type NewCryptoPrice = typeof cryptoPrices.$inferInsert;
-export type CryptoPricePoint = typeof cryptoPricePoints.$inferSelect;
-export type NewCryptoPricePoint = typeof cryptoPricePoints.$inferInsert;
-export type CryptoIntelLog = typeof cryptoIntelLogs.$inferSelect;
-export type NewCryptoIntelLog = typeof cryptoIntelLogs.$inferInsert;
 
 export type WhatsappContactRow = typeof whatsappContacts.$inferSelect;
 export type NewWhatsappContactRow = typeof whatsappContacts.$inferInsert;
