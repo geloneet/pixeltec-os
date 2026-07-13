@@ -188,7 +188,16 @@ function renderListItem(marker, text, isOrdered, key) {
 // LÍNEA POR LÍNEA (no bloque por bloque) para que un `## título` seguido sin
 // línea en blanco de una tabla no rompa la detección.
 function renderRichText(raw) {
-  const lines = String(raw ?? "").split("\n").map((l) => l.trimEnd());
+  // Una regla horizontal colgando al final del texto, sin nada después, no
+  // separa nada — es puramente vestigial. Además dispara un bug real de
+  // @react-pdf/renderer: si el ÚLTIMO nodo del PDF completo es esta View
+  // delgada (h: 0.75) justo después de una tabla, el motor de paginación
+  // entra en bucle infinito y el proceso se cuelga (confirmado por
+  // bisección: tabla+párrafo+hr-al-final cuelga; el mismo contenido con
+  // cualquier texto después del hr renderiza normal). Se recorta antes de
+  // parsear — no cambia nada visible, solo evita el nodo colgante.
+  const trimmedTail = String(raw ?? "").replace(/(\n\s*(-{3,}|\*{3,}|_{3,})\s*)+$/, "");
+  const lines = trimmedTail.split("\n").map((l) => l.trimEnd());
   const els = [];
   let i = 0;
   let k = 0;
