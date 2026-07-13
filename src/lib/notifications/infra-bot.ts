@@ -1,25 +1,8 @@
 import { Bot, type Context, InlineKeyboard } from 'grammy';
-import { desc } from 'drizzle-orm';
 import { isAllowedChat, logCommand } from './telegram-auth';
 import { createSilence, checkSilence } from './silence';
-import { db } from '@/lib/db';
-import { assistantWeeklyReports } from '@/lib/db/schema';
-
-/** Shape of `assistantWeeklyReports.totals` (jsonb column). */
-interface ReportTotals {
-  total:      number;
-  completed:  number;
-  cancelled:  number;
-  postponed:  number;
-  pending:    number;
-  inProgress: number;
-}
 
 let _bot: Bot | null = null;
-
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
 
 async function denied(ctx: Context, command: string): Promise<void> {
   await logCommand({
@@ -60,10 +43,8 @@ function getBot(): Bot {
       '👋 <b>PixelTEC Infra Alerts</b>\n\n' +
       'Bot interno de operaciones VPS. Comandos disponibles:\n\n' +
       '/help — lista completa\n' +
-      '/status — estado del cron + heartbeat\n' +
-      '/last_report — último weekly report\n' +
+      '/status — estado del bot\n' +
       '/health — ping al VPS y app\n' +
-      '/force_rollover — dispara rollover (con confirmación)\n' +
       '/silence_alerts &lt;horas&gt; — silenciar alertas N horas',
       { parse_mode: 'HTML' },
     );
@@ -82,11 +63,9 @@ function getBot(): Bot {
     await ctx.reply(
       '<b>Comandos PixelTEC Infra</b>\n\n' +
       '<b>Read-only:</b>\n' +
-      '/status — estado del cron + último heartbeat\n' +
-      '/last_report — detalle del último weekly report\n' +
+      '/status — estado del bot\n' +
       '/health — health check de la app\n\n' +
       '<b>Mutaciones:</b>\n' +
-      '/force_rollover — fuerza rollover semanal manualmente (requiere confirmación)\n' +
       '/silence_alerts &lt;horas&gt; — silencia alertas (max 168h = 7 días). ' +
       'Critical bypassa el silencio.\n\n' +
       '<i>Tip: muchos mensajes traen botones inline para acciones rápidas.</i>',
@@ -105,23 +84,18 @@ function getBot(): Bot {
   bot.command('status', async (ctx) => {
     const t0 = Date.now();
     try {
-      const ageDays    = await getHeartbeatAgeDays();
-      const sil        = await checkSilence();
-      const lastReport = await getLastReportSummary();
+      const sil = await checkSilence();
 
       const lines = [
         '📊 <b>Estado PixelTEC Infra</b>',
         '',
-        `<b>Cron rollover:</b> ${ageDays === null ? 'sin heartbeat' : `último hace ${ageDays}d`}`,
         `<b>Silencio:</b> ${sil.silenced ? `activo hasta ${sil.expiresAt?.toISOString()}` : 'inactivo'}`,
-        `<b>Último reporte:</b> ${lastReport ?? 'sin datos'}`,
         '',
         `<i>${new Date().toISOString()}</i>`,
       ];
 
       const kb = new InlineKeyboard()
-        .text('🔁 Refresh', 'cmd:status')
-        .text('📊 Detalle', 'cmd:last_report');
+        .text('🔁 Refresh', 'cmd:status');
 
       await ctx.reply(lines.join('\n'), { parse_mode: 'HTML', reply_markup: kb });
       await logCommand({
@@ -135,30 +109,6 @@ function getBot(): Bot {
       await ctx.reply(`❌ Error: ${err instanceof Error ? err.message : 'unknown'}`);
       await logCommand({
         command:      '/status',
-        chatId:       ctx.chat!.id,
-        result:       'error',
-        errorMessage: err instanceof Error ? err.message : 'unknown',
-      });
-    }
-  });
-
-  // /last_report
-  bot.command('last_report', async (ctx) => {
-    const t0 = Date.now();
-    try {
-      const detail = await getLastReportDetail();
-      await ctx.reply(detail, { parse_mode: 'HTML' });
-      await logCommand({
-        command:    '/last_report',
-        chatId:     ctx.chat!.id,
-        username:   ctx.from?.username,
-        result:     'ok',
-        durationMs: Date.now() - t0,
-      });
-    } catch (err) {
-      await ctx.reply(`❌ Error: ${err instanceof Error ? err.message : 'unknown'}`);
-      await logCommand({
-        command:      '/last_report',
         chatId:       ctx.chat!.id,
         result:       'error',
         errorMessage: err instanceof Error ? err.message : 'unknown',
@@ -195,21 +145,6 @@ function getBot(): Bot {
         errorMessage: err instanceof Error ? err.message : 'unknown',
       });
     }
-  });
-
-  // /force_rollover (solicita confirmación via botones)
-  bot.command('force_rollover', async (ctx) => {
-    const kb = new InlineKeyboard()
-      .text('✅ Sí, ejecutar', 'force_rollover:confirm')
-      .text('❌ Cancelar',     'force_rollover:cancel');
-    await ctx.reply(
-      '⚠️ <b>Confirmar force rollover</b>\n\n' +
-      'Esto ejecuta performWeeklyRollover() para la semana actual. ' +
-      'Si ya hay reporte, será idempotente (counts 0/0). ' +
-      'Si no, archivará tasks reales y generará nueva semana.\n\n' +
-      '¿Proceder?',
-      { parse_mode: 'HTML', reply_markup: kb },
-    );
   });
 
   // /silence_alerts <horas>
@@ -259,56 +194,10 @@ function getBot(): Bot {
     });
   });
 
-  // Callback: force_rollover confirm/cancel
-  bot.callbackQuery(/^force_rollover:(confirm|cancel)$/, async (ctx) => {
-    const action = ctx.match?.[1];
-    await ctx.answerCallbackQuery();
-
-    if (action === 'cancel') {
-      await ctx.editMessageText('❌ Force rollover cancelado.');
-      return;
-    }
-
-    try {
-      const baseUrl    = process.env.NEXT_PUBLIC_APP_URL ?? 'https://pixeltec.mx';
-      const cronSecret = process.env.CRON_SECRET;
-      const res  = await fetch(`${baseUrl}/api/cron/asistente/weekly-rollover`, {
-        headers: { Authorization: `Bearer ${cronSecret}` },
-      });
-      const data = await res.json() as unknown;
-      await ctx.editMessageText(
-        `✅ Rollover ejecutado\n<pre>${escapeHtml(JSON.stringify(data, null, 2))}</pre>`,
-        { parse_mode: 'HTML' },
-      );
-      await logCommand({
-        command:  '/force_rollover',
-        args:     'confirmed',
-        chatId:   ctx.chat!.id,
-        username: ctx.from?.username,
-        result:   'ok',
-      });
-    } catch (err) {
-      await ctx.editMessageText(`❌ Error: ${err instanceof Error ? err.message : 'unknown'}`);
-      await logCommand({
-        command:      '/force_rollover',
-        chatId:       ctx.chat!.id,
-        result:       'error',
-        errorMessage: err instanceof Error ? err.message : 'unknown',
-      });
-    }
-  });
-
   // Callback: refresh status
   bot.callbackQuery('cmd:status', async (ctx) => {
     await ctx.answerCallbackQuery({ text: '🔁 Refresh...' });
     await ctx.reply('Manda /status para refrescar.');
-  });
-
-  // Callback: last_report detail
-  bot.callbackQuery('cmd:last_report', async (ctx) => {
-    await ctx.answerCallbackQuery();
-    const detail = await getLastReportDetail();
-    await ctx.reply(detail, { parse_mode: 'HTML' });
   });
 
   // Callback: silence Nh (desde botones inline de alertas outbound)
@@ -331,86 +220,8 @@ function getBot(): Bot {
     }
   });
 
-  // Callback: rerun_rollover (desde botones de watchdog crítico)
-  bot.callbackQuery('rerun_rollover', async (ctx) => {
-    await ctx.answerCallbackQuery({ text: '🔁 Disparando rollover...' });
-    try {
-      const baseUrl    = process.env.NEXT_PUBLIC_APP_URL ?? 'https://pixeltec.mx';
-      const cronSecret = process.env.CRON_SECRET;
-      const res  = await fetch(`${baseUrl}/api/cron/asistente/weekly-rollover`, {
-        headers: { Authorization: `Bearer ${cronSecret}` },
-      });
-      const data = await res.json() as unknown;
-      await ctx.reply(
-        `Rollover ejecutado: <pre>${escapeHtml(JSON.stringify(data))}</pre>`,
-        { parse_mode: 'HTML' },
-      );
-    } catch (err) {
-      await ctx.reply(`❌ ${err instanceof Error ? err.message : 'unknown'}`);
-    }
-  });
-
   _bot = bot;
   return bot;
-}
-
-// --- Postgres helpers (antes Firestore `assistantWeeklyReports`) ---
-
-async function getLatestReportRow() {
-  const [row] = await db
-    .select()
-    .from(assistantWeeklyReports)
-    .orderBy(desc(assistantWeeklyReports.generatedAt))
-    .limit(1);
-  return row ?? null;
-}
-
-async function getHeartbeatAgeDays(): Promise<number | null> {
-  // Heartbeat real vive en el FS del VPS. Usamos generatedAt del último
-  // weekly report como proxy — misma señal que el watchdog monitorea.
-  try {
-    const row = await getLatestReportRow();
-    if (!row) return null;
-    const createdMs = row.generatedAt?.getTime() ?? 0;
-    return Math.floor((Date.now() - createdMs) / 86400000);
-  } catch {
-    return null;
-  }
-}
-
-async function getLastReportSummary(): Promise<string | null> {
-  try {
-    const row = await getLatestReportRow();
-    if (!row) return null;
-    const totals = (row.totals ?? {}) as Partial<ReportTotals>;
-    return `${row.weekKey} · total ${totals.total ?? 0} · completadas ${totals.completed ?? 0}`;
-  } catch {
-    return null;
-  }
-}
-
-async function getLastReportDetail(): Promise<string> {
-  try {
-    const row = await getLatestReportRow();
-    if (!row) return '<i>No hay reportes todavía.</i>';
-    const totals = (row.totals ?? {}) as Partial<ReportTotals>;
-    const lines  = [
-      `📊 <b>Reporte ${row.weekKey}</b>`,
-      '',
-      `<b>Total tasks:</b> ${totals.total ?? 0}`,
-      `<b>Completadas:</b> ${totals.completed ?? 0}`,
-      `<b>Pendientes:</b> ${totals.pending ?? 0}`,
-      `<b>En progreso:</b> ${totals.inProgress ?? 0}`,
-      `<b>Canceladas:</b> ${totals.cancelled ?? 0}`,
-      `<b>Postponed:</b> ${totals.postponed ?? 0}`,
-      '',
-      `<i>Generado: ${row.generatedAt?.toISOString() ?? '?'}</i>`,
-      `<i>Trigger: ${row.generatedBy ?? '?'}</i>`,
-    ];
-    return lines.join('\n');
-  } catch (err) {
-    return `❌ Error leyendo reporte: ${err instanceof Error ? err.message : 'unknown'}`;
-  }
 }
 
 export { getBot };

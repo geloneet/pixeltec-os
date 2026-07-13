@@ -72,15 +72,10 @@ export async function POST(req: NextRequest): Promise<NextResponse<AlertResponse
   }
 
   let replyMarkup: object | undefined;
-  if (payload.source === 'asistente-rollover' && payload.severity === 'info') {
-    replyMarkup = {
-      inline_keyboard: [[{ text: '📊 Ver detalle', callback_data: 'cmd:last_report' }]],
-    };
-  } else if (payload.severity === 'critical') {
+  if (payload.severity === 'critical') {
     replyMarkup = {
       inline_keyboard: [
         [
-          { text: '🔁 Re-correr', callback_data: 'rerun_rollover' },
           { text: '🔇 Silenciar 24h', callback_data: 'silence:24h' },
         ],
       ],
