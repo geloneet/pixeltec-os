@@ -22,6 +22,13 @@ export interface RateLimitInput {
   max: number;
   /** Window length in milliseconds. */
   windowMs: number;
+  /**
+   * Si el backend falla, denegar en vez del fail-open por defecto. Úsalo en
+   * buckets que protegen un secreto (ej. verify de OTP): durante una caída de
+   * la tabla `rateLimit` es preferible bloquear un momento que levantar el
+   * límite de fuerza bruta sobre un código de 6 dígitos.
+   */
+  failClosed?: boolean;
 }
 
 export interface RateLimitResult {
@@ -54,7 +61,7 @@ export async function resetRateLimit(input: Pick<RateLimitInput, 'ip' | 'bucket'
 }
 
 export async function enforceRateLimit(input: RateLimitInput): Promise<RateLimitResult> {
-  const { ip, bucket, max, windowMs } = input;
+  const { ip, bucket, max, windowMs, failClosed } = input;
   const id = buildKey(bucket, ip);
 
   try {
@@ -89,6 +96,10 @@ export async function enforceRateLimit(input: RateLimitInput): Promise<RateLimit
 
     return { allowed: true, remaining: Math.max(0, max - row.count), retryAfterSec: 0 };
   } catch (err) {
+    if (failClosed) {
+      console.error('[rateLimit] backend error — failing closed', { bucket, err });
+      return { allowed: false, remaining: 0, retryAfterSec: Math.ceil(windowMs / 1000) };
+    }
     console.error('[rateLimit] backend error — failing open', { bucket, err });
     return { allowed: true, remaining: max, retryAfterSec: 0 };
   }

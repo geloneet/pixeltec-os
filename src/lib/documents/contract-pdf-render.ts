@@ -3,6 +3,7 @@ import { promisify } from "node:util";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { clients } from "@/lib/db/schema";
@@ -53,4 +54,21 @@ export function safeContractFilename(title: string, version: number): string {
       .replace(/\s+/g, "_")
       .slice(0, 100) || "contrato";
   return `${safeName}_v${version}.pdf`;
+}
+
+/**
+ * Resuelve el nombre del cliente, genera el PDF y lo devuelve como respuesta
+ * de descarga. Los dos routes (admin y portal) sólo hacen auth + verificación
+ * de propiedad y luego delegan aquí, para no duplicar el armado de headers.
+ */
+export async function contractPdfResponse(contract: Contract & { id: string }): Promise<NextResponse> {
+  const clientName = await resolveContractClientName(contract.clientId);
+  const pdf = await generateContractPdf(contract, clientName);
+  return new NextResponse(new Uint8Array(pdf), {
+    headers: {
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `attachment; filename="${safeContractFilename(contract.title, contract.version)}"`,
+      "Cache-Control": "no-store",
+    },
+  });
 }

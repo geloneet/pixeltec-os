@@ -4,7 +4,8 @@ import { signPortalSessionToken, verifyPortalSessionToken } from "./session-toke
 const COOKIE_NAME = "__client_portal_session";
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 días
 
-function getSecret(): string {
+/** Único lector de `PORTAL_SESSION_SECRET` — lo reusa también `auth-actions.ts` para el hash del OTP. */
+export function getPortalSessionSecret(): string {
   const secret = process.env.PORTAL_SESSION_SECRET;
   if (!secret) throw new Error("PORTAL_SESSION_SECRET no está configurado.");
   return secret;
@@ -12,7 +13,7 @@ function getSecret(): string {
 
 /** `publicClientId` = `clients.firestoreId ?? clients.id` — mismo formato que usa el resto de la app (ver `publicDocId` en `src/lib/documents/pg.ts`). */
 export async function createPortalSessionCookie(publicClientId: string): Promise<void> {
-  const token = signPortalSessionToken({ clientId: publicClientId, exp: Date.now() + SESSION_TTL_MS }, getSecret());
+  const token = signPortalSessionToken({ clientId: publicClientId, exp: Date.now() + SESSION_TTL_MS }, getPortalSessionSecret());
   const cookieStore = await cookies();
   cookieStore.set(COOKIE_NAME, token, {
     httpOnly: true,
@@ -28,7 +29,7 @@ export async function readPortalSessionClientId(): Promise<string | null> {
   const cookieStore = await cookies();
   const token = cookieStore.get(COOKIE_NAME)?.value;
   if (!token) return null;
-  const result = verifyPortalSessionToken(token, getSecret(), Date.now());
+  const result = verifyPortalSessionToken(token, getPortalSessionSecret(), Date.now());
   return result?.clientId ?? null;
 }
 

@@ -46,7 +46,6 @@ export function PortalAdminList() {
     const result = await publishPortalUpdateAction(clientId, {
       text: updateText.trim(),
       imageUrl: updateImageUrl.trim() || undefined,
-      createdBy: user.displayName ?? user.email ?? 'Equipo PixelTEC',
     });
     setPublishing(false);
     if (result.success) {

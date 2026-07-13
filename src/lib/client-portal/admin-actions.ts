@@ -7,6 +7,7 @@ import {
   listAllClientsForPortalAdmin,
   setPortalAccessEnabled as setPortalAccessEnabledDb,
   publishPortalUpdate as publishPortalUpdateDb,
+  portalLoginBlockerFor,
   type PortalAdminClientRow,
 } from './pg';
 
@@ -20,6 +21,11 @@ export async function setPortalAccessEnabledAction(clientId: string, enabled: bo
   const clientPgId = await resolveClientPgId(clientId);
   if (!clientPgId) return { success: false, error: 'Cliente no encontrado.' };
 
+  if (enabled) {
+    const blocker = await portalLoginBlockerFor(clientPgId);
+    if (blocker) return { success: false, error: blocker };
+  }
+
   const updated = await setPortalAccessEnabledDb(clientPgId, ownerId, enabled);
   if (!updated) return { success: false, error: 'Cliente no encontrado.' };
   return { success: true, data: null };
@@ -28,12 +34,11 @@ export async function setPortalAccessEnabledAction(clientId: string, enabled: bo
 const publishUpdateSchema = z.object({
   text: z.string().min(1).max(2000),
   imageUrl: z.string().url().optional().or(z.literal('')),
-  createdBy: z.string().min(1),
 });
 
 export async function publishPortalUpdateAction(
   clientId: string,
-  input: { text: string; imageUrl?: string; createdBy: string },
+  input: { text: string; imageUrl?: string },
 ): Promise<PortalActionResult<{ id: string }>> {
   const parsed = publishUpdateSchema.safeParse(input);
   if (!parsed.success) return { success: false, error: 'Datos inválidos.' };
@@ -42,10 +47,11 @@ export async function publishPortalUpdateAction(
   const clientPgId = await resolveClientPgId(clientId);
   if (!clientPgId) return { success: false, error: 'Cliente no encontrado.' };
 
+  // `createdBy` NO se toma del input — lo deriva el data layer del owner
+  // autenticado (ver publishPortalUpdate) para que no sea spoofeable.
   const id = await publishPortalUpdateDb(clientPgId, ownerId, {
     text: parsed.data.text,
     imageUrl: parsed.data.imageUrl || null,
-    createdBy: parsed.data.createdBy,
   });
   if (!id) return { success: false, error: 'Cliente no encontrado.' };
   return { success: true, data: { id } };

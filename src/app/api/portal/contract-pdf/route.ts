@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { readPortalSessionClientId } from "@/lib/client-portal/cookie";
 import { resolveClientPgId, findContractByPublicId } from "@/lib/documents/pg";
 import { isPortalAccessEnabled } from "@/lib/client-portal/pg";
-import { resolveContractClientName, generateContractPdf, safeContractFilename } from "@/lib/documents/contract-pdf-render";
+import { contractPdfResponse } from "@/lib/documents/contract-pdf-render";
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
   try {
@@ -28,16 +28,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       return new NextResponse("Forbidden", { status: 403 });
     }
 
-    const clientName = await resolveContractClientName(contract.clientId);
-    const pdf = await generateContractPdf(contract, clientName);
-
-    return new NextResponse(new Uint8Array(pdf), {
-      headers: {
-        "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="${safeContractFilename(contract.title, contract.version)}"`,
-        "Cache-Control": "no-store",
-      },
-    });
+    return await contractPdfResponse(contract);
   } catch (err) {
     console.error("[portal-contract-pdf]", err);
     return new NextResponse("Internal error", { status: 500 });
