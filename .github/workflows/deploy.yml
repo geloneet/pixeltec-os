@@ -34,6 +34,11 @@ jobs:
             docker compose --env-file .env.production build
             echo "==> docker compose up"
             docker compose --env-file .env.production up -d
+            echo "==> nginx reload (el contenedor recreado puede tomar otra IP en web-network; sin reload nginx sigue apuntando a la vieja -> 502/504)"
+            docker exec pixeltec-nginx nginx -s reload || true
+            echo "==> limpiar build cache/imagenes huerfanas (evita que el cache se acumule entre deploys y llene el disco; el prune semanal solo corre domingos)"
+            docker builder prune -f > /dev/null 2>&1 || true
+            docker image prune -f > /dev/null 2>&1 || true
             echo "==> Health check"
             sleep 5
             curl -s -o /dev/null -w "%{http_code}" http://localhost
