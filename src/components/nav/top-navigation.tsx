@@ -56,7 +56,7 @@ export function TopNavigation() {
     ).length;
 
   return (
-    <header className="relative flex h-20 w-full flex-shrink-0 items-center justify-between border-b border-white/10 bg-[#030303]/80 px-4 backdrop-blur-lg sm:px-6 lg:px-8">
+    <header className="relative flex h-20 w-full flex-shrink-0 items-center justify-between border-b border-border bg-background/80 px-4 backdrop-blur-lg sm:px-6 lg:px-8">
       {/* ── LEFT: logo + área actual ─────────────────────────────────────── */}
       <div className="flex flex-shrink-0 items-center gap-4">
         <Image
@@ -66,9 +66,9 @@ export function TopNavigation() {
           height={32}
           className="h-8 w-8"
         />
-        <span className="font-logo whitespace-nowrap text-xl font-extrabold uppercase tracking-tight text-gray-100">
+        <span className="font-logo whitespace-nowrap text-xl font-extrabold uppercase tracking-tight text-foreground">
           Pixel<span className="text-brand-blue">Tec</span>
-          <span className="ml-2 hidden font-sans text-lg normal-case text-zinc-400 lg:inline">
+          <span className="ml-2 hidden font-sans text-lg normal-case text-muted-foreground lg:inline">
             / {activeArea ? NAV_AREA_LABELS[activeArea] : "Dashboard"}
           </span>
         </span>
@@ -79,7 +79,7 @@ export function TopNavigation() {
         aria-label="Navegación principal"
         className="scrollbar-none mx-2 flex flex-1 items-center justify-start overflow-x-auto lg:justify-center"
       >
-        <div className="flex items-center gap-1 rounded-full bg-white/5 p-1.5">
+        <div className="flex items-center gap-1 rounded-full bg-secondary/60 p-1.5">
           {NAV_AREA_ORDER.map((area) => {
             const active = area === activeArea;
             return (
@@ -88,13 +88,13 @@ export function TopNavigation() {
                 href={getAreaHref(area)}
                 className={cn(
                   "relative shrink-0 whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors",
-                  active ? "text-black" : "text-zinc-400 hover:text-white"
+                  active ? "text-background" : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 {active && (
                   <motion.span
                     layoutId="admin-top-nav-active-pill"
-                    className="absolute inset-0 rounded-full bg-white"
+                    className="absolute inset-0 rounded-full bg-foreground"
                     transition={{ type: "spring", stiffness: 500, damping: 35 }}
                   />
                 )}
@@ -117,8 +117,8 @@ export function TopNavigation() {
                 className={cn(
                   "relative flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors",
                   isOverflowActive
-                    ? "bg-white text-black"
-                    : "text-zinc-400 hover:text-white"
+                    ? "bg-foreground text-background"
+                    : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 Más
@@ -128,7 +128,7 @@ export function TopNavigation() {
             <DropdownMenuContent
               align="center"
               sideOffset={10}
-              className="w-56 rounded-xl border border-white/10 bg-[#0a0a0a]/95 p-1 text-zinc-100 backdrop-blur-xl"
+              className="w-56 rounded-xl border border-border bg-popover/95 p-1 text-popover-foreground backdrop-blur-xl"
             >
               {OVERFLOW_ITEMS.map((item) => {
                 const Icon = item.icon;
@@ -136,7 +136,7 @@ export function TopNavigation() {
                   <DropdownMenuItem
                     key={item.href}
                     onClick={() => router.push(item.href)}
-                    className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-2 text-sm text-zinc-300 focus:bg-white/10 focus:text-white"
+                    className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-2 text-sm text-muted-foreground focus:bg-secondary focus:text-foreground"
                   >
                     <Icon className="h-4 w-4 flex-shrink-0" strokeWidth={1.75} />
                     {item.label}
@@ -154,13 +154,13 @@ export function TopNavigation() {
           type="button"
           onClick={() => setOpen(true)}
           aria-label="Abrir buscador"
-          className="flex h-9 items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 text-zinc-400 backdrop-blur-md transition-all duration-200 hover:bg-white/10 hover:text-white sm:h-10"
+          className="flex h-9 items-center gap-2 rounded-full border border-border bg-secondary/60 px-3 text-muted-foreground backdrop-blur-md transition-all duration-200 hover:bg-secondary hover:text-foreground sm:h-10"
         >
           <LayoutGrid className="h-4 w-4 sm:hidden" />
           <span className="text-xs font-medium sm:hidden">Menú</span>
           <Search className="hidden h-4 w-4 sm:block" />
           <span className="hidden text-xs sm:block">Buscar</span>
-          <kbd className="hidden items-center rounded border border-white/10 bg-black/40 px-1.5 py-0.5 text-[10px] font-mono text-zinc-500 lg:inline-flex">
+          <kbd className="hidden items-center rounded border border-border bg-background/40 px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground lg:inline-flex">
             ⌘K
           </kbd>
         </button>

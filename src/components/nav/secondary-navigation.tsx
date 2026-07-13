@@ -26,7 +26,7 @@ export function SecondaryNavigation({ area }: { area: NavArea | null }) {
           animate={{ height: "auto", opacity: 1 }}
           exit={{ height: 0, opacity: 0 }}
           transition={{ duration: 0.2, ease: "easeOut" }}
-          className="overflow-hidden border-b border-white/10 bg-[#030303]/60 backdrop-blur-md"
+          className="overflow-hidden border-b border-border bg-background/60 backdrop-blur-md"
         >
           <nav
             aria-label={`Submenú de ${area}`}
@@ -40,13 +40,13 @@ export function SecondaryNavigation({ area }: { area: NavArea | null }) {
                   href={item.href}
                   className={cn(
                     "relative shrink-0 whitespace-nowrap rounded-full px-3.5 py-1 text-sm font-medium transition-colors",
-                    active ? "text-white" : "text-zinc-400 hover:text-white"
+                    active ? "text-foreground" : "text-muted-foreground hover:text-foreground"
                   )}
                 >
                   {active && (
                     <motion.span
                       layoutId="admin-secondary-nav-active-pill"
-                      className="absolute inset-0 rounded-full bg-white/10"
+                      className="absolute inset-0 rounded-full bg-secondary/60"
                       transition={{ type: "spring", stiffness: 500, damping: 35 }}
                     />
                   )}

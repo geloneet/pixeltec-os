@@ -72,11 +72,11 @@ export function CmdKDialog() {
               >
                 <Users className="mr-3 h-4 w-4 text-blue-400" />
                 <div className="flex-1 min-w-0">
-                  <div className="font-medium text-zinc-100 truncate">
+                  <div className="font-medium text-foreground truncate">
                     {client.name}
                   </div>
                   {client.email && (
-                    <div className="text-xs text-zinc-500 truncate">
+                    <div className="text-xs text-muted-foreground truncate">
                       {client.email}
                     </div>
                   )}
@@ -98,10 +98,10 @@ export function CmdKDialog() {
                 >
                   <Rocket className="mr-3 h-4 w-4 text-indigo-400" />
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium text-zinc-100 truncate">
+                    <div className="font-medium text-foreground truncate">
                       {p.name}
                     </div>
-                    <div className="text-xs text-zinc-500 truncate">
+                    <div className="text-xs text-muted-foreground truncate">
                       Cliente: {p.clientName}
                     </div>
                   </div>
@@ -129,10 +129,10 @@ export function CmdKDialog() {
                 >
                   <CheckSquare className="mr-3 h-4 w-4 text-emerald-400" />
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium text-zinc-100 truncate">
+                    <div className="font-medium text-foreground truncate">
                       {t.name}
                     </div>
-                    <div className="text-xs text-zinc-500 truncate">
+                    <div className="text-xs text-muted-foreground truncate">
                       {t.projectName} · {t.clientName}
                     </div>
                   </div>
@@ -154,10 +154,10 @@ export function CmdKDialog() {
                 >
                   <Server className="mr-3 h-4 w-4 text-orange-400" />
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium text-zinc-100 truncate">
+                    <div className="font-medium text-foreground truncate">
                       {vp.name}
                     </div>
-                    <div className="text-xs text-zinc-500 truncate">
+                    <div className="text-xs text-muted-foreground truncate">
                       {vp.domain || "Sin dominio"} · {vp.type}
                     </div>
                   </div>
@@ -167,22 +167,22 @@ export function CmdKDialog() {
           </>
         )}
       </CommandList>
-      <div className="flex items-center justify-between border-t border-zinc-800/70 px-3 py-2 text-[11px] text-zinc-500">
+      <div className="flex items-center justify-between border-t border-border px-3 py-2 text-[11px] text-muted-foreground">
         <div className="flex items-center gap-3">
           <span>
-            <kbd className="rounded border border-zinc-800 bg-zinc-900 px-1.5 py-0.5 font-mono text-[10px] text-zinc-400">
+            <kbd className="rounded border border-border bg-card px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
               ↑↓
             </kbd>{" "}
             Navegar
           </span>
           <span>
-            <kbd className="rounded border border-zinc-800 bg-zinc-900 px-1.5 py-0.5 font-mono text-[10px] text-zinc-400">
+            <kbd className="rounded border border-border bg-card px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
               ↵
             </kbd>{" "}
             Abrir
           </span>
           <span>
-            <kbd className="rounded border border-zinc-800 bg-zinc-900 px-1.5 py-0.5 font-mono text-[10px] text-zinc-400">
+            <kbd className="rounded border border-border bg-card px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
               Esc
             </kbd>{" "}
             Cerrar
