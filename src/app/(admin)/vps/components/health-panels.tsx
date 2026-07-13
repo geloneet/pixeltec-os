@@ -2,7 +2,8 @@ import {
   Activity,
   CheckCircle2,
   Database,
-  HardDrive,
+  Gauge,
+  Globe,
   Lock,
   ShieldAlert,
   ShieldCheck,
@@ -279,25 +280,10 @@ function UsageBar({ pct }: { pct: number }) {
   );
 }
 
-function StoragePanel({
-  disk,
-  host,
-}: {
-  disk: VpsSnapshot["disk"];
-  host: VpsSnapshot["host"];
-}) {
+function ResourcesPanel({ host }: { host: VpsSnapshot["host"] }) {
   return (
-    <PanelShell icon={HardDrive} title="Almacenamiento">
+    <PanelShell icon={Gauge} title="Recursos (RAM · carga)">
       <div className="space-y-4">
-        <div>
-          <div className="mb-1.5 flex items-center justify-between font-roboto text-xs text-zinc-500">
-            <span>Disco</span>
-            <span>
-              {disk.usedPct}% · {disk.used} / {disk.size}
-            </span>
-          </div>
-          <UsageBar pct={disk.usedPct} />
-        </div>
         <div>
           <div className="mb-1.5 flex items-center justify-between font-roboto text-xs text-zinc-500">
             <span>RAM</span>
@@ -312,6 +298,48 @@ function StoragePanel({
           </span>
         </div>
       </div>
+    </PanelShell>
+  );
+}
+
+// ── 5b. Servicios (salud HTTP) ───────────────────────────────────────────────
+
+function httpTone(httpOk: boolean | null): "red" | "emerald" | "zinc" {
+  if (httpOk === true) return "emerald";
+  if (httpOk === false) return "red";
+  return "zinc";
+}
+
+function httpLabel(httpOk: boolean | null, httpCode: number | null): string {
+  if (httpOk === true) return httpCode !== null ? `HTTP ${httpCode}` : "ok";
+  if (httpOk === false) return httpCode !== null ? `HTTP ${httpCode}` : "error";
+  return "sin check";
+}
+
+function ServicesHealthPanel({ services }: { services: VpsSnapshot["services"] }) {
+  const withDomain = services.filter((svc) => svc.domain !== null);
+
+  return (
+    <PanelShell icon={Globe} title="Servicios (salud HTTP)">
+      {withDomain.length === 0 ? (
+        <EmptyState icon={Globe} label="sin servicios con dominio" />
+      ) : (
+        <ul className="divide-y divide-zinc-800/60">
+          {withDomain.map((svc) => (
+            <li
+              key={svc.id}
+              className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0"
+            >
+              <p className="truncate font-roboto text-sm font-medium text-zinc-200">
+                {svc.domain}
+              </p>
+              <Chip tone={httpTone(svc.httpOk)}>
+                {httpLabel(svc.httpOk, svc.httpCode)}
+              </Chip>
+            </li>
+          ))}
+        </ul>
+      )}
     </PanelShell>
   );
 }
@@ -374,8 +402,9 @@ export function HealthPanels({ snapshot }: { snapshot: VpsSnapshot }) {
       <CertsPanel certs={snapshot.certs} />
       <BackupsPanel backups={snapshot.backups} />
       <SecurityPanel security={snapshot.security} />
-      <StoragePanel disk={snapshot.disk} host={snapshot.host} />
+      <ResourcesPanel host={snapshot.host} />
       <HostHealthPanel crashLoops={snapshot.host.crashLoops} />
+      <ServicesHealthPanel services={snapshot.services} />
     </div>
   );
 }
