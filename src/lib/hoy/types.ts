@@ -1,24 +1,10 @@
 /**
  * Hoy module types — Patch v2 (no ProjectHealth, no ClientPending, no scoring)
  *
- * TodayTask    — an individual task scheduled for today
  * ActiveProject — a project with recent activity (no health/semáforo)
  * RecentClient  — a client with recent document activity
  * TodayData    — the complete payload returned by the Hoy data action
  */
-
-export interface TodayTask {
-  id: string;
-  title: string;
-  description: string | null;
-  status: "pending" | "in_progress" | "completed" | "cancelled" | "postponed";
-  category: string;
-  /** ISO 8601 string — startsAt from Firestore Timestamp, converted in action */
-  startsAt: string;
-  durationMin: number;
-  /** true when startsAt < now and status is not completed/cancelled */
-  isOverdue: boolean;
-}
 
 export interface ActiveProject {
   id: string;
@@ -39,7 +25,6 @@ export interface RecentClient {
 }
 
 export interface TodayData {
-  tasks: TodayTask[];
   projects: ActiveProject[];
   clients: RecentClient[];
   /** ISO 8601 string — timestamp of when this data was assembled (server-side) */

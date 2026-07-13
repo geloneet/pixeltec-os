@@ -146,7 +146,7 @@ interface ProjectViewProps {
   project: CRMProject;
   projectTab: string;
   setProjectTab: (t: string) => void;
-  setView: (v: "asistente" | "clients" | "client" | "project" | "search") => void;
+  setView: (v: "clients" | "client" | "project" | "search") => void;
   setModal: (m: { type: string; data?: Record<string, string> } | null) => void;
   deleteTask: (cid: string, pid: string, tid: string) => void;
   deleteKey: (cid: string, pid: string, kid: string) => void;

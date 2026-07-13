@@ -9,9 +9,6 @@
  *   - /api/notifications/charges
  *   - /api/whatsapp/send-test (smoke test)
  *
- * También usado por el cron del Asistente para enviar el reporte semanal
- * cada domingo a las 12:00 (ver src/lib/assistant/rollover.ts).
- *
  * Reference:
  *   - https://developers.facebook.com/docs/whatsapp/cloud-api/reference/messages
  *   - Rate limits: https://developers.facebook.com/docs/whatsapp/cloud-api/overview#rate-limits

@@ -4,7 +4,16 @@ import { isAllowedChat, logCommand } from './telegram-auth';
 import { createSilence, checkSilence } from './silence';
 import { db } from '@/lib/db';
 import { assistantWeeklyReports } from '@/lib/db/schema';
-import type { ReportTotals } from '@/lib/assistant/types';
+
+/** Shape of `assistantWeeklyReports.totals` (jsonb column). */
+interface ReportTotals {
+  total:      number;
+  completed:  number;
+  cancelled:  number;
+  postponed:  number;
+  pending:    number;
+  inProgress: number;
+}
 
 let _bot: Bot | null = null;
 
