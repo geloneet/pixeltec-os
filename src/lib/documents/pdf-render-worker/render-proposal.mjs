@@ -115,13 +115,65 @@ function parseBullets(raw) {
   return lines.map((l) => l.replace(/^[-•*]\s*/, "").trim()).filter(Boolean);
 }
 
-// El texto de scope/solution/benefits puede traer markdown ("## título") —
-// @react-pdf/renderer no interpreta HTML/markdown, solo Text plano, así que
-// no se puede usar react-markdown aquí (ver cabecera del archivo: este
-// worker corre fuera del bundler de Next a propósito). Parser liviano en el
-// mismo espíritu que parseBullets: separa por línea en blanco, y una línea
-// que abre un bloque con "#"..."######" se renderiza como encabezado en vez
-// de dejar el "##" literal.
+// Convierte "**negritas**"/"*cursivas*" en spans de Text anidados — sin esto
+// los asteriscos salen literales (@react-pdf/renderer no interpreta
+// markdown). react-pdf sí soporta <Text> anidado con su propio estilo como
+// forma estándar de texto con estilos mixtos.
+function renderInline(text) {
+  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g).filter((p) => p !== "");
+  if (parts.length <= 1) return text;
+  return parts.map((part, i) => {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return h(Text, { key: i, style: styles.bold }, part.slice(2, -2));
+    }
+    if (part.startsWith("*") && part.endsWith("*")) {
+      return h(Text, { key: i, style: styles.italic }, part.slice(1, -1));
+    }
+    return part;
+  });
+}
+
+function isTableSeparatorLine(line) {
+  return /^\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)+\|?$/.test(line.trim());
+}
+
+function parseTableRow(line) {
+  let l = line.trim();
+  if (l.startsWith("|")) l = l.slice(1);
+  if (l.endsWith("|")) l = l.slice(0, -1);
+  return l.split("|").map((c) => c.trim());
+}
+
+function renderTable(lines, key) {
+  const header = parseTableRow(lines[0]);
+  const bodyRows = lines.slice(2).map(parseTableRow);
+
+  const headerRow = h(
+    View,
+    { style: styles.tableHeaderRow, key: "head", wrap: false },
+    header.map((cell, ci) =>
+      h(View, { style: styles.tableCellHead, key: ci }, h(Text, { style: styles.tableCellHeadText }, renderInline(cell))))
+  );
+
+  const rows = bodyRows.map((row, ri) =>
+    h(
+      View,
+      { style: styles.tableRow, key: `r${ri}`, wrap: false },
+      header.map((_, ci) =>
+        h(View, { style: styles.tableCell, key: ci }, h(Text, { style: styles.tableCellText }, renderInline(row[ci] ?? ""))))
+    )
+  );
+
+  return h(View, { style: styles.table, key }, [headerRow, ...rows]);
+}
+
+// El texto de scope/solution/benefits puede traer markdown (encabezados,
+// tablas, **negritas**) — @react-pdf/renderer no interpreta HTML/markdown,
+// solo Text/View plano, así que no se puede usar react-markdown aquí (ver
+// cabecera del archivo: este worker corre fuera del bundler de Next a
+// propósito). Parser liviano en el mismo espíritu que parseBullets: separa
+// por línea en blanco, y reconoce encabezados, tablas GFM y reglas
+// horizontales en vez de dejar "#"/"|"/"---" literales.
 function renderRichText(raw) {
   const blocks = raw
     .split(/\n\s*\n/)
@@ -130,14 +182,25 @@ function renderRichText(raw) {
 
   const elements = [];
   blocks.forEach((block, i) => {
-    const lines = block.split("\n");
+    const lines = block.split("\n").map((l) => l.trim()).filter(Boolean);
+
+    if (lines.length >= 2 && lines[0].includes("|") && isTableSeparatorLine(lines[1])) {
+      elements.push(renderTable(lines, `${i}-table`));
+      return;
+    }
+
+    if (lines.length === 1 && /^(-{3,}|\*{3,}|_{3,})$/.test(lines[0])) {
+      elements.push(h(View, { style: styles.hr, key: `${i}-hr` }));
+      return;
+    }
+
     const headingMatch = lines[0].match(/^#{1,6}\s+(.+)$/);
     if (headingMatch) {
-      elements.push(h(Text, { style: styles.blockHeading, key: `${i}-h` }, headingMatch[1].trim()));
+      elements.push(h(Text, { style: styles.blockHeading, key: `${i}-h` }, renderInline(headingMatch[1].trim())));
       const rest = lines.slice(1).join("\n").trim();
-      if (rest) elements.push(h(Text, { style: styles.paragraph, key: `${i}-b` }, rest));
+      if (rest) elements.push(h(Text, { style: styles.paragraph, key: `${i}-b` }, renderInline(rest)));
     } else {
-      elements.push(h(Text, { style: styles.paragraph, key: `${i}` }, block));
+      elements.push(h(Text, { style: styles.paragraph, key: `${i}` }, renderInline(block)));
     }
   });
   return elements;
@@ -391,6 +454,20 @@ const styles = StyleSheet.create({
   },
   paragraph: { fontSize: 10.5, lineHeight: 1.6, color: COLOR.body, marginBottom: 8 },
   blockHeading: { fontSize: 11.5, fontWeight: 700, color: COLOR.ink, marginTop: 4, marginBottom: 5 },
+  bold: { fontWeight: 700, color: COLOR.ink },
+  italic: { fontStyle: "italic" },
+  hr: { height: 0.75, backgroundColor: COLOR.border, marginVertical: 10 },
+
+  table: {
+    display: "flex", flexDirection: "column", marginBottom: 10,
+    borderWidth: 0.75, borderColor: COLOR.border, borderRadius: 6, overflow: "hidden",
+  },
+  tableHeaderRow: { flexDirection: "row", backgroundColor: COLOR.cardBg },
+  tableRow: { flexDirection: "row", borderTopWidth: 0.75, borderTopColor: COLOR.border },
+  tableCellHead: { flex: 1, padding: 6, borderRightWidth: 0.75, borderRightColor: COLOR.border },
+  tableCell: { flex: 1, padding: 6, borderRightWidth: 0.75, borderRightColor: COLOR.border },
+  tableCellHeadText: { fontSize: 8.5, fontWeight: 700, color: COLOR.ink },
+  tableCellText: { fontSize: 8.5, lineHeight: 1.4, color: COLOR.body },
 
   checklist: { display: "flex", flexDirection: "column", gap: 8 },
   checklistItem: { flexDirection: "row", alignItems: "flex-start", gap: 9 },

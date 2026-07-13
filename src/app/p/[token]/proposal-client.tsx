@@ -81,6 +81,29 @@ const proposalMarkdownComponents: Components = {
   strong({ children }) {
     return <strong className="font-semibold text-slate-900">{children}</strong>;
   },
+  hr() {
+    return <hr className="my-4 border-slate-200" />;
+  },
+  table({ children }) {
+    return (
+      <div className="my-3 overflow-x-auto rounded-lg border border-slate-200">
+        <table className="w-full border-collapse text-xs">{children}</table>
+      </div>
+    );
+  },
+  thead({ children }) {
+    return <thead className="bg-slate-50">{children}</thead>;
+  },
+  th({ children }) {
+    return (
+      <th className="border-b border-slate-200 px-3 py-2 text-left font-semibold text-slate-900">
+        {children}
+      </th>
+    );
+  },
+  td({ children }) {
+    return <td className="border-t border-slate-100 px-3 py-2 align-top text-slate-600">{children}</td>;
+  },
 };
 
 function ProposalMarkdown({ content }: { content: string }) {

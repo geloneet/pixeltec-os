@@ -117,6 +117,29 @@ const components: Components = {
   pre({ children }) {
     return <CodeBlock>{children}</CodeBlock>;
   },
+  hr() {
+    return <hr className="my-3 border-white/[0.08]" />;
+  },
+  table({ children }) {
+    return (
+      <div className="my-2 overflow-x-auto rounded-lg border border-white/[0.08]">
+        <table className="w-full border-collapse text-xs">{children}</table>
+      </div>
+    );
+  },
+  thead({ children }) {
+    return <thead className="bg-zinc-800/60">{children}</thead>;
+  },
+  th({ children }) {
+    return (
+      <th className="border-b border-white/[0.08] px-2.5 py-1.5 text-left font-semibold text-zinc-200">
+        {children}
+      </th>
+    );
+  },
+  td({ children }) {
+    return <td className="border-t border-white/[0.06] px-2.5 py-1.5 align-top text-zinc-400">{children}</td>;
+  },
 };
 
 export function KnowledgeMarkdown({ content }: { content: string }) {
