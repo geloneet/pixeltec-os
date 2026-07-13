@@ -47,21 +47,21 @@ function CodeBlock({ children }: { children?: React.ReactNode }) {
 const components: Components = {
   h1({ children }) {
     return (
-      <h1 className="mb-2 mt-4 text-base font-semibold text-zinc-100">
+      <h1 className="mb-2 mt-4 text-base font-semibold text-foreground">
         {children}
       </h1>
     );
   },
   h2({ children }) {
     return (
-      <h2 className="mb-2 mt-3 text-[13px] font-semibold text-zinc-100">
+      <h2 className="mb-2 mt-3 text-[13px] font-semibold text-foreground">
         {children}
       </h2>
     );
   },
   h3({ children }) {
     return (
-      <h3 className="mb-1 mt-2 text-[13px] font-medium text-zinc-200">
+      <h3 className="mb-1 mt-2 text-[13px] font-medium text-foreground">
         {children}
       </h3>
     );
@@ -71,7 +71,7 @@ const components: Components = {
   },
   ul({ children }) {
     return (
-      <ul className="mb-2 ml-4 list-disc space-y-0.5 marker:text-zinc-600">
+      <ul className="mb-2 ml-4 list-disc space-y-0.5 marker:text-muted-foreground">
         {children}
       </ul>
     );
@@ -82,7 +82,7 @@ const components: Components = {
     );
   },
   li({ children }) {
-    return <li className="text-zinc-300">{children}</li>;
+    return <li className="text-foreground/90">{children}</li>;
   },
   a({ href, children }) {
     return (
@@ -98,7 +98,7 @@ const components: Components = {
   },
   blockquote({ children }) {
     return (
-      <blockquote className="my-2 border-l-2 border-zinc-700 pl-3 italic text-zinc-500">
+      <blockquote className="my-2 border-l-2 border-border pl-3 italic text-muted-foreground">
         {children}
       </blockquote>
     );
@@ -128,23 +128,23 @@ const components: Components = {
     );
   },
   thead({ children }) {
-    return <thead className="bg-zinc-800/60">{children}</thead>;
+    return <thead className="bg-secondary">{children}</thead>;
   },
   th({ children }) {
     return (
-      <th className="border-b border-white/[0.08] px-2.5 py-1.5 text-left font-semibold text-zinc-200">
+      <th className="border-b border-white/[0.08] px-2.5 py-1.5 text-left font-semibold text-foreground">
         {children}
       </th>
     );
   },
   td({ children }) {
-    return <td className="border-t border-white/[0.06] px-2.5 py-1.5 align-top text-zinc-400">{children}</td>;
+    return <td className="border-t border-white/[0.06] px-2.5 py-1.5 align-top text-muted-foreground">{children}</td>;
   },
 };
 
 export function KnowledgeMarkdown({ content }: { content: string }) {
   return (
-    <div className="text-sm leading-relaxed text-zinc-300">
+    <div className="text-sm leading-relaxed text-foreground/90">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[[rehypeHighlight, { ignoreMissing: true }]]}
