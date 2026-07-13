@@ -54,6 +54,10 @@ Font.register({
   family: "Poppins",
   fonts: [
     { src: path.join(FONTS_DIR, "Poppins-Regular.ttf"), fontWeight: 400 },
+    // Itálica real: sin esta variante, un `*texto*` en markdown (fontStyle:italic)
+    // no resuelve fuente y @react-pdf tira "Could not resolve font" → 500 en toda
+    // la propuesta. Ver render de renderInline/styles.italic.
+    { src: path.join(FONTS_DIR, "Poppins-Italic.ttf"), fontWeight: 400, fontStyle: "italic" },
     { src: path.join(FONTS_DIR, "Poppins-SemiBold.ttf"), fontWeight: 600 },
     { src: path.join(FONTS_DIR, "Poppins-Bold.ttf"), fontWeight: 700 },
     { src: path.join(FONTS_DIR, "Poppins-ExtraBold.ttf"), fontWeight: 800 },
