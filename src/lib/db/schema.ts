@@ -1420,96 +1420,6 @@ export const legacyTasks = pgTable(
   ]
 );
 
-/**
- * Planner semanal del Asistente — espejo de `AssistantTaskDoc`
- * (src/lib/assistant/types.ts). Antes: colección `assistantTasks`.
- * `templateId` guarda el id PÚBLICO del template (puede ser un id de
- * Firestore para templates migrados o un uuid de Postgres para nuevos) —
- * texto libre a propósito, no FK.
- */
-export const assistantTasks = pgTable(
-  "assistant_tasks",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    firestoreId: text("firestore_id"),
-    ownerId: uuid("owner_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-    title: text("title").notNull(),
-    description: text("description"),
-    category: text("category").notNull(),
-    startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
-    durationMin: integer("duration_min").notNull(),
-    status: text("status").notNull().default("pending"),
-    weekKey: text("week_key").notNull(), // ej. "2026-W27"
-    templateId: text("template_id"),
-    important: boolean("important").notNull().default(false),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-  },
-  (t) => [
-    index("assistant_tasks_owner_week_idx").on(t.ownerId, t.weekKey),
-    uniqueIndex("assistant_tasks_firestore_id_idx").on(t.firestoreId),
-  ]
-);
-
-/** Templates recurrentes del Asistente — espejo de `AssistantTemplateDoc`. */
-export const assistantTemplates = pgTable(
-  "assistant_templates",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    firestoreId: text("firestore_id"),
-    ownerId: uuid("owner_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-    title: text("title").notNull(),
-    description: text("description"),
-    category: text("category").notNull(),
-    rrule: text("rrule").notNull(),
-    defaultTime: text("default_time").notNull(), // "HH:mm"
-    durationMin: integer("duration_min").notNull(),
-    active: boolean("active").notNull().default(true),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-  },
-  (t) => [
-    index("assistant_templates_owner_idx").on(t.ownerId),
-    uniqueIndex("assistant_templates_firestore_id_idx").on(t.firestoreId),
-  ]
-);
-
-/**
- * Archivo semanal del Asistente — espejo de `AssistantArchivedTaskDoc`
- * (mismas columnas que assistant_tasks + archivedAt). El rollover mueve
- * las filas aquí preservando su `id` original.
- */
-export const assistantTasksArchive = pgTable(
-  "assistant_tasks_archive",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    firestoreId: text("firestore_id"),
-    ownerId: uuid("owner_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-    title: text("title").notNull(),
-    description: text("description"),
-    category: text("category").notNull(),
-    startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
-    durationMin: integer("duration_min").notNull(),
-    status: text("status").notNull().default("pending"),
-    weekKey: text("week_key").notNull(),
-    templateId: text("template_id"),
-    important: boolean("important").notNull().default(false),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-    archivedAt: timestamp("archived_at", { withTimezone: true }).notNull(),
-  },
-  (t) => [
-    index("assistant_tasks_archive_owner_week_idx").on(t.ownerId, t.weekKey),
-    uniqueIndex("assistant_tasks_archive_firestore_id_idx").on(t.firestoreId),
-  ]
-);
-
 // ════════════════════════════════════════════════════════════════════════
 // Legacy — finances / tickets (src/app/portal/page.tsx los lee por
 // clientName/projectName en texto libre, no por FK — se preserva igual
@@ -1551,46 +1461,6 @@ export const tickets = pgTable(
   (t) => [
     uniqueIndex("tickets_ticket_id_idx").on(t.ticketId),
     uniqueIndex("tickets_firestore_id_idx").on(t.firestoreId),
-  ]
-);
-
-/**
- * Reportes semanales del Asistente — espejo de `AssistantWeeklyReportDoc`
- * (src/lib/assistant/types.ts). El doc id de Firestore era
- * `${uid}_${weekKey}` — se preserva en `firestoreId` para estabilidad del
- * id público que consume la UI. `colorBucket` se materializa al escribir
- * (colorBucketFor de history-stats) porque getReportsRange filtra por él.
- */
-export const assistantWeeklyReports = pgTable(
-  "assistant_weekly_reports",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    firestoreId: text("firestore_id"), // `${firebaseUid}_${weekKey}`
-    ownerId: uuid("owner_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-    weekKey: text("week_key").notNull(), // ej. "2026-W27"
-    weekStart: timestamp("week_start", { withTimezone: true }).notNull(),
-    weekEnd: timestamp("week_end", { withTimezone: true }).notNull(),
-    totals: jsonb("totals").notNull().default({}), // ReportTotals
-    byCategory: jsonb("by_category").notNull().default({}), // Record<AssistantTaskCategory, ReportTotals>
-    generatedAt: timestamp("generated_at", { withTimezone: true }).notNull(),
-    generatedBy: text("generated_by").notNull(), // 'cron' | 'manual'
-    colorBucket: text("color_bucket"), // 'high' | 'mid' | 'low' | 'empty'
-    // WhatsApp (transporte actual)
-    whatsappMessageId: text("whatsapp_message_id"),
-    whatsappSentAt: timestamp("whatsapp_sent_at", { withTimezone: true }),
-    whatsappError: text("whatsapp_error"),
-    // Telegram (legacy — docs antiguos migrados)
-    telegramMessageId: integer("telegram_message_id"),
-    telegramSentAt: timestamp("telegram_sent_at", { withTimezone: true }),
-    // Email (futuro)
-    emailSentAt: timestamp("email_sent_at", { withTimezone: true }),
-  },
-  (t) => [
-    index("assistant_weekly_reports_owner_idx").on(t.ownerId),
-    uniqueIndex("assistant_weekly_reports_owner_week_idx").on(t.ownerId, t.weekKey),
-    uniqueIndex("assistant_weekly_reports_firestore_id_idx").on(t.firestoreId),
   ]
 );
 
@@ -1882,14 +1752,6 @@ export type GrowthSocialAccount = typeof growthSocialAccounts.$inferSelect;
 
 export type LegacyTask = typeof legacyTasks.$inferSelect;
 export type NewLegacyTask = typeof legacyTasks.$inferInsert;
-export type AssistantTask = typeof assistantTasks.$inferSelect;
-export type NewAssistantTask = typeof assistantTasks.$inferInsert;
-export type AssistantTemplate = typeof assistantTemplates.$inferSelect;
-export type NewAssistantTemplate = typeof assistantTemplates.$inferInsert;
-export type AssistantArchivedTask = typeof assistantTasksArchive.$inferSelect;
-export type NewAssistantArchivedTask = typeof assistantTasksArchive.$inferInsert;
-export type AssistantWeeklyReport = typeof assistantWeeklyReports.$inferSelect;
-export type NewAssistantWeeklyReport = typeof assistantWeeklyReports.$inferInsert;
 export type Finance = typeof finances.$inferSelect;
 export type NewFinance = typeof finances.$inferInsert;
 export type TicketRow = typeof tickets.$inferSelect;

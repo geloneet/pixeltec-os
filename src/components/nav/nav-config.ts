@@ -58,7 +58,6 @@ const AREA_ITEMS: Record<NavArea, AreaItemRef[]> = {
   proyectos: [
     { href: "/proyectos", secondaryLabel: "Todos" },
     { href: "/proyectos/definicion", secondaryLabel: "Definición" },
-    { href: "/tareas" },
   ],
   finanzas: [{ href: "/cobros" }, { href: "/documentos" }],
   ia: [

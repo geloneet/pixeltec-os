@@ -11,7 +11,6 @@
  */
 export const ADMIN_ROUTES = [
   'hoy',
-  'tareas',
   'proyectos',
   'clientes',
   'whatsapp',

@@ -1,6 +1,5 @@
 import {
   Sun,
-  ListTodo,
   FolderKanban,
   Users,
   MessageCircle,
@@ -39,13 +38,6 @@ export const PALETTE_NAV_ITEMS: PaletteNavItem[] = [
     label: "Hoy",
     description: "Tareas del día, proyectos activos y actividad reciente de clientes",
     icon: Sun,
-    section: "trabajo",
-  },
-  {
-    href: "/tareas",
-    label: "Tareas",
-    description: "Lista maestra de tareas y vista semanal con planificador IA",
-    icon: ListTodo,
     section: "trabajo",
   },
   {

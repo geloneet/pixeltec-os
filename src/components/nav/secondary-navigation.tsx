@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { useCRM } from "@/components/crm/CRMContextCore";
 import { cn } from "@/lib/utils";
 import { PALETTE_NAV_ITEMS } from "./command-palette-items";
 import { resolveActiveHref, getSecondaryItems, type NavArea } from "./nav-config";
@@ -15,19 +14,8 @@ import { resolveActiveHref, getSecondaryItems, type NavArea } from "./nav-config
  */
 export function SecondaryNavigation({ area }: { area: NavArea | null }) {
   const pathname = usePathname();
-  const { clients } = useCRM();
   const items = area ? getSecondaryItems(area) : [];
   const activeHref = resolveActiveHref(PALETTE_NAV_ITEMS, pathname);
-
-  const openTasksCount = clients
-    .flatMap((c) => c.projects)
-    .flatMap((p) => p.tasks)
-    .filter(
-      (t) =>
-        t.status === "pendiente" ||
-        t.status === "en_progreso" ||
-        t.status === "en_revision"
-    ).length;
 
   return (
     <AnimatePresence initial={false}>
@@ -64,11 +52,6 @@ export function SecondaryNavigation({ area }: { area: NavArea | null }) {
                   )}
                   <span className="relative z-10 inline-flex items-center gap-1.5">
                     {item.secondaryLabel}
-                    {item.href === "/tareas" && openTasksCount > 0 && (
-                      <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-cyan-500/20 px-1 text-[10px] font-semibold text-cyan-300">
-                        {openTasksCount}
-                      </span>
-                    )}
                   </span>
                 </Link>
               );
