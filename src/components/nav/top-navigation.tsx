@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { NotificationsMenu } from "./notifications-menu";
 import { UserMenu } from "./user-menu";
+import { ThemeToggle } from "@/components/theme-toggle";
 import {
   NAV_AREA_ORDER,
   NAV_AREA_LABELS,
@@ -166,6 +167,7 @@ export function TopNavigation() {
 
         <OnlineDot />
 
+        <ThemeToggle />
         <NotificationsMenu />
         <UserMenu />
       </div>

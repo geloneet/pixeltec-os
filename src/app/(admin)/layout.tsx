@@ -6,6 +6,7 @@ validateEnv();
 import { useEffect, useRef, type ReactNode } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
+import { useTheme } from "next-themes";
 import { Toaster } from "sonner";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
@@ -33,12 +34,10 @@ function Shell({
 }) {
   const pathname = usePathname();
   const activeArea = getActiveArea(pathname);
+  const { resolvedTheme } = useTheme();
 
   return (
-    // `dark` fuerza el tema oscuro del Portal de Cliente para todo el shell
-    // admin, sin depender del theme-toggle global del sitio público (que
-    // sigue existiendo para las páginas de marketing, fuera de este alcance).
-    <div className="dark flex h-dvh w-full flex-col overflow-hidden bg-background text-foreground font-sans">
+    <div className="flex h-dvh w-full flex-col overflow-hidden bg-background text-foreground font-sans">
       {/* Ambient gradient: glow azul/violeta, igual que el resto del dark del sitio */}
       <div
         aria-hidden
@@ -81,7 +80,7 @@ function Shell({
       <Toaster
         richColors
         position="top-right"
-        theme="dark"
+        theme={(resolvedTheme as "light" | "dark" | "system" | undefined) ?? "dark"}
         toastOptions={{
           classNames: {
             toast:
@@ -121,7 +120,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   if (!hasLoadedRef.current) {
     if (user === undefined) {
       return (
-        <div className="dark flex h-dvh w-full items-center justify-center bg-background">
+        <div className="flex h-dvh w-full items-center justify-center bg-background">
           <Spinner size="lg" className="text-cyan-400" />
         </div>
       );
