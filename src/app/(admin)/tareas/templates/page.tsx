@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { getSessionUid } from '@/lib/crypto-intel/auth';
+import { getSessionUid } from '@/lib/auth/session';
 import { getTemplates } from '@/lib/assistant/queries/templates';
 import { getCurrentWeekKeyInAssistantTZ } from '@/lib/assistant/timezone';
 import { TemplatesClient } from './templates-client';

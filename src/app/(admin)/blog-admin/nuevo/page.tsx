@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getSessionUid } from "@/lib/crypto-intel/auth";
+import { getSessionUid } from "@/lib/auth/session";
 import { NuevoBriefForm } from "./nuevo-brief-form";
 
 export default async function NuevoBriefPage() {

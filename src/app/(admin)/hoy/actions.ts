@@ -1,6 +1,6 @@
 "use server";
 
-import { getSessionUid } from "@/lib/crypto-intel/auth";
+import { getSessionUid } from "@/lib/auth/session";
 import { getCurrentWeekTasks } from "@/lib/assistant/queries/tasks";
 import { formatDateMX } from "@/lib/assistant/week-helpers";
 import {

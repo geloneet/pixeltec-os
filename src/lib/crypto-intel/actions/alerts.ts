@@ -6,7 +6,7 @@ import {
   softDeleteAlertRule,
   updateAlertRule,
 } from "@/lib/db/repos/crypto-intel";
-import { getSessionUid } from "../auth";
+import { getSessionUid } from "@/lib/auth/session";
 import { log } from "../logger";
 import { CreateAlertSchema, UpdateAlertSchema } from "../schemas/alert";
 import type { CreateAlertInput, UpdateAlertInput } from "../schemas/alert";

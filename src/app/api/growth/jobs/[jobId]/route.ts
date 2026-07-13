@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSessionUid } from '@/lib/crypto-intel/auth';
+import { getSessionUid } from '@/lib/auth/session';
 import { resolveOwnerId, resolveJobRow, publicId } from '@/lib/growth/pg';
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ jobId: string }> }) {

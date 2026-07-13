@@ -1,7 +1,7 @@
 import { and, asc, eq, gte, inArray, lte } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { growthPosts } from '@/lib/db/schema';
-import { getSessionUid } from '@/lib/crypto-intel/auth';
+import { getSessionUid } from '@/lib/auth/session';
 import { resolveOwnerId, publicId } from '@/lib/growth/pg';
 import { CalendarGrid } from '@/components/growth/calendar/CalendarGrid';
 

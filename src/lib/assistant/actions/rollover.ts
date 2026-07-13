@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { getSessionUid } from '@/lib/crypto-intel/auth';
+import { getSessionUid } from '@/lib/auth/session';
 import { performWeeklyRollover } from '../rollover';
 import type { ActionResult } from '../schemas';
 

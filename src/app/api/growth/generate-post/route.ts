@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { growthJobs } from '@/lib/db/schema';
-import { getSessionUid } from '@/lib/crypto-intel/auth';
+import { getSessionUid } from '@/lib/auth/session';
 import { getBrand } from '@/lib/growth/actions/brands';
 import { runPostGeneration } from '@/lib/growth/ai/orchestrator';
 import { resolveOwnerId, resolveBrandRow } from '@/lib/growth/pg';

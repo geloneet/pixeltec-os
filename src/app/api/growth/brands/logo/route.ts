@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSessionUid } from '@/lib/crypto-intel/auth';
+import { getSessionUid } from '@/lib/auth/session';
 import { uploadBrandLogo } from '@/lib/growth/storage/brands';
 
 const MAX_BYTES = 5 * 1024 * 1024;

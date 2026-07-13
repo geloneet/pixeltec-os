@@ -5,7 +5,7 @@ import { and, eq, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
 import { blogPosts } from '@/lib/db/schema';
-import { getSessionUid } from '@/lib/crypto-intel/auth';
+import { getSessionUid } from '@/lib/auth/session';
 import { resolvePostRow } from '../pg';
 import { BlogPostEditSchema, type BlogPostEditInput, type ActionResult } from '../schemas';
 import { computeWordCount, computeReadingTime, generateSlug } from '../ai/generate-post';

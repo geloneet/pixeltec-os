@@ -4,7 +4,7 @@
 import { and, desc, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { growthSocialAccounts } from '@/lib/db/schema';
-import { getSessionUid } from '@/lib/crypto-intel/auth';
+import { getSessionUid } from '@/lib/auth/session';
 import { revalidatePath } from 'next/cache';
 import { resolveOwnerId, resolveSocialAccountRow, publicId } from '@/lib/growth/pg';
 import type { SocialAccount } from '@/types/growth/social';

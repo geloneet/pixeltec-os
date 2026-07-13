@@ -4,7 +4,7 @@ import Link from "next/link";
 import { FolderKanban } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
-import { getSessionUid } from "@/lib/crypto-intel/auth";
+import { getSessionUid } from "@/lib/auth/session";
 import { getAllActiveProjects } from "./actions";
 import type { ActiveProject } from "@/lib/hoy/types";
 

@@ -4,7 +4,7 @@
 import { desc, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { growthBrands, growthCredits, growthCreditLedger } from '@/lib/db/schema';
-import { getSessionUid } from '@/lib/crypto-intel/auth';
+import { getSessionUid } from '@/lib/auth/session';
 import { revalidatePath } from 'next/cache';
 import { computeBrandScore, isBrandComplete, isBrandUsable } from '@/lib/growth/utils/brand-score';
 import { resolveOwnerId, resolveBrandRow, publicId } from '@/lib/growth/pg';

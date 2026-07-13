@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { and, desc, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { growthPosts } from '@/lib/db/schema';
-import { getSessionUid } from '@/lib/crypto-intel/auth';
+import { getSessionUid } from '@/lib/auth/session';
 import { resolveOwnerId, resolveBrandRow, serializePostRow } from '@/lib/growth/pg';
 
 export async function GET(req: NextRequest) {

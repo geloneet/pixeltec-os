@@ -3,7 +3,7 @@
 // Postgres (Drizzle) — antes Firestore `assistantTemplates`.
 import { revalidatePath } from 'next/cache';
 import { and, eq } from 'drizzle-orm';
-import { getSessionUid } from '@/lib/crypto-intel/auth';
+import { getSessionUid } from '@/lib/auth/session';
 import { db } from '@/lib/db';
 import { assistantTasks, assistantTemplates, type AssistantTemplate } from '@/lib/db/schema';
 import { publicId, resolveOwnerId, resolveTemplateRow } from '../pg';

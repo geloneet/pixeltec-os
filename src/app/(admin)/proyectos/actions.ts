@@ -1,6 +1,6 @@
 "use server";
 
-import { getSessionUid } from "@/lib/crypto-intel/auth";
+import { getSessionUid } from "@/lib/auth/session";
 import { getCrmClients, deriveActiveProjects } from "@/lib/hoy/crm-data";
 import type { ActiveProject } from "@/lib/hoy/types";
 

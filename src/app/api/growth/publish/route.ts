@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSessionUid } from '@/lib/crypto-intel/auth';
+import { getSessionUid } from '@/lib/auth/session';
 import { publishPostToAccount } from '@/lib/growth/social/publish';
 
 export async function POST(req: NextRequest) {

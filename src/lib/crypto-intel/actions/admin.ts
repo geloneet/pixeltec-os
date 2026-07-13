@@ -1,5 +1,5 @@
 "use server";
-import { requireAdmin } from "../auth";
+import { requireAdmin } from "@/lib/auth/session";
 import { syncPrices } from "../price-engine";
 import { evaluateAllAlerts } from "../alert-engine";
 import { log } from "../logger";

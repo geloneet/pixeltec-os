@@ -1,4 +1,4 @@
-import { requireAdmin } from "@/lib/crypto-intel/auth";
+import { requireAdmin } from "@/lib/auth/session";
 import { listAuthorizedUsers } from "@/lib/crypto-intel/queries/users";
 import { listLogs, getMetrics } from "@/lib/crypto-intel/queries/logs";
 import { getLatestPrice, listActiveAlertRules } from "@/lib/db/repos/crypto-intel";

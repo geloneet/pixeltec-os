@@ -1,7 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { deauthorizeTelegramUser, upsertTelegramUser } from "@/lib/db/repos/crypto-intel";
-import { requireAdmin } from "../auth";
+import { requireAdmin } from "@/lib/auth/session";
 import { AddTelegramUserSchema } from "../schemas/user";
 import type { AddTelegramUserInput } from "../schemas/user";
 

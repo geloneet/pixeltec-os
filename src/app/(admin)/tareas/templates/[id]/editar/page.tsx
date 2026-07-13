@@ -1,5 +1,5 @@
 import { notFound, redirect } from 'next/navigation';
-import { getSessionUid } from '@/lib/crypto-intel/auth';
+import { getSessionUid } from '@/lib/auth/session';
 import { getTemplateById } from '@/lib/assistant/queries/templates';
 import { TemplateFormClient } from '../../_components/template-form-client';
 

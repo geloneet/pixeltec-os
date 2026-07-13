@@ -4,7 +4,7 @@
 import { desc, eq, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { blogBriefs } from '@/lib/db/schema';
-import { getSessionUid } from '@/lib/crypto-intel/auth';
+import { getSessionUid } from '@/lib/auth/session';
 import { resolveBriefRow, publicId, getUserDisplayName } from '../pg';
 import { BlogBriefSchema, type BlogBriefInput, type ActionResult } from '../schemas';
 

@@ -25,7 +25,7 @@ import {
   strategies,
   iaTemplates,
 } from "@/lib/db/schema";
-import { getSessionUid } from "@/lib/crypto-intel/auth";
+import { getSessionUid } from "@/lib/auth/session";
 import type {
   Proposal,
   ProposalViewEvent,

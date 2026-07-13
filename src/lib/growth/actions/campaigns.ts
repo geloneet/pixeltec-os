@@ -4,7 +4,7 @@
 import { and, desc, eq, gte, ne, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { growthBrands, growthCampaigns, growthCredits, growthCreditLedger } from '@/lib/db/schema';
-import { getSessionUid } from '@/lib/crypto-intel/auth';
+import { getSessionUid } from '@/lib/auth/session';
 import { revalidatePath } from 'next/cache';
 import { generateText } from '@/lib/growth/ai/providers/openai-text';
 import { buildSystemPrompt } from '@/lib/growth/ai/prompt-builder';

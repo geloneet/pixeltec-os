@@ -1,5 +1,5 @@
 import { notFound, redirect } from 'next/navigation';
-import { getSessionUid } from '@/lib/crypto-intel/auth';
+import { getSessionUid } from '@/lib/auth/session';
 import { getReportByWeekKey } from '@/lib/assistant/queries/reports';
 import { getArchivedTasksByWeek } from '@/lib/assistant/queries/archive';
 import { WeekDetailClient } from './week-detail-client';

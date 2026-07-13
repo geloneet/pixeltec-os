@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { getSessionUid } from '@/lib/crypto-intel/auth';
+import { getSessionUid } from '@/lib/auth/session';
 import { getReportsRange } from '@/lib/assistant/queries/reports';
 import { reportToCell, computeStats } from '@/lib/assistant/history-stats';
 import { HistorialClient } from './historial-client';

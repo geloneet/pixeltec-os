@@ -1,6 +1,6 @@
 'use server';
 
-import { getSessionUid } from '@/lib/crypto-intel/auth';
+import { getSessionUid } from '@/lib/auth/session';
 import { getReportsRange } from '@/lib/assistant/queries/reports';
 import { reportToCell } from '@/lib/assistant/history-stats';
 import type { WeekCellData } from '@/lib/assistant/types-history';
