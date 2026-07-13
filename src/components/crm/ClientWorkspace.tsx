@@ -48,8 +48,8 @@ interface Props {
 function WorkspaceEmptyTab({ label, sprint }: { label: string; sprint: string }) {
   return (
     <div className="flex flex-col items-center justify-center py-24 text-center">
-      <p className="text-sm font-medium text-zinc-400 mb-1">{label}</p>
-      <p className="text-xs text-zinc-600">Disponible en {sprint}.</p>
+      <p className="text-sm font-medium text-muted-foreground mb-1">{label}</p>
+      <p className="text-xs text-muted-foreground">Disponible en {sprint}.</p>
     </div>
   );
 }
@@ -63,7 +63,7 @@ export function ClientWorkspace({ client, onBack, navigateToProject, setModal, d
   return (
     <div className="flex flex-col h-full">
       {/* Tab bar */}
-      <div className="flex-shrink-0 border-b border-white/[0.06] bg-zinc-950/40">
+      <div className="flex-shrink-0 border-b border-white/[0.06] bg-background/40">
         <div className="flex items-center gap-0.5 px-4 overflow-x-auto scrollbar-none">
           {WORKSPACE_TABS.map((tab) => (
             <button
@@ -75,7 +75,7 @@ export function ClientWorkspace({ client, onBack, navigateToProject, setModal, d
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40",
                 activeTab === tab.id
                   ? "text-cyan-300"
-                  : "text-zinc-500 hover:text-zinc-300"
+                  : "text-muted-foreground hover:text-foreground"
               )}
             >
               {tab.label}

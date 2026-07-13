@@ -137,11 +137,11 @@ export function DiscoveryTab({ clientId, clientName }: Props) {
   if (!session || (session.status === "en_progreso" && session.questions.length === 0)) {
     return (
       <div className="space-y-5">
-        <h3 className="text-sm font-semibold text-zinc-300">Cuestionario de Descubrimiento</h3>
+        <h3 className="text-sm font-semibold text-foreground">Cuestionario de Descubrimiento</h3>
 
         {/* Industry selector */}
         <div>
-          <p className="mb-3 text-xs font-medium text-zinc-400">Selecciona la industria del cliente</p>
+          <p className="mb-3 text-xs font-medium text-muted-foreground">Selecciona la industria del cliente</p>
           <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
             {DISCOVERY_INDUSTRIES.map((ind) => (
               <button
@@ -151,7 +151,7 @@ export function DiscoveryTab({ clientId, clientName }: Props) {
                 className={
                   industry === ind
                     ? "rounded-lg border border-cyan-500 bg-cyan-500/10 px-3 py-2 text-xs font-medium text-cyan-400 transition-all"
-                    : "rounded-lg border border-white/[0.06] bg-zinc-900/30 px-3 py-2 text-xs font-medium text-zinc-400 transition-all hover:border-white/[0.10] hover:text-zinc-300"
+                    : "rounded-lg border border-white/[0.06] bg-card/30 px-3 py-2 text-xs font-medium text-muted-foreground transition-all hover:border-white/[0.10] hover:text-foreground"
                 }
               >
                 {ind}
@@ -188,7 +188,7 @@ export function DiscoveryTab({ clientId, clientName }: Props) {
         {/* Header */}
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <h3 className="text-sm font-semibold text-zinc-300">Cuestionario de Discovery</h3>
+            <h3 className="text-sm font-semibold text-foreground">Cuestionario de Discovery</h3>
             <span className="inline-flex items-center rounded-full border border-cyan-500/20 bg-cyan-500/10 px-2 py-0.5 text-[10px] font-medium text-cyan-400">
               {session.industry}
             </span>
@@ -206,12 +206,12 @@ export function DiscoveryTab({ clientId, clientName }: Props) {
         {/* Questions grouped by category */}
         {Object.entries(grouped).map(([category, questions]) => (
           <div key={category} className="space-y-4">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
               {category}
             </p>
             {questions.map((q) => (
-              <div key={q.id} className="rounded-xl border border-white/[0.06] bg-zinc-900/20 p-4 space-y-2">
-                <label className="block text-xs font-medium text-zinc-300">
+              <div key={q.id} className="rounded-xl border border-white/[0.06] bg-card/20 p-4 space-y-2">
+                <label className="block text-xs font-medium text-foreground">
                   {q.text}
                   {q.required && <span className="ml-1 text-cyan-500">*</span>}
                 </label>
@@ -223,7 +223,7 @@ export function DiscoveryTab({ clientId, clientName }: Props) {
                     onChange={(e) =>
                       setAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))
                     }
-                    className="w-full rounded-lg border border-white/[0.06] bg-zinc-900/40 px-3 py-2 text-sm text-zinc-200 placeholder-zinc-600 focus:border-cyan-500/40 focus:outline-none focus:ring-1 focus:ring-cyan-500/20 resize-none"
+                    className="w-full rounded-lg border border-white/[0.06] bg-card/40 px-3 py-2 text-sm text-foreground placeholder-muted-foreground focus:border-cyan-500/40 focus:outline-none focus:ring-1 focus:ring-cyan-500/20 resize-none"
                   />
                 )}
 
@@ -244,7 +244,7 @@ export function DiscoveryTab({ clientId, clientName }: Props) {
                           }
                           className="accent-cyan-500"
                         />
-                        <span className="text-xs text-zinc-300">{option}</span>
+                        <span className="text-xs text-foreground">{option}</span>
                       </label>
                     ))}
                   </div>
@@ -274,7 +274,7 @@ export function DiscoveryTab({ clientId, clientName }: Props) {
                             }
                             className="accent-cyan-500"
                           />
-                          <span className="text-xs text-zinc-300">{option}</span>
+                          <span className="text-xs text-foreground">{option}</span>
                         </label>
                       );
                     })}
@@ -308,12 +308,12 @@ export function DiscoveryTab({ clientId, clientName }: Props) {
         {/* Header */}
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="text-sm font-semibold text-zinc-300">Discovery completado</h3>
+            <h3 className="text-sm font-semibold text-foreground">Discovery completado</h3>
             <span className="inline-flex items-center rounded-full border border-cyan-500/20 bg-cyan-500/10 px-2 py-0.5 text-[10px] font-medium text-cyan-400">
               {session.industry}
             </span>
             {session.completedAt && (
-              <span className="text-[10px] text-zinc-500">
+              <span className="text-[10px] text-muted-foreground">
                 {new Date(session.completedAt).toLocaleDateString("es-MX")}
               </span>
             )}
@@ -325,7 +325,7 @@ export function DiscoveryTab({ clientId, clientName }: Props) {
               setIndustry("");
               setAnswers({});
             }}
-            className="rounded-lg border border-white/[0.06] bg-zinc-900/30 px-3 py-1.5 text-xs font-medium text-zinc-400 transition-all hover:border-white/[0.10] hover:text-zinc-300"
+            className="rounded-lg border border-white/[0.06] bg-card/30 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-all hover:border-white/[0.10] hover:text-foreground"
           >
             Nueva sesión
           </button>
@@ -334,18 +334,18 @@ export function DiscoveryTab({ clientId, clientName }: Props) {
         {/* Read-only questions + answers */}
         {Object.entries(grouped).map(([category, questions]) => (
           <div key={category} className="space-y-3">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
               {category}
             </p>
             {questions.map((q) => (
-              <div key={q.id} className="rounded-xl border border-white/[0.06] bg-zinc-900/20 p-4 space-y-1.5">
-                <p className="text-xs font-medium text-zinc-400">{q.text}</p>
-                <p className="text-sm text-zinc-200 whitespace-pre-wrap">
+              <div key={q.id} className="rounded-xl border border-white/[0.06] bg-card/20 p-4 space-y-1.5">
+                <p className="text-xs font-medium text-muted-foreground">{q.text}</p>
+                <p className="text-sm text-foreground whitespace-pre-wrap">
                   {session.answers[q.id]
                     ? q.type === "multiselect"
                       ? session.answers[q.id].split(",").join(", ")
                       : session.answers[q.id]
-                    : <span className="text-zinc-600 italic">Sin respuesta</span>}
+                    : <span className="text-muted-foreground italic">Sin respuesta</span>}
                 </p>
               </div>
             ))}

@@ -145,11 +145,11 @@ export function FacturacionTab({ clientId }: Props) {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-white">Nueva factura</h2>
+          <h2 className="text-lg font-semibold text-foreground">Nueva factura</h2>
           <button
             type="button"
             onClick={() => { resetCreate(); setView("list"); }}
-            className="text-xs text-zinc-400 hover:text-zinc-200 transition-colors"
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
           >
             Cancelar
           </button>
@@ -157,7 +157,7 @@ export function FacturacionTab({ clientId }: Props) {
 
         {/* Line items */}
         <div className="space-y-2">
-          <div className="grid grid-cols-[1fr_80px_100px_90px_32px] gap-2 text-xs text-zinc-500 px-1">
+          <div className="grid grid-cols-[1fr_80px_100px_90px_32px] gap-2 text-xs text-muted-foreground px-1">
             <span>Descripción</span>
             <span>Cantidad</span>
             <span>Precio unit.</span>
@@ -174,14 +174,14 @@ export function FacturacionTab({ clientId }: Props) {
                 value={item.description}
                 onChange={e => updateItem(i, "description", e.target.value)}
                 placeholder="Descripción del servicio"
-                className="rounded-md bg-zinc-800 border border-zinc-700/50 text-sm text-white px-3 py-2 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-cyan-400/40"
+                className="rounded-md bg-secondary border border-border text-sm text-foreground px-3 py-2 placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-400/40"
               />
               <input
                 type="number"
                 min={1}
                 value={item.qty}
                 onChange={e => updateItem(i, "qty", Number(e.target.value))}
-                className="rounded-md bg-zinc-800 border border-zinc-700/50 text-sm text-white px-3 py-2 focus:outline-none focus:ring-1 focus:ring-cyan-400/40"
+                className="rounded-md bg-secondary border border-border text-sm text-foreground px-3 py-2 focus:outline-none focus:ring-1 focus:ring-cyan-400/40"
               />
               <input
                 type="number"
@@ -189,16 +189,16 @@ export function FacturacionTab({ clientId }: Props) {
                 step={100}
                 value={item.unitPrice}
                 onChange={e => updateItem(i, "unitPrice", Number(e.target.value))}
-                className="rounded-md bg-zinc-800 border border-zinc-700/50 text-sm text-white px-3 py-2 focus:outline-none focus:ring-1 focus:ring-cyan-400/40"
+                className="rounded-md bg-secondary border border-border text-sm text-foreground px-3 py-2 focus:outline-none focus:ring-1 focus:ring-cyan-400/40"
               />
-              <span className="text-sm text-zinc-300 px-1">
+              <span className="text-sm text-foreground px-1">
                 {formatMXN(item.qty * item.unitPrice)}
               </span>
               <button
                 type="button"
                 onClick={() => removeItem(i)}
                 disabled={items.length === 1}
-                className="p-1 rounded text-zinc-600 hover:text-red-400 disabled:opacity-30 transition-colors"
+                className="p-1 rounded text-muted-foreground hover:text-red-400 disabled:opacity-30 transition-colors"
               >
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -215,16 +215,16 @@ export function FacturacionTab({ clientId }: Props) {
         </div>
 
         {/* Totals */}
-        <div className="rounded-lg bg-zinc-800/50 border border-zinc-700/50 p-4 space-y-1.5 w-64 ml-auto">
-          <div className="flex justify-between text-sm text-zinc-400">
+        <div className="rounded-lg bg-secondary/50 border border-border p-4 space-y-1.5 w-64 ml-auto">
+          <div className="flex justify-between text-sm text-muted-foreground">
             <span>Subtotal</span>
             <span>{formatMXN(subtotal)}</span>
           </div>
-          <div className="flex justify-between text-sm text-zinc-400">
+          <div className="flex justify-between text-sm text-muted-foreground">
             <span>IVA (16%)</span>
             <span>{formatMXN(ivaAmount)}</span>
           </div>
-          <div className="flex justify-between text-base font-semibold text-white pt-1 border-t border-zinc-700/50 mt-1">
+          <div className="flex justify-between text-base font-semibold text-foreground pt-1 border-t border-border mt-1">
             <span>Total</span>
             <span>{formatMXN(total)}</span>
           </div>
@@ -233,22 +233,22 @@ export function FacturacionTab({ clientId }: Props) {
         {/* Other fields */}
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1.5">
-            <label className="text-xs text-zinc-400">Fecha de vencimiento *</label>
+            <label className="text-xs text-muted-foreground">Fecha de vencimiento *</label>
             <input
               type="date"
               value={dueDate}
               onChange={e => setDueDate(e.target.value)}
-              className="w-full rounded-md bg-zinc-800 border border-zinc-700/50 text-sm text-white px-3 py-2 focus:outline-none focus:ring-1 focus:ring-cyan-400/40"
+              className="w-full rounded-md bg-secondary border border-border text-sm text-foreground px-3 py-2 focus:outline-none focus:ring-1 focus:ring-cyan-400/40"
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs text-zinc-400">Notas (opcional)</label>
+            <label className="text-xs text-muted-foreground">Notas (opcional)</label>
             <textarea
               value={notes}
               onChange={e => setNotes(e.target.value)}
               rows={2}
               placeholder="Condiciones de pago, observaciones..."
-              className="w-full rounded-md bg-zinc-800 border border-zinc-700/50 text-sm text-white px-3 py-2 placeholder-zinc-600 resize-none focus:outline-none focus:ring-1 focus:ring-cyan-400/40"
+              className="w-full rounded-md bg-secondary border border-border text-sm text-foreground px-3 py-2 placeholder-muted-foreground resize-none focus:outline-none focus:ring-1 focus:ring-cyan-400/40"
             />
           </div>
         </div>
@@ -272,7 +272,7 @@ export function FacturacionTab({ clientId }: Props) {
         <p className="text-xs text-red-400">{statusError}</p>
       )}
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-white">Facturas</h2>
+        <h2 className="text-lg font-semibold text-foreground">Facturas</h2>
         <button
           type="button"
           onClick={() => setView("create")}
@@ -285,9 +285,9 @@ export function FacturacionTab({ clientId }: Props) {
 
       {invoices.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
-          <FileText className="w-8 h-8 text-zinc-600 mb-3" />
-          <p className="text-sm text-zinc-400">No hay facturas aún.</p>
-          <p className="text-xs text-zinc-600 mt-1">Crea la primera factura para este cliente.</p>
+          <FileText className="w-8 h-8 text-muted-foreground mb-3" />
+          <p className="text-sm text-muted-foreground">No hay facturas aún.</p>
+          <p className="text-xs text-muted-foreground mt-1">Crea la primera factura para este cliente.</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -296,11 +296,11 @@ export function FacturacionTab({ clientId }: Props) {
             return (
               <div
                 key={invoice.id}
-                className="flex items-center gap-4 rounded-lg bg-zinc-800/50 border border-zinc-700/50 px-4 py-3"
+                className="flex items-center gap-4 rounded-lg bg-secondary/50 border border-border px-4 py-3"
               >
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-white">{invoice.number}</p>
-                  <p className="text-xs text-zinc-500 mt-0.5">
+                  <p className="text-sm font-medium text-foreground">{invoice.number}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
                     Vence: {new Date(invoice.dueDate).toLocaleDateString("es-MX", {
                       year: "numeric",
                       month: "short",
@@ -315,7 +315,7 @@ export function FacturacionTab({ clientId }: Props) {
                   {cfg.label}
                 </span>
 
-                <span className="text-sm font-medium text-white whitespace-nowrap">
+                <span className="text-sm font-medium text-foreground whitespace-nowrap">
                   {formatMXN(invoice.total)}
                 </span>
 
@@ -324,7 +324,7 @@ export function FacturacionTab({ clientId }: Props) {
                   onChange={e =>
                     handleStatusChange(invoice, e.target.value as Invoice["status"])
                   }
-                  className="rounded-md bg-zinc-700 border border-zinc-600/50 text-xs text-zinc-300 px-2 py-1 focus:outline-none focus:ring-1 focus:ring-cyan-400/40"
+                  className="rounded-md bg-secondary border border-border text-xs text-foreground px-2 py-1 focus:outline-none focus:ring-1 focus:ring-cyan-400/40"
                 >
                   {(Object.keys(STATUS_CONFIG) as Invoice["status"][]).map(s => (
                     <option key={s} value={s}>
@@ -337,7 +337,7 @@ export function FacturacionTab({ clientId }: Props) {
                   href={`/api/documents/invoice-pdf?invoiceId=${invoice.id}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="shrink-0 text-xs px-3 py-1.5 rounded-md bg-zinc-700 hover:bg-zinc-600 text-zinc-200 transition-colors"
+                  className="shrink-0 text-xs px-3 py-1.5 rounded-md bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
                 >
                   PDF
                 </a>

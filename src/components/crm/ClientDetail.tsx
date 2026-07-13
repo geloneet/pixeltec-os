@@ -107,13 +107,13 @@ function ProjectCard({ project: p, stats, clientId, navigateToProject, setModal 
   const status = projectStatus(stats);
 
   return (
-    <div className="flex flex-col rounded-xl border border-white/[0.06] bg-zinc-900/20 p-4 transition-all duration-150 hover:border-white/[0.10] hover:bg-white/[0.03]">
+    <div className="flex flex-col rounded-xl border border-white/[0.06] bg-card/20 p-4 transition-all duration-150 hover:border-white/[0.10] hover:bg-white/[0.03]">
       {/* Card header */}
       <div className="mb-3 flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-zinc-100">{p.name}</p>
+          <p className="truncate text-sm font-semibold text-foreground">{p.name}</p>
           {p.domain && (
-            <p className="truncate text-[11px] text-zinc-500">{p.domain}</p>
+            <p className="truncate text-[11px] text-muted-foreground">{p.domain}</p>
           )}
         </div>
         <span className={cn("flex-shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap", status.colorClass)}>
@@ -125,8 +125,8 @@ function ProjectCard({ project: p, stats, clientId, navigateToProject, setModal 
       {stats.totalTasks > 0 ? (
         <div className="mb-3 space-y-1.5">
           <div className="flex items-center justify-between text-[10px]">
-            <span className="text-zinc-500">{stats.pct}% completado</span>
-            <span className="text-zinc-600">{stats.completed}/{stats.totalTasks} tareas</span>
+            <span className="text-muted-foreground">{stats.pct}% completado</span>
+            <span className="text-muted-foreground">{stats.completed}/{stats.totalTasks} tareas</span>
           </div>
           <div className="h-[3px] w-full overflow-hidden rounded-full bg-white/[0.06]">
             <div
@@ -134,13 +134,13 @@ function ProjectCard({ project: p, stats, clientId, navigateToProject, setModal 
               style={{ width: `${stats.pct}%` }}
             />
           </div>
-          <div className="flex items-center gap-3 text-[10px] text-zinc-500">
+          <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
             {stats.openTasks > 0 && <span>{stats.openTasks} abierta{stats.openTasks !== 1 ? "s" : ""}</span>}
             {stats.stopped > 0 && <span className="text-red-400">{stats.stopped} detenida{stats.stopped !== 1 ? "s" : ""}</span>}
           </div>
         </div>
       ) : (
-        <p className="mb-3 text-[11px] text-zinc-600 italic">Sin tareas</p>
+        <p className="mb-3 text-[11px] text-muted-foreground italic">Sin tareas</p>
       )}
 
       {/* Footer */}
@@ -148,11 +148,11 @@ function ProjectCard({ project: p, stats, clientId, navigateToProject, setModal 
         <TooltipProvider delayDuration={300}>
           <Tooltip>
             <TooltipTrigger asChild>
-              <span className="cursor-default text-[10px] text-zinc-500">
+              <span className="cursor-default text-[10px] text-muted-foreground">
                 Últ. alta {relativeTime(stats.lastTaskAt)}
               </span>
             </TooltipTrigger>
-            <TooltipContent side="bottom" className="border-zinc-800 bg-zinc-900 text-zinc-300 text-xs">
+            <TooltipContent side="bottom" className="border-border bg-card text-foreground text-xs">
               {exactDate(stats.lastTaskAt)}
             </TooltipContent>
           </Tooltip>
@@ -161,7 +161,7 @@ function ProjectCard({ project: p, stats, clientId, navigateToProject, setModal 
         <div className="flex items-center gap-1.5">
           <button
             onClick={() => navigateToProject(clientId, p.id)}
-            className="rounded-md px-2.5 py-1 text-xs font-medium text-zinc-400 transition-colors hover:bg-white/[0.06] hover:text-zinc-200"
+            className="rounded-md px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground"
           >
             Ver
           </button>
@@ -183,7 +183,7 @@ function ProjectCard({ project: p, stats, clientId, navigateToProject, setModal 
                 },
               })
             }
-            className="rounded-md px-2.5 py-1 text-xs font-medium text-zinc-400 transition-colors hover:bg-white/[0.06] hover:text-zinc-200"
+            className="rounded-md px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground"
           >
             Editar
           </button>
@@ -229,14 +229,14 @@ export function ClientDetail({ client, setView, navigateToProject, setModal, del
       {/* Breadcrumb */}
       <button
         onClick={() => setView("clients")}
-        className="mb-5 flex items-center gap-1.5 text-sm text-zinc-500 transition-colors hover:text-zinc-300"
+        className="mb-5 flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
       >
         <ArrowLeft className="h-3.5 w-3.5" />
         Clientes
       </button>
 
       {/* ── SECCIÓN 1: HEADER ────────────────────────────────────────────── */}
-      <div className="mb-5 flex items-center gap-4 rounded-xl border border-white/[0.06] bg-zinc-900/20 p-5">
+      <div className="mb-5 flex items-center gap-4 rounded-xl border border-white/[0.06] bg-card/20 p-5">
         <span
           className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full text-base font-bold text-white"
           style={{ backgroundColor: color }}
@@ -246,15 +246,15 @@ export function ClientDetail({ client, setView, navigateToProject, setModal, del
 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-xl font-semibold text-zinc-100">{client.name}</h2>
+            <h2 className="text-xl font-semibold text-foreground">{client.name}</h2>
             <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold", headerBadge.colorClass)}>
               {headerBadge.label}
             </span>
           </div>
-          {contact && <p className="mt-0.5 text-sm text-zinc-500">{contact}</p>}
+          {contact && <p className="mt-0.5 text-sm text-muted-foreground">{contact}</p>}
           {client.contactName && (
-            <p className="mt-0.5 text-sm text-zinc-400">
-              Contacto: <span className="text-zinc-300">{client.contactName}</span>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              Contacto: <span className="text-foreground">{client.contactName}</span>
             </p>
           )}
         </div>
@@ -275,7 +275,7 @@ export function ClientDetail({ client, setView, navigateToProject, setModal, del
                 },
               })
             }
-            className="rounded-lg border border-white/[0.06] bg-zinc-900/40 px-3 py-1.5 text-xs font-medium text-zinc-400 transition-all hover:border-white/[0.10] hover:text-zinc-200"
+            className="rounded-lg border border-white/[0.06] bg-card/40 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-all hover:border-white/[0.10] hover:text-foreground"
           >
             Editar
           </button>
@@ -288,17 +288,17 @@ export function ClientDetail({ client, setView, navigateToProject, setModal, del
           </Link>
           <button
             onClick={() => setModal({ type: "addProject" })}
-            className="rounded-lg border border-white/[0.06] bg-zinc-900/40 px-3 py-1.5 text-xs font-medium text-zinc-400 transition-all hover:border-white/[0.10] hover:text-zinc-200"
+            className="rounded-lg border border-white/[0.06] bg-card/40 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-all hover:border-white/[0.10] hover:text-foreground"
           >
             + Proyecto con avance
           </button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/[0.06] bg-zinc-900/40 text-zinc-500 transition-all hover:border-white/[0.10] hover:text-zinc-300 focus-visible:outline-none">
+              <button className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/[0.06] bg-card/40 text-muted-foreground transition-all hover:border-white/[0.10] hover:text-foreground focus-visible:outline-none">
                 <MoreHorizontal className="h-3.5 w-3.5" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-40 border-zinc-800/60 bg-zinc-900/95 backdrop-blur-xl">
+            <DropdownMenuContent align="end" className="w-40 border-border/60 bg-card/95 backdrop-blur-xl">
               <DropdownMenuItem
                 className="cursor-pointer text-sm text-red-400 focus:bg-red-500/10 focus:text-red-300"
                 onSelect={() => setDeleteOpen(true)}
@@ -313,41 +313,41 @@ export function ClientDetail({ client, setView, navigateToProject, setModal, del
       {/* ── SECCIÓN 2: SNAPSHOT ──────────────────────────────────────────── */}
       <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {/* Proyectos */}
-        <div className="rounded-xl border border-white/[0.06] bg-zinc-900/20 p-4">
+        <div className="rounded-xl border border-white/[0.06] bg-card/20 p-4">
           <FolderKanban className="mb-2 h-4 w-4 text-cyan-400" strokeWidth={1.75} />
-          <p className="tabular-nums text-2xl font-bold text-zinc-100">{clientStats.projectsCount}</p>
-          <p className="mt-0.5 text-[11px] text-zinc-500">Proyectos</p>
+          <p className="tabular-nums text-2xl font-bold text-foreground">{clientStats.projectsCount}</p>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">Proyectos</p>
         </div>
         {/* Tareas abiertas */}
-        <div className="rounded-xl border border-white/[0.06] bg-zinc-900/20 p-4">
+        <div className="rounded-xl border border-white/[0.06] bg-card/20 p-4">
           <ListTodo className="mb-2 h-4 w-4 text-cyan-400" strokeWidth={1.75} />
-          <p className="tabular-nums text-2xl font-bold text-zinc-100">{clientStats.openTasks}</p>
-          <p className="mt-0.5 text-[11px] text-zinc-500">Tareas abiertas</p>
+          <p className="tabular-nums text-2xl font-bold text-foreground">{clientStats.openTasks}</p>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">Tareas abiertas</p>
         </div>
         {/* Completadas */}
-        <div className="rounded-xl border border-white/[0.06] bg-zinc-900/20 p-4">
+        <div className="rounded-xl border border-white/[0.06] bg-card/20 p-4">
           <CheckCircle2 className="mb-2 h-4 w-4 text-cyan-400" strokeWidth={1.75} />
-          <p className="tabular-nums text-2xl font-bold text-zinc-100">{clientStats.completed}</p>
-          <p className="mt-0.5 text-[11px] text-zinc-500">Completadas</p>
+          <p className="tabular-nums text-2xl font-bold text-foreground">{clientStats.completed}</p>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">Completadas</p>
         </div>
         {/* Detenidas */}
-        <div className={cn("rounded-xl border p-4 transition-colors", clientStats.stopped > 0 ? "border-red-500/20 bg-red-500/[0.04]" : "border-white/[0.06] bg-zinc-900/20")}>
+        <div className={cn("rounded-xl border p-4 transition-colors", clientStats.stopped > 0 ? "border-red-500/20 bg-red-500/[0.04]" : "border-white/[0.06] bg-card/20")}>
           <PauseCircle className={cn("mb-2 h-4 w-4", clientStats.stopped > 0 ? "text-red-400" : "text-cyan-400")} strokeWidth={1.75} />
-          <p className={cn("tabular-nums text-2xl font-bold", clientStats.stopped > 0 ? "text-red-300" : "text-zinc-100")}>{clientStats.stopped}</p>
-          <p className={cn("mt-0.5 text-[11px]", clientStats.stopped > 0 ? "text-red-400/70" : "text-zinc-500")}>Detenidas</p>
+          <p className={cn("tabular-nums text-2xl font-bold", clientStats.stopped > 0 ? "text-red-300" : "text-foreground")}>{clientStats.stopped}</p>
+          <p className={cn("mt-0.5 text-[11px]", clientStats.stopped > 0 ? "text-red-400/70" : "text-muted-foreground")}>Detenidas</p>
         </div>
       </div>
 
       {/* ── SECCIÓN 3: PROYECTOS ACTIVOS ─────────────────────────────────── */}
       <div className="mb-5">
         <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-zinc-300">Proyectos activos</h3>
-          <span className="text-xs text-zinc-500">{client.projects.length} proyecto{client.projects.length !== 1 ? "s" : ""}</span>
+          <h3 className="text-sm font-semibold text-foreground">Proyectos activos</h3>
+          <span className="text-xs text-muted-foreground">{client.projects.length} proyecto{client.projects.length !== 1 ? "s" : ""}</span>
         </div>
 
         {client.projects.length === 0 ? (
-          <div className="rounded-xl border border-white/[0.06] bg-zinc-900/20 py-10 text-center">
-            <p className="text-sm text-zinc-500">No hay proyectos</p>
+          <div className="rounded-xl border border-white/[0.06] bg-card/20 py-10 text-center">
+            <p className="text-sm text-muted-foreground">No hay proyectos</p>
             <button
               onClick={() => setModal({ type: "addProject" })}
               className="mt-3 text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
@@ -374,8 +374,8 @@ export function ClientDetail({ client, setView, navigateToProject, setModal, del
       {/* ── SECCIÓN 4: ACTIVIDAD RECIENTE ────────────────────────────────── */}
       {feed.length > 0 && (
         <div className="mb-5">
-          <h3 className="mb-3 text-sm font-semibold text-zinc-300">Actividad reciente</h3>
-          <div className="rounded-xl border border-white/[0.06] bg-zinc-900/20 divide-y divide-white/[0.04]">
+          <h3 className="mb-3 text-sm font-semibold text-foreground">Actividad reciente</h3>
+          <div className="rounded-xl border border-white/[0.06] bg-card/20 divide-y divide-white/[0.04]">
             {feed.map((event, i) => (
               <div key={i} className="flex items-start gap-3 px-4 py-3">
                 <div className="mt-0.5 flex-shrink-0">
@@ -386,30 +386,30 @@ export function ClientDetail({ client, setView, navigateToProject, setModal, del
                     <FolderKanban className="h-3.5 w-3.5 text-violet-400" strokeWidth={1.75} />
                   )}
                   {event.type === "task" && (
-                    <FileText className="h-3.5 w-3.5 text-zinc-400" strokeWidth={1.75} />
+                    <FileText className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.75} />
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs text-zinc-400">
-                    <span className="text-zinc-500">
+                  <p className="text-xs text-muted-foreground">
+                    <span className="text-muted-foreground">
                       {event.type === "client" && "Cliente creado · "}
                       {event.type === "project" && "Proyecto creado · "}
                       {event.type === "task" && "Tarea creada · "}
                     </span>
-                    <span className="font-medium text-zinc-300">{event.label}</span>
+                    <span className="font-medium text-foreground">{event.label}</span>
                     {event.context && (
-                      <span className="ml-1 text-zinc-600">· {event.context}</span>
+                      <span className="ml-1 text-muted-foreground">· {event.context}</span>
                     )}
                   </p>
                 </div>
                 <TooltipProvider delayDuration={300}>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <span className="flex-shrink-0 cursor-default text-[10px] text-zinc-600 tabular-nums">
+                      <span className="flex-shrink-0 cursor-default text-[10px] text-muted-foreground tabular-nums">
                         {relativeTime(event.at)}
                       </span>
                     </TooltipTrigger>
-                    <TooltipContent side="left" className="border-zinc-800 bg-zinc-900 text-zinc-300 text-xs">
+                    <TooltipContent side="left" className="border-border bg-card text-foreground text-xs">
                       {exactDate(event.at)}
                     </TooltipContent>
                   </Tooltip>
@@ -422,24 +422,24 @@ export function ClientDetail({ client, setView, navigateToProject, setModal, del
 
       {/* ── SECCIÓN 5: NOTAS ─────────────────────────────────────────────── */}
       {client.notes && (
-        <div className="rounded-xl border border-white/[0.06] bg-zinc-900/20 p-4">
-          <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Notas</p>
-          <p className="text-sm leading-relaxed text-zinc-300 whitespace-pre-wrap">{client.notes}</p>
+        <div className="rounded-xl border border-white/[0.06] bg-card/20 p-4">
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Notas</p>
+          <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap">{client.notes}</p>
         </div>
       )}
 
       {/* Delete confirmation */}
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <AlertDialogContent className="border-zinc-800 bg-[#0F0F12] text-white">
+        <AlertDialogContent className="border-border bg-background text-foreground">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-white">¿Eliminar cliente?</AlertDialogTitle>
-            <AlertDialogDescription className="text-zinc-400">
-              Se eliminará <span className="font-medium text-zinc-200">{client.name}</span> y todos
+            <AlertDialogTitle className="text-foreground">¿Eliminar cliente?</AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground">
+              Se eliminará <span className="font-medium text-foreground">{client.name}</span> y todos
               sus proyectos. Esta acción no se puede deshacer.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="border-zinc-700 bg-zinc-800/50 text-zinc-300 hover:bg-zinc-800">
+            <AlertDialogCancel className="border-border bg-secondary/50 text-foreground hover:bg-secondary">
               Cancelar
             </AlertDialogCancel>
             <AlertDialogAction

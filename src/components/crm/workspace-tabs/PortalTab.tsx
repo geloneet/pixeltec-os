@@ -84,17 +84,17 @@ export function PortalTab({ clientId, clientName, clientEmail }: Props) {
   return (
     <div className="max-w-2xl space-y-4">
       <div>
-        <h3 className="font-poppins text-sm font-semibold text-zinc-200">Portal de {clientName}</h3>
-        <p className="mt-1 font-roboto text-xs text-zinc-500">
+        <h3 className="font-poppins text-sm font-semibold text-foreground">Portal de {clientName}</h3>
+        <p className="mt-1 font-roboto text-xs text-muted-foreground">
           {status.email ?? (clientEmail || 'Sin correo — el portal no podrá enviarle un código de acceso.')}
         </p>
       </div>
 
-      <div className="rounded-lg border border-zinc-700/30 bg-zinc-800/20 px-4 py-3">
+      <div className="rounded-lg border border-border bg-secondary/20 px-4 py-3">
         <div className="flex items-center gap-4">
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-zinc-200">Acceso al portal</p>
-            <p className="text-xs text-zinc-500">
+            <p className="text-sm font-medium text-foreground">Acceso al portal</p>
+            <p className="text-xs text-muted-foreground">
               {status.portalAccessEnabled ? 'Activo — el cliente puede iniciar sesión con su correo.' : 'Inactivo'}
             </p>
           </div>
@@ -116,11 +116,11 @@ export function PortalTab({ clientId, clientName, clientEmail }: Props) {
         )}
       </div>
 
-      <div className="rounded-lg border border-zinc-700/30 bg-zinc-800/20">
+      <div className="rounded-lg border border-border bg-secondary/20">
         <div className="flex items-center gap-4 px-4 py-3">
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-zinc-200">Publicar actualización</p>
-            <p className="text-xs text-zinc-500">Novedad visible en el feed del portal del cliente.</p>
+            <p className="text-sm font-medium text-foreground">Publicar actualización</p>
+            <p className="text-xs text-muted-foreground">Novedad visible en el feed del portal del cliente.</p>
           </div>
           {published && (
             <span className="flex items-center gap-1 text-xs text-green-400">
@@ -132,7 +132,7 @@ export function PortalTab({ clientId, clientName, clientEmail }: Props) {
             type="button"
             onClick={() => setExpanded((v) => !v)}
             disabled={!status.portalAccessEnabled}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs text-zinc-500 hover:text-zinc-300 hover:bg-zinc-700/40 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/40 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
           >
             <Megaphone className="h-3.5 w-3.5" />
             {expanded ? 'Cerrar' : 'Nueva actualización'}
@@ -140,26 +140,26 @@ export function PortalTab({ clientId, clientName, clientEmail }: Props) {
         </div>
 
         {expanded && (
-          <div className="border-t border-zinc-700/30 p-4 space-y-2">
+          <div className="border-t border-border p-4 space-y-2">
             <Textarea
               value={updateText}
               onChange={(e) => setUpdateText(e.target.value)}
               placeholder="Novedad para el cliente…"
               rows={3}
-              className="bg-zinc-900/60 border-zinc-700/50 text-sm text-zinc-100"
+              className="bg-card/60 border-border text-sm text-foreground"
             />
             <Input
               type="url"
               value={updateImageUrl}
               onChange={(e) => setUpdateImageUrl(e.target.value)}
               placeholder="URL de imagen (opcional)"
-              className="bg-zinc-900/60 border-zinc-700/50 text-sm text-zinc-100"
+              className="bg-card/60 border-border text-sm text-foreground"
             />
             <div className="flex gap-2 justify-end">
               <button
                 type="button"
                 onClick={() => { setExpanded(false); setUpdateText(''); setUpdateImageUrl(''); }}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-md text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700/50"
+                className="flex items-center gap-1 px-3 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/50"
               >
                 <X className="h-3.5 w-3.5" />
                 Cancelar

@@ -111,7 +111,7 @@ function CopyButton({ text, children }: { text: string; children: React.ReactNod
   return (
     <button
       onClick={handle}
-      className="flex items-center gap-1.5 rounded-lg border border-white/[0.06] bg-zinc-900/40 px-3 py-1.5 text-xs text-zinc-400 hover:text-zinc-200 transition-all"
+      className="flex items-center gap-1.5 rounded-lg border border-white/[0.06] bg-card/40 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-all"
     >
       {copied ? <Check className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
       {copied ? "Copiado" : children}
@@ -317,7 +317,7 @@ export function PropuestaTab({ clientId, clientName, clientEmail, onConvertToCon
     return (
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-zinc-300">Propuestas</h3>
+          <h3 className="text-sm font-semibold text-foreground">Propuestas</h3>
           <button
             onClick={() => setView("create")}
             className="rounded-lg border border-cyan-500/20 bg-cyan-500/10 px-3 py-1.5 text-xs font-medium text-cyan-300 transition-all hover:bg-cyan-500/20"
@@ -328,14 +328,14 @@ export function PropuestaTab({ clientId, clientName, clientEmail, onConvertToCon
 
         {loading && (
           <div className="flex items-center justify-center py-12">
-            <span className="text-xs text-zinc-500">Cargando...</span>
+            <span className="text-xs text-muted-foreground">Cargando...</span>
           </div>
         )}
 
         {!loading && proposals.length === 0 && (
           <div className="flex flex-col items-center justify-center py-16 text-center">
-            <FileText className="mb-3 h-8 w-8 text-zinc-600" />
-            <p className="mb-3 text-sm font-medium text-zinc-400">Sin propuestas</p>
+            <FileText className="mb-3 h-8 w-8 text-muted-foreground" />
+            <p className="mb-3 text-sm font-medium text-muted-foreground">Sin propuestas</p>
             <button
               onClick={() => setView("create")}
               className="rounded-lg border border-cyan-500/20 bg-cyan-500/10 px-4 py-2 text-xs font-medium text-cyan-300 transition-all hover:bg-cyan-500/20"
@@ -349,20 +349,20 @@ export function PropuestaTab({ clientId, clientName, clientEmail, onConvertToCon
           <button
             key={p.id}
             onClick={() => { setSelected(p); setView("detail"); }}
-            className="w-full text-left rounded-xl border border-white/[0.06] bg-zinc-900/20 p-4 hover:border-white/[0.10] transition-all"
+            className="w-full text-left rounded-xl border border-white/[0.06] bg-card/20 p-4 hover:border-white/[0.10] transition-all"
           >
             <div className="flex items-center justify-between gap-2 mb-1">
               <div className="flex items-center gap-2 min-w-0">
-                <span className="text-sm font-medium text-zinc-200 truncate">{p.title}</span>
+                <span className="text-sm font-medium text-foreground truncate">{p.title}</span>
                 {p.reference && (
-                  <span className="text-[10px] font-mono text-zinc-600 flex-shrink-0">{p.reference}</span>
+                  <span className="text-[10px] font-mono text-muted-foreground flex-shrink-0">{p.reference}</span>
                 )}
               </div>
               <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium flex-shrink-0 ${STATUS_CONFIG[p.status].classes}`}>
                 {STATUS_CONFIG[p.status].label}
               </span>
             </div>
-            <div className="flex items-center gap-3 text-xs text-zinc-600">
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
               <span>{formatDate(p.createdAt)}</span>
               {p.publicToken && (
                 <span className="flex items-center gap-1 text-purple-400/70">
@@ -370,7 +370,7 @@ export function PropuestaTab({ clientId, clientName, clientEmail, onConvertToCon
                 </span>
               )}
               {p.currentVersion && p.currentVersion > 1 && (
-                <span className="text-zinc-700">v{p.currentVersion}</span>
+                <span className="text-muted-foreground">v{p.currentVersion}</span>
               )}
             </div>
           </button>
@@ -388,50 +388,50 @@ export function PropuestaTab({ clientId, clientName, clientEmail, onConvertToCon
       <div className="space-y-4">
         <button
           onClick={isEdit ? handleCancelEdit : () => setView("list")}
-          className="flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
         >
           <ArrowLeft className="h-3.5 w-3.5" /> Volver
         </button>
-        <h3 className="text-sm font-semibold text-zinc-300">{isEdit ? "Editar propuesta" : "Nueva propuesta"}</h3>
+        <h3 className="text-sm font-semibold text-foreground">{isEdit ? "Editar propuesta" : "Nueva propuesta"}</h3>
 
         <div>
-          <label className="mb-1.5 block text-xs font-medium text-zinc-400">Título</label>
+          <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Título</label>
           <input
             type="text" value={title} onChange={e => setTitle(e.target.value)}
             placeholder="Ej: Sistema de publicación en redes sociales"
-            className="w-full rounded-lg border border-white/[0.06] bg-zinc-900/40 px-3 py-2 text-sm text-zinc-200 placeholder-zinc-600 focus:border-cyan-500/40 focus:outline-none"
+            className="w-full rounded-lg border border-white/[0.06] bg-card/40 px-3 py-2 text-sm text-foreground placeholder-muted-foreground focus:border-cyan-500/40 focus:outline-none"
           />
         </div>
 
         <div>
-          <label className="mb-1.5 block text-xs font-medium text-zinc-400">
-            Alcance <span className="text-zinc-600">— qué necesita el cliente</span>
+          <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+            Alcance <span className="text-muted-foreground">— qué necesita el cliente</span>
           </label>
           <textarea
             value={scope} onChange={e => setScope(e.target.value)}
             placeholder="Describe el proyecto y las necesidades del cliente..."
             rows={3}
-            className="w-full rounded-lg border border-white/[0.06] bg-zinc-900/40 px-3 py-2 text-sm text-zinc-200 placeholder-zinc-600 focus:border-cyan-500/40 focus:outline-none resize-none"
+            className="w-full rounded-lg border border-white/[0.06] bg-card/40 px-3 py-2 text-sm text-foreground placeholder-muted-foreground focus:border-cyan-500/40 focus:outline-none resize-none"
           />
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-zinc-400">Presupuesto <span className="text-zinc-600">(opcional)</span></label>
+            <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Presupuesto <span className="text-muted-foreground">(opcional)</span></label>
             <input type="text" value={budget} onChange={e => setBudget(e.target.value)} placeholder="Ej: $50,000 MXN"
-              className="w-full rounded-lg border border-white/[0.06] bg-zinc-900/40 px-3 py-2 text-sm text-zinc-200 placeholder-zinc-600 focus:border-cyan-500/40 focus:outline-none"
+              className="w-full rounded-lg border border-white/[0.06] bg-card/40 px-3 py-2 text-sm text-foreground placeholder-muted-foreground focus:border-cyan-500/40 focus:outline-none"
             />
           </div>
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-zinc-400">Timeline <span className="text-zinc-600">(opcional)</span></label>
+            <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Timeline <span className="text-muted-foreground">(opcional)</span></label>
             <input type="text" value={timeline} onChange={e => setTimeline(e.target.value)} placeholder="Ej: 6 semanas"
-              className="w-full rounded-lg border border-white/[0.06] bg-zinc-900/40 px-3 py-2 text-sm text-zinc-200 placeholder-zinc-600 focus:border-cyan-500/40 focus:outline-none"
+              className="w-full rounded-lg border border-white/[0.06] bg-card/40 px-3 py-2 text-sm text-foreground placeholder-muted-foreground focus:border-cyan-500/40 focus:outline-none"
             />
           </div>
         </div>
 
         <div>
-          <label className="flex items-center gap-2 text-xs font-medium text-zinc-400">
+          <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
             <input
               type="checkbox"
               checked={showPricing}
@@ -439,7 +439,7 @@ export function PropuestaTab({ clientId, clientName, clientEmail, onConvertToCon
                 setShowPricing(e.target.checked);
                 if (e.target.checked && priceLines.length === 0) addPriceLine();
               }}
-              className="h-3.5 w-3.5 rounded border-white/[0.2] bg-zinc-900/40 accent-cyan-500"
+              className="h-3.5 w-3.5 rounded border-white/[0.2] bg-card/40 accent-cyan-500"
             />
             Agregar precios
           </label>
@@ -447,18 +447,18 @@ export function PropuestaTab({ clientId, clientName, clientEmail, onConvertToCon
           {showPricing && (
             <div className="mt-2 space-y-2">
               {priceLines.map((line) => (
-                <div key={line.key} className="rounded-xl border border-white/[0.06] bg-zinc-900/20 p-3 space-y-2">
+                <div key={line.key} className="rounded-xl border border-white/[0.06] bg-card/20 p-3 space-y-2">
                   <div className="flex items-center gap-2">
                     <input
                       value={line.concept}
                       onChange={e => updatePriceLine(line.key, { concept: e.target.value })}
                       placeholder="Concepto (ej. Costo Desarrollo: app + dominio 1 año incluido)"
-                      className="flex-1 rounded-lg border border-white/[0.06] bg-zinc-900/60 px-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-600 focus:border-cyan-500/40 focus:outline-none"
+                      className="flex-1 rounded-lg border border-white/[0.06] bg-card/60 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-cyan-500/40 focus:outline-none"
                     />
                     <button
                       onClick={() => removePriceLine(line.key)}
                       title="Eliminar"
-                      className="flex-shrink-0 text-zinc-600 hover:text-red-400 transition-colors"
+                      className="flex-shrink-0 text-muted-foreground hover:text-red-400 transition-colors"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -471,12 +471,12 @@ export function PropuestaTab({ clientId, clientName, clientEmail, onConvertToCon
                       value={line.amount || ""}
                       onChange={e => updatePriceLine(line.key, { amount: Number(e.target.value) })}
                       placeholder="Monto"
-                      className="rounded-lg border border-white/[0.06] bg-zinc-900/60 px-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-600 focus:border-cyan-500/40 focus:outline-none"
+                      className="rounded-lg border border-white/[0.06] bg-card/60 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-cyan-500/40 focus:outline-none"
                     />
                     <select
                       value={line.frequency}
                       onChange={e => updatePriceLine(line.key, { frequency: e.target.value as BillingFrequency })}
-                      className="rounded-lg border border-white/[0.06] bg-zinc-900/60 px-3 py-2 text-sm text-zinc-200 focus:border-cyan-500/40 focus:outline-none"
+                      className="rounded-lg border border-white/[0.06] bg-card/60 px-3 py-2 text-sm text-foreground focus:border-cyan-500/40 focus:outline-none"
                     >
                       {PRICE_FREQUENCIES.map(f => (
                         <option key={f} value={f}>{BILLING_FREQUENCY_LABELS[f]}</option>
@@ -487,11 +487,11 @@ export function PropuestaTab({ clientId, clientName, clientEmail, onConvertToCon
               ))}
               <button
                 onClick={addPriceLine}
-                className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-white/[0.10] py-2 text-xs text-zinc-500 transition-all hover:border-cyan-500/30 hover:text-cyan-300"
+                className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-white/[0.10] py-2 text-xs text-muted-foreground transition-all hover:border-cyan-500/30 hover:text-cyan-300"
               >
                 <Plus className="h-3.5 w-3.5" /> Agregar concepto de cobro
               </button>
-              <p className="text-[10px] text-zinc-600">
+              <p className="text-[10px] text-muted-foreground">
                 La frecuencia ya cubre cobros recurrentes — deja &ldquo;Único&rdquo; para un cobro
                 de una sola vez, o elige mensual/trimestral/semestral/anual para que se repita.
               </p>
@@ -512,14 +512,14 @@ export function PropuestaTab({ clientId, clientName, clientEmail, onConvertToCon
             <p className="text-xs font-medium text-purple-300">Contenido generado — editable antes de guardar</p>
             {(["solution", "deliverables", "benefits"] as const).map((field) => (
               <div key={field}>
-                <label className="mb-1.5 block text-xs font-medium text-zinc-400">
+                <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
                   {field === "solution" ? "Solución propuesta" : field === "deliverables" ? "Entregables" : "Beneficios"}
                 </label>
                 <textarea
                   value={generatedData[field]}
                   onChange={e => setGeneratedData(prev => prev ? { ...prev, [field]: e.target.value } : prev)}
                   rows={field === "deliverables" ? 4 : 3}
-                  className="w-full rounded-lg border border-white/[0.06] bg-zinc-900/40 px-3 py-2 text-sm text-zinc-200 focus:border-cyan-500/40 focus:outline-none resize-none"
+                  className="w-full rounded-lg border border-white/[0.06] bg-card/40 px-3 py-2 text-sm text-foreground focus:border-cyan-500/40 focus:outline-none resize-none"
                 />
               </div>
             ))}
@@ -536,7 +536,7 @@ export function PropuestaTab({ clientId, clientName, clientEmail, onConvertToCon
           </button>
           <button
             onClick={isEdit ? handleCancelEdit : () => setView("list")}
-            className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
           >
             Cancelar
           </button>
@@ -554,16 +554,16 @@ export function PropuestaTab({ clientId, clientName, clientEmail, onConvertToCon
   return (
     <div className="space-y-4">
       {/* Back */}
-      <button onClick={() => { setSelected(null); setView("list"); }} className="flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-300 transition-colors">
+      <button onClick={() => { setSelected(null); setView("list"); }} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
         <ArrowLeft className="h-3.5 w-3.5" /> Volver
       </button>
 
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="text-sm font-semibold text-zinc-200">{selected.title}</h3>
+          <h3 className="text-sm font-semibold text-foreground">{selected.title}</h3>
           {selected.reference && (
-            <span className="text-[10px] font-mono text-zinc-600">{selected.reference}</span>
+            <span className="text-[10px] font-mono text-muted-foreground">{selected.reference}</span>
           )}
         </div>
         <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium flex-shrink-0 ${STATUS_CONFIG[selected.status].classes}`}>
@@ -575,7 +575,7 @@ export function PropuestaTab({ clientId, clientName, clientEmail, onConvertToCon
       <div className="flex flex-wrap gap-2">
         <button
           onClick={handleOpenEdit}
-          className="flex items-center gap-1.5 rounded-lg border border-white/[0.06] bg-zinc-900/40 px-3 py-1.5 text-xs text-zinc-400 hover:text-zinc-200 transition-all"
+          className="flex items-center gap-1.5 rounded-lg border border-white/[0.06] bg-card/40 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-all"
         >
           <Pencil className="h-3 w-3" /> Editar
         </button>
@@ -583,14 +583,14 @@ export function PropuestaTab({ clientId, clientName, clientEmail, onConvertToCon
           onClick={handleSendEmail}
           disabled={sendingEmail || !clientEmail}
           title={!clientEmail ? "Agrega un email al cliente para poder enviarle la propuesta" : undefined}
-          className="flex items-center gap-1.5 rounded-lg border border-white/[0.06] bg-zinc-900/40 px-3 py-1.5 text-xs text-zinc-400 hover:text-zinc-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center gap-1.5 rounded-lg border border-white/[0.06] bg-card/40 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {emailSent ? <Check className="h-3 w-3 text-green-400" /> : <Mail className="h-3 w-3" />}
           {sendingEmail ? "Enviando..." : emailSent ? "¡Enviado!" : "Enviar por correo"}
         </button>
         <button
           onClick={() => printProposalPdf(selected.id)}
-          className="flex items-center gap-1.5 rounded-lg border border-white/[0.06] bg-zinc-900/40 px-3 py-1.5 text-xs text-zinc-400 hover:text-zinc-200 transition-all"
+          className="flex items-center gap-1.5 rounded-lg border border-white/[0.06] bg-card/40 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-all"
         >
           <Printer className="h-3 w-3" /> Imprimir
         </button>
@@ -598,14 +598,14 @@ export function PropuestaTab({ clientId, clientName, clientEmail, onConvertToCon
           href={`/api/documents/proposal-pdf?proposalId=${selected.id}`}
           target="_blank"
           rel="noreferrer"
-          className="flex items-center gap-1.5 rounded-lg border border-white/[0.06] bg-zinc-900/40 px-3 py-1.5 text-xs text-zinc-400 hover:text-zinc-200 transition-all"
+          className="flex items-center gap-1.5 rounded-lg border border-white/[0.06] bg-card/40 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-all"
         >
           <Download className="h-3 w-3" /> Descargar PDF
         </a>
       </div>
 
       {/* Timeline */}
-      <div className="rounded-xl border border-white/[0.06] bg-zinc-900/20 p-3">
+      <div className="rounded-xl border border-white/[0.06] bg-card/20 p-3">
         <div className="flex items-center gap-0">
           {TIMELINE_STEPS.map((step, i) => {
             const isLast = i === TIMELINE_STEPS.length - 1;
@@ -622,16 +622,16 @@ export function PropuestaTab({ clientId, clientName, clientEmail, onConvertToCon
             return (
               <div key={step.key} className="flex items-center flex-1 min-w-0">
                 <div className="flex flex-col items-center gap-1 min-w-0">
-                  <div className={`h-2 w-2 rounded-full flex-shrink-0 ${done ? (isDecision && selected.status === "rechazada" ? "bg-red-400" : "bg-green-400") : "bg-zinc-700"}`} />
-                  <span className="text-[0.55rem] text-zinc-600 text-center leading-tight px-1">
+                  <div className={`h-2 w-2 rounded-full flex-shrink-0 ${done ? (isDecision && selected.status === "rechazada" ? "bg-red-400" : "bg-green-400") : "bg-muted-foreground/30"}`} />
+                  <span className="text-[0.55rem] text-muted-foreground text-center leading-tight px-1">
                     {displayLabel}
                   </span>
                   {dateVal && (
-                    <span className="text-[0.5rem] text-zinc-700 text-center">{formatDate(dateVal)}</span>
+                    <span className="text-[0.5rem] text-muted-foreground text-center">{formatDate(dateVal)}</span>
                   )}
                 </div>
                 {!isLast && (
-                  <div className={`flex-1 h-px mx-1 flex-shrink-0 ${done ? "bg-green-500/30" : "bg-zinc-800"}`} />
+                  <div className={`flex-1 h-px mx-1 flex-shrink-0 ${done ? "bg-green-500/30" : "bg-muted-foreground/20"}`} />
                 )}
               </div>
             );
@@ -640,7 +640,7 @@ export function PropuestaTab({ clientId, clientName, clientEmail, onConvertToCon
         {selected.viewCount ? (
           <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-white/[0.04]">
             <Eye className="h-3 w-3 text-purple-400/60" />
-            <span className="text-[10px] text-zinc-600">
+            <span className="text-[10px] text-muted-foreground">
               Vista {selected.viewCount} {selected.viewCount === 1 ? "vez" : "veces"}
               {selected.viewedAt && ` · Primera vez el ${formatDate(selected.viewedAt)}`}
             </span>
@@ -649,15 +649,15 @@ export function PropuestaTab({ clientId, clientName, clientEmail, onConvertToCon
       </div>
 
       {/* Publish / Share panel */}
-      <div className="rounded-xl border border-white/[0.06] bg-zinc-900/20 p-4 space-y-3">
+      <div className="rounded-xl border border-white/[0.06] bg-card/20 p-4 space-y-3">
         <div className="flex items-center justify-between">
-          <p className="text-xs font-semibold text-zinc-400">Enlace de cliente</p>
+          <p className="text-xs font-semibold text-muted-foreground">Enlace de cliente</p>
           <button
             onClick={handlePublish}
             disabled={publishing}
             className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all disabled:opacity-50 ${
               hasPublicLink
-                ? "border-zinc-600/40 bg-zinc-800/40 text-zinc-400 hover:text-zinc-200"
+                ? "border-border bg-secondary/40 text-muted-foreground hover:text-foreground"
                 : "border-cyan-500/20 bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500/20"
             }`}
           >
@@ -675,9 +675,9 @@ export function PropuestaTab({ clientId, clientName, clientEmail, onConvertToCon
         {hasPublicLink ? (
           <div className="space-y-2">
             {/* URL */}
-            <div className="flex items-center gap-2 rounded-lg border border-white/[0.06] bg-zinc-900/40 px-3 py-2">
-              <Link2 className="h-3 w-3 text-zinc-600 flex-shrink-0" />
-              <span className="flex-1 text-xs text-zinc-400 truncate font-mono">
+            <div className="flex items-center gap-2 rounded-lg border border-white/[0.06] bg-card/40 px-3 py-2">
+              <Link2 className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+              <span className="flex-1 text-xs text-muted-foreground truncate font-mono">
                 {proposalUrl(selected.publicToken!)}
               </span>
               <CopyButton text={proposalUrl(selected.publicToken!)}>Copiar URL</CopyButton>
@@ -700,7 +700,7 @@ export function PropuestaTab({ clientId, clientName, clientEmail, onConvertToCon
               <div>
                 <button
                   onClick={() => setShowVersions(v => !v)}
-                  className="flex items-center gap-1 text-[10px] text-zinc-600 hover:text-zinc-400 transition-colors"
+                  className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
                 >
                   {showVersions ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
                   {selected.versions!.length} versiones guardadas
@@ -709,9 +709,9 @@ export function PropuestaTab({ clientId, clientName, clientEmail, onConvertToCon
                   <div className="mt-2 space-y-1">
                     {[...selected.versions!].reverse().map(v => (
                       <div key={v.version} className="flex items-center gap-2 rounded-lg border border-white/[0.04] px-2.5 py-1.5">
-                        <span className="text-[10px] font-mono font-semibold text-zinc-500">v{v.version}</span>
-                        <span className="flex-1 text-[10px] text-zinc-400 truncate">{v.title}</span>
-                        <span className="text-[10px] text-zinc-700">{formatDate(v.savedAt)}</span>
+                        <span className="text-[10px] font-mono font-semibold text-muted-foreground">v{v.version}</span>
+                        <span className="flex-1 text-[10px] text-muted-foreground truncate">{v.title}</span>
+                        <span className="text-[10px] text-muted-foreground">{formatDate(v.savedAt)}</span>
                       </div>
                     ))}
                   </div>
@@ -720,35 +720,35 @@ export function PropuestaTab({ clientId, clientName, clientEmail, onConvertToCon
             )}
           </div>
         ) : (
-          <p className="text-xs text-zinc-600">
+          <p className="text-xs text-muted-foreground">
             Genera un enlace único para que tu cliente pueda ver la propuesta, descargar el PDF y aceptarla directamente.
           </p>
         )}
       </div>
 
       {/* Content sections */}
-      <div className="rounded-xl border border-white/[0.06] bg-zinc-900/20 p-4">
-        <p className="mb-1.5 text-xs font-medium text-zinc-500 uppercase tracking-wide">Alcance</p>
+      <div className="rounded-xl border border-white/[0.06] bg-card/20 p-4">
+        <p className="mb-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">Alcance</p>
         <KnowledgeMarkdown content={selected.scope} />
       </div>
 
       {selected.solution && (
-        <div className="rounded-xl border border-white/[0.06] bg-zinc-900/20 p-4">
-          <p className="mb-1.5 text-xs font-medium text-zinc-500 uppercase tracking-wide">Solución propuesta</p>
+        <div className="rounded-xl border border-white/[0.06] bg-card/20 p-4">
+          <p className="mb-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">Solución propuesta</p>
           <KnowledgeMarkdown content={selected.solution} />
         </div>
       )}
 
       {selected.deliverables && (
-        <div className="rounded-xl border border-white/[0.06] bg-zinc-900/20 p-4">
-          <p className="mb-1.5 text-xs font-medium text-zinc-500 uppercase tracking-wide">Entregables</p>
+        <div className="rounded-xl border border-white/[0.06] bg-card/20 p-4">
+          <p className="mb-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">Entregables</p>
           <KnowledgeMarkdown content={selected.deliverables} />
         </div>
       )}
 
       {selected.benefits && (
-        <div className="rounded-xl border border-white/[0.06] bg-zinc-900/20 p-4">
-          <p className="mb-1.5 text-xs font-medium text-zinc-500 uppercase tracking-wide">Beneficios</p>
+        <div className="rounded-xl border border-white/[0.06] bg-card/20 p-4">
+          <p className="mb-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">Beneficios</p>
           <KnowledgeMarkdown content={selected.benefits} />
         </div>
       )}
@@ -756,15 +756,15 @@ export function PropuestaTab({ clientId, clientName, clientEmail, onConvertToCon
       {(selected.budget || selected.timeline) && (
         <div className="flex gap-3">
           {selected.budget && (
-            <div className="rounded-xl border border-white/[0.06] bg-zinc-900/20 p-3 flex-1">
-              <p className="text-[10px] font-medium text-zinc-500 uppercase tracking-wide mb-0.5">Presupuesto</p>
-              <p className="text-sm text-zinc-300">{selected.budget}</p>
+            <div className="rounded-xl border border-white/[0.06] bg-card/20 p-3 flex-1">
+              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Presupuesto</p>
+              <p className="text-sm text-foreground">{selected.budget}</p>
             </div>
           )}
           {selected.timeline && (
-            <div className="rounded-xl border border-white/[0.06] bg-zinc-900/20 p-3 flex-1">
-              <p className="text-[10px] font-medium text-zinc-500 uppercase tracking-wide mb-0.5">Timeline</p>
-              <p className="text-sm text-zinc-300">{selected.timeline}</p>
+            <div className="rounded-xl border border-white/[0.06] bg-card/20 p-3 flex-1">
+              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Timeline</p>
+              <p className="text-sm text-foreground">{selected.timeline}</p>
             </div>
           )}
         </div>
@@ -772,7 +772,7 @@ export function PropuestaTab({ clientId, clientName, clientEmail, onConvertToCon
 
       {/* Status change — botones, no dropdown */}
       <div>
-        <label className="mb-1.5 block text-xs font-medium text-zinc-400">Estado</label>
+        <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Estado</label>
         <div className="flex flex-wrap gap-1.5">
           {(Object.keys(STATUS_CONFIG) as Proposal["status"][]).map(s => (
             <button
@@ -782,7 +782,7 @@ export function PropuestaTab({ clientId, clientName, clientEmail, onConvertToCon
               className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-all ${
                 selected.status === s
                   ? STATUS_CONFIG[s].classes
-                  : "border-white/[0.06] bg-zinc-900/40 text-zinc-500 hover:text-zinc-300"
+                  : "border-white/[0.06] bg-card/40 text-muted-foreground hover:text-foreground"
               }`}
             >
               {STATUS_CONFIG[s].label}
@@ -815,13 +815,13 @@ export function PropuestaTab({ clientId, clientName, clientEmail, onConvertToCon
         )}
 
         {selected.contractId && (
-          <span className="text-xs text-zinc-600 self-center">ID contrato: {selected.contractId.slice(0, 8)}…</span>
+          <span className="text-xs text-muted-foreground self-center">ID contrato: {selected.contractId.slice(0, 8)}…</span>
         )}
       </div>
 
       {/* View status info */}
       {hasPublicLink && selected.status !== "aceptada" && selected.status !== "rechazada" && (
-        <div className="flex items-center gap-2 text-xs text-zinc-600 border-t border-white/[0.04] pt-3">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground border-t border-white/[0.04] pt-3">
           <Clock className="h-3 w-3" />
           <span>
             {selected.status === "vista"

@@ -307,11 +307,11 @@ export function EstrategiaTab({ clientId }: Props) {
           {/* ── Objetivos ─────────────────────────────────────────────────── */}
           <section>
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-zinc-300 uppercase tracking-wide">
+              <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">
                 Objetivos
               </h3>
               {saving && (
-                <span className="text-xs text-zinc-500 animate-pulse">Guardando…</span>
+                <span className="text-xs text-muted-foreground animate-pulse">Guardando…</span>
               )}
             </div>
 
@@ -320,32 +320,32 @@ export function EstrategiaTab({ clientId }: Props) {
                 <div key={obj.id}>
                   {editingObj === obj.id ? (
                     /* Edit form */
-                    <div className="rounded-lg border border-zinc-700/50 bg-zinc-800/40 p-3 space-y-2">
+                    <div className="rounded-lg border border-border bg-secondary/40 p-3 space-y-2">
                       <input
                         type="text"
                         value={objDraft.title ?? obj.title}
                         onChange={e => setObjDraft(d => ({ ...d, title: e.target.value }))}
                         placeholder="Título del objetivo"
-                        className="w-full rounded-md bg-zinc-900/60 border border-zinc-700/50 px-3 py-1.5 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                        className="w-full rounded-md bg-card/60 border border-border px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
                       />
                       <input
                         type="text"
                         value={objDraft.description ?? obj.description}
                         onChange={e => setObjDraft(d => ({ ...d, description: e.target.value }))}
                         placeholder="Descripción"
-                        className="w-full rounded-md bg-zinc-900/60 border border-zinc-700/50 px-3 py-1.5 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                        className="w-full rounded-md bg-card/60 border border-border px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
                       />
                       <div className="flex gap-2">
                         <input
                           type="date"
                           value={objDraft.dueDate ?? obj.dueDate ?? ""}
                           onChange={e => setObjDraft(d => ({ ...d, dueDate: e.target.value || undefined }))}
-                          className="flex-1 rounded-md bg-zinc-900/60 border border-zinc-700/50 px-3 py-1.5 text-sm text-zinc-100 focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                          className="flex-1 rounded-md bg-card/60 border border-border px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
                         />
                         <select
                           value={objDraft.status ?? obj.status}
                           onChange={e => setObjDraft(d => ({ ...d, status: e.target.value as StrategyObjective["status"] }))}
-                          className="flex-1 rounded-md bg-zinc-900/60 border border-zinc-700/50 px-3 py-1.5 text-sm text-zinc-100 focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                          className="flex-1 rounded-md bg-card/60 border border-border px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
                         >
                           <option value="pendiente">Pendiente</option>
                           <option value="en_progreso">En progreso</option>
@@ -356,7 +356,7 @@ export function EstrategiaTab({ clientId }: Props) {
                         <button
                           type="button"
                           onClick={() => { setEditingObj(null); setObjDraft({}); }}
-                          className="flex items-center gap-1 px-3 py-1.5 rounded-md text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700/50 transition-colors"
+                          className="flex items-center gap-1 px-3 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
                         >
                           <X className="h-3.5 w-3.5" />
                           Cancelar
@@ -374,19 +374,19 @@ export function EstrategiaTab({ clientId }: Props) {
                     </div>
                   ) : (
                     /* Display row */
-                    <div className="flex items-start gap-3 rounded-lg border border-zinc-700/30 bg-zinc-800/20 px-3 py-2.5 group">
+                    <div className="flex items-start gap-3 rounded-lg border border-border bg-secondary/20 px-3 py-2.5 group">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-sm font-medium text-zinc-200 truncate">{obj.title}</span>
+                          <span className="text-sm font-medium text-foreground truncate">{obj.title}</span>
                           <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium ${OBJ_STATUS[obj.status].classes}`}>
                             {OBJ_STATUS[obj.status].label}
                           </span>
                         </div>
                         {obj.description && (
-                          <p className="text-xs text-zinc-500 mt-0.5 truncate">{obj.description}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5 truncate">{obj.description}</p>
                         )}
                         {obj.dueDate && (
-                          <p className="text-xs text-zinc-600 mt-0.5">Fecha límite: {obj.dueDate}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">Fecha límite: {obj.dueDate}</p>
                         )}
                       </div>
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
@@ -396,7 +396,7 @@ export function EstrategiaTab({ clientId }: Props) {
                             setEditingObj(obj.id);
                             setObjDraft({ title: obj.title, description: obj.description, dueDate: obj.dueDate, status: obj.status });
                           }}
-                          className="p-1.5 rounded-md text-zinc-500 hover:text-zinc-200 hover:bg-zinc-700/50 transition-colors"
+                          className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
                           aria-label="Editar objetivo"
                         >
                           <Pencil className="h-3.5 w-3.5" />
@@ -404,7 +404,7 @@ export function EstrategiaTab({ clientId }: Props) {
                         <button
                           type="button"
                           onClick={() => handleDeleteObjective(obj.id)}
-                          className="p-1.5 rounded-md text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                          className="p-1.5 rounded-md text-muted-foreground hover:text-red-400 hover:bg-red-500/10 transition-colors"
                           aria-label="Eliminar objetivo"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
@@ -417,33 +417,33 @@ export function EstrategiaTab({ clientId }: Props) {
 
               {/* Add form */}
               {addingObj ? (
-                <div className="rounded-lg border border-zinc-700/50 bg-zinc-800/40 p-3 space-y-2">
+                <div className="rounded-lg border border-border bg-secondary/40 p-3 space-y-2">
                   <input
                     type="text"
                     value={objDraft.title ?? ""}
                     onChange={e => setObjDraft(d => ({ ...d, title: e.target.value }))}
                     placeholder="Título del objetivo"
                     autoFocus
-                    className="w-full rounded-md bg-zinc-900/60 border border-zinc-700/50 px-3 py-1.5 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                    className="w-full rounded-md bg-card/60 border border-border px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
                   />
                   <input
                     type="text"
                     value={objDraft.description ?? ""}
                     onChange={e => setObjDraft(d => ({ ...d, description: e.target.value }))}
                     placeholder="Descripción"
-                    className="w-full rounded-md bg-zinc-900/60 border border-zinc-700/50 px-3 py-1.5 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                    className="w-full rounded-md bg-card/60 border border-border px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
                   />
                   <input
                     type="date"
                     value={objDraft.dueDate ?? ""}
                     onChange={e => setObjDraft(d => ({ ...d, dueDate: e.target.value || undefined }))}
-                    className="w-full rounded-md bg-zinc-900/60 border border-zinc-700/50 px-3 py-1.5 text-sm text-zinc-100 focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                    className="w-full rounded-md bg-card/60 border border-border px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
                   />
                   <div className="flex gap-2 justify-end">
                     <button
                       type="button"
                       onClick={() => { setAddingObj(false); setObjDraft({}); }}
-                      className="flex items-center gap-1 px-3 py-1.5 rounded-md text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700/50 transition-colors"
+                      className="flex items-center gap-1 px-3 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
                     >
                       <X className="h-3.5 w-3.5" />
                       Cancelar
@@ -463,7 +463,7 @@ export function EstrategiaTab({ clientId }: Props) {
                 <button
                   type="button"
                   onClick={() => { setAddingObj(true); setObjDraft({}); }}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-md text-xs text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/40 border border-dashed border-zinc-700/50 hover:border-zinc-600/50 transition-colors w-full"
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/40 border border-dashed border-border hover:border-muted-foreground/30 transition-colors w-full"
                 >
                   <Plus className="h-3.5 w-3.5" />
                   Agregar objetivo
@@ -474,14 +474,14 @@ export function EstrategiaTab({ clientId }: Props) {
 
           {/* ── KPIs ──────────────────────────────────────────────────────── */}
           <section>
-            <h3 className="text-sm font-semibold text-zinc-300 uppercase tracking-wide mb-3">
+            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide mb-3">
               KPIs
             </h3>
 
             <div className="space-y-1">
               {/* Table header */}
               {(strategy?.kpis ?? []).length > 0 && (
-                <div className="grid grid-cols-4 gap-2 px-3 py-1.5 text-[10px] font-medium text-zinc-600 uppercase tracking-wide">
+                <div className="grid grid-cols-4 gap-2 px-3 py-1.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
                   <span>Nombre</span>
                   <span>Objetivo</span>
                   <span>Actual</span>
@@ -493,42 +493,42 @@ export function EstrategiaTab({ clientId }: Props) {
                 <div key={kpi.id}>
                   {editingKpi === kpi.id ? (
                     /* Edit form */
-                    <div className="rounded-lg border border-zinc-700/50 bg-zinc-800/40 p-3 space-y-2">
+                    <div className="rounded-lg border border-border bg-secondary/40 p-3 space-y-2">
                       <div className="grid grid-cols-2 gap-2">
                         <input
                           type="text"
                           value={kpiDraft.name ?? kpi.name}
                           onChange={e => setKpiDraft(d => ({ ...d, name: e.target.value }))}
                           placeholder="Nombre"
-                          className="rounded-md bg-zinc-900/60 border border-zinc-700/50 px-3 py-1.5 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                          className="rounded-md bg-card/60 border border-border px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
                         />
                         <input
                           type="text"
                           value={kpiDraft.unit ?? kpi.unit}
                           onChange={e => setKpiDraft(d => ({ ...d, unit: e.target.value }))}
                           placeholder="Unidad (%, MXN, …)"
-                          className="rounded-md bg-zinc-900/60 border border-zinc-700/50 px-3 py-1.5 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                          className="rounded-md bg-card/60 border border-border px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
                         />
                         <input
                           type="text"
                           value={kpiDraft.target ?? kpi.target}
                           onChange={e => setKpiDraft(d => ({ ...d, target: e.target.value }))}
                           placeholder="Objetivo"
-                          className="rounded-md bg-zinc-900/60 border border-zinc-700/50 px-3 py-1.5 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                          className="rounded-md bg-card/60 border border-border px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
                         />
                         <input
                           type="text"
                           value={kpiDraft.current ?? kpi.current}
                           onChange={e => setKpiDraft(d => ({ ...d, current: e.target.value }))}
                           placeholder="Actual"
-                          className="rounded-md bg-zinc-900/60 border border-zinc-700/50 px-3 py-1.5 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                          className="rounded-md bg-card/60 border border-border px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
                         />
                       </div>
                       <div className="flex gap-2 justify-end">
                         <button
                           type="button"
                           onClick={() => { setEditingKpi(null); setKpiDraft({}); }}
-                          className="flex items-center gap-1 px-3 py-1.5 rounded-md text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700/50 transition-colors"
+                          className="flex items-center gap-1 px-3 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
                         >
                           <X className="h-3.5 w-3.5" />
                           Cancelar
@@ -546,12 +546,12 @@ export function EstrategiaTab({ clientId }: Props) {
                     </div>
                   ) : (
                     /* Display row */
-                    <div className="grid grid-cols-4 gap-2 items-center rounded-lg border border-zinc-700/30 bg-zinc-800/20 px-3 py-2 group">
-                      <span className="text-sm text-zinc-200 truncate">{kpi.name}</span>
-                      <span className="text-sm text-zinc-400 truncate">{kpi.target || "—"}</span>
-                      <span className="text-sm text-zinc-400 truncate">{kpi.current || "—"}</span>
+                    <div className="grid grid-cols-4 gap-2 items-center rounded-lg border border-border bg-secondary/20 px-3 py-2 group">
+                      <span className="text-sm text-foreground truncate">{kpi.name}</span>
+                      <span className="text-sm text-muted-foreground truncate">{kpi.target || "—"}</span>
+                      <span className="text-sm text-muted-foreground truncate">{kpi.current || "—"}</span>
                       <div className="flex items-center justify-between gap-1">
-                        <span className="text-sm text-zinc-500 truncate">{kpi.unit || "—"}</span>
+                        <span className="text-sm text-muted-foreground truncate">{kpi.unit || "—"}</span>
                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
                           <button
                             type="button"
@@ -559,7 +559,7 @@ export function EstrategiaTab({ clientId }: Props) {
                               setEditingKpi(kpi.id);
                               setKpiDraft({ name: kpi.name, target: kpi.target, current: kpi.current, unit: kpi.unit });
                             }}
-                            className="p-1.5 rounded-md text-zinc-500 hover:text-zinc-200 hover:bg-zinc-700/50 transition-colors"
+                            className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
                             aria-label="Editar KPI"
                           >
                             <Pencil className="h-3.5 w-3.5" />
@@ -567,7 +567,7 @@ export function EstrategiaTab({ clientId }: Props) {
                           <button
                             type="button"
                             onClick={() => handleDeleteKpi(kpi.id)}
-                            className="p-1.5 rounded-md text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                            className="p-1.5 rounded-md text-muted-foreground hover:text-red-400 hover:bg-red-500/10 transition-colors"
                             aria-label="Eliminar KPI"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
@@ -581,7 +581,7 @@ export function EstrategiaTab({ clientId }: Props) {
 
               {/* Add form */}
               {addingKpi ? (
-                <div className="rounded-lg border border-zinc-700/50 bg-zinc-800/40 p-3 space-y-2">
+                <div className="rounded-lg border border-border bg-secondary/40 p-3 space-y-2">
                   <div className="grid grid-cols-2 gap-2">
                     <input
                       type="text"
@@ -589,35 +589,35 @@ export function EstrategiaTab({ clientId }: Props) {
                       onChange={e => setKpiDraft(d => ({ ...d, name: e.target.value }))}
                       placeholder="Nombre del KPI"
                       autoFocus
-                      className="rounded-md bg-zinc-900/60 border border-zinc-700/50 px-3 py-1.5 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                      className="rounded-md bg-card/60 border border-border px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
                     />
                     <input
                       type="text"
                       value={kpiDraft.unit ?? ""}
                       onChange={e => setKpiDraft(d => ({ ...d, unit: e.target.value }))}
                       placeholder="Unidad (%, MXN, …)"
-                      className="rounded-md bg-zinc-900/60 border border-zinc-700/50 px-3 py-1.5 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                      className="rounded-md bg-card/60 border border-border px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
                     />
                     <input
                       type="text"
                       value={kpiDraft.target ?? ""}
                       onChange={e => setKpiDraft(d => ({ ...d, target: e.target.value }))}
                       placeholder="Valor objetivo"
-                      className="rounded-md bg-zinc-900/60 border border-zinc-700/50 px-3 py-1.5 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                      className="rounded-md bg-card/60 border border-border px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
                     />
                     <input
                       type="text"
                       value={kpiDraft.current ?? ""}
                       onChange={e => setKpiDraft(d => ({ ...d, current: e.target.value }))}
                       placeholder="Valor actual"
-                      className="rounded-md bg-zinc-900/60 border border-zinc-700/50 px-3 py-1.5 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                      className="rounded-md bg-card/60 border border-border px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
                     />
                   </div>
                   <div className="flex gap-2 justify-end">
                     <button
                       type="button"
                       onClick={() => { setAddingKpi(false); setKpiDraft({}); }}
-                      className="flex items-center gap-1 px-3 py-1.5 rounded-md text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700/50 transition-colors"
+                      className="flex items-center gap-1 px-3 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
                     >
                       <X className="h-3.5 w-3.5" />
                       Cancelar
@@ -637,7 +637,7 @@ export function EstrategiaTab({ clientId }: Props) {
                 <button
                   type="button"
                   onClick={() => { setAddingKpi(true); setKpiDraft({}); }}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-md text-xs text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/40 border border-dashed border-zinc-700/50 hover:border-zinc-600/50 transition-colors w-full"
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/40 border border-dashed border-border hover:border-muted-foreground/30 transition-colors w-full"
                 >
                   <Plus className="h-3.5 w-3.5" />
                   Agregar KPI
@@ -648,7 +648,7 @@ export function EstrategiaTab({ clientId }: Props) {
 
           {/* ── Roadmap ───────────────────────────────────────────────────── */}
           <section>
-            <h3 className="text-sm font-semibold text-zinc-300 uppercase tracking-wide mb-3">
+            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide mb-3">
               Roadmap
             </h3>
 
@@ -657,13 +657,13 @@ export function EstrategiaTab({ clientId }: Props) {
                 <div key={item.id}>
                   {editingRoadmap === item.id ? (
                     /* Edit form */
-                    <div className="rounded-lg border border-zinc-700/50 bg-zinc-800/40 p-3 space-y-2">
+                    <div className="rounded-lg border border-border bg-secondary/40 p-3 space-y-2">
                       <input
                         type="text"
                         value={roadmapDraft.title ?? item.title}
                         onChange={e => setRoadmapDraft(d => ({ ...d, title: e.target.value }))}
                         placeholder="Título"
-                        className="w-full rounded-md bg-zinc-900/60 border border-zinc-700/50 px-3 py-1.5 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                        className="w-full rounded-md bg-card/60 border border-border px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
                       />
                       <div className="flex gap-2">
                         <input
@@ -671,12 +671,12 @@ export function EstrategiaTab({ clientId }: Props) {
                           value={roadmapDraft.sprint ?? item.sprint}
                           onChange={e => setRoadmapDraft(d => ({ ...d, sprint: e.target.value }))}
                           placeholder="Sprint 1"
-                          className="flex-1 rounded-md bg-zinc-900/60 border border-zinc-700/50 px-3 py-1.5 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                          className="flex-1 rounded-md bg-card/60 border border-border px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
                         />
                         <select
                           value={roadmapDraft.priority ?? item.priority}
                           onChange={e => setRoadmapDraft(d => ({ ...d, priority: e.target.value as RoadmapItem["priority"] }))}
-                          className="flex-1 rounded-md bg-zinc-900/60 border border-zinc-700/50 px-3 py-1.5 text-sm text-zinc-100 focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                          className="flex-1 rounded-md bg-card/60 border border-border px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
                         >
                           <option value="alta">Alta</option>
                           <option value="media">Media</option>
@@ -685,7 +685,7 @@ export function EstrategiaTab({ clientId }: Props) {
                         <select
                           value={roadmapDraft.status ?? item.status}
                           onChange={e => setRoadmapDraft(d => ({ ...d, status: e.target.value as RoadmapItem["status"] }))}
-                          className="flex-1 rounded-md bg-zinc-900/60 border border-zinc-700/50 px-3 py-1.5 text-sm text-zinc-100 focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                          className="flex-1 rounded-md bg-card/60 border border-border px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
                         >
                           <option value="pendiente">Pendiente</option>
                           <option value="en_progreso">En progreso</option>
@@ -696,7 +696,7 @@ export function EstrategiaTab({ clientId }: Props) {
                         <button
                           type="button"
                           onClick={() => { setEditingRoadmap(null); setRoadmapDraft({}); }}
-                          className="flex items-center gap-1 px-3 py-1.5 rounded-md text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700/50 transition-colors"
+                          className="flex items-center gap-1 px-3 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
                         >
                           <X className="h-3.5 w-3.5" />
                           Cancelar
@@ -714,13 +714,13 @@ export function EstrategiaTab({ clientId }: Props) {
                     </div>
                   ) : (
                     /* Display row */
-                    <div className="flex items-center gap-2 rounded-lg border border-zinc-700/30 bg-zinc-800/20 px-3 py-2.5 group">
+                    <div className="flex items-center gap-2 rounded-lg border border-border bg-secondary/20 px-3 py-2.5 group">
                       <div className="flex flex-col gap-0.5 flex-shrink-0">
                         <button
                           type="button"
                           onClick={() => handleMoveRoadmap(item.id, "up")}
                           disabled={idx === 0 || saving}
-                          className="p-0.5 rounded text-zinc-600 hover:text-zinc-300 disabled:opacity-20 transition-colors"
+                          className="p-0.5 rounded text-muted-foreground hover:text-foreground disabled:opacity-20 transition-colors"
                           aria-label="Mover arriba"
                         >
                           <ChevronUp className="h-3 w-3" />
@@ -729,7 +729,7 @@ export function EstrategiaTab({ clientId }: Props) {
                           type="button"
                           onClick={() => handleMoveRoadmap(item.id, "down")}
                           disabled={idx === (strategy?.roadmap.length ?? 0) - 1 || saving}
-                          className="p-0.5 rounded text-zinc-600 hover:text-zinc-300 disabled:opacity-20 transition-colors"
+                          className="p-0.5 rounded text-muted-foreground hover:text-foreground disabled:opacity-20 transition-colors"
                           aria-label="Mover abajo"
                         >
                           <ChevronDown className="h-3 w-3" />
@@ -737,9 +737,9 @@ export function EstrategiaTab({ clientId }: Props) {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-sm font-medium text-zinc-200 truncate">{item.title}</span>
+                          <span className="text-sm font-medium text-foreground truncate">{item.title}</span>
                           {item.sprint && (
-                            <span className="inline-flex items-center rounded-full border border-zinc-600/30 bg-zinc-500/10 px-2 py-0.5 text-[10px] font-medium text-zinc-400">
+                            <span className="inline-flex items-center rounded-full border border-border bg-secondary px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
                               {item.sprint}
                             </span>
                           )}
@@ -758,7 +758,7 @@ export function EstrategiaTab({ clientId }: Props) {
                             setEditingRoadmap(item.id);
                             setRoadmapDraft({ title: item.title, sprint: item.sprint, priority: item.priority, status: item.status });
                           }}
-                          className="p-1.5 rounded-md text-zinc-500 hover:text-zinc-200 hover:bg-zinc-700/50 transition-colors"
+                          className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
                           aria-label="Editar item"
                         >
                           <Pencil className="h-3.5 w-3.5" />
@@ -766,7 +766,7 @@ export function EstrategiaTab({ clientId }: Props) {
                         <button
                           type="button"
                           onClick={() => handleDeleteRoadmapItem(item.id)}
-                          className="p-1.5 rounded-md text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                          className="p-1.5 rounded-md text-muted-foreground hover:text-red-400 hover:bg-red-500/10 transition-colors"
                           aria-label="Eliminar item"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
@@ -779,14 +779,14 @@ export function EstrategiaTab({ clientId }: Props) {
 
               {/* Add form */}
               {addingRoadmap ? (
-                <div className="rounded-lg border border-zinc-700/50 bg-zinc-800/40 p-3 space-y-2">
+                <div className="rounded-lg border border-border bg-secondary/40 p-3 space-y-2">
                   <input
                     type="text"
                     value={roadmapDraft.title ?? ""}
                     onChange={e => setRoadmapDraft(d => ({ ...d, title: e.target.value }))}
                     placeholder="Título"
                     autoFocus
-                    className="w-full rounded-md bg-zinc-900/60 border border-zinc-700/50 px-3 py-1.5 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                    className="w-full rounded-md bg-card/60 border border-border px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
                   />
                   <div className="flex gap-2">
                     <input
@@ -794,12 +794,12 @@ export function EstrategiaTab({ clientId }: Props) {
                       value={roadmapDraft.sprint ?? ""}
                       onChange={e => setRoadmapDraft(d => ({ ...d, sprint: e.target.value }))}
                       placeholder="Sprint 1"
-                      className="flex-1 rounded-md bg-zinc-900/60 border border-zinc-700/50 px-3 py-1.5 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                      className="flex-1 rounded-md bg-card/60 border border-border px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
                     />
                     <select
                       value={roadmapDraft.priority ?? "media"}
                       onChange={e => setRoadmapDraft(d => ({ ...d, priority: e.target.value as RoadmapItem["priority"] }))}
-                      className="flex-1 rounded-md bg-zinc-900/60 border border-zinc-700/50 px-3 py-1.5 text-sm text-zinc-100 focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                      className="flex-1 rounded-md bg-card/60 border border-border px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
                     >
                       <option value="alta">Alta</option>
                       <option value="media">Media</option>
@@ -810,7 +810,7 @@ export function EstrategiaTab({ clientId }: Props) {
                     <button
                       type="button"
                       onClick={() => { setAddingRoadmap(false); setRoadmapDraft({}); }}
-                      className="flex items-center gap-1 px-3 py-1.5 rounded-md text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700/50 transition-colors"
+                      className="flex items-center gap-1 px-3 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
                     >
                       <X className="h-3.5 w-3.5" />
                       Cancelar
@@ -830,7 +830,7 @@ export function EstrategiaTab({ clientId }: Props) {
                 <button
                   type="button"
                   onClick={() => { setAddingRoadmap(true); setRoadmapDraft({}); }}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-md text-xs text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/40 border border-dashed border-zinc-700/50 hover:border-zinc-600/50 transition-colors w-full"
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/40 border border-dashed border-border hover:border-muted-foreground/30 transition-colors w-full"
                 >
                   <Plus className="h-3.5 w-3.5" />
                   Agregar item al roadmap
@@ -841,7 +841,7 @@ export function EstrategiaTab({ clientId }: Props) {
 
           {/* ── Prioridades ───────────────────────────────────────────────── */}
           <section>
-            <h3 className="text-sm font-semibold text-zinc-300 uppercase tracking-wide mb-3">
+            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide mb-3">
               Prioridades
             </h3>
 
@@ -849,16 +849,16 @@ export function EstrategiaTab({ clientId }: Props) {
               {(strategy?.priorities ?? []).map((priority, idx) => (
                 <div
                   key={idx}
-                  className="flex items-center gap-2 rounded-lg border border-zinc-700/30 bg-zinc-800/20 px-3 py-2 group"
+                  className="flex items-center gap-2 rounded-lg border border-border bg-secondary/20 px-3 py-2 group"
                 >
-                  <span className="text-xs font-medium text-zinc-600 w-5 flex-shrink-0">{idx + 1}.</span>
-                  <span className="flex-1 text-sm text-zinc-200">{priority}</span>
+                  <span className="text-xs font-medium text-muted-foreground w-5 flex-shrink-0">{idx + 1}.</span>
+                  <span className="flex-1 text-sm text-foreground">{priority}</span>
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
                     <button
                       type="button"
                       onClick={() => handleMovePriority(idx, "up")}
                       disabled={idx === 0 || saving}
-                      className="p-1 rounded text-zinc-600 hover:text-zinc-300 disabled:opacity-20 transition-colors"
+                      className="p-1 rounded text-muted-foreground hover:text-foreground disabled:opacity-20 transition-colors"
                       aria-label="Mover arriba"
                     >
                       <ChevronUp className="h-3.5 w-3.5" />
@@ -867,7 +867,7 @@ export function EstrategiaTab({ clientId }: Props) {
                       type="button"
                       onClick={() => handleMovePriority(idx, "down")}
                       disabled={idx === (strategy?.priorities.length ?? 0) - 1 || saving}
-                      className="p-1 rounded text-zinc-600 hover:text-zinc-300 disabled:opacity-20 transition-colors"
+                      className="p-1 rounded text-muted-foreground hover:text-foreground disabled:opacity-20 transition-colors"
                       aria-label="Mover abajo"
                     >
                       <ChevronDown className="h-3.5 w-3.5" />
@@ -875,7 +875,7 @@ export function EstrategiaTab({ clientId }: Props) {
                     <button
                       type="button"
                       onClick={() => handleDeletePriority(idx)}
-                      className="p-1 rounded text-zinc-600 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                      className="p-1 rounded text-muted-foreground hover:text-red-400 hover:bg-red-500/10 transition-colors"
                       aria-label="Eliminar prioridad"
                     >
                       <X className="h-3.5 w-3.5" />
@@ -891,7 +891,7 @@ export function EstrategiaTab({ clientId }: Props) {
                   onChange={e => setNewPriority(e.target.value)}
                   onKeyDown={e => { if (e.key === "Enter") handleAddPriority(); }}
                   placeholder="Nueva prioridad…"
-                  className="flex-1 rounded-md bg-zinc-900/60 border border-zinc-700/50 px-3 py-1.5 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                  className="flex-1 rounded-md bg-card/60 border border-border px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
                 />
                 <button
                   type="button"
@@ -908,13 +908,13 @@ export function EstrategiaTab({ clientId }: Props) {
 
           {/* ── Canales y automatizaciones ────────────────────────────────── */}
           <section>
-            <h3 className="text-sm font-semibold text-zinc-300 uppercase tracking-wide mb-3">
+            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide mb-3">
               Canales y automatizaciones
             </h3>
 
             {/* Channel checkboxes */}
             <div className="mb-4">
-              <p className="text-xs text-zinc-500 mb-2">Canales activos</p>
+              <p className="text-xs text-muted-foreground mb-2">Canales activos</p>
               <div className="flex flex-wrap gap-2">
                 {CHANNELS.map(ch => {
                   const active = strategy?.channels.includes(ch) ?? false;
@@ -927,7 +927,7 @@ export function EstrategiaTab({ clientId }: Props) {
                       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition-colors disabled:opacity-50 ${
                         active
                           ? "bg-cyan-500/15 text-cyan-300 border-cyan-500/30 hover:bg-cyan-500/25"
-                          : "bg-zinc-800/40 text-zinc-500 border-zinc-700/50 hover:text-zinc-300 hover:border-zinc-600/50"
+                          : "bg-secondary/40 text-muted-foreground border-border hover:text-foreground hover:border-border"
                       }`}
                     >
                       {active && <Check className="h-3 w-3" />}
@@ -945,19 +945,19 @@ export function EstrategiaTab({ clientId }: Props) {
               );
               return customChannels.length > 0 ? (
                 <div className="mb-4">
-                  <p className="text-xs text-zinc-500 mb-2">Canales personalizados</p>
+                  <p className="text-xs text-muted-foreground mb-2">Canales personalizados</p>
                   <div className="flex flex-wrap gap-2">
                     {customChannels.map(ch => (
                       <span
                         key={ch}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border bg-zinc-700/20 text-zinc-300 border-zinc-600/30 text-xs font-medium"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border bg-secondary/40 text-foreground border-border text-xs font-medium"
                       >
                         {ch}
                         <button
                           type="button"
                           onClick={() => handleRemoveCustomChannel(ch)}
                           disabled={saving}
-                          className="text-zinc-500 hover:text-red-400 transition-colors disabled:opacity-50"
+                          className="text-muted-foreground hover:text-red-400 transition-colors disabled:opacity-50"
                           aria-label={`Eliminar canal ${ch}`}
                         >
                           <X className="h-3 w-3" />
@@ -977,13 +977,13 @@ export function EstrategiaTab({ clientId }: Props) {
                 onChange={e => setCustomChannel(e.target.value)}
                 onKeyDown={e => { if (e.key === "Enter") handleAddCustomChannel(); }}
                 placeholder="Canal personalizado…"
-                className="flex-1 rounded-md bg-zinc-900/60 border border-zinc-700/50 px-3 py-1.5 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                className="flex-1 rounded-md bg-card/60 border border-border px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
               />
               <button
                 type="button"
                 onClick={handleAddCustomChannel}
                 disabled={saving || !customChannel.trim()}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs bg-zinc-700/40 text-zinc-300 hover:bg-zinc-700/60 border border-zinc-600/30 transition-colors disabled:opacity-50"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs bg-secondary/60 text-foreground hover:bg-secondary/70 border border-border transition-colors disabled:opacity-50"
               >
                 <Plus className="h-3.5 w-3.5" />
                 Agregar
@@ -992,13 +992,13 @@ export function EstrategiaTab({ clientId }: Props) {
 
             {/* Automatizaciones textarea */}
             <div>
-              <p className="text-xs text-zinc-500 mb-2">Automatizaciones</p>
+              <p className="text-xs text-muted-foreground mb-2">Automatizaciones</p>
               <textarea
                 value={automationsText}
                 onChange={e => setAutomationsText(e.target.value)}
                 rows={5}
                 placeholder="Describe las automatizaciones activas o planificadas…"
-                className="w-full rounded-md bg-zinc-900/60 border border-zinc-700/50 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-cyan-500/50 resize-y"
+                className="w-full rounded-md bg-card/60 border border-border px-3 py-2 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50 resize-y"
               />
               <div className="flex justify-end mt-2">
                 <button
