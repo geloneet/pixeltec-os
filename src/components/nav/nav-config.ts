@@ -111,7 +111,7 @@ export function getSecondaryItems(area: NavArea): SecondaryNavItem[] {
 
 /**
  * Items que no cuelgan de ninguna área visible: catálogo marcado `hidden`
- * (Crypto Intel, Analytics) más rutas de acceso directo (Notificaciones).
+ * (Analytics) más rutas de acceso directo (Notificaciones).
  * Se muestran únicamente en el menú desplegable "Más…" de la Top Navigation.
  */
 export const OVERFLOW_ITEMS: PaletteNavItem[] = PALETTE_NAV_ITEMS.filter(

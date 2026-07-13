@@ -5,7 +5,6 @@ import { useRouter, usePathname } from "next/navigation";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Command as Cmdk } from "cmdk";
 import {
-  Bitcoin,
   CheckSquare,
   Clock,
   Rocket,
@@ -138,17 +137,6 @@ export function CommandPalette() {
         .filter((item) => item.href !== pathname),
     [recentRoutes, pathname]
   );
-
-  const hasCRMResults =
-    results.clients.length +
-      results.projects.length +
-      results.tasks.length +
-      results.vpsProjects.length >
-    0;
-
-  const showCryptoModule =
-    !query ||
-    normalize("crypto intelligence bitcoin").includes(normalize(query));
 
   const handleNavigate = useCallback(
     (href: string) => {
@@ -283,33 +271,6 @@ export function CommandPalette() {
                         </Cmdk.Item>
                       );
                     })}
-                  </Cmdk.Group>
-                </>
-              )}
-
-              {/* Crypto module (shown when not overridden by CRM results) */}
-              {showCryptoModule && !hasCRMResults && (
-                <>
-                  {(filteredNavItems.length > 0 || recentNavItems.length > 0) &&
-                    DIVIDER}
-                  <Cmdk.Group heading="Módulos" className={GROUP_CLS}>
-                    <Cmdk.Item
-                      value="crypto-intelligence"
-                      onSelect={() => handleNavigate("/crypto-intel")}
-                      className={ITEM_CLS}
-                    >
-                      <span className={cn(ICON_CLS, "text-amber-400")}>
-                        <Bitcoin className="h-4 w-4" strokeWidth={1.75} />
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-foreground">
-                          Crypto Intelligence
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          Precios y alertas de mercado
-                        </div>
-                      </div>
-                    </Cmdk.Item>
                   </Cmdk.Group>
                 </>
               )}

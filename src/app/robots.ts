@@ -18,7 +18,6 @@ export default function robots(): MetadataRoute.Robots {
           "/proyectos",
           "/accesos",
           "/vps",
-          "/crypto-intel",
           "/api/",
         ],
       },

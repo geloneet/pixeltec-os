@@ -18,7 +18,6 @@ export const ADMIN_ROUTES = [
   'cobros',
   'accesos',
   'vps',
-  'crypto-intel',
   'perfil',
   'notificaciones',
   'blog-admin',

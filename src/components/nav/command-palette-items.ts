@@ -9,7 +9,6 @@ import {
   Server,
   FileText,
   Settings2,
-  Bitcoin,
   FolderOpen,
   Sparkles,
   Brain,
@@ -107,14 +106,6 @@ export const PALETTE_NAV_ITEMS: PaletteNavItem[] = [
     description: "Base de conocimiento, tips y documentación técnica",
     icon: KeyRound,
     section: "produccion",
-  },
-  {
-    href: "/crypto-intel",
-    label: "Crypto Intel",
-    description: "Precios y alertas de mercado en tiempo real",
-    icon: Bitcoin,
-    section: "produccion",
-    hidden: true,
   },
   // ── Sistema (colapsado por defecto) ──────────────────────────────────────
   {
