@@ -49,7 +49,7 @@ function SymptomRow({ symptom }: { symptom: VpsSymptom }) {
   const Icon = SEVERITY_ICON[symptom.severity];
 
   return (
-    <li className="flex items-start gap-3 border-b border-zinc-800/60 py-3 last:border-b-0">
+    <li className="flex items-start gap-3 border-b border-border/60 py-3 last:border-b-0">
       <span
         className={cn(
           "mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full",
@@ -63,14 +63,14 @@ function SymptomRow({ symptom }: { symptom: VpsSymptom }) {
       />
       <div className="min-w-0 flex-1 space-y-1">
         <div className="flex flex-wrap items-center gap-2">
-          <p className="font-poppins text-sm font-semibold text-zinc-50">
+          <p className="font-poppins text-sm font-semibold text-foreground">
             {symptom.message}
           </p>
-          <span className="font-roboto text-xs uppercase tracking-wide text-zinc-500">
+          <span className="font-roboto text-xs uppercase tracking-wide text-muted-foreground">
             {symptom.area}
           </span>
         </div>
-        <p className="font-roboto text-xs text-zinc-400">
+        <p className="font-roboto text-xs text-muted-foreground">
           {symptom.suggestedAction}
         </p>
       </div>
@@ -86,13 +86,13 @@ export function SymptomReport({ report }: { report: VpsAuditReport }) {
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-2xl border border-zinc-800/50 bg-zinc-900/40 p-5 backdrop-blur-xl",
+        "relative overflow-hidden rounded-2xl border border-border/50 bg-card/40 p-5 backdrop-blur-xl",
         "before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-zinc-600/50 before:to-transparent"
       )}
     >
       <div className="relative flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <h2 className="font-poppins text-lg font-semibold text-zinc-200">
+          <h2 className="font-poppins text-lg font-semibold text-foreground">
             Reporte de síntomas
           </h2>
           <div className="flex items-center gap-1.5">
@@ -123,7 +123,7 @@ export function SymptomReport({ report }: { report: VpsAuditReport }) {
           </div>
         </div>
         {report.generatedAt && (
-          <span className="font-roboto text-xs text-zinc-500">
+          <span className="font-roboto text-xs text-muted-foreground">
             Actualizado {relativeTime(report.generatedAt)}
           </span>
         )}
@@ -132,8 +132,8 @@ export function SymptomReport({ report }: { report: VpsAuditReport }) {
       <div className="relative mt-4">
         {sortedSymptoms.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-8 text-center">
-            <ClipboardList className="h-6 w-6 text-zinc-600" strokeWidth={1.75} />
-            <p className="font-roboto text-sm text-zinc-500">
+            <ClipboardList className="h-6 w-6 text-muted-foreground" strokeWidth={1.75} />
+            <p className="font-roboto text-sm text-muted-foreground">
               Sin datos de auditoría
             </p>
           </div>

@@ -17,14 +17,14 @@ const TONE_TEXT: Record<Tone, string> = {
   red: "text-red-400",
   amber: "text-amber-400",
   emerald: "text-emerald-400",
-  zinc: "text-zinc-400",
+  zinc: "text-muted-foreground",
 };
 
 const TONE_PILL: Record<Tone, string> = {
   red: "border-red-500/30 bg-red-500/10 text-red-300",
   amber: "border-amber-400/30 bg-amber-500/10 text-amber-300",
   emerald: "border-emerald-400/30 bg-emerald-500/10 text-emerald-300",
-  zinc: "border-zinc-700/50 bg-zinc-800/40 text-zinc-400",
+  zinc: "border-border bg-secondary/40 text-muted-foreground",
 };
 
 const TONE_BAR: Record<"red" | "amber" | "emerald", string> = {
@@ -60,14 +60,14 @@ function PanelShell({
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-2xl border border-zinc-800/50 bg-zinc-900/40 p-5 backdrop-blur-xl",
+        "relative overflow-hidden rounded-2xl border border-border/50 bg-card/40 p-5 backdrop-blur-xl",
         "before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-zinc-600/50 before:to-transparent"
       )}
     >
       <div className="relative mb-4 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Icon className="h-4 w-4 text-zinc-500" strokeWidth={1.75} />
-          <h3 className="font-poppins text-lg font-semibold text-zinc-200">
+          <Icon className="h-4 w-4 text-muted-foreground" strokeWidth={1.75} />
+          <h3 className="font-poppins text-lg font-semibold text-foreground">
             {title}
           </h3>
         </div>
@@ -87,8 +87,8 @@ function EmptyState({
 }) {
   return (
     <div className="flex flex-col items-center gap-2 py-6 text-center">
-      <Icon className="h-5 w-5 text-zinc-600" strokeWidth={1.75} />
-      <p className="font-roboto text-sm text-zinc-500">{label}</p>
+      <Icon className="h-5 w-5 text-muted-foreground" strokeWidth={1.75} />
+      <p className="font-roboto text-sm text-muted-foreground">{label}</p>
     </div>
   );
 }
@@ -112,7 +112,7 @@ function DatabasesPanel({ databases }: { databases: VpsSnapshot["databases"] }) 
       {databases.length === 0 ? (
         <EmptyState icon={Database} label="sin bases de datos" />
       ) : (
-        <ul className="divide-y divide-zinc-800/60">
+        <ul className="divide-y divide-border/60">
           {databases.map((db) => {
             const tone = backupAgeTone(db.lastBackupAgeHrs);
             return (
@@ -121,10 +121,10 @@ function DatabasesPanel({ databases }: { databases: VpsSnapshot["databases"] }) 
                 className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0"
               >
                 <div className="min-w-0">
-                  <p className="truncate font-roboto text-sm font-medium text-zinc-200">
+                  <p className="truncate font-roboto text-sm font-medium text-foreground">
                     {db.name}
                   </p>
-                  <p className="font-roboto text-xs text-zinc-500">{db.size}</p>
+                  <p className="font-roboto text-xs text-muted-foreground">{db.size}</p>
                 </div>
                 <span
                   className={cn(
@@ -157,7 +157,7 @@ function CertsPanel({ certs }: { certs: VpsSnapshot["certs"] }) {
       {certs.length === 0 ? (
         <EmptyState icon={ShieldCheck} label="sin certificados" />
       ) : (
-        <ul className="divide-y divide-zinc-800/60">
+        <ul className="divide-y divide-border/60">
           {certs.map((cert) => {
             const tone = certTone(cert.daysLeft);
             return (
@@ -165,7 +165,7 @@ function CertsPanel({ certs }: { certs: VpsSnapshot["certs"] }) {
                 key={cert.domain}
                 className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0"
               >
-                <p className="truncate font-roboto text-sm font-medium text-zinc-200">
+                <p className="truncate font-roboto text-sm font-medium text-foreground">
                   {cert.domain}
                 </p>
                 <span
@@ -195,19 +195,19 @@ function BackupsPanel({ backups }: { backups: VpsSnapshot["backups"] }) {
       right={<Chip tone={backups.ok ? "emerald" : "red"}>{backups.ok ? "ok" : "con problemas"}</Chip>}
     >
       <div className="space-y-3">
-        <p className="font-roboto text-sm text-zinc-300">
+        <p className="font-roboto text-sm text-foreground">
           Último backup{" "}
           {backups.lastRunAgeHrs === null ? (
             <span className="font-medium text-red-400">nunca corrió</span>
           ) : (
-            <span className="font-medium text-zinc-200">
+            <span className="font-medium text-foreground">
               hace {backups.lastRunAgeHrs}h
             </span>
           )}
         </p>
 
         <div>
-          <p className="mb-1.5 font-roboto text-xs uppercase tracking-wide text-zinc-500">
+          <p className="mb-1.5 font-roboto text-xs uppercase tracking-wide text-muted-foreground">
             Cobertura
           </p>
           {backups.coverageMissing.length === 0 ? (
@@ -268,7 +268,7 @@ function usageBarTone(pct: number): "red" | "amber" | "emerald" {
 
 function UsageBar({ pct }: { pct: number }) {
   return (
-    <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-zinc-800/70">
+    <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-secondary/70">
       <div
         className={cn(
           "h-full rounded-full bg-gradient-to-r transition-all duration-500",
@@ -285,15 +285,15 @@ function ResourcesPanel({ host }: { host: VpsSnapshot["host"] }) {
     <PanelShell icon={Gauge} title="Recursos (RAM · carga)">
       <div className="space-y-4">
         <div>
-          <div className="mb-1.5 flex items-center justify-between font-roboto text-xs text-zinc-500">
+          <div className="mb-1.5 flex items-center justify-between font-roboto text-xs text-muted-foreground">
             <span>RAM</span>
             <span>{host.ramUsedPct}%</span>
           </div>
           <UsageBar pct={host.ramUsedPct} />
         </div>
-        <div className="flex items-center justify-between font-roboto text-xs uppercase tracking-wide text-zinc-500">
+        <div className="flex items-center justify-between font-roboto text-xs uppercase tracking-wide text-muted-foreground">
           <span>Load average</span>
-          <span className="normal-case text-zinc-300">
+          <span className="normal-case text-foreground">
             {host.load1} / {host.nproc} cores
           </span>
         </div>
@@ -324,13 +324,13 @@ function ServicesHealthPanel({ services }: { services: VpsSnapshot["services"] }
       {withDomain.length === 0 ? (
         <EmptyState icon={Globe} label="sin servicios con dominio" />
       ) : (
-        <ul className="divide-y divide-zinc-800/60">
+        <ul className="divide-y divide-border/60">
           {withDomain.map((svc) => (
             <li
               key={svc.id}
               className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0"
             >
-              <p className="truncate font-roboto text-sm font-medium text-zinc-200">
+              <p className="truncate font-roboto text-sm font-medium text-foreground">
                 {svc.domain}
               </p>
               <Chip tone={httpTone(svc.httpOk)}>
@@ -365,7 +365,7 @@ function HostHealthPanel({
           <p className="font-roboto text-sm text-emerald-400">sin crash-loops</p>
         </div>
       ) : (
-        <ul className="divide-y divide-zinc-800/60">
+        <ul className="divide-y divide-border/60">
           {crashLoops.map((loop) => {
             const tone = crashTone(loop.restarts);
             return (
@@ -373,7 +373,7 @@ function HostHealthPanel({
                 key={loop.name}
                 className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0"
               >
-                <p className="truncate font-roboto text-sm font-medium text-zinc-200">
+                <p className="truncate font-roboto text-sm font-medium text-foreground">
                   {loop.name}
                 </p>
                 <span

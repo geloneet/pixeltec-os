@@ -15,39 +15,39 @@ import { getNavLabel } from "@/components/nav/command-palette-items";
 
 function StatCardSkeleton() {
   return (
-    <div className="rounded-2xl border border-zinc-800/50 bg-zinc-900/40 p-5 backdrop-blur-xl">
-      <Skeleton className="h-3 w-16 bg-zinc-800/80" />
-      <Skeleton className="mt-3 h-8 w-28 bg-zinc-800/80" />
-      <Skeleton className="mt-4 h-1.5 w-full bg-zinc-800/80" />
+    <div className="rounded-2xl border border-border/50 bg-card/40 p-5 backdrop-blur-xl">
+      <Skeleton className="h-3 w-16 bg-secondary/80" />
+      <Skeleton className="mt-3 h-8 w-28 bg-secondary/80" />
+      <Skeleton className="mt-4 h-1.5 w-full bg-secondary/80" />
     </div>
   );
 }
 
 function HealthPanelSkeleton() {
   return (
-    <div className="rounded-2xl border border-zinc-800/50 bg-zinc-900/40 p-5 backdrop-blur-xl">
-      <Skeleton className="h-5 w-40 bg-zinc-800/80" />
-      <Skeleton className="mt-4 h-4 w-full bg-zinc-800/80" />
-      <Skeleton className="mt-2 h-4 w-3/4 bg-zinc-800/80" />
-      <Skeleton className="mt-2 h-4 w-1/2 bg-zinc-800/80" />
+    <div className="rounded-2xl border border-border/50 bg-card/40 p-5 backdrop-blur-xl">
+      <Skeleton className="h-5 w-40 bg-secondary/80" />
+      <Skeleton className="mt-4 h-4 w-full bg-secondary/80" />
+      <Skeleton className="mt-2 h-4 w-3/4 bg-secondary/80" />
+      <Skeleton className="mt-2 h-4 w-1/2 bg-secondary/80" />
     </div>
   );
 }
 
 function ProjectCardSkeleton() {
   return (
-    <div className="rounded-2xl border border-zinc-800/50 bg-zinc-900/40 p-5 backdrop-blur-xl">
+    <div className="rounded-2xl border border-border/50 bg-card/40 p-5 backdrop-blur-xl">
       <div className="flex items-center justify-between">
-        <Skeleton className="h-5 w-40 bg-zinc-800/80" />
-        <Skeleton className="h-5 w-16 bg-zinc-800/80" />
+        <Skeleton className="h-5 w-40 bg-secondary/80" />
+        <Skeleton className="h-5 w-16 bg-secondary/80" />
       </div>
-      <Skeleton className="mt-3 h-4 w-48 bg-zinc-800/80" />
-      <Skeleton className="mt-6 h-4 w-full bg-zinc-800/80" />
-      <Skeleton className="mt-2 h-4 w-3/4 bg-zinc-800/80" />
+      <Skeleton className="mt-3 h-4 w-48 bg-secondary/80" />
+      <Skeleton className="mt-6 h-4 w-full bg-secondary/80" />
+      <Skeleton className="mt-2 h-4 w-3/4 bg-secondary/80" />
       <div className="mt-8 flex gap-1.5">
-        <Skeleton className="h-8 w-20 bg-zinc-800/80" />
-        <Skeleton className="h-8 w-20 bg-zinc-800/80" />
-        <Skeleton className="h-8 w-20 bg-zinc-800/80" />
+        <Skeleton className="h-8 w-20 bg-secondary/80" />
+        <Skeleton className="h-8 w-20 bg-secondary/80" />
+        <Skeleton className="h-8 w-20 bg-secondary/80" />
       </div>
     </div>
   );
@@ -73,10 +73,10 @@ export function VpsDashboard() {
     <div className="mx-auto max-w-[1600px] px-6 py-8 lg:px-10">
       <header className="mb-8 flex items-end justify-between gap-4">
         <div>
-          <h1 className="font-poppins text-3xl font-bold tracking-tight text-zinc-50">
+          <h1 className="font-poppins text-3xl font-bold tracking-tight text-foreground">
             {getNavLabel("/vps")}
           </h1>
-          <p className="mt-1 font-roboto text-sm text-zinc-500">
+          <p className="mt-1 font-roboto text-sm text-muted-foreground">
             Infraestructura VPS · auto-refresh 15 s
           </p>
         </div>
@@ -86,7 +86,7 @@ export function VpsDashboard() {
           size="sm"
           onClick={() => mutate()}
           disabled={isValidating}
-          className="gap-2 border border-zinc-800/70 bg-zinc-900/40 text-zinc-300 hover:bg-zinc-800 hover:text-zinc-50"
+          className="gap-2 border border-border/70 bg-card/40 text-muted-foreground hover:bg-secondary hover:text-foreground"
         >
           <RefreshCw
             className={`h-3.5 w-3.5 ${isValidating ? "animate-spin" : ""}`}
@@ -100,15 +100,15 @@ export function VpsDashboard() {
       </div>
 
       {vpsError && (vpsError.status === 401 || vpsError.status === 403) ? (
-        <div className="mb-6 flex items-start gap-4 rounded-2xl border border-zinc-800/50 bg-zinc-900/40 p-6 backdrop-blur-xl">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-zinc-800/60">
-            <Server className="h-5 w-5 text-zinc-400" />
+        <div className="mb-6 flex items-start gap-4 rounded-2xl border border-border/50 bg-card/40 p-6 backdrop-blur-xl">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary/60">
+            <Server className="h-5 w-5 text-muted-foreground" />
           </div>
           <div>
-            <p className="font-poppins font-semibold text-zinc-200">
+            <p className="font-poppins font-semibold text-foreground">
               Sesión no autorizada
             </p>
-            <p className="mt-1 font-roboto text-sm text-zinc-500">
+            <p className="mt-1 font-roboto text-sm text-muted-foreground">
               {vpsError.status === 403
                 ? "Tu cuenta no tiene permisos para ver la infraestructura. Contacta al administrador."
                 : "Tu sesión expiró o no es válida. Cierra sesión y vuelve a entrar para continuar."}
@@ -153,11 +153,11 @@ export function VpsDashboard() {
 
           <section>
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="font-poppins text-lg font-semibold text-zinc-200">
+              <h2 className="font-poppins text-lg font-semibold text-foreground">
                 Proyectos
               </h2>
               {data && (
-                <span className="font-roboto text-xs text-zinc-500">
+                <span className="font-roboto text-xs text-muted-foreground">
                   {data.projects.length} total ·{" "}
                   {data.projects.filter((p) => p.active).length} activos
                 </span>
@@ -184,11 +184,11 @@ export function VpsDashboard() {
 
       <section className="mt-10">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="font-poppins text-lg font-semibold text-zinc-200">
+          <h2 className="font-poppins text-lg font-semibold text-foreground">
             Salud del VPS
           </h2>
           {snapshot && (
-            <span className="font-roboto text-xs text-zinc-500">
+            <span className="font-roboto text-xs text-muted-foreground">
               Actualizado {new Date(snapshot.generatedAt).toLocaleTimeString("es-MX")}
             </span>
           )}

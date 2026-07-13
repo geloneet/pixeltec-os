@@ -121,7 +121,7 @@ function ActionButton({
       variant={variant}
       onClick={onClick}
       disabled={disabled || pending}
-      className="h-8 gap-1.5 border-zinc-800/70 bg-zinc-900/40 text-xs font-medium text-zinc-300 hover:border-zinc-700 hover:bg-zinc-800 hover:text-zinc-50 disabled:opacity-50"
+      className="h-8 gap-1.5 border-border/70 bg-card/40 text-xs font-medium text-muted-foreground hover:border-border hover:bg-secondary hover:text-foreground disabled:opacity-50"
     >
       {pending ? (
         <Spinner size="sm" />
@@ -189,7 +189,7 @@ export function ProjectActions({
     <>
       <div className="flex flex-wrap items-center gap-1.5">
         {isManual ? (
-          <span className="font-roboto text-xs italic text-zinc-500">
+          <span className="font-roboto text-xs italic text-muted-foreground">
             Gestión manual — sin deploy/restart/pause automatizados
           </span>
         ) : (

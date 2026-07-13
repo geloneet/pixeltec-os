@@ -31,7 +31,7 @@ export function StatusDot({
     >
       <span className={cn("h-2.5 w-2.5 rounded-full", STYLES[status])} />
       {withLabel && (
-        <span className="font-roboto text-xs uppercase tracking-wide text-zinc-400">
+        <span className="font-roboto text-xs uppercase tracking-wide text-muted-foreground">
           {LABELS[status]}
         </span>
       )}

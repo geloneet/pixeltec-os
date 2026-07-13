@@ -73,7 +73,7 @@ export function VpsActionBar() {
           size="sm"
           onClick={() => setConfirmBackupOpen(true)}
           disabled={backupRunning}
-          className="gap-2 border border-zinc-800/70 bg-zinc-900/40 text-zinc-300 hover:bg-zinc-800 hover:text-zinc-50"
+          className="gap-2 border border-border/70 bg-card/40 text-muted-foreground hover:bg-secondary hover:text-foreground"
         >
           {backupRunning ? (
             <Spinner size="sm" />
@@ -88,7 +88,7 @@ export function VpsActionBar() {
           variant="ghost"
           size="sm"
           onClick={handleAuditClick}
-          className="gap-2 border border-zinc-800/70 bg-zinc-900/40 text-zinc-300 hover:bg-zinc-800 hover:text-zinc-50"
+          className="gap-2 border border-border/70 bg-card/40 text-muted-foreground hover:bg-secondary hover:text-foreground"
         >
           <Stethoscope className="h-3.5 w-3.5" />
           Auditoría de salud
@@ -120,7 +120,7 @@ export function VpsActionBar() {
                 ? `Backup completado (${backupOutcome.result.durationMs} ms)`
                 : "Backup falló"}
             </p>
-            <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap font-mono text-xs text-zinc-400">
+            <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap font-mono text-xs text-muted-foreground">
               {backupOutcome.status === "success"
                 ? backupOutcome.result.tail
                 : backupOutcome.message}
@@ -131,7 +131,7 @@ export function VpsActionBar() {
             variant="ghost"
             size="sm"
             onClick={() => setBackupOutcome(null)}
-            className="h-7 w-7 shrink-0 p-0 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
+            className="h-7 w-7 shrink-0 p-0 text-muted-foreground hover:bg-secondary hover:text-foreground"
           >
             <X className="h-3.5 w-3.5" />
             <span className="sr-only">Cerrar</span>
@@ -151,14 +151,14 @@ export function VpsActionBar() {
       <Sheet open={auditOpen} onOpenChange={setAuditOpen}>
         <SheetContent
           side="right"
-          className="flex w-full flex-col border-zinc-800 bg-zinc-950/95 text-zinc-100 backdrop-blur-xl sm:max-w-2xl"
+          className="flex w-full flex-col border-border bg-background/95 text-foreground backdrop-blur-xl sm:max-w-2xl"
         >
           <SheetHeader className="flex-row items-start justify-between gap-3">
             <div className="space-y-1 text-left">
-              <SheetTitle className="font-poppins text-zinc-50">
+              <SheetTitle className="font-poppins text-foreground">
                 Auditoría de salud
               </SheetTitle>
-              <SheetDescription className="font-roboto text-xs text-zinc-500">
+              <SheetDescription className="font-roboto text-xs text-muted-foreground">
                 Disco, certificados, backups y seguridad del VPS
               </SheetDescription>
             </div>
@@ -167,7 +167,7 @@ export function VpsActionBar() {
               size="sm"
               onClick={() => void mutateAudit()}
               disabled={auditLoading}
-              className="shrink-0 text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100"
+              className="shrink-0 text-muted-foreground hover:bg-secondary hover:text-foreground"
             >
               <RefreshCw
                 className={`mr-2 h-3.5 w-3.5 ${
@@ -181,7 +181,7 @@ export function VpsActionBar() {
           <div className="mt-4 flex-1 overflow-auto">
             {auditLoading && !auditReport && (
               <div className="flex h-full items-center justify-center py-16">
-                <Spinner size="md" className="text-zinc-500" />
+                <Spinner size="md" className="text-muted-foreground" />
               </div>
             )}
 
@@ -192,7 +192,7 @@ export function VpsActionBar() {
                   <p className="font-poppins text-sm font-semibold text-red-300">
                     No se pudo cargar la auditoría
                   </p>
-                  <p className="mt-1 font-roboto text-xs text-zinc-500">
+                  <p className="mt-1 font-roboto text-xs text-muted-foreground">
                     {auditError instanceof Error
                       ? auditError.message
                       : String(auditError)}
@@ -202,7 +202,7 @@ export function VpsActionBar() {
                   variant="outline"
                   size="sm"
                   onClick={() => void mutateAudit()}
-                  className="border-zinc-800 bg-zinc-900 hover:bg-zinc-800"
+                  className="border-border bg-card hover:bg-secondary"
                 >
                   Reintentar
                 </Button>

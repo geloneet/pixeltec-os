@@ -36,16 +36,16 @@ export function ActionConfirmDialog({
 }) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="border-zinc-800 bg-zinc-950/95 text-zinc-100 backdrop-blur-xl">
+      <AlertDialogContent className="border-border bg-background/95 text-foreground backdrop-blur-xl">
         <AlertDialogHeader>
           <AlertDialogTitle className="font-poppins">{title}</AlertDialogTitle>
-          <AlertDialogDescription className="font-roboto text-zinc-400">
+          <AlertDialogDescription className="font-roboto text-muted-foreground">
             {description}
           </AlertDialogDescription>
         </AlertDialogHeader>
         {children}
         <AlertDialogFooter>
-          <AlertDialogCancel className="border-zinc-800 bg-zinc-900 text-zinc-200 hover:bg-zinc-800 hover:text-zinc-50">
+          <AlertDialogCancel className="border-border bg-card text-foreground hover:bg-secondary hover:text-foreground">
             Cancelar
           </AlertDialogCancel>
           <AlertDialogAction
