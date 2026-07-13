@@ -1,5 +1,11 @@
 import useSWR from "swr";
-import type { VpsStatusResponse, VpsLogsResponse } from "./vps-types";
+import type {
+  VpsStatusResponse,
+  VpsLogsResponse,
+  VpsSnapshot,
+  VpsAuditReport,
+  VpsBackupResult,
+} from "./vps-types";
 
 interface RawServerStats {
   diskTotal: string;
@@ -78,4 +84,42 @@ export function useVpsLogs(
     revalidateOnFocus: false,
     refreshInterval: 0,
   });
+}
+
+export function useVpsSnapshot() {
+  return useSWR<VpsSnapshot>("/api/vps/snapshot", jsonFetcher, {
+    refreshInterval: 15000,
+    revalidateOnFocus: true,
+    dedupingInterval: 5000,
+  });
+}
+
+/**
+ * La auditoría es cara de correr en el backend (revisa disco, certs, backups,
+ * seguridad, etc.) — se dispara manualmente desde un botón, no por polling.
+ * `revalidateOnMount: false` evita el fetch automático al montar; el caller
+ * dispara la primera corrida llamando a `mutate()`.
+ */
+export function useVpsAudit() {
+  return useSWR<VpsAuditReport>("/api/vps/audit", jsonFetcher, {
+    revalidateOnMount: false,
+    revalidateOnFocus: false,
+    refreshInterval: 0,
+  });
+}
+
+/** Helper de fetch directo para disparar la auditoría fuera de un componente (p.ej. desde un handler). */
+export function runVpsAudit(): Promise<VpsAuditReport> {
+  return jsonFetcher<VpsAuditReport>("/api/vps/audit");
+}
+
+export async function runVpsBackup(): Promise<VpsBackupResult> {
+  const res = await fetch("/api/vps/backup", { method: "POST" });
+  if (!res.ok) {
+    const err = (await res.json().catch(() => ({ error: res.statusText }))) as {
+      error?: string;
+    };
+    throw new Error(err.error || `HTTP ${res.status}`);
+  }
+  return (await res.json()) as VpsBackupResult;
 }

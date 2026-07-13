@@ -52,3 +52,61 @@ export interface VpsLogsResponse {
   project?: string;
   lines?: number;
 }
+
+// ── Health snapshot / audit / backup (dashboard rebuild) ──────────────────────
+
+export interface VpsSnapshot {
+  generatedAt: string;
+  disk: { size: string; used: string; avail: string; usedPct: number };
+  host: {
+    ramUsedPct: number;
+    load1: number;
+    nproc: number;
+    crashLoops: { name: string; restarts: number }[];
+  };
+  services: {
+    id: string;
+    name: string;
+    domain: string | null;
+    status: string;
+    httpOk: boolean | null;
+    httpCode: number | null;
+  }[];
+  certs: { domain: string; expiresAt: string; daysLeft: number }[];
+  databases: { name: string; size: string; lastBackupAgeHrs: number | null }[];
+  backups: {
+    ok: boolean;
+    lastRunAgeHrs: number | null;
+    coverageMissing: string[];
+    offsite: boolean;
+  };
+  security: {
+    securityUpdates: number;
+    publicPortsOutOfPolicy: number[];
+    sshPassword: boolean;
+    secretsInLogs: string[];
+  };
+}
+
+export type VpsSymptomSeverity = "red" | "yellow" | "green";
+
+export interface VpsSymptom {
+  id: string;
+  severity: VpsSymptomSeverity;
+  area: string;
+  message: string;
+  suggestedAction: string;
+  evidence: unknown;
+}
+
+export interface VpsAuditReport {
+  symptoms: VpsSymptom[];
+  summary: { red: number; yellow: number; green: number };
+  generatedAt: string;
+}
+
+export interface VpsBackupResult {
+  ok: boolean;
+  durationMs: number;
+  tail: string;
+}
