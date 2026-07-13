@@ -4,16 +4,20 @@ import { z } from 'zod';
 import { requireOwner, resolveClientPgId } from '@/lib/documents/pg';
 import type { PortalActionResult } from '@/lib/action-types';
 import {
-  listAllClientsForPortalAdmin,
+  getPortalStatusForClient,
   setPortalAccessEnabled as setPortalAccessEnabledDb,
   publishPortalUpdate as publishPortalUpdateDb,
   portalLoginBlockerFor,
-  type PortalAdminClientRow,
 } from './pg';
 
-export async function listClientsForPortalAdminAction(): Promise<PortalAdminClientRow[]> {
+/** Estado de portal de un cliente puntual — para la pestaña Portal en la ficha del cliente. */
+export async function getPortalStatusForClientAction(
+  clientId: string,
+): Promise<{ portalAccessEnabled: boolean; email: string | null } | null> {
   const { ownerId } = await requireOwner();
-  return listAllClientsForPortalAdmin(ownerId);
+  const clientPgId = await resolveClientPgId(clientId);
+  if (!clientPgId) return null;
+  return getPortalStatusForClient(clientPgId, ownerId);
 }
 
 export async function setPortalAccessEnabledAction(clientId: string, enabled: boolean): Promise<PortalActionResult<null>> {

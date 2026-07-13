@@ -7,7 +7,7 @@ import { ClientWorkspace, type WorkspaceTab } from "@/components/crm/ClientWorks
 import { Spinner } from "@/components/ui/spinner";
 
 const VALID_TABS: WorkspaceTab[] = [
-  "resumen", "proyectos", "propuesta", "contratos", "documentos", "discovery", "estrategia",
+  "resumen", "proyectos", "propuesta", "contratos", "documentos", "discovery", "estrategia", "portal",
 ];
 
 export default function ClienteDetailPage() {

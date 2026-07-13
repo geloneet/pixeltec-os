@@ -138,13 +138,6 @@ export const PALETTE_NAV_ITEMS: PaletteNavItem[] = [
     icon: Settings2,
     section: "sistema",
   },
-  {
-    href: "/portal-admin",
-    label: "Portal de clientes",
-    description: "Activa el acceso al portal por cliente y publica actualizaciones",
-    icon: KeyRound,
-    section: "sistema",
-  },
   // ── Crecimiento (Growth Suite) ────────────────────────────────────────────
   {
     href: "/crecimiento/brand-brain",

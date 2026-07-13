@@ -189,41 +189,6 @@ export async function getPortalDashboardData(clientPgId: string): Promise<Portal
   };
 }
 
-// ── Panel admin (todos los clientes, sin filtro de source) ──────────────────
-
-export interface PortalAdminClientRow {
-  id: string; // id público — el que reciben las acciones admin
-  name: string;
-  email: string | null;
-  portalAccessEnabled: boolean;
-}
-
-/**
- * Todos los clientes del owner, SIN el filtro `source='crm_blob'` que usa
- * `useCRM()`/`getFullCrmData()` — el control del portal debe alcanzar a los
- * 13 clientes reales, no solo a los que aparecen en /clientes. Capa de datos
- * independiente, no toca `crm-sync.ts`.
- */
-export async function listAllClientsForPortalAdmin(ownerId: string): Promise<PortalAdminClientRow[]> {
-  const rows = await db
-    .select({
-      id: clients.id,
-      firestoreId: clients.firestoreId,
-      name: clients.name,
-      email: clients.email,
-      portalAccessEnabled: clients.portalAccessEnabled,
-    })
-    .from(clients)
-    .where(eq(clients.ownerId, ownerId))
-    .orderBy(clients.name);
-
-  return rows.map((row) => ({
-    id: publicDocId(row),
-    name: row.name,
-    email: row.email,
-    portalAccessEnabled: row.portalAccessEnabled,
-  }));
-}
 
 /**
  * Verifica que el portal puede operar con seguridad para este cliente. Devuelve
@@ -249,6 +214,25 @@ export async function portalLoginBlockerFor(clientPgId: string): Promise<string 
   if (nameDupes.length > 1)
     return "Este cliente comparte nombre con otro registro; el portal no podría aislar sus facturas y tickets (se matchean por nombre). Corrige el duplicado antes de activar.";
   return null;
+}
+
+/**
+ * Estado de portal de un cliente puntual — owner-scoped. Usado por la pestaña
+ * Portal en la ficha del cliente. Capa de datos independiente, nunca pasa
+ * por `crm-sync.ts`, así que el toggle no puede pisarse con un `persist()`
+ * viejo del browser. Devuelve `null` si `clientPgId` no existe o no es de
+ * `ownerId`.
+ */
+export async function getPortalStatusForClient(
+  clientPgId: string,
+  ownerId: string,
+): Promise<{ portalAccessEnabled: boolean; email: string | null } | null> {
+  const [row] = await db
+    .select({ portalAccessEnabled: clients.portalAccessEnabled, email: clients.email })
+    .from(clients)
+    .where(and(eq(clients.id, clientPgId), eq(clients.ownerId, ownerId)))
+    .limit(1);
+  return row ?? null;
 }
 
 /** Devuelve `false` si `clientPgId` no pertenece a `ownerId` (sin actualizar nada). */

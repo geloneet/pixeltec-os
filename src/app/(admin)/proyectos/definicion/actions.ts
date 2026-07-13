@@ -29,6 +29,7 @@ import {
   reopenSchema,
 } from "@/lib/definition/schemas";
 import type { DefinitionStation } from "@/lib/definition/types";
+import { stripCongeladora } from "@/lib/definition/proposal-content";
 import type { PortalActionResult } from "@/lib/action-types";
 
 interface Auth {
@@ -231,7 +232,10 @@ export async function createProposalFromDefinitionAction(input: {
       {
         title: full.definition.title,
         scope: sealedFor("boceto"),
-        solution: sealedFor("mvp"),
+        // El sellado de "mvp" trae "# MVP 1.0" + "# Congeladora" en el mismo
+        // bloque (uso interno del PM) — la propuesta al cliente solo debe
+        // mostrar lo aceptado. Ver src/lib/definition/proposal-content.ts.
+        solution: stripCongeladora(sealedFor("mvp")),
         deliverables: sealedFor("flujo"),
         status: "borrador",
       }
