@@ -112,20 +112,17 @@ const TERMS = [
   { label: "Cambios fuera de alcance", value: "Cualquier solicitud adicional se evalúa y cotiza por separado antes de iniciar su desarrollo." },
 ];
 
-function parseBullets(raw) {
-  const lines = raw.split("\n").map((l) => l.trim()).filter(Boolean);
-  const bulletLines = lines.filter((l) => /^[-•*]\s+/.test(l));
-  if (bulletLines.length === 0) return [];
-  return lines.map((l) => l.replace(/^[-•*]\s*/, "").trim()).filter(Boolean);
-}
-
 // Convierte "**negritas**"/"*cursivas*" en spans de Text anidados — sin esto
 // los asteriscos salen literales (@react-pdf/renderer no interpreta
 // markdown). react-pdf sí soporta <Text> anidado con su propio estilo como
 // forma estándar de texto con estilos mixtos.
 function renderInline(text) {
+  // Sin marcadores → devuelve el string tal cual (ruta rápida). OJO: no usar
+  // `parts.length <= 1` para esto — un texto que ES un solo span (ej. una
+  // celda que es toda "**negrita**") también da un solo part y saldría con
+  // los asteriscos crudos.
+  if (!text.includes("*")) return text;
   const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g).filter((p) => p !== "");
-  if (parts.length <= 1) return text;
   return parts.map((part, i) => {
     if (part.startsWith("**") && part.endsWith("**")) {
       return h(Text, { key: i, style: styles.bold }, part.slice(2, -2));
@@ -148,66 +145,115 @@ function parseTableRow(line) {
   return l.split("|").map((c) => c.trim());
 }
 
-function renderTable(lines, key) {
-  const header = parseTableRow(lines[0]);
-  const bodyRows = lines.slice(2).map(parseTableRow);
+function renderTable(rows, key) {
+  // rows: array de líneas markdown (header, separador, cuerpo...).
+  const header = parseTableRow(rows[0]);
+  const bodyRows = rows.slice(2).map(parseTableRow);
 
   const headerRow = h(
     View,
-    { style: styles.tableHeaderRow, key: "head", wrap: false },
+    { style: styles.tableHeaderRow, key: "head" },
     header.map((cell, ci) =>
       h(View, { style: styles.tableCellHead, key: ci }, h(Text, { style: styles.tableCellHeadText }, renderInline(cell))))
   );
 
-  const rows = bodyRows.map((row, ri) =>
+  // Sin wrap:false: una fila más alta que la página se pagina en vez de
+  // encimarse sobre el resto del contenido.
+  const bodyEls = bodyRows.map((row, ri) =>
     h(
       View,
-      { style: styles.tableRow, key: `r${ri}`, wrap: false },
+      { style: styles.tableRow, key: `r${ri}` },
       header.map((_, ci) =>
         h(View, { style: styles.tableCell, key: ci }, h(Text, { style: styles.tableCellText }, renderInline(row[ci] ?? ""))))
     )
   );
 
-  return h(View, { style: styles.table, key }, [headerRow, ...rows]);
+  return h(View, { style: styles.table, key }, [headerRow, ...bodyEls]);
 }
 
-// El texto de scope/solution/benefits puede traer markdown (encabezados,
-// tablas, **negritas**) — @react-pdf/renderer no interpreta HTML/markdown,
-// solo Text/View plano, así que no se puede usar react-markdown aquí (ver
-// cabecera del archivo: este worker corre fuera del bundler de Next a
-// propósito). Parser liviano en el mismo espíritu que parseBullets: separa
-// por línea en blanco, y reconoce encabezados, tablas GFM y reglas
-// horizontales en vez de dejar "#"/"|"/"---" literales.
+function renderListItem(marker, text, isOrdered, key) {
+  return h(View, { style: styles.listItem, key }, [
+    h(Text, { style: isOrdered ? styles.listNum : styles.listDotWrap, key: "m" },
+      isOrdered ? marker : "•"),
+    h(Text, { style: styles.listText, key: "t" }, renderInline(text)),
+  ]);
+}
+
+// Renderiza markdown liviano (scope/solution/deliverables/benefits) que la IA
+// genera con estructura rica: encabezados, tablas GFM (incluso pegadas a un
+// encabezado sin línea en blanco), listas ordenadas/no ordenadas, reglas
+// horizontales, **negritas**/*cursivas* y párrafos. @react-pdf no interpreta
+// markdown, así que se arma a mano con Text/View que FLUYEN (sin wrap:false en
+// contenedores multi-item) para que paginen en vez de encimarse. Se procesa
+// LÍNEA POR LÍNEA (no bloque por bloque) para que un `## título` seguido sin
+// línea en blanco de una tabla no rompa la detección.
 function renderRichText(raw) {
-  const blocks = raw
-    .split(/\n\s*\n/)
-    .map((b) => b.trim())
-    .filter(Boolean);
+  const lines = String(raw ?? "").split("\n").map((l) => l.trimEnd());
+  const els = [];
+  let i = 0;
+  let k = 0;
+  const trimmed = (n) => (lines[n] ?? "").trim();
 
-  const elements = [];
-  blocks.forEach((block, i) => {
-    const lines = block.split("\n").map((l) => l.trim()).filter(Boolean);
+  while (i < lines.length) {
+    const line = trimmed(i);
+    if (!line) { i++; continue; }
 
-    if (lines.length >= 2 && lines[0].includes("|") && isTableSeparatorLine(lines[1])) {
-      elements.push(renderTable(lines, `${i}-table`));
-      return;
+    // Regla horizontal
+    if (/^(-{3,}|\*{3,}|_{3,})$/.test(line)) {
+      els.push(h(View, { style: styles.hr, key: `hr${k++}` }));
+      i++; continue;
     }
 
-    if (lines.length === 1 && /^(-{3,}|\*{3,}|_{3,})$/.test(lines[0])) {
-      elements.push(h(View, { style: styles.hr, key: `${i}-hr` }));
-      return;
+    // Encabezado (# … ######). Tamaño según nivel.
+    const hm = line.match(/^(#{1,6})\s+(.+)$/);
+    if (hm) {
+      const style = hm[1].length <= 1 ? styles.blockHeadingLg : styles.blockHeading;
+      els.push(h(Text, { style, key: `h${k++}` }, renderInline(hm[2].trim())));
+      i++; continue;
     }
 
-    const headingMatch = lines[0].match(/^#{1,6}\s+(.+)$/);
-    if (headingMatch) {
-      elements.push(h(Text, { style: styles.blockHeading, key: `${i}-h` }, renderInline(headingMatch[1].trim())));
-      const rest = lines.slice(1).join("\n").trim();
-      if (rest) elements.push(h(Text, { style: styles.paragraph, key: `${i}-b` }, renderInline(rest)));
-    } else {
-      elements.push(h(Text, { style: styles.paragraph, key: `${i}` }, renderInline(block)));
+    // Tabla GFM: línea actual con `|` y la siguiente es separador.
+    if (line.includes("|") && isTableSeparatorLine(trimmed(i + 1))) {
+      const tbl = [line, trimmed(i + 1)];
+      i += 2;
+      while (i < lines.length && trimmed(i).includes("|")) { tbl.push(trimmed(i)); i++; }
+      els.push(renderTable(tbl, `tbl${k++}`));
+      continue;
     }
-  });
-  return elements;
+
+    // Lista ordenada (1. / 1))
+    if (/^\d+[.)]\s+/.test(line)) {
+      while (i < lines.length && /^\d+[.)]\s+/.test(trimmed(i))) {
+        const m = trimmed(i).match(/^(\d+)[.)]\s+(.+)$/);
+        els.push(renderListItem(`${m[1]}.`, m[2].trim(), true, `li${k++}`));
+        i++;
+      }
+      continue;
+    }
+
+    // Lista no ordenada (- / * / •)
+    if (/^[-*•]\s+/.test(line)) {
+      while (i < lines.length && /^[-*•]\s+/.test(trimmed(i))) {
+        els.push(renderListItem(null, trimmed(i).replace(/^[-*•]\s+/, ""), false, `li${k++}`));
+        i++;
+      }
+      continue;
+    }
+
+    // Párrafo: líneas consecutivas hasta una línea en blanco o un elemento especial.
+    const para = [];
+    while (i < lines.length) {
+      const l = trimmed(i);
+      if (!l) break;
+      if (/^(#{1,6}\s|[-*•]\s|\d+[.)]\s)/.test(l)) break;
+      if (/^(-{3,}|\*{3,}|_{3,})$/.test(l)) break;
+      if (l.includes("|") && isTableSeparatorLine(trimmed(i + 1))) break;
+      para.push(l);
+      i++;
+    }
+    els.push(h(Text, { style: styles.paragraph, key: `p${k++}` }, renderInline(para.join(" "))));
+  }
+  return els;
 }
 
 function CoverMeta({ label, value }) {
@@ -231,9 +277,8 @@ function ProposalDocument({ proposal }) {
   const dateStr = new Date(proposal.createdAt).toLocaleDateString("es-MX", {
     day: "2-digit", month: "long", year: "numeric",
   });
-  const deliverableItems = proposal.deliverables ? parseBullets(proposal.deliverables) : [];
-  const benefitItems = proposal.benefits ? parseBullets(proposal.benefits) : [];
-  const benefitParagraph = proposal.benefits && benefitItems.length === 0 ? proposal.benefits : null;
+  const hasDeliverables = Boolean(proposal.deliverables && proposal.deliverables.trim());
+  const hasBenefits = Boolean(proposal.benefits && proposal.benefits.trim());
 
   const coverGridLines = [
     ...Array.from({ length: 13 }, (_, i) =>
@@ -288,28 +333,18 @@ function ProposalDocument({ proposal }) {
       renderRichText(proposal.solution)));
   }
 
-  if (deliverableItems.length > 0) {
+  // deliverables/benefits llegan como markdown rico de la IA (títulos, tablas,
+  // listas numeradas, **negritas**) — se renderizan con renderRichText igual
+  // que scope/solution. Antes usaban parseBullets + un contenedor `wrap:false`
+  // que volcaba cada línea como bullet y, al exceder la página, se encimaba.
+  if (hasDeliverables) {
     sections.push(h(Section, { label: "Alcance y entregables", key: "sec-deliverables" },
-      h(View, { style: styles.checklist, wrap: false },
-        deliverableItems.map((item, i) =>
-          h(View, { style: styles.checklistItem, key: i }, [
-            h(View, { style: styles.checklistDot, key: "dot" }),
-            h(Text, { style: styles.checklistText, key: "text" }, item),
-          ])))));
+      renderRichText(proposal.deliverables)));
   }
 
-  if (benefitItems.length > 0) {
+  if (hasBenefits) {
     sections.push(h(Section, { label: "Beneficios", key: "sec-benefits" },
-      h(View, { style: styles.benefitGrid },
-        benefitItems.map((item, i) =>
-          h(View, { style: styles.benefitBlock, wrap: false, key: i }, [
-            h(View, { style: styles.benefitBadge, key: "badge" },
-              h(Text, { style: styles.benefitBadgeText }, String(i + 1).padStart(2, "0"))),
-            h(Text, { style: styles.benefitText, key: "text" }, item),
-          ])))));
-  } else if (benefitParagraph) {
-    sections.push(h(Section, { label: "Beneficios", key: "sec-benefits-p" },
-      renderRichText(benefitParagraph)));
+      renderRichText(proposal.benefits)));
   }
 
   if (proposal.budget || proposal.timeline) {
@@ -457,7 +492,12 @@ const styles = StyleSheet.create({
     fontSize: 9, fontWeight: 700, color: COLOR.primary, letterSpacing: 1.5, textTransform: "uppercase",
   },
   paragraph: { fontSize: 10.5, lineHeight: 1.6, color: COLOR.body, marginBottom: 8 },
-  blockHeading: { fontSize: 11.5, fontWeight: 700, color: COLOR.ink, marginTop: 4, marginBottom: 5 },
+  blockHeading: { fontSize: 11.5, fontWeight: 700, color: COLOR.ink, marginTop: 8, marginBottom: 5 },
+  blockHeadingLg: { fontSize: 13, fontWeight: 700, color: COLOR.ink, marginTop: 12, marginBottom: 6 },
+  listItem: { flexDirection: "row", alignItems: "flex-start", gap: 8, marginBottom: 5 },
+  listDotWrap: { fontSize: 10.5, lineHeight: 1.5, color: COLOR.primary, width: 12 },
+  listNum: { fontSize: 10.5, lineHeight: 1.5, color: COLOR.primary, fontWeight: 700, width: 18 },
+  listText: { fontSize: 10.5, lineHeight: 1.5, color: COLOR.body, flex: 1 },
   bold: { fontWeight: 700, color: COLOR.ink },
   italic: { fontStyle: "italic" },
   hr: { height: 0.75, backgroundColor: COLOR.border, marginVertical: 10 },
