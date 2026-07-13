@@ -4,11 +4,12 @@ import { useState } from "react";
 import { AlertCircle, RefreshCw, Server } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useVpsStatus } from "@/lib/vps-swr";
+import { useVpsStatus, useVpsSnapshot } from "@/lib/vps-swr";
 import type { VpsProject } from "@/lib/vps-types";
 import { ServerStatsHeader } from "./components/server-stats-header";
 import { ProjectCard } from "./components/project-card";
 import { LogsSheet } from "./components/logs-sheet";
+import { HealthPanels } from "./components/health-panels";
 import { getNavLabel } from "@/components/nav/command-palette-items";
 
 function StatCardSkeleton() {
@@ -17,6 +18,17 @@ function StatCardSkeleton() {
       <Skeleton className="h-3 w-16 bg-zinc-800/80" />
       <Skeleton className="mt-3 h-8 w-28 bg-zinc-800/80" />
       <Skeleton className="mt-4 h-1.5 w-full bg-zinc-800/80" />
+    </div>
+  );
+}
+
+function HealthPanelSkeleton() {
+  return (
+    <div className="rounded-2xl border border-zinc-800/50 bg-zinc-900/40 p-5 backdrop-blur-xl">
+      <Skeleton className="h-5 w-40 bg-zinc-800/80" />
+      <Skeleton className="mt-4 h-4 w-full bg-zinc-800/80" />
+      <Skeleton className="mt-2 h-4 w-3/4 bg-zinc-800/80" />
+      <Skeleton className="mt-2 h-4 w-1/2 bg-zinc-800/80" />
     </div>
   );
 }
@@ -43,6 +55,11 @@ function ProjectCardSkeleton() {
 export function VpsDashboard() {
   const { data, error, isLoading, mutate, isValidating } = useVpsStatus();
   const vpsError = error as (Error & { status?: number }) | undefined;
+  const {
+    data: snapshot,
+    error: snapshotError,
+    isLoading: snapshotLoading,
+  } = useVpsSnapshot();
   const [logsProject, setLogsProject] = useState<VpsProject | null>(null);
   const [logsOpen, setLogsOpen] = useState(false);
 
@@ -159,6 +176,41 @@ export function VpsDashboard() {
           </section>
         </>
       )}
+
+      <section className="mt-10">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="font-poppins text-lg font-semibold text-zinc-200">
+            Salud del VPS
+          </h2>
+          {snapshot && (
+            <span className="font-roboto text-xs text-zinc-500">
+              Actualizado {new Date(snapshot.generatedAt).toLocaleTimeString("es-MX")}
+            </span>
+          )}
+        </div>
+
+        {snapshotError ? (
+          <div className="flex items-start gap-3 rounded-2xl border border-red-500/30 bg-red-500/5 p-5 backdrop-blur-xl">
+            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-400" />
+            <div className="flex-1">
+              <p className="font-poppins font-semibold text-red-200">
+                No se pudo cargar la salud del VPS
+              </p>
+              <p className="mt-1 font-roboto text-sm text-red-300/80">
+                {(snapshotError as Error).message}
+              </p>
+            </div>
+          </div>
+        ) : snapshotLoading && !snapshot ? (
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <HealthPanelSkeleton key={i} />
+            ))}
+          </div>
+        ) : snapshot ? (
+          <HealthPanels snapshot={snapshot} />
+        ) : null}
+      </section>
 
       <LogsSheet
         project={logsProject}
