@@ -115,6 +115,34 @@ function parseBullets(raw) {
   return lines.map((l) => l.replace(/^[-•*]\s*/, "").trim()).filter(Boolean);
 }
 
+// El texto de scope/solution/benefits puede traer markdown ("## título") —
+// @react-pdf/renderer no interpreta HTML/markdown, solo Text plano, así que
+// no se puede usar react-markdown aquí (ver cabecera del archivo: este
+// worker corre fuera del bundler de Next a propósito). Parser liviano en el
+// mismo espíritu que parseBullets: separa por línea en blanco, y una línea
+// que abre un bloque con "#"..."######" se renderiza como encabezado en vez
+// de dejar el "##" literal.
+function renderRichText(raw) {
+  const blocks = raw
+    .split(/\n\s*\n/)
+    .map((b) => b.trim())
+    .filter(Boolean);
+
+  const elements = [];
+  blocks.forEach((block, i) => {
+    const lines = block.split("\n");
+    const headingMatch = lines[0].match(/^#{1,6}\s+(.+)$/);
+    if (headingMatch) {
+      elements.push(h(Text, { style: styles.blockHeading, key: `${i}-h` }, headingMatch[1].trim()));
+      const rest = lines.slice(1).join("\n").trim();
+      if (rest) elements.push(h(Text, { style: styles.paragraph, key: `${i}-b` }, rest));
+    } else {
+      elements.push(h(Text, { style: styles.paragraph, key: `${i}` }, block));
+    }
+  });
+  return elements;
+}
+
 function CoverMeta({ label, value }) {
   return h(View, { style: styles.coverMetaCol }, [
     h(Text, { style: styles.coverMetaLabel, key: "l" }, label),
@@ -186,11 +214,11 @@ function ProposalDocument({ proposal }) {
   const sections = [];
 
   sections.push(h(Section, { label: "Resumen ejecutivo", key: "sec-scope" },
-    h(Text, { style: styles.paragraph }, proposal.scope)));
+    renderRichText(proposal.scope)));
 
   if (proposal.solution) {
     sections.push(h(Section, { label: "Solución propuesta", key: "sec-solution" },
-      h(Text, { style: styles.paragraph }, proposal.solution)));
+      renderRichText(proposal.solution)));
   }
 
   if (deliverableItems.length > 0) {
@@ -214,7 +242,7 @@ function ProposalDocument({ proposal }) {
           ])))));
   } else if (benefitParagraph) {
     sections.push(h(Section, { label: "Beneficios", key: "sec-benefits-p" },
-      h(Text, { style: styles.paragraph }, benefitParagraph)));
+      renderRichText(benefitParagraph)));
   }
 
   if (proposal.budget || proposal.timeline) {
@@ -361,7 +389,8 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 9, fontWeight: 700, color: COLOR.primary, letterSpacing: 1.5, textTransform: "uppercase",
   },
-  paragraph: { fontSize: 10.5, lineHeight: 1.6, color: COLOR.body },
+  paragraph: { fontSize: 10.5, lineHeight: 1.6, color: COLOR.body, marginBottom: 8 },
+  blockHeading: { fontSize: 11.5, fontWeight: 700, color: COLOR.ink, marginTop: 4, marginBottom: 5 },
 
   checklist: { display: "flex", flexDirection: "column", gap: 8 },
   checklistItem: { flexDirection: "row", alignItems: "flex-start", gap: 9 },

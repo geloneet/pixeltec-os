@@ -1,0 +1,1 @@
+ALTER TABLE "proposals" ADD COLUMN "billing_item_drafts" jsonb DEFAULT '[]'::jsonb NOT NULL;

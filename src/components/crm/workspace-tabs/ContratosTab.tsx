@@ -49,11 +49,14 @@ const STATUS_ORDER: Record<Contract["status"], number> = {
 interface Props {
   clientId: string;
   clientName: string;
+  /** Cuando viene de "Convertir a contrato" en una propuesta: abre el wizard prellenado. */
+  initialProposalId?: string | null;
+  onConsumedInitialProposal?: () => void;
 }
 
 // ── Component ──────────────────────────────────────────────────────────────────
 
-export function ContratosTab({ clientId, clientName }: Props) {
+export function ContratosTab({ clientId, clientName, initialProposalId, onConsumedInitialProposal }: Props) {
   const user = useUser();
   const crm = useCRM();
 
@@ -63,6 +66,11 @@ export function ContratosTab({ clientId, clientName }: Props) {
   const [loading, setLoading] = useState(true);
   const [signing, setSigning] = useState(false);
   const [signError, setSignError] = useState<string | null>(null);
+
+  // Llegada desde "Convertir a contrato" en Propuesta: abrir el wizard directo.
+  useEffect(() => {
+    if (initialProposalId) setView("create");
+  }, [initialProposalId]);
 
   // Detail
   const [editingTitle, setEditingTitle] = useState(false);
@@ -260,8 +268,20 @@ export function ContratosTab({ clientId, clientName }: Props) {
       <ContractWizard
         clientId={clientId}
         clientName={clientName}
-        onDone={() => { setView("list"); loadContracts(); }}
-        onCancel={() => setView("list")}
+        initialProposalId={initialProposalId ?? undefined}
+        onDone={async (newContractId) => {
+          onConsumedInitialProposal?.();
+          const data = await getContracts(user?.uid ?? "", clientId);
+          setContracts(data);
+          const created = data.find(c => c.id === newContractId) ?? null;
+          if (created) {
+            setSelectedContract(created);
+            setView("detail");
+          } else {
+            setView("list");
+          }
+        }}
+        onCancel={() => { onConsumedInitialProposal?.(); setView("list"); }}
       />
     );
   }
@@ -365,30 +385,42 @@ export function ContratosTab({ clientId, clientName }: Props) {
         </div>
       )}
 
+      {/* Estado — botones, no dropdown */}
+      <div>
+        <label className="mb-1.5 block text-xs font-medium text-zinc-400">Estado</label>
+        <div className="flex flex-wrap gap-1.5">
+          {(Object.keys(STATUS_CONFIG) as Contract["status"][]).map(s => (
+            <button
+              key={s}
+              type="button"
+              disabled={signing || (s === "firmado" && crm.loading)}
+              title={s === "firmado" && crm.loading ? "Cargando CRM…" : undefined}
+              onClick={async () => {
+                if (s === "firmado") {
+                  await handleSignContract();
+                  return;
+                }
+                await updateContract(selectedContract.id, { status: s });
+                setSelectedContract(prev => prev ? { ...prev, status: s } : prev);
+                loadContracts();
+              }}
+              className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-all disabled:opacity-40 ${
+                selectedContract.status === s
+                  ? STATUS_CONFIG[s].classes
+                  : "border-white/[0.06] bg-zinc-900/40 text-zinc-500 hover:text-zinc-300"
+              }`}
+            >
+              {s === "firmado" && signing ? "Firmando…" : STATUS_CONFIG[s].label}
+            </button>
+          ))}
+        </div>
+        {crm.loading && (
+          <p className="mt-1 text-[10px] text-zinc-600">Cargando CRM… espera antes de firmar.</p>
+        )}
+      </div>
+
       {/* Actions row */}
       <div className="flex flex-wrap gap-2">
-        <select
-          value={selectedContract.status}
-          disabled={signing}
-          onChange={async e => {
-            const newStatus = e.target.value as Contract["status"];
-            if (newStatus === "firmado") {
-              await handleSignContract();
-              return;
-            }
-            await updateContract(selectedContract.id, { status: newStatus });
-            setSelectedContract(prev => prev ? { ...prev, status: newStatus } : prev);
-            loadContracts();
-          }}
-          className="rounded-lg border border-white/[0.06] bg-zinc-900/60 px-3 py-1.5 text-xs text-zinc-300 focus:outline-none disabled:opacity-50"
-        >
-          <option value="borrador">Borrador</option>
-          <option value="en_revision">En revisión</option>
-          <option value="firmado">{signing ? "Firmando…" : "Firmado"}</option>
-          <option value="vencido">Vencido</option>
-          <option value="cancelado">Cancelado</option>
-        </select>
-
         <button
           onClick={async () => {
             if (!user) return;
@@ -495,7 +527,7 @@ export function ContratosTab({ clientId, clientName }: Props) {
             ))}
             {allSigned && selectedContract.status !== "firmado" && (
               <p className="text-[10px] text-green-400/70 mt-1">
-                Todos firmaron — marca el contrato como &quot;Firmado&quot; desde el selector de estado.
+                Todos firmaron — marca el contrato como &quot;Firmado&quot; en los botones de estado.
               </p>
             )}
           </div>

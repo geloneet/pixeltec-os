@@ -251,6 +251,17 @@ export async function confirmContractFromWizard(data: ConfirmContractFromWizardI
     })
     .returning({ id: contracts.id });
 
+  // Cualquier contrato confirmado con una propuesta vinculada deja la
+  // trazabilidad en esa propuesta — sin importar si se llegó aquí desde
+  // "Convertir a contrato" (ya debería estar en `aceptada`) o desde el
+  // wizard genérico eligiendo la propuesta manualmente.
+  if (proposalPgId) {
+    await db
+      .update(proposals)
+      .set({ status: "aceptada", contractId: row.id, updatedAt: new Date() })
+      .where(eq(proposals.id, proposalPgId));
+  }
+
   return row.id;
 }
 

@@ -31,6 +31,9 @@ export interface Proposal {
   benefits?: string;          // AI generated
   budget?: string;            // optional user input
   timeline?: string;          // optional user input
+  // Conceptos de cobro opcionales, cargados desde la casilla "Agregar
+  // precios" del form. Viajan al ContractWizard al convertir esta propuesta.
+  billingItemDrafts?: BillingItemDraft[];
   status: "borrador" | "enviada" | "vista" | "aceptada" | "rechazada" | "vencida";
   contractId?: string;        // set when converted to contract
   publicToken?: string;       // random token for public URL /p/[token]

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Brain, ChevronDown, ChevronRight, CheckCircle2 } from "lucide-react";
+import { Brain, ChevronDown, ChevronRight, CheckCircle2, AlertCircle, RefreshCw } from "lucide-react";
 import { DefinitionStepper, type StationStatus } from "@/components/definition/DefinitionStepper";
 import { StationThread, type ThreadMessage } from "@/components/definition/StationThread";
 import { StationComposer } from "@/components/definition/StationComposer";
@@ -41,6 +41,7 @@ export function DefinitionWorkspace({ data }: Props) {
   // estación o tras un refresh del server).
   const [messages, setMessages] = useState<ThreadMessage[]>([]);
   const [generating, setGenerating] = useState(false);
+  const [genError, setGenError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [showBrainDump, setShowBrainDump] = useState(false);
   const kickoffFired = useRef<string | null>(null);
@@ -48,6 +49,7 @@ export function DefinitionWorkspace({ data }: Props) {
   const generate = useCallback(
     async (userMessage?: string) => {
       setGenerating(true);
+      setGenError(null);
       if (userMessage) {
         setMessages((prev) => [
           ...prev,
@@ -64,14 +66,34 @@ export function DefinitionWorkspace({ data }: Props) {
             userMessage,
           }),
         });
+        // El backend puede seguir trabajando y guardar el resultado aunque
+        // nginx corte la conexión (504) antes — en ese caso la respuesta es
+        // HTML, no JSON, y res.json() truena con "Unexpected token '<'".
+        // Chequeamos res.ok/content-type primero para dar un error claro y
+        // reintentable en vez de dejar que ese parseo reviente sin control.
+        const contentType = res.headers.get("content-type") ?? "";
+        if (!res.ok || !contentType.includes("application/json")) {
+          throw new Error(
+            res.status === 504
+              ? "El servidor tardó demasiado en responder — la generación puede haberse guardado igual. Reintenta o revisa recargando."
+              : `No se pudo generar (HTTP ${res.status})`
+          );
+        }
         const json = await res.json();
-        if (!res.ok || !json.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
+        if (!json.ok) throw new Error(json.error ?? "No se pudo generar");
         setMessages((prev) => [
           ...prev,
           { id: tmpId(), role: "assistant", content: json.draft as string },
         ]);
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Error al generar");
+        const message = err instanceof Error ? err.message : "Error al generar";
+        setGenError(message);
+        toast.error(message);
+        // Si esto era el auto-kickoff, liberar el guard para poder reintentar
+        // (si no, la estación queda sin forma de regenerar sin recargar).
+        if (kickoffFired.current === `${data.id}:${active}`) {
+          kickoffFired.current = null;
+        }
       } finally {
         setGenerating(false);
       }
@@ -85,6 +107,7 @@ export function DefinitionWorkspace({ data }: Props) {
       setMessages([]);
       return;
     }
+    setGenError(null);
     const seeded = data.messagesByStation[active] ?? [];
     setMessages(seeded);
 
@@ -207,6 +230,23 @@ export function DefinitionWorkspace({ data }: Props) {
             <p className="mb-4 text-xs text-zinc-500">{activeMeta.hint}</p>
 
             <StationThread messages={messages} generating={generating} />
+
+            {genError && !generating && (
+              <div className="mt-4 flex items-center justify-between gap-3 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2.5">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-amber-400" />
+                  <p className="text-xs text-amber-300">{genError}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => generate()}
+                  className="flex flex-shrink-0 items-center gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-300 transition-colors hover:bg-amber-500/20"
+                >
+                  <RefreshCw className="h-3 w-3" />
+                  Reintentar
+                </button>
+              </div>
+            )}
 
             {hasDraft && !generating && (
               <div className="mt-5 space-y-4 border-t border-white/[0.06] pt-4">

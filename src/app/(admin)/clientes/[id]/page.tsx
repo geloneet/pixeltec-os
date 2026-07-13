@@ -1,16 +1,24 @@
 "use client";
 
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCRM } from "@/components/crm/CRMContextCore";
 import { useCRMShell } from "@/components/crm/CRMShellProvider";
-import { ClientWorkspace } from "@/components/crm/ClientWorkspace";
+import { ClientWorkspace, type WorkspaceTab } from "@/components/crm/ClientWorkspace";
 import { Spinner } from "@/components/ui/spinner";
+
+const VALID_TABS: WorkspaceTab[] = [
+  "resumen", "proyectos", "propuesta", "contratos", "documentos", "discovery", "estrategia",
+];
 
 export default function ClienteDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const crm = useCRM();
   const shell = useCRMShell();
+
+  const tabParam = searchParams.get("tab");
+  const initialTab = VALID_TABS.find((t) => t === tabParam);
 
   if (crm.loading) {
     return (
@@ -43,6 +51,7 @@ export default function ClienteDetailPage() {
       navigateToProject={(_cid, pid) => router.push(`/proyectos/${pid}`)}
       setModal={shell.setModal}
       deleteClient={crm.deleteClient}
+      initialTab={initialTab}
     />
   );
 }

@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import type { Components } from "react-markdown";
 import { Check, X, Download, ChevronDown, ChevronUp } from "lucide-react";
 import { ObfuscatedMailto } from "@/components/ui/obfuscated-mailto";
 import { Spinner } from "@/components/ui/spinner";
@@ -50,6 +53,42 @@ function parseBullets(raw: string): string[] {
   const bulletLines = lines.filter((l) => /^[-•*]\s+/.test(l));
   if (bulletLines.length === 0) return [];
   return lines.map((l) => l.replace(/^[-•*]\s*/, "").trim()).filter(Boolean);
+}
+
+// Tema claro para bloques de propuesta que pueden traer markdown ("## título",
+// listas) — la IA de Definición de Proyecto genera scope/solution así. Mismo
+// patrón de react-markdown que KnowledgeMarkdown (CRM interno), pero con la
+// paleta slate/blue de esta página pública en vez de la oscura del CRM.
+const proposalMarkdownComponents: Components = {
+  h1({ children }) {
+    return <p className="mb-2 mt-4 text-sm font-bold text-slate-900 first:mt-0">{children}</p>;
+  },
+  h2({ children }) {
+    return <p className="mb-2 mt-4 text-sm font-bold text-slate-900 first:mt-0">{children}</p>;
+  },
+  h3({ children }) {
+    return <p className="mb-1.5 mt-3 text-sm font-semibold text-slate-800 first:mt-0">{children}</p>;
+  },
+  p({ children }) {
+    return <p className="mb-2 whitespace-pre-wrap text-sm leading-relaxed text-slate-700 last:mb-0">{children}</p>;
+  },
+  ul({ children }) {
+    return <ul className="mb-2 ml-4 list-disc space-y-1 text-sm text-slate-700 marker:text-[#2196F3]">{children}</ul>;
+  },
+  ol({ children }) {
+    return <ol className="mb-2 ml-4 list-decimal space-y-1 text-sm text-slate-700">{children}</ol>;
+  },
+  strong({ children }) {
+    return <strong className="font-semibold text-slate-900">{children}</strong>;
+  },
+};
+
+function ProposalMarkdown({ content }: { content: string }) {
+  return (
+    <ReactMarkdown remarkPlugins={[remarkGfm]} components={proposalMarkdownComponents}>
+      {content}
+    </ReactMarkdown>
+  );
 }
 
 export function ProposalClient({ proposal, token }: Props) {
@@ -191,12 +230,12 @@ export function ProposalClient({ proposal, token }: Props) {
         )}
 
         <Section label="Resumen ejecutivo">
-          <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700">{proposal.scope}</p>
+          <ProposalMarkdown content={proposal.scope} />
         </Section>
 
         {proposal.solution && (
           <Section label="Solución propuesta">
-            <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700">{proposal.solution}</p>
+            <ProposalMarkdown content={proposal.solution} />
           </Section>
         )}
 
@@ -229,7 +268,7 @@ export function ProposalClient({ proposal, token }: Props) {
         )}
         {benefitParagraph && (
           <Section label="Beneficios">
-            <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700">{benefitParagraph}</p>
+            <ProposalMarkdown content={benefitParagraph} />
           </Section>
         )}
 

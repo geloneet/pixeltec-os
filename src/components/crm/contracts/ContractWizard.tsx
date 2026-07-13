@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { ArrowLeft, Plus, Trash2 } from "lucide-react";
 import { useUser } from "@/hooks/use-user";
 import { getProposals } from "@/lib/documents/proposals";
@@ -28,17 +28,19 @@ function today(): string {
 interface Props {
   clientId: string;
   clientName: string;
-  onDone: () => void;
+  /** Llegada desde "Convertir a contrato" en Propuesta: precarga la propuesta y sus cobros. */
+  initialProposalId?: string;
+  onDone: (contractId: string) => void;
   onCancel: () => void;
 }
 
-export function ContractWizard({ clientId, clientName, onDone, onCancel }: Props) {
+export function ContractWizard({ clientId, clientName, initialProposalId, onDone, onCancel }: Props) {
   const user = useUser();
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
   // Paso 1 — datos
   const [proposals, setProposals] = useState<Proposal[]>([]);
-  const [proposalId, setProposalId] = useState<string>("");
+  const [proposalId, setProposalId] = useState<string>(initialProposalId ?? "");
   const [contractType, setContractType] = useState(CONTRACT_TYPES[0]);
   const [title, setTitle] = useState("");
   const [startDate, setStartDate] = useState(today);
@@ -46,6 +48,7 @@ export function ContractWizard({ clientId, clientName, onDone, onCancel }: Props
 
   // Paso 2 — conceptos de cobro
   const [lines, setLines] = useState<DraftLine[]>([]);
+  const prefilledFromProposal = useRef(false);
 
   // Paso 3 — preview
   const [overrides, setOverrides] = useState<Record<string, string>>({});
@@ -61,7 +64,20 @@ export function ContractWizard({ clientId, clientName, onDone, onCancel }: Props
   useEffect(() => { loadProposals(); }, [loadProposals]);
 
   const selectedProposal = proposals.find((p) => p.id === proposalId) ?? null;
-  const effectiveTitle = title.trim() || `${contractType} — ${clientName}`;
+  const effectiveTitle = title.trim() || selectedProposal?.title || `${contractType} — ${clientName}`;
+
+  // Prellenar título + cobros desde la propuesta la primera vez que carga
+  // (no pisar ediciones manuales si el usuario ya tocó algo después).
+  useEffect(() => {
+    if (!selectedProposal || prefilledFromProposal.current) return;
+    prefilledFromProposal.current = true;
+    if (!title.trim()) setTitle(selectedProposal.title);
+    const draftLines = selectedProposal.billingItemDrafts ?? [];
+    if (lines.length === 0 && draftLines.length > 0) {
+      setLines(draftLines.map((l) => ({ ...l, key: crypto.randomUUID() })));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedProposal]);
 
   function addLine() {
     setLines((prev) => [
@@ -101,7 +117,7 @@ export function ContractWizard({ clientId, clientName, onDone, onCancel }: Props
     setConfirming(true);
     setError(null);
     try {
-      await confirmContractFromWizard({
+      const newContractId = await confirmContractFromWizard({
         clientId,
         proposalId: selectedProposal?.id,
         title: effectiveTitle,
@@ -112,7 +128,7 @@ export function ContractWizard({ clientId, clientName, onDone, onCancel }: Props
         billingItems: lines.map(({ key: _key, ...rest }) => rest),
         sectionOverrides: overrides,
       });
-      onDone();
+      onDone(newContractId);
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo confirmar el contrato");
     } finally {

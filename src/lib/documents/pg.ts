@@ -202,6 +202,7 @@ export function serializeProposal(row: ProposalRow, clientPublicId: string, uid:
     benefits: row.benefits ?? undefined,
     budget: row.budget ?? undefined,
     timeline: row.timeline ?? undefined,
+    billingItemDrafts: (row.billingItemDrafts as BillingItemDraft[]) ?? [],
     status: row.status,
     contractId: row.contractId ?? undefined,
     publicToken: row.publicToken ?? undefined,

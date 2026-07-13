@@ -38,6 +38,8 @@ interface Props {
   navigateToProject: (clientId: string, projectId: string) => void;
   setModal: (m: ModalPayload) => void;
   deleteClient: (id: string) => void;
+  /** Deep-link (?tab=propuesta) — p.ej. desde "Crear propuesta" en Definición de Proyecto. */
+  initialTab?: WorkspaceTab;
 }
 
 function WorkspaceEmptyTab({ label, sprint }: { label: string; sprint: string }) {
@@ -49,8 +51,11 @@ function WorkspaceEmptyTab({ label, sprint }: { label: string; sprint: string })
   );
 }
 
-export function ClientWorkspace({ client, onBack, navigateToProject, setModal, deleteClient }: Props) {
-  const [activeTab, setActiveTab] = useState<WorkspaceTab>("resumen");
+export function ClientWorkspace({ client, onBack, navigateToProject, setModal, deleteClient, initialTab }: Props) {
+  const [activeTab, setActiveTab] = useState<WorkspaceTab>(initialTab ?? "resumen");
+  // "Convertir a contrato" en Propuesta: guarda qué propuesta abrir en el
+  // wizard prellenado al cambiar a la pestaña Contratos.
+  const [pendingContractProposalId, setPendingContractProposalId] = useState<string | null>(null);
 
   return (
     <div className="flex flex-col h-full">
@@ -102,12 +107,25 @@ export function ClientWorkspace({ client, onBack, navigateToProject, setModal, d
         )}
         {activeTab === "propuesta"  && (
           <div className="p-6">
-            <PropuestaTab clientId={client.id} clientName={client.name} clientEmail={client.email} />
+            <PropuestaTab
+              clientId={client.id}
+              clientName={client.name}
+              clientEmail={client.email}
+              onConvertToContract={(proposalId) => {
+                setPendingContractProposalId(proposalId);
+                setActiveTab("contratos");
+              }}
+            />
           </div>
         )}
         {activeTab === "contratos"  && (
           <div className="p-6">
-            <ContratosTab clientId={client.id} clientName={client.name} />
+            <ContratosTab
+              clientId={client.id}
+              clientName={client.name}
+              initialProposalId={pendingContractProposalId}
+              onConsumedInitialProposal={() => setPendingContractProposalId(null)}
+            />
           </div>
         )}
         {activeTab === "documentos" && (

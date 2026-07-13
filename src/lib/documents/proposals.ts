@@ -56,6 +56,7 @@ export async function createProposal(
       benefits: data.benefits ?? null,
       budget: data.budget ?? null,
       timeline: data.timeline ?? null,
+      billingItemDrafts: data.billingItemDrafts ?? [],
       status: data.status,
       currentVersion: 1,
     })
@@ -84,6 +85,7 @@ export async function updateProposal(
   if (data.benefits !== undefined) set.benefits = data.benefits;
   if (data.budget !== undefined) set.budget = data.budget;
   if (data.timeline !== undefined) set.timeline = data.timeline;
+  if (data.billingItemDrafts !== undefined) set.billingItemDrafts = data.billingItemDrafts;
   if (data.status !== undefined) set.status = data.status;
   if (data.publicToken !== undefined) set.publicToken = data.publicToken;
   if (data.viewCount !== undefined) set.viewCount = data.viewCount;

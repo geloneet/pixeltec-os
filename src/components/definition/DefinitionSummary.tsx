@@ -66,7 +66,11 @@ export function DefinitionSummary({ data, onReopen }: Props) {
         </div>
 
         <div className="mt-5 border-t border-white/[0.06] pt-4">
-          <CreateProposalButton definitionId={data.id} proposalId={data.proposalId} />
+          <CreateProposalButton
+            definitionId={data.id}
+            proposalId={data.proposalId}
+            clientCrmId={data.clientCrmId}
+          />
           {data.proposalId && (
             <p className="mt-2 text-[11px] text-zinc-600">
               Si reabres una estación después de generar la propuesta, esta no

@@ -716,6 +716,9 @@ export const proposals = pgTable(
     benefits: text("benefits"),
     budget: text("budget"),
     timeline: text("timeline"),
+    // Conceptos de cobro opcionales (checkbox "Agregar precios" en el form).
+    // Viajan al contrato como billingItemDrafts al convertir vía el wizard.
+    billingItemDrafts: jsonb("billing_item_drafts").notNull().default([]),
     status: proposalStatusEnum("status").notNull().default("borrador"),
     contractId: uuid("contract_id"),
     publicToken: text("public_token"),

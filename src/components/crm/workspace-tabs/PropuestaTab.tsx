@@ -4,11 +4,31 @@ import { useState, useEffect, useCallback } from "react";
 import {
   ArrowLeft, FileText, Sparkles, Link2, MessageCircle, Mail,
   Download, Eye, Clock, CheckCircle2, XCircle, Send, RefreshCw,
-  ChevronDown, ChevronUp, Copy, Check, Pencil, Printer,
+  ChevronDown, ChevronUp, Copy, Check, Pencil, Printer, Plus, Trash2,
 } from "lucide-react";
 import { useUser } from "@/hooks/use-user";
-import type { Proposal } from "@/types/documents";
+import { KnowledgeMarkdown } from "@/components/crm/KnowledgeMarkdown";
+import {
+  BILLING_FREQUENCY_LABELS,
+  type Proposal,
+  type BillingFrequency,
+  type BillingItemDraft,
+} from "@/types/documents";
 import { getProposals, createProposal, updateProposal, publishProposal, sendProposalEmail } from "@/lib/documents/proposals";
+
+const PRICE_FREQUENCIES: BillingFrequency[] = ["unico", "mensual", "trimestral", "semestral", "anual"];
+
+interface PriceLine extends BillingItemDraft {
+  key: string;
+}
+
+function today(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function newPriceLine(): PriceLine {
+  return { key: crypto.randomUUID(), concept: "", amount: 0, frequency: "unico", dueDate: today() };
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -75,6 +95,8 @@ interface Props {
   clientId: string;
   clientName: string;
   clientEmail: string;
+  /** Dispara la navegación a Contratos con el wizard prellenado desde esta propuesta. */
+  onConvertToContract?: (proposalId: string) => void;
 }
 
 // ── CopyButton helper ─────────────────────────────────────────────────────────
@@ -99,7 +121,7 @@ function CopyButton({ text, children }: { text: string; children: React.ReactNod
 
 // ── Component ──────────────────────────────────────────────────────────────────
 
-export function PropuestaTab({ clientId, clientName, clientEmail }: Props) {
+export function PropuestaTab({ clientId, clientName, clientEmail, onConvertToContract }: Props) {
   const user = useUser();
 
   const [view, setView] = useState<"list" | "create" | "edit" | "detail">("list");
@@ -112,13 +134,14 @@ export function PropuestaTab({ clientId, clientName, clientEmail }: Props) {
   const [scope, setScope]     = useState("");
   const [budget, setBudget]   = useState("");
   const [timeline, setTimeline] = useState("");
+  const [showPricing, setShowPricing] = useState(false);
+  const [priceLines, setPriceLines] = useState<PriceLine[]>([]);
   const [generating, setGenerating] = useState(false);
   const [generatedData, setGeneratedData] = useState<{ solution: string; deliverables: string; benefits: string } | null>(null);
   const [saving, setSaving]   = useState(false);
 
   // Detail actions
   const [publishing, setPublishing] = useState(false);
-  const [converting, setConverting] = useState(false);
   const [sendingEmail, setSendingEmail] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
   const [showVersions, setShowVersions] = useState(false);
@@ -159,7 +182,18 @@ export function PropuestaTab({ clientId, clientName, clientEmail }: Props) {
   const resetForm = () => {
     setTitle(""); setScope(""); setBudget(""); setTimeline("");
     setGeneratedData(null);
+    setShowPricing(false); setPriceLines([]);
   };
+
+  const addPriceLine = () => setPriceLines(prev => [...prev, newPriceLine()]);
+  const updatePriceLine = (key: string, patch: Partial<PriceLine>) =>
+    setPriceLines(prev => prev.map(l => l.key === key ? { ...l, ...patch } : l));
+  const removePriceLine = (key: string) => setPriceLines(prev => prev.filter(l => l.key !== key));
+
+  const cleanPriceLines = (): BillingItemDraft[] =>
+    priceLines
+      .filter(l => l.concept.trim() && l.amount > 0)
+      .map(({ key: _key, ...rest }) => rest);
 
   const handleSave = async () => {
     if (!title.trim() || !scope.trim() || !user) return;
@@ -173,6 +207,7 @@ export function PropuestaTab({ clientId, clientName, clientEmail }: Props) {
         benefits: generatedData?.benefits,
         budget: budget.trim() || undefined,
         timeline: timeline.trim() || undefined,
+        billingItemDrafts: cleanPriceLines(),
         status: "borrador",
       });
       const data = await getProposals(user.uid, clientId);
@@ -203,6 +238,9 @@ export function PropuestaTab({ clientId, clientName, clientEmail }: Props) {
       deliverables: selected.deliverables ?? "",
       benefits: selected.benefits ?? "",
     });
+    const existingLines = (selected.billingItemDrafts ?? []).map(l => ({ ...l, key: crypto.randomUUID() }));
+    setPriceLines(existingLines);
+    setShowPricing(existingLines.length > 0);
     setView("edit");
   };
 
@@ -223,6 +261,7 @@ export function PropuestaTab({ clientId, clientName, clientEmail }: Props) {
         benefits: generatedData?.benefits || undefined,
         budget: budget.trim() || undefined,
         timeline: timeline.trim() || undefined,
+        billingItemDrafts: cleanPriceLines(),
       };
       await updateProposal(selected.id, patch);
       setSelected(prev => prev ? { ...prev, ...patch } : prev);
@@ -262,36 +301,6 @@ export function PropuestaTab({ clientId, clientName, clientEmail }: Props) {
       setTimeout(() => setEmailSent(false), 2500);
     } finally {
       setSendingEmail(false);
-    }
-  };
-
-  const handleConvertToContract = async () => {
-    if (!user || !selected) return;
-    setConverting(true);
-    try {
-      const { createContract } = await import("@/lib/documents/contracts");
-      const content = [
-        selected.scope && `ALCANCE:\n${selected.scope}`,
-        selected.solution && `\nSOLUCIÓN PROPUESTA:\n${selected.solution}`,
-        selected.deliverables && `\nENTREGABLES:\n${selected.deliverables}`,
-        selected.benefits && `\nBENEFICIOS:\n${selected.benefits}`,
-        selected.budget && `\nPRESUPUESTO: ${selected.budget}`,
-        selected.timeline && `\nTIMELINE: ${selected.timeline}`,
-      ].filter(Boolean).join("\n");
-
-      const newContractId = await createContract(user.uid, clientId, {
-        title: selected.title,
-        content,
-        status: "borrador",
-        signers: [],
-        variables: {},
-        proposalId: selected.id,
-      });
-      await updateProposal(selected.id, { status: "aceptada", contractId: newContractId });
-      setSelected(prev => prev ? { ...prev, status: "aceptada", contractId: newContractId } : prev);
-      await loadProposals();
-    } finally {
-      setConverting(false);
     }
   };
 
@@ -419,6 +428,75 @@ export function PropuestaTab({ clientId, clientName, clientEmail }: Props) {
               className="w-full rounded-lg border border-white/[0.06] bg-zinc-900/40 px-3 py-2 text-sm text-zinc-200 placeholder-zinc-600 focus:border-cyan-500/40 focus:outline-none"
             />
           </div>
+        </div>
+
+        <div>
+          <label className="flex items-center gap-2 text-xs font-medium text-zinc-400">
+            <input
+              type="checkbox"
+              checked={showPricing}
+              onChange={e => {
+                setShowPricing(e.target.checked);
+                if (e.target.checked && priceLines.length === 0) addPriceLine();
+              }}
+              className="h-3.5 w-3.5 rounded border-white/[0.2] bg-zinc-900/40 accent-cyan-500"
+            />
+            Agregar precios
+          </label>
+
+          {showPricing && (
+            <div className="mt-2 space-y-2">
+              {priceLines.map((line) => (
+                <div key={line.key} className="rounded-xl border border-white/[0.06] bg-zinc-900/20 p-3 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      value={line.concept}
+                      onChange={e => updatePriceLine(line.key, { concept: e.target.value })}
+                      placeholder="Concepto (ej. Costo Desarrollo: app + dominio 1 año incluido)"
+                      className="flex-1 rounded-lg border border-white/[0.06] bg-zinc-900/60 px-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-600 focus:border-cyan-500/40 focus:outline-none"
+                    />
+                    <button
+                      onClick={() => removePriceLine(line.key)}
+                      title="Eliminar"
+                      className="flex-shrink-0 text-zinc-600 hover:text-red-400 transition-colors"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      value={line.amount || ""}
+                      onChange={e => updatePriceLine(line.key, { amount: Number(e.target.value) })}
+                      placeholder="Monto"
+                      className="rounded-lg border border-white/[0.06] bg-zinc-900/60 px-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-600 focus:border-cyan-500/40 focus:outline-none"
+                    />
+                    <select
+                      value={line.frequency}
+                      onChange={e => updatePriceLine(line.key, { frequency: e.target.value as BillingFrequency })}
+                      className="rounded-lg border border-white/[0.06] bg-zinc-900/60 px-3 py-2 text-sm text-zinc-200 focus:border-cyan-500/40 focus:outline-none"
+                    >
+                      {PRICE_FREQUENCIES.map(f => (
+                        <option key={f} value={f}>{BILLING_FREQUENCY_LABELS[f]}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              ))}
+              <button
+                onClick={addPriceLine}
+                className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-white/[0.10] py-2 text-xs text-zinc-500 transition-all hover:border-cyan-500/30 hover:text-cyan-300"
+              >
+                <Plus className="h-3.5 w-3.5" /> Agregar concepto de cobro
+              </button>
+              <p className="text-[10px] text-zinc-600">
+                La frecuencia ya cubre cobros recurrentes — deja &ldquo;Único&rdquo; para un cobro
+                de una sola vez, o elige mensual/trimestral/semestral/anual para que se repita.
+              </p>
+            </div>
+          )}
         </div>
 
         <button
@@ -651,27 +729,27 @@ export function PropuestaTab({ clientId, clientName, clientEmail }: Props) {
       {/* Content sections */}
       <div className="rounded-xl border border-white/[0.06] bg-zinc-900/20 p-4">
         <p className="mb-1.5 text-xs font-medium text-zinc-500 uppercase tracking-wide">Alcance</p>
-        <p className="text-sm text-zinc-300 whitespace-pre-wrap">{selected.scope}</p>
+        <KnowledgeMarkdown content={selected.scope} />
       </div>
 
       {selected.solution && (
         <div className="rounded-xl border border-white/[0.06] bg-zinc-900/20 p-4">
           <p className="mb-1.5 text-xs font-medium text-zinc-500 uppercase tracking-wide">Solución propuesta</p>
-          <p className="text-sm text-zinc-300 whitespace-pre-wrap">{selected.solution}</p>
+          <KnowledgeMarkdown content={selected.solution} />
         </div>
       )}
 
       {selected.deliverables && (
         <div className="rounded-xl border border-white/[0.06] bg-zinc-900/20 p-4">
           <p className="mb-1.5 text-xs font-medium text-zinc-500 uppercase tracking-wide">Entregables</p>
-          <p className="text-sm text-zinc-300 whitespace-pre-wrap">{selected.deliverables}</p>
+          <KnowledgeMarkdown content={selected.deliverables} />
         </div>
       )}
 
       {selected.benefits && (
         <div className="rounded-xl border border-white/[0.06] bg-zinc-900/20 p-4">
           <p className="mb-1.5 text-xs font-medium text-zinc-500 uppercase tracking-wide">Beneficios</p>
-          <p className="text-sm text-zinc-300 whitespace-pre-wrap">{selected.benefits}</p>
+          <KnowledgeMarkdown content={selected.benefits} />
         </div>
       )}
 
@@ -692,28 +770,33 @@ export function PropuestaTab({ clientId, clientName, clientEmail }: Props) {
         </div>
       )}
 
-      {/* Status change */}
+      {/* Status change — botones, no dropdown */}
       <div>
         <label className="mb-1.5 block text-xs font-medium text-zinc-400">Estado</label>
-        <select
-          value={selected.status}
-          onChange={e => handleStatusChange(e.target.value as Proposal["status"])}
-          className="rounded-lg border border-white/[0.06] bg-zinc-900/40 px-3 py-2 text-sm text-zinc-200 focus:border-cyan-500/40 focus:outline-none"
-        >
+        <div className="flex flex-wrap gap-1.5">
           {(Object.keys(STATUS_CONFIG) as Proposal["status"][]).map(s => (
-            <option key={s} value={s}>{STATUS_CONFIG[s].label}</option>
+            <button
+              key={s}
+              type="button"
+              onClick={() => handleStatusChange(s)}
+              className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-all ${
+                selected.status === s
+                  ? STATUS_CONFIG[s].classes
+                  : "border-white/[0.06] bg-zinc-900/40 text-zinc-500 hover:text-zinc-300"
+              }`}
+            >
+              {STATUS_CONFIG[s].label}
+            </button>
           ))}
-        </select>
+        </div>
       </div>
 
       {/* Actions */}
       <div className="pt-1 flex flex-wrap gap-2">
-        {selected.status === "aceptada" || selected.contractId ? (
+        {selected.contractId ? (
           <div className="flex items-center gap-2 rounded-lg border border-green-500/20 bg-green-500/10 px-3 py-2">
             <CheckCircle2 className="h-3.5 w-3.5 text-green-400" />
-            <span className="text-xs font-medium text-green-400">
-              {selected.contractId ? "Contrato generado" : "Aceptada"}
-            </span>
+            <span className="text-xs font-medium text-green-400">Contrato generado</span>
           </div>
         ) : selected.status === "rechazada" ? (
           <div className="flex items-center gap-2 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2">
@@ -722,12 +805,12 @@ export function PropuestaTab({ clientId, clientName, clientEmail }: Props) {
           </div>
         ) : null}
 
-        {!selected.contractId && selected.status !== "rechazada" && (
+        {selected.status === "aceptada" && !selected.contractId && (
           <button
-            onClick={handleConvertToContract} disabled={converting}
-            className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-2 text-xs font-medium text-amber-300 transition-all hover:bg-amber-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => onConvertToContract?.(selected.id)}
+            className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-2 text-xs font-medium text-amber-300 transition-all hover:bg-amber-500/20"
           >
-            {converting ? "Convirtiendo..." : "Convertir a contrato"}
+            Convertir a contrato
           </button>
         )}
 
