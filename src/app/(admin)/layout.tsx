@@ -38,10 +38,18 @@ function Shell({
 
   return (
     <div className="flex h-dvh w-full flex-col overflow-hidden bg-background text-foreground font-sans">
-      {/* Ambient gradient: glow azul/violeta, igual que el resto del dark del sitio */}
+      {/* Ambient gradient: glow azul/violeta sutil, marca PixelTEC. La misma
+          intensidad que se ve bien sobre el fondo casi negro del dark
+          "lava" un fondo claro (dos overlays translúcidos apilados sobre
+          blanco leen como una mancha gris) — se reduce a la mitad en claro. */}
       <div
         aria-hidden
-        className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_top,rgba(59,130,246,0.08),transparent_50%),radial-gradient(ellipse_at_bottom,rgba(139,92,246,0.06),transparent_50%)]"
+        className={cn(
+          "pointer-events-none fixed inset-0",
+          resolvedTheme === "light"
+            ? "bg-[radial-gradient(ellipse_at_top,rgba(59,130,246,0.035),transparent_50%),radial-gradient(ellipse_at_bottom,rgba(139,92,246,0.025),transparent_50%)]"
+            : "bg-[radial-gradient(ellipse_at_top,rgba(59,130,246,0.08),transparent_50%),radial-gradient(ellipse_at_bottom,rgba(139,92,246,0.06),transparent_50%)]"
+        )}
       />
 
       <div className="relative z-10 flex h-full min-h-0 flex-col">

@@ -15,8 +15,8 @@ export default async function HoyPage() {
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-8">
       <header className="mb-6">
-        <h1 className="text-2xl font-semibold text-zinc-100">Hoy</h1>
-        <p className="text-sm text-zinc-500">
+        <h1 className="text-2xl font-semibold text-foreground">Hoy</h1>
+        <p className="text-sm text-muted-foreground">
           Proyectos activos y actividad reciente de clientes
         </p>
       </header>
