@@ -30,9 +30,9 @@ const IMPACTS: BlockerImpact[] = ["low", "medium", "high"];
 const SOURCES: BlockerSource[] = ["technical", "client", "infrastructure", "third_party", "internal"];
 
 const STATUS_COLORS: Record<BlockerStatus, string> = {
-  active:   "text-red-400 border-red-500/20 bg-red-500/[0.04]",
-  waiting:  "text-amber-400 border-amber-500/20 bg-amber-500/[0.04]",
-  resolved: "text-green-400 border-green-500/10 bg-green-500/[0.03]",
+  active:   "text-red-700 dark:text-red-400 border-red-500/20 bg-red-500/[0.04]",
+  waiting:  "text-amber-700 dark:text-amber-400 border-amber-500/20 bg-amber-500/[0.04]",
+  resolved: "text-green-700 dark:text-green-400 border-green-500/10 bg-green-500/[0.03]",
 };
 
 const STATUS_ICON: Record<BlockerStatus, { Icon: React.ComponentType<{ className?: string }>; cls: string }> = {
@@ -164,7 +164,7 @@ export function BlockTracker({ blockers, onAdd, onUpdateStatus, stats, prefillDe
         <p className="text-xs font-semibold text-muted-foreground">
           Bloqueos activos
           {(active.length + waiting.length) > 0 && (
-            <span className="ml-2 rounded-full bg-red-500/10 px-1.5 py-0.5 text-[0.6rem] font-medium text-red-400">
+            <span className="ml-2 rounded-full bg-red-500/10 px-1.5 py-0.5 text-[0.6rem] font-medium text-red-700 dark:text-red-400">
               {active.length + waiting.length}
             </span>
           )}

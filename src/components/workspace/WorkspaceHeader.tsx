@@ -95,9 +95,9 @@ export function WorkspaceHeader({ session, task, elapsed }: Props) {
           return (
             <span className={`flex-shrink-0 text-[0.6rem] font-medium px-1.5 py-0.5 rounded border ${
               isBlocker
-                ? "text-red-400 border-red-500/20 bg-red-500/[0.06]"
+                ? "text-red-700 dark:text-red-400 border-red-500/20 bg-red-500/[0.06]"
                 : isLow
-                  ? "text-amber-400 border-amber-500/20 bg-amber-500/[0.04]"
+                  ? "text-amber-700 dark:text-amber-400 border-amber-500/20 bg-amber-500/[0.04]"
                   : "text-cyan-500/80 border-cyan-500/20 bg-cyan-500/[0.04]"
             }`}>
               {label}

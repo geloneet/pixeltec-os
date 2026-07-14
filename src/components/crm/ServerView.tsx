@@ -59,21 +59,21 @@ function getStatusBadge(status: string, active: boolean): { label: string; bg: s
   }
   const s = status.toLowerCase();
   if (s.startsWith("up") || s === "online") {
-    return { label: "Online", bg: "bg-green-500/10", text: "text-green-400" };
+    return { label: "Online", bg: "bg-green-500/10", text: "text-green-700 dark:text-green-400" };
   }
   if (s === "stopped") {
-    return { label: "Detenido", bg: "bg-red-500/10", text: "text-red-400" };
+    return { label: "Detenido", bg: "bg-red-500/10", text: "text-red-700 dark:text-red-400" };
   }
   if (s === "manual") {
     return { label: "Manual", bg: "bg-muted", text: "text-muted-foreground" };
   }
-  return { label: "Desconocido", bg: "bg-amber-500/10", text: "text-amber-400" };
+  return { label: "Desconocido", bg: "bg-amber-500/10", text: "text-amber-700 dark:text-amber-400" };
 }
 
 function TypeBadge({ type }: { type: string }) {
   if (type === "docker-compose" || type === "docker") {
     return (
-      <span className="inline-flex items-center gap-1 rounded-md bg-sky-500/10 px-2 py-0.5 text-[11px] font-medium text-sky-400">
+      <span className="inline-flex items-center gap-1 rounded-md bg-sky-500/10 px-2 py-0.5 text-[11px] font-medium text-sky-700 dark:text-sky-400">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M22 12.5c-.5-1-2-1.5-3.5-1.5H18c0-1.5-.5-3-2-3.5 0 0-.5 1.5-3 1.5S10 8 8.5 9c-1 .5-2 1.5-2.5 3H4.5C3 12 1.5 12.5 1 13.5"/>
           <rect x="4" y="6" width="3" height="3" rx=".5"/><rect x="8" y="6" width="3" height="3" rx=".5"/><rect x="12" y="6" width="3" height="3" rx=".5"/>
@@ -85,7 +85,7 @@ function TypeBadge({ type }: { type: string }) {
   }
   if (type === "pm2") {
     return (
-      <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-400">
+      <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:text-amber-400">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/>
         </svg>
@@ -403,8 +403,8 @@ export function ServerView() {
       {toast && (
         <div className={`fixed top-4 right-4 z-50 rounded-lg px-4 py-3 text-sm font-medium shadow-lg transition-all duration-300 ${
           toast.type === "success"
-            ? "bg-green-500/15 text-green-400 border border-green-500/20"
-            : "bg-red-500/15 text-red-400 border border-red-500/20"
+            ? "bg-green-500/15 text-green-700 dark:text-green-400 border border-green-500/20"
+            : "bg-red-500/15 text-red-700 dark:text-red-400 border border-red-500/20"
         }`}>
           {toast.message}
         </div>
@@ -537,8 +537,8 @@ export function ServerView() {
                       {health && (
                         <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${
                           health.ok
-                            ? "bg-green-500/10 text-green-400"
-                            : "bg-red-500/10 text-red-400"
+                            ? "bg-green-500/10 text-green-700 dark:text-green-400"
+                            : "bg-red-500/10 text-red-700 dark:text-red-400"
                         }`}>
                           {health.ok ? `${health.statusCode} OK` : health.error ? "Down" : `${health.statusCode}`}
                         </span>

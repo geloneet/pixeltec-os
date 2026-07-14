@@ -328,7 +328,7 @@ export function ProjectView({
             <div className={cn("rounded-xl border p-4 transition-colors", projectStats.stopped > 0 ? "border-red-500/20 bg-red-500/[0.04]" : "border-border bg-card")}>
               <PauseCircle className={cn("mb-2 h-4 w-4", projectStats.stopped > 0 ? "text-red-400" : "text-cyan-400")} strokeWidth={1.75} />
               <p className={cn("tabular-nums text-2xl font-bold", projectStats.stopped > 0 ? "text-red-700 dark:text-red-300" : "text-foreground")}>{projectStats.stopped}</p>
-              <p className={cn("mt-0.5 text-[11px]", projectStats.stopped > 0 ? "text-red-400/70" : "text-muted-foreground")}>Detenidas</p>
+              <p className={cn("mt-0.5 text-[11px]", projectStats.stopped > 0 ? "text-red-700/70 dark:text-red-400/70" : "text-muted-foreground")}>Detenidas</p>
             </div>
             <div className="rounded-xl border border-border bg-card p-4">
               <TrendingUp className="mb-2 h-4 w-4 text-cyan-400" strokeWidth={1.75} />
@@ -718,7 +718,7 @@ export function ProjectView({
                         <div className="min-w-0 flex-1">
                           <div className="mb-1 flex items-center gap-2">
                             <span className="text-sm font-semibold text-foreground">{charge.concept}</span>
-                            <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium", charge.frequency === "monthly" ? "bg-amber-500/10 text-amber-400" : "bg-cyan-500/10 text-cyan-400")}>
+                            <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium", charge.frequency === "monthly" ? "bg-amber-500/10 text-amber-700 dark:text-amber-400" : "bg-cyan-500/10 text-cyan-400")}>
                               {charge.frequency === "monthly" ? "Mensual" : "Anual"}
                             </span>
                           </div>
@@ -731,7 +731,7 @@ export function ProjectView({
                         <div className="flex flex-shrink-0 items-center gap-1.5">
                           <button
                             onClick={() => updateCharge(client.id, project.id, charge.id, { active: !charge.active })}
-                            className={cn("rounded-lg px-2 py-1 text-[11px] transition-all", charge.active ? "bg-green-500/10 text-green-400" : "border border-border bg-muted text-muted-foreground")}
+                            className={cn("rounded-lg px-2 py-1 text-[11px] transition-all", charge.active ? "bg-green-500/10 text-green-700 dark:text-green-400" : "border border-border bg-muted text-muted-foreground")}
                           >
                             {charge.active ? "Activo" : "Inactivo"}
                           </button>

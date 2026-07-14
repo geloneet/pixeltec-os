@@ -209,7 +209,7 @@ export function ConversationList({
 
   if (error && !conversations?.length) {
     return (
-      <div className="p-4 text-sm text-red-400">
+      <div className="p-4 text-sm text-red-700 dark:text-red-400">
         Error cargando conversaciones: {error}
       </div>
     );
@@ -228,7 +228,7 @@ export function ConversationList({
       {/* Error no bloqueante: pixelbot momentáneamente inalcanzable — se conserva
           la última lista conocida en vez de vaciar la pantalla (polling la reintenta solo). */}
       {error && (
-        <div className="flex-shrink-0 border-b border-red-500/20 bg-red-500/5 px-4 py-1.5 text-[11px] text-red-400">
+        <div className="flex-shrink-0 border-b border-red-500/20 bg-red-500/5 px-4 py-1.5 text-[11px] text-red-700 dark:text-red-400">
           No se pudo actualizar — mostrando la última lista conocida.
         </div>
       )}

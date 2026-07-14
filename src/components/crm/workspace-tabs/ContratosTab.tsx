@@ -28,10 +28,10 @@ function formatDate(iso: string) {
 
 const STATUS_CONFIG: Record<Contract["status"], { label: string; classes: string; Icon: React.ComponentType<{ className?: string }> }> = {
   borrador:    { label: "Borrador",    classes: "bg-muted text-muted-foreground border-border",  Icon: FileText },
-  en_revision: { label: "En revisión", classes: "bg-blue-500/15 text-blue-300 border-blue-500/20",  Icon: Clock },
-  firmado:     { label: "Firmado",     classes: "bg-green-500/15 text-green-300 border-green-500/20", Icon: CheckCircle2 },
-  vencido:     { label: "Vencido",     classes: "bg-amber-500/15 text-amber-400 border-amber-500/20", Icon: AlertCircle },
-  cancelado:   { label: "Cancelado",   classes: "bg-red-500/15 text-red-400 border-red-500/20",      Icon: XCircle },
+  en_revision: { label: "En revisión", classes: "bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/20",  Icon: Clock },
+  firmado:     { label: "Firmado",     classes: "bg-green-500/15 text-green-700 dark:text-green-300 border-green-500/20", Icon: CheckCircle2 },
+  vencido:     { label: "Vencido",     classes: "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/20", Icon: AlertCircle },
+  cancelado:   { label: "Cancelado",   classes: "bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/20",      Icon: XCircle },
 };
 
 // Timeline steps
@@ -372,7 +372,7 @@ export function ContratosTab({ clientId, clientName, initialProposalId, onConsum
       {/* Firma pendiente de vincular proyecto — reintentable */}
       {selectedContract.status === "firmado" && !selectedContract.projectId && (
         <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2">
-          <p className="text-xs text-amber-300">
+          <p className="text-xs text-amber-700 dark:text-amber-300">
             {signError ?? "El contrato está firmado pero falta crear/vincular el proyecto CRM."}
           </p>
           <button
