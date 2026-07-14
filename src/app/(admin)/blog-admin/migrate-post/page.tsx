@@ -26,10 +26,10 @@ export default function MigratePage() {
 
   return (
     <div className="max-w-md">
-      <h1 className="mb-1 text-xl font-bold text-white">Migración: strip code fence wrapper</h1>
-      <p className="mb-6 text-sm text-zinc-500">
+      <h1 className="mb-1 text-xl font-bold text-foreground">Migración: strip code fence wrapper</h1>
+      <p className="mb-6 text-sm text-muted-foreground">
         Slug:{' '}
-        <code className="rounded bg-white/10 px-1.5 py-0.5 font-mono text-blue-400">
+        <code className="rounded bg-secondary px-1.5 py-0.5 font-mono text-blue-400">
           como-tomar-un-curso-de-ia-gratis
         </code>
         <br />
@@ -40,20 +40,20 @@ export default function MigratePage() {
       <button
         onClick={handleMigrate}
         disabled={status === 'running' || status === 'done'}
-        className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-zinc-700"
+        className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-muted"
       >
         {status === 'running' ? 'Ejecutando...' : status === 'done' ? '✓ Completado' : 'Ejecutar migración'}
       </button>
 
       {status === 'done' && result && (
-        <div className="mt-4 rounded-lg border border-white/10 bg-white/5 p-4 text-sm text-zinc-300">
+        <div className="mt-4 rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
           <p>
             Body antes:{' '}
-            <span className="font-mono text-white">{result.before.toLocaleString('es-MX')}</span> chars
+            <span className="font-mono text-foreground">{result.before.toLocaleString('es-MX')}</span> chars
           </p>
           <p>
             Body después:{' '}
-            <span className="font-mono text-white">{result.after.toLocaleString('es-MX')}</span> chars
+            <span className="font-mono text-foreground">{result.after.toLocaleString('es-MX')}</span> chars
           </p>
           <p>
             Eliminados:{' '}

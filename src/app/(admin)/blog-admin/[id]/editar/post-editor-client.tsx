@@ -66,11 +66,11 @@ const STATUS_LABEL: Record<BlogPostStatus, string> = {
 };
 
 const STATUS_CLASS: Record<BlogPostStatus, string> = {
-  draft: "bg-zinc-700 text-zinc-300",
-  "needs-review": "bg-yellow-500/20 text-yellow-300",
-  approved: "bg-blue-500/20 text-blue-300",
-  published: "bg-green-500/20 text-green-300",
-  archived: "bg-zinc-800 text-zinc-500",
+  draft: "bg-muted text-muted-foreground",
+  "needs-review": "bg-yellow-500/20 text-yellow-700 dark:text-yellow-300",
+  approved: "bg-blue-500/20 text-blue-700 dark:text-blue-300",
+  published: "bg-green-500/20 text-green-700 dark:text-green-300",
+  archived: "bg-muted text-muted-foreground",
 };
 
 // ─── Tag Input ─────────────────────────────────────────────────────────────────
@@ -104,11 +104,11 @@ function TagInput({ value, onChange }: TagInputProps) {
   }
 
   return (
-    <div className="flex min-h-[42px] flex-wrap gap-1.5 rounded-md border border-white/10 bg-white/5 px-3 py-2">
+    <div className="flex min-h-[42px] flex-wrap gap-1.5 rounded-md border border-border bg-background px-3 py-2">
       {value.map((tag) => (
         <span
           key={tag}
-          className="inline-flex items-center gap-1 rounded-full bg-blue-500/20 px-2.5 py-0.5 text-xs font-medium text-blue-300"
+          className="inline-flex items-center gap-1 rounded-full bg-blue-500/20 px-2.5 py-0.5 text-xs font-medium text-blue-700 dark:text-blue-300"
         >
           {tag}
           <button
@@ -130,7 +130,7 @@ function TagInput({ value, onChange }: TagInputProps) {
         }}
         placeholder={value.length === 0 ? "Agregar etiqueta…" : ""}
         disabled={value.length >= 8}
-        className="min-w-[120px] flex-1 bg-transparent text-sm text-zinc-100 placeholder:text-zinc-600 outline-none disabled:cursor-not-allowed"
+        className="min-w-[120px] flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none disabled:cursor-not-allowed"
       />
     </div>
   );
@@ -293,20 +293,20 @@ export function PostEditorClient({ post }: PostEditorClientProps) {
   return (
     <>
       <AlertDialog open={archiveOpen} onOpenChange={setArchiveOpen}>
-        <AlertDialogContent className="bg-zinc-950 border border-white/10 text-white">
+        <AlertDialogContent className="border-border bg-background text-foreground">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-white">¿Archivar este post?</AlertDialogTitle>
-            <AlertDialogDescription className="text-zinc-400">
+            <AlertDialogTitle className="text-foreground">¿Archivar este post?</AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground">
               El post será retirado de la lista activa. Puedes restaurarlo más tarde cambiando su estado.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="border-white/10 bg-white/[0.04] text-zinc-300 hover:bg-white/[0.08]">
+            <AlertDialogCancel className="border-border bg-secondary/50 text-foreground hover:bg-secondary">
               Cancelar
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={executeArchive}
-              className="bg-zinc-700 text-white hover:bg-zinc-600"
+              className="bg-secondary text-secondary-foreground hover:bg-secondary/80"
             >
               Archivar
             </AlertDialogAction>
@@ -319,11 +319,11 @@ export function PostEditorClient({ post }: PostEditorClientProps) {
         {/* ── Main editor (2/3) ── */}
         <div className="space-y-5 lg:col-span-2">
           <div className="flex items-center justify-between">
-            <h1 className="text-xl font-bold text-zinc-100">Editar post</h1>
+            <h1 className="text-xl font-bold text-foreground">Editar post</h1>
             {/* Save status indicator */}
-            <span className="text-xs text-zinc-500">
+            <span className="text-xs text-muted-foreground">
               {saveStatus === "saving" && (
-                <span className="flex items-center gap-1 text-zinc-400">
+                <span className="flex items-center gap-1 text-muted-foreground">
                   <Spinner size="sm" />
                   Guardando…
                 </span>
@@ -343,19 +343,19 @@ export function PostEditorClient({ post }: PostEditorClientProps) {
             name="coverImage"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-zinc-300">Imagen de portada (URL)</FormLabel>
+                <FormLabel className="text-muted-foreground">Imagen de portada (URL)</FormLabel>
                 <FormControl>
                   <Input
                     {...field}
                     value={field.value ?? ""}
                     onChange={(e) => field.onChange(e.target.value || null)}
-                    className="bg-white/5 border-white/10 text-zinc-100 placeholder:text-zinc-600 focus:border-blue-500/50"
+                    className="bg-background border-border text-foreground placeholder:text-muted-foreground focus:border-blue-500/50"
                     placeholder="https://images.unsplash.com/…"
                   />
                 </FormControl>
                 <FormMessage />
                 {watchedCoverImage && !coverError && (
-                  <div className="relative mt-2 h-40 w-full overflow-hidden rounded-lg border border-white/10">
+                  <div className="relative mt-2 h-40 w-full overflow-hidden rounded-lg border border-border">
                     <Image
                       src={watchedCoverImage}
                       alt="Cover preview"
@@ -378,11 +378,11 @@ export function PostEditorClient({ post }: PostEditorClientProps) {
             name="title"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-zinc-300">Título</FormLabel>
+                <FormLabel className="text-muted-foreground">Título</FormLabel>
                 <FormControl>
                   <Input
                     {...field}
-                    className="bg-white/5 border-white/10 text-zinc-100 text-2xl font-bold placeholder:text-zinc-600 focus:border-blue-500/50 h-auto py-3"
+                    className="bg-background border-border text-foreground text-2xl font-bold placeholder:text-muted-foreground focus:border-blue-500/50 h-auto py-3"
                     placeholder="Título del artículo"
                   />
                 </FormControl>
@@ -398,13 +398,13 @@ export function PostEditorClient({ post }: PostEditorClientProps) {
             render={({ field }) => (
               <FormItem>
                 <div className="flex items-center justify-between">
-                  <FormLabel className="text-zinc-300">Extracto</FormLabel>
+                  <FormLabel className="text-muted-foreground">Extracto</FormLabel>
                   <span
                     className={cn(
                       "text-xs",
                       (field.value?.length ?? 0) > 160
                         ? "text-red-400"
-                        : "text-zinc-500",
+                        : "text-muted-foreground",
                     )}
                   >
                     {field.value?.length ?? 0}/160
@@ -416,7 +416,7 @@ export function PostEditorClient({ post }: PostEditorClientProps) {
                     rows={2}
                     maxLength={160}
                     placeholder="Resumen del artículo para SEO y listados"
-                    className="bg-white/5 border-white/10 text-zinc-100 placeholder:text-zinc-600 focus:border-blue-500/50 resize-none"
+                    className="bg-background border-border text-foreground placeholder:text-muted-foreground focus:border-blue-500/50 resize-none"
                   />
                 </FormControl>
                 <FormMessage />
@@ -430,7 +430,7 @@ export function PostEditorClient({ post }: PostEditorClientProps) {
             name="body"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-zinc-300">
+                <FormLabel className="text-muted-foreground">
                   Cuerpo (Markdown)
                 </FormLabel>
                 <FormControl>
@@ -438,7 +438,7 @@ export function PostEditorClient({ post }: PostEditorClientProps) {
                     {...field}
                     rows={24}
                     placeholder="# Título&#10;&#10;Escribe el contenido en Markdown…"
-                    className="bg-white/5 border-white/10 text-zinc-100 placeholder:text-zinc-600 focus:border-blue-500/50 resize-y font-mono text-sm"
+                    className="bg-background border-border text-foreground placeholder:text-muted-foreground focus:border-blue-500/50 resize-y font-mono text-sm"
                   />
                 </FormControl>
                 <FormMessage />
@@ -452,7 +452,7 @@ export function PostEditorClient({ post }: PostEditorClientProps) {
             name="tags"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-zinc-300">Etiquetas</FormLabel>
+                <FormLabel className="text-muted-foreground">Etiquetas</FormLabel>
                 <FormControl>
                   <TagInput value={field.value} onChange={field.onChange} />
                 </FormControl>
@@ -467,22 +467,22 @@ export function PostEditorClient({ post }: PostEditorClientProps) {
             name="category"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-zinc-300">Categoría</FormLabel>
+                <FormLabel className="text-muted-foreground">Categoría</FormLabel>
                 <Select
                   onValueChange={field.onChange}
                   defaultValue={field.value}
                 >
                   <FormControl>
-                    <SelectTrigger className="bg-white/5 border-white/10 text-zinc-100 focus:border-blue-500/50">
+                    <SelectTrigger className="bg-background border-border text-foreground focus:border-blue-500/50">
                       <SelectValue placeholder="Selecciona una categoría" />
                     </SelectTrigger>
                   </FormControl>
-                  <SelectContent className="bg-zinc-900 border-zinc-700 text-zinc-100">
+                  <SelectContent className="border-border bg-popover/95 backdrop-blur-xl">
                     {CATEGORY_OPTIONS.map((opt) => (
                       <SelectItem
                         key={opt.value}
                         value={opt.value}
-                        className="focus:bg-zinc-800 focus:text-zinc-100"
+                        className="text-popover-foreground focus:bg-secondary focus:text-foreground"
                       >
                         {opt.label}
                       </SelectItem>
@@ -498,24 +498,24 @@ export function PostEditorClient({ post }: PostEditorClientProps) {
         {/* ── Sidebar (1/3) ── */}
         <div className="space-y-4">
           {/* Stats card */}
-          <section className="rounded-xl border border-white/5 bg-white/[0.03] p-4 space-y-3">
-            <h3 className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
+          <section className="rounded-xl border border-border bg-card p-4 space-y-3">
+            <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
               Estadísticas
             </h3>
             <div className="flex items-center justify-between text-sm">
-              <span className="text-zinc-400">Palabras</span>
-              <span className="font-medium text-zinc-200">
+              <span className="text-muted-foreground">Palabras</span>
+              <span className="font-medium text-foreground">
                 {new Intl.NumberFormat("es-MX").format(wordCount)}
               </span>
             </div>
             <div className="flex items-center justify-between text-sm">
-              <span className="text-zinc-400">Lectura</span>
-              <span className="font-medium text-zinc-200">
+              <span className="text-muted-foreground">Lectura</span>
+              <span className="font-medium text-foreground">
                 ~{readingTime} min
               </span>
             </div>
             <div className="flex items-center justify-between text-sm">
-              <span className="text-zinc-400">Estado</span>
+              <span className="text-muted-foreground">Estado</span>
               <span
                 className={cn(
                   "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
@@ -528,8 +528,8 @@ export function PostEditorClient({ post }: PostEditorClientProps) {
           </section>
 
           {/* SEO card */}
-          <section className="rounded-xl border border-white/5 bg-white/[0.03] p-4 space-y-4">
-            <h3 className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
+          <section className="rounded-xl border border-border bg-card p-4 space-y-4">
+            <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
               SEO
             </h3>
 
@@ -539,7 +539,7 @@ export function PostEditorClient({ post }: PostEditorClientProps) {
               render={({ field }) => (
                 <FormItem>
                   <div className="flex items-center justify-between">
-                    <FormLabel className="text-zinc-300 text-xs">
+                    <FormLabel className="text-muted-foreground text-xs">
                       Meta título
                     </FormLabel>
                     <span
@@ -547,7 +547,7 @@ export function PostEditorClient({ post }: PostEditorClientProps) {
                         "text-xs",
                         watchedSeoMetaTitle.length > 70
                           ? "text-red-400"
-                          : "text-zinc-500",
+                          : "text-muted-foreground",
                       )}
                     >
                       {watchedSeoMetaTitle.length}/70
@@ -559,7 +559,7 @@ export function PostEditorClient({ post }: PostEditorClientProps) {
                       value={field.value ?? ""}
                       maxLength={70}
                       placeholder="Meta título SEO"
-                      className="bg-white/5 border-white/10 text-zinc-100 text-xs placeholder:text-zinc-600 focus:border-blue-500/50"
+                      className="bg-background border-border text-foreground text-xs placeholder:text-muted-foreground focus:border-blue-500/50"
                     />
                   </FormControl>
                   <FormMessage />
@@ -573,7 +573,7 @@ export function PostEditorClient({ post }: PostEditorClientProps) {
               render={({ field }) => (
                 <FormItem>
                   <div className="flex items-center justify-between">
-                    <FormLabel className="text-zinc-300 text-xs">
+                    <FormLabel className="text-muted-foreground text-xs">
                       Meta descripción
                     </FormLabel>
                     <span
@@ -581,7 +581,7 @@ export function PostEditorClient({ post }: PostEditorClientProps) {
                         "text-xs",
                         watchedSeoMetaDescription.length > 160
                           ? "text-red-400"
-                          : "text-zinc-500",
+                          : "text-muted-foreground",
                       )}
                     >
                       {watchedSeoMetaDescription.length}/160
@@ -594,7 +594,7 @@ export function PostEditorClient({ post }: PostEditorClientProps) {
                       rows={3}
                       maxLength={160}
                       placeholder="Meta descripción SEO"
-                      className="bg-white/5 border-white/10 text-zinc-100 text-xs placeholder:text-zinc-600 focus:border-blue-500/50 resize-none"
+                      className="bg-background border-border text-foreground text-xs placeholder:text-muted-foreground focus:border-blue-500/50 resize-none"
                     />
                   </FormControl>
                   <FormMessage />
@@ -604,8 +604,8 @@ export function PostEditorClient({ post }: PostEditorClientProps) {
           </section>
 
           {/* Actions card */}
-          <section className="rounded-xl border border-white/5 bg-white/[0.03] p-4 space-y-2">
-            <h3 className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-3">
+          <section className="rounded-xl border border-border bg-card p-4 space-y-2">
+            <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">
               Acciones
             </h3>
 
@@ -661,14 +661,14 @@ export function PostEditorClient({ post }: PostEditorClientProps) {
               </Button>
             )}
 
-            <div className="border-t border-white/5 pt-2 space-y-2">
+            <div className="border-t border-border pt-2 space-y-2">
               {/* Regenerate */}
               <Button
                 type="button"
                 variant="outline"
                 onClick={handleRegenerate}
                 disabled={isPending}
-                className="w-full border-zinc-700 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-300 disabled:opacity-40"
+                className="w-full border-border text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-40"
               >
                 {isPending ? (
                   <Spinner size="sm" className="mr-2" />

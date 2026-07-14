@@ -33,11 +33,11 @@ const POST_STATUS_LABEL: Record<BlogPostStatus, string> = {
 };
 
 const POST_STATUS_CLASS: Record<BlogPostStatus, string> = {
-  draft: "bg-zinc-700 text-zinc-300",
-  "needs-review": "bg-yellow-500/20 text-yellow-300",
-  approved: "bg-blue-500/20 text-blue-300",
-  published: "bg-green-500/20 text-green-300",
-  archived: "bg-zinc-800 text-zinc-500",
+  draft: "bg-muted text-muted-foreground",
+  "needs-review": "bg-yellow-500/20 text-yellow-700 dark:text-yellow-300",
+  approved: "bg-blue-500/20 text-blue-700 dark:text-blue-300",
+  published: "bg-green-500/20 text-green-700 dark:text-green-300",
+  archived: "bg-muted text-muted-foreground",
 };
 
 const BRIEF_STATUS_LABEL: Record<BlogBriefStatus, string> = {
@@ -48,10 +48,10 @@ const BRIEF_STATUS_LABEL: Record<BlogBriefStatus, string> = {
 };
 
 const BRIEF_STATUS_CLASS: Record<BlogBriefStatus, string> = {
-  pending: "bg-zinc-700 text-zinc-300",
-  generating: "bg-yellow-500/20 text-yellow-300",
-  generated: "bg-green-500/20 text-green-300",
-  discarded: "bg-zinc-800 text-zinc-500",
+  pending: "bg-muted text-muted-foreground",
+  generating: "bg-yellow-500/20 text-yellow-700 dark:text-yellow-300",
+  generated: "bg-green-500/20 text-green-700 dark:text-green-300",
+  discarded: "bg-muted text-muted-foreground",
 };
 
 function PostStatusBadge({ status }: { status: BlogPostStatus }) {
@@ -108,8 +108,8 @@ export default async function BlogAdminPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-zinc-100">Blog Admin</h1>
-          <p className="mt-1 text-sm text-zinc-500">
+          <h1 className="text-2xl font-bold text-foreground">Blog Admin</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
             Gestiona borradores, revisiones y publicaciones del blog.
           </p>
         </div>
@@ -130,17 +130,17 @@ export default async function BlogAdminPage() {
 
       {/* Stats row */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="rounded-xl border border-white/5 bg-white/[0.03] p-4 text-center">
-          <p className="text-2xl font-bold text-zinc-100">{totalPosts}</p>
-          <p className="mt-1 text-xs text-zinc-500">Posts totales</p>
+        <div className="rounded-xl border border-border bg-card p-4 text-center">
+          <p className="text-2xl font-bold text-foreground">{totalPosts}</p>
+          <p className="mt-1 text-xs text-muted-foreground">Posts totales</p>
         </div>
-        <div className="rounded-xl border border-white/5 bg-white/[0.03] p-4 text-center">
+        <div className="rounded-xl border border-border bg-card p-4 text-center">
           <p className="text-2xl font-bold text-green-400">{publishedCount}</p>
-          <p className="mt-1 text-xs text-zinc-500">Publicados</p>
+          <p className="mt-1 text-xs text-muted-foreground">Publicados</p>
         </div>
-        <div className="rounded-xl border border-white/5 bg-white/[0.03] p-4 text-center">
+        <div className="rounded-xl border border-border bg-card p-4 text-center">
           <p className="text-2xl font-bold text-yellow-400">{needsReviewCount}</p>
-          <p className="mt-1 text-xs text-zinc-500">En revisión</p>
+          <p className="mt-1 text-xs text-muted-foreground">En revisión</p>
         </div>
       </div>
 
@@ -148,19 +148,19 @@ export default async function BlogAdminPage() {
       <div className="flex flex-col gap-6 lg:flex-row">
         {/* Posts section — 70% */}
         <section className="min-w-0 flex-[7]">
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-widest text-zinc-500">
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
             Posts
           </h2>
-          <div className="rounded-xl border border-white/5 bg-white/[0.03] overflow-hidden">
+          <div className="rounded-xl border border-border bg-card overflow-hidden">
             {posts.length === 0 ? (
-              <p className="px-6 py-10 text-center text-sm text-zinc-500">
+              <p className="px-6 py-10 text-center text-sm text-muted-foreground">
                 No hay posts todavía. Crea un brief para generar el primero.
               </p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[640px] text-sm">
                   <thead>
-                    <tr className="border-b border-white/5 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
+                    <tr className="border-b border-border text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
                       <th className="px-4 py-3">Título</th>
                       <th className="px-4 py-3">Estado</th>
                       <th className="px-4 py-3 hidden md:table-cell">Palabras</th>
@@ -168,22 +168,22 @@ export default async function BlogAdminPage() {
                       <th className="px-4 py-3"></th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-white/5">
+                  <tbody className="divide-y divide-border">
                     {posts.map((post) => (
                       <tr
                         key={post.id}
-                        className="transition-colors hover:bg-white/[0.02]"
+                        className="transition-colors hover:bg-secondary/60"
                       >
-                        <td className="px-4 py-3 text-zinc-200">
+                        <td className="px-4 py-3 text-foreground">
                           {truncate(post.title, 60)}
                         </td>
                         <td className="px-4 py-3">
                           <PostStatusBadge status={post.status} />
                         </td>
-                        <td className="px-4 py-3 text-zinc-400 hidden md:table-cell">
+                        <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">
                           {formatWordCount(post.wordCount)}
                         </td>
-                        <td className="px-4 py-3 text-zinc-400 hidden sm:table-cell">
+                        <td className="px-4 py-3 text-muted-foreground hidden sm:table-cell">
                           {formatDate(post.createdAt)}
                         </td>
                         <td className="px-4 py-3 text-right">
@@ -206,7 +206,7 @@ export default async function BlogAdminPage() {
         {/* Briefs section — 30% */}
         <section className="min-w-0 flex-[3]">
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-semibold uppercase tracking-widest text-zinc-500">
+            <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
               Briefs pendientes
             </h2>
             <Link
@@ -216,20 +216,20 @@ export default async function BlogAdminPage() {
               + Nuevo
             </Link>
           </div>
-          <div className="rounded-xl border border-white/5 bg-white/[0.03] divide-y divide-white/5">
+          <div className="rounded-xl border border-border bg-card divide-y divide-border">
             {briefs.length === 0 ? (
-              <p className="px-4 py-8 text-center text-sm text-zinc-500">
+              <p className="px-4 py-8 text-center text-sm text-muted-foreground">
                 No hay briefs activos.
               </p>
             ) : (
               briefs.map((brief) => (
                 <div key={brief.id} className="px-4 py-3 space-y-1">
-                  <p className="text-sm text-zinc-200 truncate">
+                  <p className="text-sm text-foreground truncate">
                     {truncate(brief.topic, 40)}
                   </p>
                   <div className="flex items-center justify-between gap-2">
                     <BriefStatusBadge status={brief.status} />
-                    <span className="text-xs text-zinc-500">
+                    <span className="text-xs text-muted-foreground">
                       {formatDate(brief.createdAt)}
                     </span>
                   </div>

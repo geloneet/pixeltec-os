@@ -73,14 +73,14 @@ function TagInput({ value, onChange, error }: TagInputProps) {
     <div className="space-y-2">
       <div
         className={cn(
-          "flex min-h-[42px] flex-wrap gap-1.5 rounded-md border bg-white/5 px-3 py-2",
-          error ? "border-red-500/60" : "border-white/10",
+          "flex min-h-[42px] flex-wrap gap-1.5 rounded-md border bg-background px-3 py-2",
+          error ? "border-red-500/60" : "border-border",
         )}
       >
         {value.map((tag) => (
           <span
             key={tag}
-            className="inline-flex items-center gap-1 rounded-full bg-blue-500/20 px-2.5 py-0.5 text-xs font-medium text-blue-300"
+            className="inline-flex items-center gap-1 rounded-full bg-blue-500/20 px-2.5 py-0.5 text-xs font-medium text-blue-700 dark:text-blue-300"
           >
             {tag}
             <button
@@ -109,10 +109,10 @@ function TagInput({ value, onChange, error }: TagInputProps) {
                 : "Máximo 8 puntos"
           }
           disabled={value.length >= 8}
-          className="min-w-[200px] flex-1 bg-transparent text-sm text-zinc-100 placeholder:text-zinc-600 outline-none disabled:cursor-not-allowed"
+          className="min-w-[200px] flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none disabled:cursor-not-allowed"
         />
       </div>
-      <p className="text-xs text-zinc-600">
+      <p className="text-xs text-muted-foreground/60">
         {value.length}/8 puntos · mínimo 2
       </p>
       {error && <p className="text-xs text-red-400">{error}</p>}
@@ -124,9 +124,9 @@ function TagInput({ value, onChange, error }: TagInputProps) {
 
 function GeneratingOverlay({ message }: { message: string }) {
   return (
-    <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 rounded-xl bg-zinc-900/80 backdrop-blur-sm">
+    <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 rounded-xl bg-background/80 backdrop-blur-sm">
       <Spinner size="lg" className="text-blue-400" />
-      <p className="text-sm font-medium text-zinc-300">{message}</p>
+      <p className="text-sm font-medium text-muted-foreground">{message}</p>
     </div>
   );
 }
@@ -189,14 +189,14 @@ export function NuevoBriefForm() {
             name="topic"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-zinc-300">
+                <FormLabel className="text-muted-foreground">
                   Tema del artículo
                 </FormLabel>
                 <FormControl>
                   <Input
                     {...field}
                     placeholder="ej: Cómo migrar de MySQL a Firestore en producción"
-                    className="bg-white/5 border-white/10 text-zinc-100 placeholder:text-zinc-600 focus:border-blue-500/50"
+                    className="bg-background border-border text-foreground placeholder:text-muted-foreground focus:border-blue-500/50"
                   />
                 </FormControl>
                 <FormMessage />
@@ -210,7 +210,7 @@ export function NuevoBriefForm() {
             name="angle"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-zinc-300">
+                <FormLabel className="text-muted-foreground">
                   Ángulo técnico específico
                 </FormLabel>
                 <FormControl>
@@ -218,7 +218,7 @@ export function NuevoBriefForm() {
                     {...field}
                     rows={3}
                     placeholder="ej: Sin downtime usando doble-write pattern, enfocado en equipos de 2-5 ingenieros"
-                    className="bg-white/5 border-white/10 text-zinc-100 placeholder:text-zinc-600 focus:border-blue-500/50 resize-none"
+                    className="bg-background border-border text-foreground placeholder:text-muted-foreground focus:border-blue-500/50 resize-none"
                   />
                 </FormControl>
                 <FormMessage />
@@ -232,14 +232,14 @@ export function NuevoBriefForm() {
             name="targetAudience"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-zinc-300">
+                <FormLabel className="text-muted-foreground">
                   Audiencia objetivo
                 </FormLabel>
                 <FormControl>
                   <Input
                     {...field}
                     placeholder="ej: CTOs de startups mexicanas con equipos pequeños"
-                    className="bg-white/5 border-white/10 text-zinc-100 placeholder:text-zinc-600 focus:border-blue-500/50"
+                    className="bg-background border-border text-foreground placeholder:text-muted-foreground focus:border-blue-500/50"
                   />
                 </FormControl>
                 <FormMessage />
@@ -253,7 +253,7 @@ export function NuevoBriefForm() {
             name="keyPoints"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-zinc-300">
+                <FormLabel className="text-muted-foreground">
                   Puntos clave (mín 2, máx 8)
                 </FormLabel>
                 <FormControl>
@@ -277,22 +277,22 @@ export function NuevoBriefForm() {
             name="tone"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-zinc-300">Tono</FormLabel>
+                <FormLabel className="text-muted-foreground">Tono</FormLabel>
                 <Select
                   onValueChange={field.onChange}
                   defaultValue={field.value}
                 >
                   <FormControl>
-                    <SelectTrigger className="bg-white/5 border-white/10 text-zinc-100 focus:border-blue-500/50">
+                    <SelectTrigger className="bg-background border-border text-foreground focus:border-blue-500/50">
                       <SelectValue placeholder="Selecciona el tono" />
                     </SelectTrigger>
                   </FormControl>
-                  <SelectContent className="bg-zinc-900 border-zinc-700 text-zinc-100">
+                  <SelectContent className="border-border bg-popover/95 backdrop-blur-xl">
                     {TONE_OPTIONS.map((opt) => (
                       <SelectItem
                         key={opt.value}
                         value={opt.value}
-                        className="focus:bg-zinc-800 focus:text-zinc-100"
+                        className="text-popover-foreground focus:bg-secondary focus:text-foreground"
                       >
                         {opt.label}
                       </SelectItem>

@@ -25,12 +25,12 @@ export function CreateProposalButton({ definitionId, proposalId, clientCrmId }: 
 
   if (proposalId) {
     return (
-      <div className="flex flex-wrap items-center gap-2 rounded-md border border-cyan-500/20 bg-cyan-500/5 px-3 py-2 text-sm text-cyan-300">
+      <div className="flex flex-wrap items-center gap-2 rounded-md border border-cyan-500/20 bg-cyan-500/5 px-3 py-2 text-sm text-cyan-700 dark:text-cyan-300">
         <CheckCircle2 className="h-4 w-4" />
         Propuesta generada
         <Link
           href={`/clientes/${clientCrmId}?tab=propuesta`}
-          className="ml-auto flex items-center gap-1 rounded-md border border-cyan-500/20 bg-cyan-500/10 px-2.5 py-1 text-xs font-medium text-cyan-300 transition-colors hover:bg-cyan-500/20"
+          className="ml-auto flex items-center gap-1 rounded-md border border-cyan-500/20 bg-cyan-500/10 px-2.5 py-1 text-xs font-medium text-cyan-700 dark:text-cyan-300 transition-colors hover:bg-cyan-500/20"
         >
           Ver propuesta
           <ArrowRight className="h-3 w-3" />

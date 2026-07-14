@@ -33,27 +33,27 @@ export default async function PerfilPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6 pb-16">
       <div>
-        <h1 className="text-2xl font-bold text-zinc-100">{getNavLabel("/perfil")}</h1>
-        <p className="mt-1 text-sm text-zinc-500">
+        <h1 className="text-2xl font-bold text-foreground">{getNavLabel("/perfil")}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
           Gestiona tu foto, información personal y seguridad.
         </p>
       </div>
 
       {/* Foto de perfil */}
-      <section className="rounded-xl border border-white/5 bg-white/[0.03] p-6">
-        <h2 className="mb-4 text-base font-semibold text-zinc-100">Foto de perfil</h2>
+      <section className="rounded-xl border border-border bg-card p-6">
+        <h2 className="mb-4 text-base font-semibold text-foreground">Foto de perfil</h2>
         <AvatarUploader initialPhotoUrl={row.image} />
       </section>
 
       {/* Información personal */}
-      <section className="rounded-xl border border-white/5 bg-white/[0.03] p-6">
-        <h2 className="mb-4 text-base font-semibold text-zinc-100">Información personal</h2>
+      <section className="rounded-xl border border-border bg-card p-6">
+        <h2 className="mb-4 text-base font-semibold text-foreground">Información personal</h2>
         <ProfileForm initialValues={initialValues} />
       </section>
 
       {/* Seguridad */}
-      <section className="rounded-xl border border-white/5 bg-white/[0.03] p-6">
-        <h2 className="mb-4 text-base font-semibold text-zinc-100">Seguridad</h2>
+      <section className="rounded-xl border border-border bg-card p-6">
+        <h2 className="mb-4 text-base font-semibold text-foreground">Seguridad</h2>
         <SecuritySettings />
       </section>
     </div>
