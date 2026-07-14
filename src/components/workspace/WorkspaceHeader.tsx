@@ -34,7 +34,7 @@ export function getFinalizeState(session: WorkSession): FinalizeState {
   if (activeBlockers.length > 0) {
     return {
       label: "Resolver bloqueos primero",
-      className: "opacity-50 cursor-not-allowed border-zinc-700/40 bg-zinc-800/20 text-zinc-600",
+      className: "opacity-50 cursor-not-allowed border-border bg-secondary/20 text-muted-foreground",
       disabled: true,
     };
   }
@@ -70,22 +70,22 @@ export function WorkspaceHeader({ session, task, elapsed }: Props) {
   const router = useRouter();
 
   return (
-    <div className="flex items-center border-b border-white/[0.06] bg-[#0F0F12] px-6 py-2.5 min-h-[48px]">
+    <div className="flex items-center border-b border-border bg-card px-6 py-2.5 min-h-[48px]">
       <div className="flex items-center gap-3 min-w-0 flex-1">
         <button
           onClick={() => router.push(`/proyectos/${session.projectId}?tab=tareas`)}
-          className="flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-300 transition-colors flex-shrink-0"
+          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
         >
           <ArrowLeft className="h-3 w-3" />
           Volver
         </button>
-        <div className="h-3 w-px bg-white/[0.08] flex-shrink-0" />
-        <p className="text-xs text-zinc-400 truncate min-w-0">
+        <div className="h-3 w-px bg-border flex-shrink-0" />
+        <p className="text-xs text-muted-foreground truncate min-w-0">
           <span>{session.clientName}</span>
-          <span className="text-zinc-700 mx-1.5">·</span>
+          <span className="text-muted-foreground/60 mx-1.5">·</span>
           <span>{session.projectName}</span>
-          <span className="text-zinc-700 mx-1.5">·</span>
-          <span className="text-zinc-200 font-medium">{session.taskName}</span>
+          <span className="text-muted-foreground/60 mx-1.5">·</span>
+          <span className="text-foreground font-medium">{session.taskName}</span>
         </p>
         {(() => {
           const label = focusLabel(session, elapsed);

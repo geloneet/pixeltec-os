@@ -35,10 +35,10 @@ export function SessionHistory({ sessions }: Props) {
 
   if (completed.length === 0) {
     return (
-      <div className="rounded-xl border border-white/[0.06] bg-zinc-900/20 p-6 text-center">
-        <Clock className="mx-auto mb-2 h-5 w-5 text-zinc-600" />
-        <p className="text-sm text-zinc-500">Sin sesiones de trabajo registradas</p>
-        <p className="mt-1 text-xs text-zinc-600">Las sesiones aparecerán aquí al finalizarlas</p>
+      <div className="rounded-xl border border-border bg-card p-6 text-center">
+        <Clock className="mx-auto mb-2 h-5 w-5 text-muted-foreground" />
+        <p className="text-sm text-muted-foreground">Sin sesiones de trabajo registradas</p>
+        <p className="mt-1 text-xs text-muted-foreground/60">Las sesiones aparecerán aquí al finalizarlas</p>
       </div>
     );
   }
@@ -46,31 +46,31 @@ export function SessionHistory({ sessions }: Props) {
   return (
     <div className="space-y-3">
       {/* Total hours summary */}
-      <div className="flex items-center gap-4 rounded-xl border border-white/[0.06] bg-zinc-900/20 p-4">
+      <div className="flex items-center gap-4 rounded-xl border border-border bg-card p-4">
         <div className="flex items-center gap-2">
           <Clock className="h-4 w-4 text-cyan-400" />
-          <span className="text-sm font-semibold text-zinc-100">{formatDuration(totalSeconds)}</span>
-          <span className="text-xs text-zinc-500">total trabajadas</span>
+          <span className="text-sm font-semibold text-foreground">{formatDuration(totalSeconds)}</span>
+          <span className="text-xs text-muted-foreground">total trabajadas</span>
         </div>
-        <div className="h-4 w-px bg-white/[0.06]" />
-        <span className="text-xs text-zinc-500">{completed.length} sesión{completed.length !== 1 ? "es" : ""}</span>
+        <div className="h-4 w-px bg-border" />
+        <span className="text-xs text-muted-foreground">{completed.length} sesión{completed.length !== 1 ? "es" : ""}</span>
       </div>
 
       {/* Sessions list */}
-      <div className="divide-y divide-white/[0.04] overflow-hidden rounded-xl border border-white/[0.06] bg-zinc-900/20">
+      <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
         {completed.map((session) => {
           const completedActivities = session.activities.filter((a) => a.completedAt).length;
           const openBlockerCount = session.blockers.filter((b) => b.status !== "resolved").length;
           return (
             <div key={session.id} className="px-4 py-3">
               <div className="mb-1 flex items-center justify-between">
-                <span className="text-sm font-medium text-zinc-200">{session.taskName}</span>
-                <span className="text-xs font-semibold tabular-nums text-zinc-300">
+                <span className="text-sm font-medium text-foreground">{session.taskName}</span>
+                <span className="text-xs font-semibold tabular-nums text-muted-foreground">
                   {session.durationSeconds ? formatDuration(session.durationSeconds) : "—"}
                 </span>
               </div>
-              <p className="mb-2 text-[11px] text-zinc-500">{formatDate(session.startedAt)}</p>
-              <div className="flex items-center gap-3 text-[11px] text-zinc-600">
+              <p className="mb-2 text-[11px] text-muted-foreground">{formatDate(session.startedAt)}</p>
+              <div className="flex items-center gap-3 text-[11px] text-muted-foreground/60">
                 <span className="flex items-center gap-1">
                   <Activity className="h-3 w-3" />
                   {completedActivities} actividad{completedActivities !== 1 ? "es" : ""}

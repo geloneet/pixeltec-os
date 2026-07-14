@@ -112,14 +112,14 @@ export function WorkspaceLayout({ sessionId, project, task, onSessionEnd }: Prop
 
   if (!ws.session) {
     return (
-      <div className="flex h-full items-center justify-center text-sm text-zinc-500">
+      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
         Cargando sesión...
       </div>
     );
   }
 
   return (
-    <div className="flex h-full flex-col bg-[#0F0F12]">
+    <div className="flex h-full flex-col bg-background">
       <WorkspaceHeader
         session={ws.session}
         task={task}
@@ -168,7 +168,7 @@ export function WorkspaceLayout({ sessionId, project, task, onSessionEnd }: Prop
         </div>
 
         {/* Right panel — 27% */}
-        <div className="w-[27%] flex-shrink-0 overflow-y-auto border-l border-white/[0.04]">
+        <div className="w-[27%] flex-shrink-0 overflow-y-auto border-l border-border">
           <ExecutionAssistant
             session={ws.session}
             project={project}

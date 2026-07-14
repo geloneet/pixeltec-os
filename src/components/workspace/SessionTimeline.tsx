@@ -56,8 +56,8 @@ export function SessionTimeline({ session }: Props) {
   if (nodes.length <= 1) return null; // Only show once there's at least one activity
 
   return (
-    <div className="rounded-xl border border-white/[0.06] bg-zinc-900/20 px-4 py-3">
-      <p className="text-[0.6rem] font-medium uppercase tracking-wider text-zinc-700 mb-2">Sesión del día</p>
+    <div className="rounded-xl border border-border bg-card px-4 py-3">
+      <p className="text-[0.6rem] font-medium uppercase tracking-wider text-muted-foreground/70 mb-2">Sesión del día</p>
       {/* Horizontal scroll strip */}
       <div
         ref={scrollRef}
@@ -71,25 +71,25 @@ export function SessionTimeline({ session }: Props) {
               <div
                 className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${
                   node.isStart
-                    ? "border border-zinc-600 bg-transparent"
+                    ? "border border-border bg-transparent"
                     : node.isActive
                       ? "bg-cyan-400"
-                      : "bg-zinc-500"
+                      : "bg-muted-foreground"
                 }`}
               />
               <div className="mt-1 text-center" style={{ minWidth: "48px", maxWidth: "64px" }}>
                 <p className={`text-[0.6rem] leading-tight truncate ${
-                  node.isActive ? "text-cyan-400" : "text-zinc-500"
+                  node.isActive ? "text-cyan-400" : "text-muted-foreground"
                 }`}>
                   {node.label}
                 </p>
-                <p className="text-[0.55rem] text-zinc-700 tabular-nums">{node.time}</p>
+                <p className="text-[0.55rem] text-muted-foreground/70 tabular-nums">{node.time}</p>
               </div>
             </div>
 
             {/* Connector to next node */}
             {i < nodes.length - 1 && (
-              <div className="h-px w-6 bg-white/[0.06] flex-shrink-0 mb-5" />
+              <div className="h-px w-6 bg-border flex-shrink-0 mb-5" />
             )}
           </div>
         ))}

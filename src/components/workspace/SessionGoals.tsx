@@ -57,15 +57,15 @@ export function SessionGoals({ goals, onAdd, onToggle, onRemove, onUpdate, onReo
   };
 
   return (
-    <div className="rounded-xl border border-white/[0.06] bg-zinc-900/20 p-4">
+    <div className="rounded-xl border border-border bg-card p-4">
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
-        <p className="text-xs font-semibold text-zinc-400">Objetivos de esta sesión</p>
+        <p className="text-xs font-semibold text-muted-foreground">Objetivos de esta sesión</p>
         {goals.length > 0 && (
           <div className="flex items-center gap-2">
             {/* Progress bar */}
             <div className="flex items-center gap-1.5">
-              <div className="w-16 h-1 rounded-full bg-zinc-800 overflow-hidden">
+              <div className="w-16 h-1 rounded-full bg-secondary overflow-hidden">
                 <motion.div
                   className="h-full rounded-full bg-green-500/70"
                   initial={{ width: 0 }}
@@ -73,7 +73,7 @@ export function SessionGoals({ goals, onAdd, onToggle, onRemove, onUpdate, onReo
                   transition={{ duration: 0.3, ease: "easeOut" }}
                 />
               </div>
-              <span className="text-[0.65rem] text-zinc-500 tabular-nums">{pct}%</span>
+              <span className="text-[0.65rem] text-muted-foreground tabular-nums">{pct}%</span>
             </div>
           </div>
         )}
@@ -81,12 +81,12 @@ export function SessionGoals({ goals, onAdd, onToggle, onRemove, onUpdate, onReo
 
       {goals.length === 0 ? (
         <div className="flex items-center gap-3 py-2 mb-2">
-          <div className="h-7 w-7 rounded-lg bg-zinc-800/60 flex items-center justify-center flex-shrink-0">
-            <ListTodo className="h-4 w-4 text-zinc-600" />
+          <div className="h-7 w-7 rounded-lg bg-secondary/60 flex items-center justify-center flex-shrink-0">
+            <ListTodo className="h-4 w-4 text-muted-foreground" />
           </div>
           <div>
-            <p className="text-xs text-zinc-400 font-medium">Sin objetivos definidos</p>
-            <p className="text-[0.65rem] text-zinc-600 leading-relaxed">
+            <p className="text-xs text-muted-foreground font-medium">Sin objetivos definidos</p>
+            <p className="text-[0.65rem] text-muted-foreground/60 leading-relaxed">
               Agrega hasta {MAX_ACTIVE} para mantener el foco.
             </p>
           </div>
@@ -123,7 +123,7 @@ export function SessionGoals({ goals, onAdd, onToggle, onRemove, onUpdate, onReo
                         ? "border-green-500 bg-green-500/20"
                         : isActive
                           ? "border-cyan-500/50 hover:border-cyan-400"
-                          : "border-zinc-600 hover:border-zinc-400"
+                          : "border-border hover:border-muted-foreground"
                     }`}
                     aria-label={goal.completed ? "Marcar como pendiente" : "Marcar como completado"}
                   >
@@ -145,12 +145,12 @@ export function SessionGoals({ goals, onAdd, onToggle, onRemove, onUpdate, onReo
                           if (e.key === "Enter") { e.preventDefault(); commitEdit(goal.id); }
                           if (e.key === "Escape") { setEditingId(null); }
                         }}
-                        className="w-full bg-transparent text-xs text-zinc-200 focus:outline-none border-b border-cyan-500/30"
+                        className="w-full bg-transparent text-xs text-foreground focus:outline-none border-b border-cyan-500/30"
                       />
                     ) : (
                       <span
                         className={`text-xs leading-relaxed ${
-                          goal.completed ? "line-through text-zinc-600" : "text-zinc-300"
+                          goal.completed ? "line-through text-muted-foreground/60" : "text-foreground"
                         }`}
                       >
                         {goal.text}
@@ -170,7 +170,7 @@ export function SessionGoals({ goals, onAdd, onToggle, onRemove, onUpdate, onReo
                       {i > 0 && (
                         <button
                           onClick={() => onReorder(goal.id, "up")}
-                          className="text-zinc-600 hover:text-zinc-400 transition-colors"
+                          className="text-muted-foreground/60 hover:text-muted-foreground transition-colors"
                           aria-label="Mover arriba"
                         >
                           <ChevronUp className="h-3 w-3" />
@@ -180,7 +180,7 @@ export function SessionGoals({ goals, onAdd, onToggle, onRemove, onUpdate, onReo
                       {i < goals.length - 1 && (
                         <button
                           onClick={() => onReorder(goal.id, "down")}
-                          className="text-zinc-600 hover:text-zinc-400 transition-colors"
+                          className="text-muted-foreground/60 hover:text-muted-foreground transition-colors"
                           aria-label="Mover abajo"
                         >
                           <ChevronDown className="h-3 w-3" />
@@ -189,7 +189,7 @@ export function SessionGoals({ goals, onAdd, onToggle, onRemove, onUpdate, onReo
                       {/* Edit */}
                       <button
                         onClick={() => startEdit(goal)}
-                        className="text-zinc-600 hover:text-zinc-400 transition-colors"
+                        className="text-muted-foreground/60 hover:text-muted-foreground transition-colors"
                         aria-label="Editar"
                       >
                         <Pen className="h-3 w-3" />
@@ -197,7 +197,7 @@ export function SessionGoals({ goals, onAdd, onToggle, onRemove, onUpdate, onReo
                       {/* Remove */}
                       <button
                         onClick={() => onRemove(goal.id)}
-                        className="text-zinc-600 hover:text-zinc-400 transition-colors"
+                        className="text-muted-foreground/60 hover:text-muted-foreground transition-colors"
                         aria-label="Eliminar objetivo"
                       >
                         <X className="h-3 w-3" />
@@ -220,12 +220,12 @@ export function SessionGoals({ goals, onAdd, onToggle, onRemove, onUpdate, onReo
           onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); handleSubmit(); } }}
           placeholder="Nuevo objetivo..."
           disabled={atLimit}
-          className="flex-1 rounded-lg border border-white/[0.06] bg-zinc-900/40 px-3 py-1.5 text-xs text-zinc-200 placeholder:text-zinc-600 focus:border-cyan-500/30 focus:outline-none transition-colors disabled:opacity-40"
+          className="flex-1 rounded-lg border border-border bg-secondary/40 px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/60 focus:border-cyan-500/30 focus:outline-none transition-colors disabled:opacity-40"
         />
         <button
           onClick={handleSubmit}
           disabled={!text.trim() || atLimit}
-          className="rounded-lg border border-white/[0.06] bg-zinc-900/40 px-3 py-1.5 text-xs text-zinc-400 hover:text-zinc-200 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+          className="rounded-lg border border-border bg-secondary/40 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-all disabled:opacity-40 disabled:cursor-not-allowed"
         >
           + Agregar
         </button>

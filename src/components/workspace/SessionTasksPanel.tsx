@@ -20,8 +20,8 @@ export function SessionTasksPanel({ tasks, projectId }: Props) {
   if (tasks.length === 0) return null;
 
   return (
-    <div className="rounded-xl border border-white/[0.06] bg-zinc-900/20 p-4">
-      <p className="mb-3 text-xs font-semibold text-zinc-400">
+    <div className="rounded-xl border border-border bg-card p-4">
+      <p className="mb-3 text-xs font-semibold text-muted-foreground">
         Tareas creadas en esta sesión
         <span className="ml-2 rounded-full bg-cyan-500/10 px-1.5 py-0.5 text-[0.6rem] font-medium text-cyan-400">
           {tasks.length}
@@ -35,14 +35,14 @@ export function SessionTasksPanel({ tasks, projectId }: Props) {
             <button
               key={task.id}
               onClick={() => router.push(`/proyectos/${projectId}?tab=tareas`)}
-              className="flex w-full items-center gap-2 rounded-lg border border-white/[0.06] bg-black/20 px-3 py-2 text-left transition-colors hover:border-white/[0.12] hover:bg-black/30"
+              className="flex w-full items-center gap-2 rounded-lg border border-border bg-secondary/40 px-3 py-2 text-left transition-colors hover:border-border hover:bg-secondary/60"
             >
-              <CheckSquare className="h-3.5 w-3.5 flex-shrink-0 text-zinc-600" />
+              <CheckSquare className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
               <span
                 className="h-1.5 w-1.5 flex-shrink-0 rounded-full"
                 style={{ backgroundColor: PRIORITIES[task.prio].color }}
               />
-              <span className="flex-1 truncate text-xs text-zinc-300">{task.name}</span>
+              <span className="flex-1 truncate text-xs text-foreground">{task.name}</span>
               <span className={cn("flex-shrink-0 rounded-full px-2 py-0.5 text-[0.6rem] font-medium", statusCfg.bg, statusCfg.text)}>
                 {statusCfg.label}
               </span>

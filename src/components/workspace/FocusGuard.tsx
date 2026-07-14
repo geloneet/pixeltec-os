@@ -12,10 +12,10 @@ export function FocusGuard({ open, onContinue, onChangeActivity, onPause }: Prop
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="w-full max-w-sm rounded-2xl border border-white/[0.08] bg-[#0F0F12] p-6 shadow-2xl">
+      <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-2xl">
         <div className="mb-1 text-2xl">⏸</div>
-        <h2 className="mb-1 text-base font-bold text-zinc-100">¿Sigues trabajando?</h2>
-        <p className="mb-5 text-sm text-zinc-500">
+        <h2 className="mb-1 text-base font-bold text-foreground">¿Sigues trabajando?</h2>
+        <p className="mb-5 text-sm text-muted-foreground">
           Han pasado 20 minutos sin interacción detectada.
         </p>
         <div className="flex flex-col gap-2">
@@ -27,13 +27,13 @@ export function FocusGuard({ open, onContinue, onChangeActivity, onPause }: Prop
           </button>
           <button
             onClick={onChangeActivity}
-            className="w-full rounded-lg border border-white/[0.06] bg-zinc-900/40 py-2.5 text-sm font-medium text-zinc-300 transition-all hover:bg-zinc-800/60"
+            className="w-full rounded-lg border border-border bg-secondary/40 py-2.5 text-sm font-medium text-muted-foreground transition-all hover:bg-secondary/60"
           >
             Cambiar actividad
           </button>
           <button
             onClick={onPause}
-            className="w-full rounded-lg border border-white/[0.06] bg-zinc-900/40 py-2.5 text-sm font-medium text-zinc-500 transition-all hover:text-zinc-300"
+            className="w-full rounded-lg border border-border bg-secondary/40 py-2.5 text-sm font-medium text-muted-foreground transition-all hover:text-foreground"
           >
             Sigo trabajando, cierra esto
           </button>
