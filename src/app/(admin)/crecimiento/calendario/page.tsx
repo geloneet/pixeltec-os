@@ -44,8 +44,8 @@ export default async function CalendarioPage() {
   return (
     <div className="mx-auto max-w-[1400px] px-6 py-8 lg:px-10">
       <header className="mb-8">
-        <h1 className="font-poppins text-3xl font-bold tracking-tight text-zinc-50">Calendario</h1>
-        <p className="mt-1 font-roboto text-sm text-zinc-500">
+        <h1 className="font-poppins text-3xl font-bold tracking-tight text-foreground">Calendario</h1>
+        <p className="mt-1 font-roboto text-sm text-muted-foreground">
           Vista de publicaciones programadas.
         </p>
       </header>

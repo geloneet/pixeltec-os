@@ -38,7 +38,7 @@ export function PublishButton({ postId, accounts, hasImage }: Props) {
 
   if (eligibleAccounts.length === 0) {
     return (
-      <p className="font-roboto text-xs text-zinc-600">
+      <p className="font-roboto text-xs text-muted-foreground/70">
         {accounts.length === 0
           ? 'Conecta una cuenta en /crecimiento/publisher'
           : 'Instagram requiere imagen para publicar'}
@@ -70,7 +70,7 @@ export function PublishButton({ postId, accounts, hasImage }: Props) {
     <div className="flex gap-2">
       {eligibleAccounts.length > 1 && (
         <select
-          className="flex-1 rounded-xl border border-zinc-700/60 bg-zinc-800/50 px-3 py-2 font-roboto text-sm text-zinc-100 outline-none"
+          className="flex-1 rounded-xl border border-border bg-background px-3 py-2 font-roboto text-sm text-foreground outline-none"
           value={selectedAccount}
           onChange={(e) => setSelectedAccount(e.target.value)}
         >

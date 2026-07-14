@@ -30,8 +30,8 @@ export default async function PublisherPage({ searchParams }: Props) {
     <div className="mx-auto max-w-[1400px] px-6 py-8 lg:px-10">
       <header className="mb-8 flex items-end justify-between gap-4">
         <div>
-          <h1 className="font-poppins text-3xl font-bold tracking-tight text-zinc-50">Publisher</h1>
-          <p className="mt-1 font-roboto text-sm text-zinc-500">
+          <h1 className="font-poppins text-3xl font-bold tracking-tight text-foreground">Publisher</h1>
+          <p className="mt-1 font-roboto text-sm text-muted-foreground">
             Conecta tus cuentas sociales para publicar directamente desde PixelTEC OS.
           </p>
         </div>
@@ -47,7 +47,7 @@ export default async function PublisherPage({ searchParams }: Props) {
       {metaConnected !== null && metaConnected > 0 && (
         <div className="mb-6 flex items-center gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3">
           <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
-          <p className="font-roboto text-sm text-emerald-300">
+          <p className="font-roboto text-sm text-emerald-700 dark:text-emerald-300">
             {metaConnected === 1
               ? '1 cuenta conectada correctamente.'
               : `${metaConnected} cuentas conectadas correctamente.`}
@@ -59,11 +59,11 @@ export default async function PublisherPage({ searchParams }: Props) {
         <div className="mb-6 flex items-start gap-3 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3">
           <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-red-400" />
           <div>
-            <p className="font-roboto text-sm text-red-300">
+            <p className="font-roboto text-sm text-red-700 dark:text-red-300">
               {errorMessages[metaError] ?? `Error: ${metaError}`}
             </p>
             {metaError === 'no_pages' && (
-              <p className="mt-1 font-roboto text-xs text-red-400/70">
+              <p className="mt-1 font-roboto text-xs text-red-700/70 dark:text-red-400/70">
                 Asegúrate de que tu cuenta de Facebook tenga al menos una Página de negocio y que hayas aceptado el permiso <code>pages_show_list</code>.
               </p>
             )}
@@ -72,17 +72,17 @@ export default async function PublisherPage({ searchParams }: Props) {
       )}
 
       {!hasAccounts ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-800 py-20 text-center">
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border py-20 text-center">
           <div className="mb-4 flex gap-3">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-800">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-secondary">
               <Instagram className="h-7 w-7 text-pink-400" />
             </div>
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-800">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-secondary">
               <Facebook className="h-7 w-7 text-blue-400" />
             </div>
           </div>
-          <h3 className="font-poppins text-lg font-bold text-zinc-300">Sin cuentas conectadas</h3>
-          <p className="mt-2 max-w-sm font-roboto text-sm text-zinc-600">
+          <h3 className="font-poppins text-lg font-bold text-foreground">Sin cuentas conectadas</h3>
+          <p className="mt-2 max-w-sm font-roboto text-sm text-muted-foreground">
             Conecta tu cuenta de Facebook Business para acceder a tus Páginas e
             Instagram Business Accounts vinculadas.
           </p>
@@ -110,24 +110,24 @@ export default async function PublisherPage({ searchParams }: Props) {
         </div>
       )}
 
-      <div className="mt-12 rounded-2xl border border-zinc-800/50 bg-zinc-900/40 p-6">
+      <div className="mt-12 rounded-2xl border border-border bg-card p-6">
         <div className="mb-4 flex items-center gap-2">
-          <Terminal className="h-4 w-4 text-zinc-500" />
-          <h2 className="font-poppins text-sm font-semibold text-zinc-400">
+          <Terminal className="h-4 w-4 text-muted-foreground" />
+          <h2 className="font-poppins text-sm font-semibold text-muted-foreground">
             Publicación automática (cron)
           </h2>
         </div>
-        <p className="mb-3 font-roboto text-sm text-zinc-500">
+        <p className="mb-3 font-roboto text-sm text-muted-foreground">
           Para publicar posts programados automáticamente, agrega este cron al VPS:
         </p>
-        <pre className="overflow-x-auto rounded-xl bg-zinc-950 p-4 font-mono text-xs text-zinc-400">
+        <pre className="overflow-x-auto rounded-xl bg-background p-4 font-mono text-xs text-muted-foreground">
 {`# Cada 5 minutos — publica posts con scheduledAt en el pasado
 */5 * * * * curl -s -X POST https://pixeltec.mx/api/growth/publish/scheduled \\
   -H "Authorization: Bearer $CRON_SECRET"`}
         </pre>
-        <p className="mt-3 font-roboto text-xs text-zinc-600">
-          La variable <code className="text-zinc-400">CRON_SECRET</code> ya está en tu{' '}
-          <code className="text-zinc-400">.env.local</code>.
+        <p className="mt-3 font-roboto text-xs text-muted-foreground/60">
+          La variable <code className="text-muted-foreground">CRON_SECRET</code> ya está en tu{' '}
+          <code className="text-muted-foreground">.env.local</code>.
         </p>
       </div>
     </div>

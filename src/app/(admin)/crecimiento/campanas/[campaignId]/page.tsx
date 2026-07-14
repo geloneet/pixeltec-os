@@ -16,7 +16,7 @@ export default async function CampaignDetailPage({ params }: Props) {
   return (
     <div className="mx-auto max-w-[1400px] px-6 py-8 lg:px-10">
       <nav className="mb-6">
-        <Link href="/crecimiento/campanas" className="flex items-center gap-1.5 font-roboto text-sm text-zinc-500 hover:text-zinc-300">
+        <Link href="/crecimiento/campanas" className="flex items-center gap-1.5 font-roboto text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="h-4 w-4" /> Campañas
         </Link>
       </nav>

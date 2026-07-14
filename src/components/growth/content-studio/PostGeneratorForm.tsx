@@ -19,7 +19,7 @@ const FORMAT_OPTIONS = [
   { value: 'twitter_post', label: 'Twitter/X' },
 ] as const;
 
-const inputCls = 'w-full rounded-xl border border-zinc-700/60 bg-zinc-800/50 px-3.5 py-2.5 font-roboto text-sm text-zinc-100 placeholder-zinc-600 outline-none transition-colors focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/30';
+const inputCls = 'w-full rounded-xl border border-border bg-background px-3.5 py-2.5 font-roboto text-sm text-foreground placeholder:text-muted-foreground outline-none transition-colors focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/30';
 
 interface Props {
   defaultBrandId?: string;
@@ -71,12 +71,12 @@ export function PostGeneratorForm({ defaultBrandId, onGenerated, onGenerating }:
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       <div className="flex items-center justify-between">
-        <h2 className="font-poppins text-lg font-bold text-zinc-100">Nuevo contenido</h2>
+        <h2 className="font-poppins text-lg font-bold text-foreground">Nuevo contenido</h2>
         <CreditBalance />
       </div>
 
       <div>
-        <label className="mb-1.5 block font-roboto text-sm font-medium text-zinc-300">Marca</label>
+        <label className="mb-1.5 block font-roboto text-sm font-medium text-muted-foreground">Marca</label>
         <select className={inputCls} value={brandId} onChange={(e) => setBrandId(e.target.value)} required>
           <option value="">Selecciona una marca...</option>
           {brands?.map((b: import('@/lib/growth/actions/brands').BrandBrainClient) => (
@@ -86,7 +86,7 @@ export function PostGeneratorForm({ defaultBrandId, onGenerated, onGenerating }:
       </div>
 
       <div>
-        <label className="mb-1.5 block font-roboto text-sm font-medium text-zinc-300">Formato</label>
+        <label className="mb-1.5 block font-roboto text-sm font-medium text-muted-foreground">Formato</label>
         <div className="flex flex-wrap gap-2">
           {FORMAT_OPTIONS.map((opt) => (
             <button
@@ -95,8 +95,8 @@ export function PostGeneratorForm({ defaultBrandId, onGenerated, onGenerating }:
               onClick={() => setFormat(opt.value)}
               className={`rounded-lg px-3 py-1.5 font-roboto text-xs font-medium transition-colors ${
                 format === opt.value
-                  ? 'bg-cyan-500/20 text-cyan-300 ring-1 ring-cyan-500/40'
-                  : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'
+                  ? 'bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 ring-1 ring-cyan-500/40'
+                  : 'bg-secondary text-muted-foreground hover:bg-secondary/80 hover:text-foreground'
               }`}
             >
               {opt.label}
@@ -106,7 +106,7 @@ export function PostGeneratorForm({ defaultBrandId, onGenerated, onGenerating }:
       </div>
 
       <div>
-        <label className="mb-1.5 block font-roboto text-sm font-medium text-zinc-300">
+        <label className="mb-1.5 block font-roboto text-sm font-medium text-muted-foreground">
           Objetivo del post <span className="text-red-400">*</span>
         </label>
         <textarea
@@ -120,8 +120,8 @@ export function PostGeneratorForm({ defaultBrandId, onGenerated, onGenerating }:
       </div>
 
       <div>
-        <label className="mb-1.5 block font-roboto text-sm font-medium text-zinc-300">
-          Tema específico <span className="font-normal text-zinc-600">(opcional)</span>
+        <label className="mb-1.5 block font-roboto text-sm font-medium text-muted-foreground">
+          Tema específico <span className="font-normal text-muted-foreground/70">(opcional)</span>
         </label>
         <input
           className={inputCls}
@@ -131,15 +131,15 @@ export function PostGeneratorForm({ defaultBrandId, onGenerated, onGenerating }:
         />
       </div>
 
-      <div className="flex items-center justify-between rounded-xl border border-zinc-800/60 p-3">
+      <div className="flex items-center justify-between rounded-xl border border-border p-3">
         <div>
-          <p className="font-roboto text-sm font-medium text-zinc-300">Generar imagen con IA</p>
-          <p className="font-roboto text-xs text-zinc-600">+{CREDIT_COSTS.post_image_flux - 0} créditos extra · Flux Schnell</p>
+          <p className="font-roboto text-sm font-medium text-muted-foreground">Generar imagen con IA</p>
+          <p className="font-roboto text-xs text-muted-foreground/70">+{CREDIT_COSTS.post_image_flux - 0} créditos extra · Flux Schnell</p>
         </div>
         <button
           type="button"
           onClick={() => setWithImage((v) => !v)}
-          className={`relative h-6 w-11 rounded-full transition-colors ${withImage ? 'bg-cyan-500' : 'bg-zinc-700'}`}
+          className={`relative h-6 w-11 rounded-full transition-colors ${withImage ? 'bg-cyan-500' : 'bg-secondary'}`}
         >
           <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${withImage ? 'translate-x-5' : 'translate-x-0.5'}`} />
         </button>
@@ -147,7 +147,7 @@ export function PostGeneratorForm({ defaultBrandId, onGenerated, onGenerating }:
 
       {error && (
         <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-3">
-          <p className="font-roboto text-sm text-red-400">{error}</p>
+          <p className="font-roboto text-sm text-red-700 dark:text-red-400">{error}</p>
         </div>
       )}
 

@@ -18,7 +18,7 @@ const PURPOSE_LABELS: Record<string, string> = {
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  pending: 'text-zinc-600',
+  pending: 'text-muted-foreground/70',
   generating: 'text-amber-400',
   done: 'text-emerald-400',
   failed: 'text-red-400',
@@ -53,8 +53,8 @@ export function CampaignDetail({ campaign }: Props) {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="font-poppins text-3xl font-bold text-zinc-50">{campaign.name}</h1>
-          <p className="mt-1 font-roboto text-sm text-zinc-500">{campaign.objective}</p>
+          <h1 className="font-poppins text-3xl font-bold text-foreground">{campaign.name}</h1>
+          <p className="mt-1 font-roboto text-sm text-muted-foreground">{campaign.objective}</p>
         </div>
         {!strategy && (
           <Button onClick={handleGenerateStrategy} disabled={generatingStrategy} className="gap-2">
@@ -67,10 +67,10 @@ export function CampaignDetail({ campaign }: Props) {
       </div>
 
       {!strategy && (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-800 py-16 text-center">
-          <Sparkles className="mb-4 h-10 w-10 text-zinc-700" />
-          <h3 className="font-poppins font-bold text-zinc-300">Sin estrategia aún</h3>
-          <p className="mt-2 font-roboto text-sm text-zinc-600">
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border py-16 text-center">
+          <Sparkles className="mb-4 h-10 w-10 text-muted-foreground/60" />
+          <h3 className="font-poppins font-bold text-foreground">Sin estrategia aún</h3>
+          <p className="mt-2 font-roboto text-sm text-muted-foreground">
             La IA creará un plan de posts coordinado basado en tu objetivo.
           </p>
         </div>
@@ -78,47 +78,47 @@ export function CampaignDetail({ campaign }: Props) {
 
       {strategy && (
         <div className="space-y-4">
-          <div className="rounded-2xl border border-zinc-800/50 bg-zinc-900/40 p-5">
-            <h2 className="mb-3 font-poppins text-lg font-bold text-zinc-100">{strategy.campaignName}</h2>
+          <div className="rounded-2xl border border-border bg-card p-5">
+            <h2 className="mb-3 font-poppins text-lg font-bold text-foreground">{strategy.campaignName}</h2>
             <div className="grid gap-3 sm:grid-cols-3 text-sm">
               <div>
-                <p className="font-roboto text-xs text-zinc-600">Ángulo</p>
-                <p className="mt-1 font-roboto text-zinc-300">{strategy.angle}</p>
+                <p className="font-roboto text-xs text-muted-foreground/70">Ángulo</p>
+                <p className="mt-1 font-roboto text-muted-foreground">{strategy.angle}</p>
               </div>
               <div>
-                <p className="font-roboto text-xs text-zinc-600">Dolor atacado</p>
-                <p className="mt-1 font-roboto text-zinc-300">{strategy.targetedPain}</p>
+                <p className="font-roboto text-xs text-muted-foreground/70">Dolor atacado</p>
+                <p className="mt-1 font-roboto text-muted-foreground">{strategy.targetedPain}</p>
               </div>
               <div>
-                <p className="font-roboto text-xs text-zinc-600">Mensaje clave</p>
-                <p className="mt-1 font-roboto text-zinc-300">{strategy.keyMessage}</p>
+                <p className="font-roboto text-xs text-muted-foreground/70">Mensaje clave</p>
+                <p className="mt-1 font-roboto text-muted-foreground">{strategy.keyMessage}</p>
               </div>
             </div>
-            <div className="mt-4 flex items-center gap-2 border-t border-zinc-800/60 pt-4">
+            <div className="mt-4 flex items-center gap-2 border-t border-border pt-4">
               <Zap className="h-4 w-4 text-amber-400" />
-              <p className="font-roboto text-xs text-zinc-500">
-                Costo estimado: <span className="text-zinc-300">{strategy.estimatedCredits} créditos</span>
+              <p className="font-roboto text-xs text-muted-foreground">
+                Costo estimado: <span className="text-foreground">{strategy.estimatedCredits} créditos</span>
                 {' '}({strategy.postPlans.length} posts × {CREDIT_COSTS.campaign_post} créditos)
               </p>
             </div>
           </div>
 
           <div>
-            <h3 className="mb-3 font-poppins text-sm font-semibold text-zinc-400">Plan de posts</h3>
+            <h3 className="mb-3 font-poppins text-sm font-semibold text-muted-foreground">Plan de posts</h3>
             <div className="space-y-2">
               {strategy.postPlans.map((plan, i) => (
-                <div key={plan.planId} className="flex items-center gap-4 rounded-xl border border-zinc-800/50 bg-zinc-900/40 p-4">
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-800 font-poppins text-sm font-bold text-zinc-400">
+                <div key={plan.planId} className="flex items-center gap-4 rounded-xl border border-border bg-card p-4">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary font-poppins text-sm font-bold text-muted-foreground">
                     {i + 1}
                   </span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="rounded-lg bg-zinc-800 px-2 py-0.5 font-roboto text-xs text-zinc-400">
+                      <span className="rounded-lg bg-secondary px-2 py-0.5 font-roboto text-xs text-muted-foreground">
                         {PURPOSE_LABELS[plan.purpose] ?? plan.purpose}
                       </span>
-                      <span className="font-roboto text-xs text-zinc-600">{plan.format}</span>
+                      <span className="font-roboto text-xs text-muted-foreground/70">{plan.format}</span>
                     </div>
-                    <p className="mt-1 font-roboto text-sm text-zinc-300 line-clamp-1">{plan.keyMessage}</p>
+                    <p className="mt-1 font-roboto text-sm text-muted-foreground line-clamp-1">{plan.keyMessage}</p>
                   </div>
                   <div className={`shrink-0 font-roboto text-xs ${STATUS_COLORS[plan.status] ?? ''}`}>
                     {plan.status === 'done' && <CheckCircle2 className="h-4 w-4" />}

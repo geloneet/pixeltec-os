@@ -38,10 +38,10 @@ export default function CrecimientoHubPage() {
   return (
     <div className="mx-auto max-w-[1400px] px-6 py-8 lg:px-10">
       <header className="mb-10">
-        <h1 className="font-poppins text-3xl font-bold tracking-tight text-zinc-50">
+        <h1 className="font-poppins text-3xl font-bold tracking-tight text-foreground">
           Crecimiento
         </h1>
-        <p className="mt-1 font-roboto text-sm text-zinc-500">
+        <p className="mt-1 font-roboto text-sm text-muted-foreground">
           Genera contenido de marca con IA. Alimentado por tu Brand Brain.
         </p>
       </header>
@@ -51,13 +51,13 @@ export default function CrecimientoHubPage() {
           <Link
             key={href}
             href={href}
-            className="group rounded-2xl border border-zinc-800/50 bg-zinc-900/40 p-6 backdrop-blur-xl transition-colors hover:border-zinc-700/60 hover:bg-zinc-900/60"
+            className="group rounded-2xl border border-border bg-card p-6 backdrop-blur-xl transition-colors hover:bg-secondary/40"
           >
-            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-800/60 group-hover:bg-cyan-500/10">
-              <Icon className="h-5 w-5 text-zinc-400 group-hover:text-cyan-400" />
+            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-secondary group-hover:bg-cyan-500/10">
+              <Icon className="h-5 w-5 text-muted-foreground group-hover:text-cyan-400" />
             </div>
-            <p className="font-poppins font-semibold text-zinc-200">{title}</p>
-            <p className="mt-1 font-roboto text-sm text-zinc-500">{description}</p>
+            <p className="font-poppins font-semibold text-foreground">{title}</p>
+            <p className="mt-1 font-roboto text-sm text-muted-foreground">{description}</p>
           </Link>
         ))}
       </div>

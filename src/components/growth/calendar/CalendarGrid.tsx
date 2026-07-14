@@ -68,7 +68,7 @@ export function CalendarGrid({ posts }: Props) {
   return (
     <div>
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="font-poppins text-lg font-bold text-zinc-100">
+        <h2 className="font-poppins text-lg font-bold text-foreground">
           {MONTHS[viewMonth]} {viewYear}
         </h2>
         <div className="flex gap-1">
@@ -84,9 +84,9 @@ export function CalendarGrid({ posts }: Props) {
         </div>
       </div>
 
-      <div className="grid grid-cols-7 gap-px overflow-hidden rounded-xl border border-zinc-800/60">
+      <div className="grid grid-cols-7 gap-px overflow-hidden rounded-xl border border-border">
         {DAYS.map((d) => (
-          <div key={d} className="bg-zinc-900/60 py-2 text-center font-roboto text-xs font-medium text-zinc-600">
+          <div key={d} className="bg-secondary py-2 text-center font-roboto text-xs font-medium text-muted-foreground/70">
             {d}
           </div>
         ))}
@@ -96,7 +96,7 @@ export function CalendarGrid({ posts }: Props) {
             <div
               key={i}
               className={cn(
-                'min-h-[80px] bg-zinc-900/40 p-1.5',
+                'min-h-[80px] bg-card p-1.5',
                 !day && 'opacity-30',
                 day && isToday(day) && 'bg-cyan-500/5 ring-1 ring-inset ring-cyan-500/30'
               )}
@@ -105,7 +105,7 @@ export function CalendarGrid({ posts }: Props) {
                 <>
                   <span className={cn(
                     'flex h-6 w-6 items-center justify-center rounded-full font-roboto text-xs',
-                    isToday(day) ? 'bg-cyan-500 font-bold text-white' : 'text-zinc-500'
+                    isToday(day) ? 'bg-cyan-500 font-bold text-white' : 'text-muted-foreground'
                   )}>
                     {day}
                   </span>
@@ -113,14 +113,14 @@ export function CalendarGrid({ posts }: Props) {
                     {dayPosts.slice(0, 3).map((p) => (
                       <div
                         key={p.id}
-                        className="truncate rounded bg-cyan-500/20 px-1.5 py-0.5 font-roboto text-[10px] text-cyan-300"
+                        className="truncate rounded bg-cyan-500/20 px-1.5 py-0.5 font-roboto text-[10px] text-cyan-700 dark:text-cyan-300"
                         title={p.caption}
                       >
                         {p.brandSnapshot.name}
                       </div>
                     ))}
                     {dayPosts.length > 3 && (
-                      <p className="font-roboto text-[10px] text-zinc-600">+{dayPosts.length - 3} más</p>
+                      <p className="font-roboto text-[10px] text-muted-foreground/70">+{dayPosts.length - 3} más</p>
                     )}
                   </div>
                 </>
@@ -132,8 +132,8 @@ export function CalendarGrid({ posts }: Props) {
 
       {posts.length === 0 && (
         <div className="mt-8 flex flex-col items-center gap-3 text-center">
-          <CalendarDays className="h-10 w-10 text-zinc-700" />
-          <p className="font-roboto text-sm text-zinc-600">
+          <CalendarDays className="h-10 w-10 text-muted-foreground/60" />
+          <p className="font-roboto text-sm text-muted-foreground/70">
             No hay posts programados este mes.
           </p>
         </div>

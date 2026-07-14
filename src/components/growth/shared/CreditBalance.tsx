@@ -17,7 +17,7 @@ export function CreditBalance({ className }: { className?: string }) {
       <span
         className={cn(
           'font-roboto text-xs font-medium tabular-nums',
-          low ? 'text-amber-400' : 'text-zinc-400'
+          low ? 'text-amber-400' : 'text-muted-foreground'
         )}
       >
         {balance.toLocaleString()} créditos
