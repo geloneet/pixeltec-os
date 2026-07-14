@@ -35,7 +35,7 @@ export function BrandBrainCard({ brand, onDeleted }: Props) {
   return (
     <Link
       href={`/crecimiento/brand-brain/${brand.id}`}
-      className="group relative flex flex-col rounded-2xl border border-zinc-800/50 bg-zinc-900/40 p-5 backdrop-blur-xl transition-colors hover:border-zinc-700/60 hover:bg-zinc-900/60"
+      className="group relative flex flex-col rounded-2xl border border-border bg-card p-5 backdrop-blur-xl transition-colors hover:bg-secondary/40"
     >
       <div className="mb-3 flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
@@ -47,15 +47,15 @@ export function BrandBrainCard({ brand, onDeleted }: Props) {
               className="h-10 w-10 rounded-lg object-contain"
             />
           ) : (
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-800/60">
-              <Brain className="h-5 w-5 text-zinc-500" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary">
+              <Brain className="h-5 w-5 text-muted-foreground" />
             </div>
           )}
           <div>
-            <p className="font-poppins font-semibold text-zinc-100 group-hover:text-white">
+            <p className="font-poppins font-semibold text-foreground">
               {brand.name}
             </p>
-            <p className="font-roboto text-xs text-zinc-500">
+            <p className="font-roboto text-xs text-muted-foreground">
               {brand.business?.industry || 'Sin industria'}
               {brand.business?.location ? ` · ${brand.business.location}` : ''}
             </p>
@@ -74,10 +74,10 @@ export function BrandBrainCard({ brand, onDeleted }: Props) {
       <div className="mt-auto flex items-center justify-between pt-3">
         <BrandBrainScore score={brand.completionScore ?? 0} size="sm" />
         <div className="flex items-center gap-2">
-          <span className="font-roboto text-xs text-zinc-600">
+          <span className="font-roboto text-xs text-muted-foreground/80">
             {serviceCount} servicio{serviceCount !== 1 ? 's' : ''}
           </span>
-          <ChevronRight className="h-4 w-4 text-zinc-600 transition-transform group-hover:translate-x-0.5 group-hover:text-zinc-400" />
+          <ChevronRight className="h-4 w-4 text-muted-foreground/80 transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
         </div>
       </div>
     </Link>
