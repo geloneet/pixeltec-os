@@ -141,12 +141,12 @@ export function BrandBrainWizard({ initialData, mode }: Props) {
         <WizardProgress currentStep={step} />
       </div>
 
-      <div className="rounded-2xl border border-zinc-800/50 bg-zinc-900/40 p-6 backdrop-blur-xl sm:p-8">
+      <div className="rounded-2xl border border-border bg-card p-6 backdrop-blur-xl sm:p-8">
         <div className="mb-6">
-          <h2 className="font-poppins text-xl font-bold text-zinc-50">
+          <h2 className="font-poppins text-xl font-bold text-foreground">
             Paso {step + 1} — {STEP_TITLES[step]}
           </h2>
-          <p className="mt-1 font-roboto text-sm text-zinc-500">{STEP_DESCRIPTIONS[step]}</p>
+          <p className="mt-1 font-roboto text-sm text-muted-foreground">{STEP_DESCRIPTIONS[step]}</p>
         </div>
 
         <div className="min-h-[300px]">
@@ -157,10 +157,10 @@ export function BrandBrainWizard({ initialData, mode }: Props) {
           {step === 4 && <Step5Visual data={data} onChange={update} brandId={initialData?.id} />}
         </div>
 
-        <div className="mt-8 flex items-center justify-between border-t border-zinc-800/60 pt-6">
+        <div className="mt-8 flex items-center justify-between border-t border-border pt-6">
           <div className="flex items-center gap-4">
             {step > 0 && (
-              <Button variant="ghost" onClick={() => setStep((s) => s - 1)} className="gap-2 text-zinc-400">
+              <Button variant="ghost" onClick={() => setStep((s) => s - 1)} className="gap-2 text-muted-foreground">
                 <ArrowLeft className="h-4 w-4" />
                 Anterior
               </Button>
@@ -168,8 +168,8 @@ export function BrandBrainWizard({ initialData, mode }: Props) {
           </div>
           <div className="flex items-center gap-3">
             {score > 0 && (
-              <span className="font-roboto text-xs text-zinc-600">
-                Completitud: <span className="text-zinc-400">{score}%</span>
+              <span className="font-roboto text-xs text-muted-foreground/70">
+                Completitud: <span className="text-muted-foreground">{score}%</span>
               </span>
             )}
             {isLastStep ? (

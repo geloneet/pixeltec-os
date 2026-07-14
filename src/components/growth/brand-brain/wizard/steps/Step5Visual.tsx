@@ -12,18 +12,18 @@ interface Props {
   brandId?: string;
 }
 
-const inputCls = 'w-full rounded-xl border border-zinc-700/60 bg-zinc-800/50 px-3.5 py-2.5 font-roboto text-sm text-zinc-100 placeholder-zinc-600 outline-none transition-colors focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/30';
+const inputCls = 'w-full rounded-xl border border-border bg-background px-3.5 py-2.5 font-roboto text-sm text-foreground placeholder:text-muted-foreground outline-none transition-colors focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/30';
 
 function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
     <div>
-      <label className="mb-1.5 block font-roboto text-xs font-medium text-zinc-400">{label}</label>
+      <label className="mb-1.5 block font-roboto text-xs font-medium text-muted-foreground">{label}</label>
       <div className="flex gap-2">
         <input
           type="color"
           value={value || '#000000'}
           onChange={(e) => onChange(e.target.value)}
-          className="h-9 w-12 cursor-pointer rounded-lg border border-zinc-700/60 bg-transparent p-0.5"
+          className="h-9 w-12 cursor-pointer rounded-lg border border-border bg-transparent p-0.5"
         />
         <input
           className={cn(inputCls, 'flex-1')}
@@ -77,13 +77,13 @@ export function Step5Visual({ data, onChange, brandId }: Props) {
   return (
     <div className="space-y-6">
       <div>
-        <label className="mb-2 block font-roboto text-sm font-medium text-zinc-300">
+        <label className="mb-2 block font-roboto text-sm font-medium text-muted-foreground">
           Logo de la marca (opcional)
         </label>
         {identity.logoUrl ? (
           <div className="flex items-center gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={identity.logoUrl} alt="Logo" className="h-16 w-16 rounded-xl object-contain bg-zinc-800 p-2" />
+            <img src={identity.logoUrl} alt="Logo" className="h-16 w-16 rounded-xl object-contain bg-secondary p-2" />
             <button
               type="button"
               onClick={() => onChange({ identity: { ...identity, logoUrl: undefined } })}
@@ -94,11 +94,11 @@ export function Step5Visual({ data, onChange, brandId }: Props) {
           </div>
         ) : (
           <label className={cn(
-            'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-zinc-700/60 p-8 transition-colors hover:border-zinc-600',
+            'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border p-8 transition-colors hover:bg-secondary/40',
             uploading && 'opacity-50 cursor-not-allowed'
           )}>
-            <Upload className="h-6 w-6 text-zinc-600" />
-            <span className="font-roboto text-sm text-zinc-500">
+            <Upload className="h-6 w-6 text-muted-foreground/70" />
+            <span className="font-roboto text-sm text-muted-foreground">
               {uploading ? 'Subiendo...' : 'Subir logo (PNG, SVG, JPG — máx. 5MB)'}
             </span>
             <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} disabled={uploading} />
@@ -107,7 +107,7 @@ export function Step5Visual({ data, onChange, brandId }: Props) {
       </div>
 
       <div>
-        <p className="mb-3 font-roboto text-sm font-medium text-zinc-300">Paleta de colores</p>
+        <p className="mb-3 font-roboto text-sm font-medium text-foreground">Paleta de colores</p>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <ColorField label="Color primario *" value={identity.colors?.primary ?? ''} onChange={(v) => updateColors({ primary: v })} />
           <ColorField label="Color secundario" value={identity.colors?.secondary ?? ''} onChange={(v) => updateColors({ secondary: v })} />
@@ -118,26 +118,26 @@ export function Step5Visual({ data, onChange, brandId }: Props) {
       </div>
 
       <div>
-        <p className="mb-3 font-roboto text-sm font-medium text-zinc-300">Tipografía</p>
+        <p className="mb-3 font-roboto text-sm font-medium text-foreground">Tipografía</p>
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
-            <label className="mb-1.5 block font-roboto text-xs font-medium text-zinc-400">Fuente de títulos</label>
+            <label className="mb-1.5 block font-roboto text-xs font-medium text-muted-foreground">Fuente de títulos</label>
             <select className={inputCls} value={identity.typography?.heading ?? 'Poppins'} onChange={(e) => updateTypo({ heading: e.target.value })}>
               {GOOGLE_FONTS_HEADING.map((f) => <option key={f} value={f}>{f}</option>)}
             </select>
           </div>
           <div>
-            <label className="mb-1.5 block font-roboto text-xs font-medium text-zinc-400">Fuente de cuerpo</label>
+            <label className="mb-1.5 block font-roboto text-xs font-medium text-muted-foreground">Fuente de cuerpo</label>
             <select className={inputCls} value={identity.typography?.body ?? 'Inter'} onChange={(e) => updateTypo({ body: e.target.value })}>
               {GOOGLE_FONTS_BODY.map((f) => <option key={f} value={f}>{f}</option>)}
             </select>
           </div>
         </div>
-        <div className="mt-3 rounded-xl border border-zinc-800/60 p-4">
-          <p style={{ fontFamily: identity.typography?.heading || 'Poppins' }} className="text-lg font-bold text-zinc-100">
+        <div className="mt-3 rounded-xl border border-border p-4">
+          <p style={{ fontFamily: identity.typography?.heading || 'Poppins' }} className="text-lg font-bold text-foreground">
             {data.name || 'Nombre de la marca'}
           </p>
-          <p style={{ fontFamily: identity.typography?.body || 'Inter' }} className="mt-1 text-sm text-zinc-400">
+          <p style={{ fontFamily: identity.typography?.body || 'Inter' }} className="mt-1 text-sm text-muted-foreground">
             Así se verá el texto de tus publicaciones.
           </p>
         </div>

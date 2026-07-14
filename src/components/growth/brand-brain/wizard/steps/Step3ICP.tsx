@@ -8,12 +8,12 @@ interface Props {
   onChange: (updates: Partial<BrandBrain>) => void;
 }
 
-const inputCls = 'w-full rounded-xl border border-zinc-700/60 bg-zinc-800/50 px-3.5 py-2.5 font-roboto text-sm text-zinc-100 placeholder-zinc-600 outline-none transition-colors focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/30';
+const inputCls = 'w-full rounded-xl border border-border bg-background px-3.5 py-2.5 font-roboto text-sm text-foreground placeholder:text-muted-foreground outline-none transition-colors focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/30';
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="mb-1.5 block font-roboto text-sm font-medium text-zinc-300">{label}</label>
+      <label className="mb-1.5 block font-roboto text-sm font-medium text-muted-foreground">{label}</label>
       {children}
     </div>
   );
@@ -47,11 +47,11 @@ function TagInput({
         {tags.map((tag) => (
           <span
             key={tag}
-            className="flex items-center gap-1 rounded-lg bg-zinc-800 px-2.5 py-1 font-roboto text-xs text-zinc-300"
+            className="flex items-center gap-1 rounded-lg bg-secondary px-2.5 py-1 font-roboto text-xs text-secondary-foreground"
           >
             {tag}
             <button type="button" onClick={() => onChange(tags.filter((t) => t !== tag))}>
-              <X className="h-3 w-3 text-zinc-500 hover:text-zinc-200" />
+              <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
             </button>
           </span>
         ))}
@@ -63,7 +63,7 @@ function TagInput({
           onKeyDown={handleKeyDown}
         />
       )}
-      <p className="font-roboto text-xs text-zinc-600">
+      <p className="font-roboto text-xs text-muted-foreground/70">
         Presiona Enter para agregar. {tags.length}/{max}
       </p>
     </div>
@@ -97,7 +97,7 @@ export function Step3ICP({ data, onChange }: Props) {
   return (
     <div className="space-y-6">
       <div>
-        <p className="mb-4 font-poppins text-sm font-semibold text-zinc-300">Cliente ideal (ICP)</p>
+        <p className="mb-4 font-poppins text-sm font-semibold text-foreground">Cliente ideal (ICP)</p>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Rango de edad (opcional)">
             <input className={inputCls} placeholder="ej. 35-55 años" value={icp.ageRange ?? ''} onChange={(e) => updateICP({ ageRange: e.target.value })} />
@@ -120,32 +120,32 @@ export function Step3ICP({ data, onChange }: Props) {
       </div>
 
       <div>
-        <p className="mb-3 font-poppins text-sm font-semibold text-zinc-300">Propuestas de valor</p>
+        <p className="mb-3 font-poppins text-sm font-semibold text-foreground">Propuestas de valor</p>
         <TagInput tags={pos.valueProps} placeholder="ej. Garantía de 10 años en implantes → Enter" max={5} onChange={(v) => onChange({ positioning: { ...pos, valueProps: v } })} />
       </div>
 
       <div>
-        <p className="mb-3 font-poppins text-sm font-semibold text-zinc-300">Diferenciadores</p>
+        <p className="mb-3 font-poppins text-sm font-semibold text-foreground">Diferenciadores</p>
         <TagInput tags={pos.differentiators} placeholder="ej. Único laboratorio propio → Enter" max={5} onChange={(d) => onChange({ positioning: { ...pos, differentiators: d } })} />
       </div>
 
       <div>
         <div className="mb-3 flex items-center justify-between">
-          <p className="font-poppins text-sm font-semibold text-zinc-300">
+          <p className="font-poppins text-sm font-semibold text-foreground">
             Objeciones comunes y respuestas
           </p>
           <button
             type="button"
             onClick={addObjection}
             disabled={objections.length >= 10}
-            className="flex items-center gap-1 font-roboto text-xs text-cyan-400 hover:text-cyan-300 disabled:text-zinc-700"
+            className="flex items-center gap-1 font-roboto text-xs text-cyan-400 hover:text-cyan-300 disabled:text-muted-foreground/50"
           >
             <Plus className="h-3.5 w-3.5" /> Agregar
           </button>
         </div>
         <div className="space-y-3">
           {objections.map((obj, i) => (
-            <div key={obj.id} className="grid gap-2 rounded-xl border border-zinc-800/60 p-3 sm:grid-cols-2">
+            <div key={obj.id} className="grid gap-2 rounded-xl border border-border p-3 sm:grid-cols-2">
               <input
                 className={inputCls}
                 placeholder='ej. "Es muy caro"'
@@ -165,14 +165,14 @@ export function Step3ICP({ data, onChange }: Props) {
                     onChange({ objections: next });
                   }}
                 />
-                <button type="button" onClick={() => onChange({ objections: objections.filter((_, idx) => idx !== i) })} className="text-zinc-600 hover:text-red-400">
+                <button type="button" onClick={() => onChange({ objections: objections.filter((_, idx) => idx !== i) })} className="text-muted-foreground/60 hover:text-red-400">
                   <X className="h-4 w-4" />
                 </button>
               </div>
             </div>
           ))}
           {objections.length === 0 && (
-            <p className="font-roboto text-xs text-zinc-600">Agrega las objeciones más frecuentes de tus clientes.</p>
+            <p className="font-roboto text-xs text-muted-foreground/70">Agrega las objeciones más frecuentes de tus clientes.</p>
           )}
         </div>
       </div>

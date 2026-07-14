@@ -13,12 +13,12 @@ interface Props {
   canHighlight: boolean;
 }
 
-const inputCls = 'w-full rounded-xl border border-zinc-700/60 bg-zinc-800/50 px-3 py-2 font-roboto text-sm text-zinc-100 placeholder-zinc-600 outline-none transition-colors focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/30';
+const inputCls = 'w-full rounded-xl border border-border bg-background px-3 py-2 font-roboto text-sm text-foreground placeholder:text-muted-foreground outline-none transition-colors focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/30';
 
 function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
   return (
     <div>
-      <label className="mb-1 block font-roboto text-xs font-medium text-zinc-400">
+      <label className="mb-1 block font-roboto text-xs font-medium text-muted-foreground">
         {label} {required && <span className="text-red-400">*</span>}
       </label>
       {children}
@@ -32,8 +32,8 @@ export function ServiceEditor({ service, onChange, onDelete, canHighlight }: Pro
   return (
     <div
       className={cn(
-        'rounded-xl border bg-zinc-900/40 transition-colors',
-        service.isHighlight ? 'border-cyan-500/40' : 'border-zinc-800/60'
+        'rounded-xl border bg-secondary/40 transition-colors',
+        service.isHighlight ? 'border-cyan-500/40' : 'border-border'
       )}
     >
       <div className="flex items-center gap-2 p-3">
@@ -43,11 +43,11 @@ export function ServiceEditor({ service, onChange, onDelete, canHighlight }: Pro
           className="flex flex-1 items-center gap-2 text-left"
         >
           {open ? (
-            <ChevronUp className="h-4 w-4 shrink-0 text-zinc-500" />
+            <ChevronUp className="h-4 w-4 shrink-0 text-muted-foreground" />
           ) : (
-            <ChevronDown className="h-4 w-4 shrink-0 text-zinc-500" />
+            <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
           )}
-          <span className="font-roboto text-sm font-medium text-zinc-200">
+          <span className="font-roboto text-sm font-medium text-foreground">
             {service.name || 'Nuevo servicio'}
           </span>
           {service.isHighlight && (
@@ -65,7 +65,7 @@ export function ServiceEditor({ service, onChange, onDelete, canHighlight }: Pro
             'h-7 w-7',
             service.isHighlight
               ? 'text-amber-400 hover:text-amber-300'
-              : 'text-zinc-600 hover:text-amber-400'
+              : 'text-muted-foreground/60 hover:text-amber-400'
           )}
         >
           <Star className={cn('h-3.5 w-3.5', service.isHighlight && 'fill-amber-400')} />
@@ -75,14 +75,14 @@ export function ServiceEditor({ service, onChange, onDelete, canHighlight }: Pro
           size="icon"
           variant="ghost"
           onClick={onDelete}
-          className="h-7 w-7 text-zinc-600 hover:text-red-400"
+          className="h-7 w-7 text-muted-foreground/60 hover:text-red-400"
         >
           <Trash2 className="h-3.5 w-3.5" />
         </Button>
       </div>
 
       {open && (
-        <div className="grid gap-3 border-t border-zinc-800/60 p-3 sm:grid-cols-2">
+        <div className="grid gap-3 border-t border-border p-3 sm:grid-cols-2">
           <Field label="Nombre del servicio" required>
             <input
               className={inputCls}

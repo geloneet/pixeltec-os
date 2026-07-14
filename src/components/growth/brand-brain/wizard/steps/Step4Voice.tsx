@@ -10,12 +10,12 @@ interface Props {
   onChange: (updates: Partial<BrandBrain>) => void;
 }
 
-const inputCls = 'w-full rounded-xl border border-zinc-700/60 bg-zinc-800/50 px-3.5 py-2.5 font-roboto text-sm text-zinc-100 placeholder-zinc-600 outline-none transition-colors focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/30';
+const inputCls = 'w-full rounded-xl border border-border bg-background px-3.5 py-2.5 font-roboto text-sm text-foreground placeholder:text-muted-foreground outline-none transition-colors focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/30';
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="mb-2 block font-roboto text-sm font-medium text-zinc-300">{label}</label>
+      <label className="mb-2 block font-roboto text-sm font-medium text-muted-foreground">{label}</label>
       {children}
     </div>
   );
@@ -64,8 +64,8 @@ function TagPicker({
             className={cn(
               'rounded-lg px-2.5 py-1 font-roboto text-xs transition-colors',
               selected.includes(tag)
-                ? 'bg-cyan-500/20 text-cyan-300 ring-1 ring-cyan-500/40'
-                : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200'
+                ? 'bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 ring-1 ring-cyan-500/40'
+                : 'bg-secondary text-muted-foreground hover:bg-secondary/80 hover:text-foreground'
             )}
           >
             {tag}
@@ -76,7 +76,7 @@ function TagPicker({
           .map((tag) => (
             <span
               key={tag}
-              className="flex items-center gap-1 rounded-lg bg-cyan-500/20 px-2.5 py-1 font-roboto text-xs text-cyan-300 ring-1 ring-cyan-500/40"
+              className="flex items-center gap-1 rounded-lg bg-cyan-500/20 px-2.5 py-1 font-roboto text-xs text-cyan-700 dark:text-cyan-300 ring-1 ring-cyan-500/40"
             >
               {tag}
               <button type="button" onClick={() => onChange(selected.filter((t) => t !== tag))}>
@@ -88,7 +88,7 @@ function TagPicker({
       {customPlaceholder && selected.length < max && (
         <input className={inputCls} placeholder={customPlaceholder} onKeyDown={handleCustom} />
       )}
-      <p className="font-roboto text-xs text-zinc-600">
+      <p className="font-roboto text-xs text-muted-foreground/70">
         {selected.length}/{max} seleccionados
       </p>
     </div>
@@ -142,8 +142,8 @@ export function Step4Voice({ data, onChange }: Props) {
                 className={cn(
                   'flex-1 rounded-xl border py-2 font-roboto text-xs font-medium transition-colors',
                   voice.formality === opt.value
-                    ? 'border-cyan-500/60 bg-cyan-500/10 text-cyan-300'
-                    : 'border-zinc-700/60 bg-zinc-800/50 text-zinc-500 hover:text-zinc-300'
+                    ? 'border-cyan-500/60 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300'
+                    : 'border-border bg-secondary/40 text-muted-foreground hover:text-foreground'
                 )}
               >
                 {opt.label}
@@ -165,8 +165,8 @@ export function Step4Voice({ data, onChange }: Props) {
                 className={cn(
                   'flex-1 rounded-xl border py-2 font-roboto text-xs font-medium transition-colors',
                   voice.language === opt.value
-                    ? 'border-cyan-500/60 bg-cyan-500/10 text-cyan-300'
-                    : 'border-zinc-700/60 bg-zinc-800/50 text-zinc-500 hover:text-zinc-300'
+                    ? 'border-cyan-500/60 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300'
+                    : 'border-border bg-secondary/40 text-muted-foreground hover:text-foreground'
                 )}
               >
                 {opt.label}
@@ -184,10 +184,10 @@ export function Step4Voice({ data, onChange }: Props) {
         <div className="space-y-2">
           <div className="flex flex-wrap gap-1.5">
             {rules.callToActions.map((cta) => (
-              <span key={cta} className="flex items-center gap-1 rounded-lg bg-zinc-800 px-2.5 py-1 font-roboto text-xs text-zinc-300">
+              <span key={cta} className="flex items-center gap-1 rounded-lg bg-secondary px-2.5 py-1 font-roboto text-xs text-secondary-foreground">
                 {cta}
                 <button type="button" onClick={() => updateRules({ callToActions: rules.callToActions.filter((c) => c !== cta) })}>
-                  <X className="h-3 w-3 text-zinc-500 hover:text-zinc-200" />
+                  <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
                 </button>
               </span>
             ))}
@@ -211,7 +211,7 @@ export function Step4Voice({ data, onChange }: Props) {
                   updateVoice({ examplePosts: next });
                 }}
               />
-              <button type="button" onClick={() => updateVoice({ examplePosts: voice.examplePosts.filter((_, idx) => idx !== i) })} className="text-zinc-600 hover:text-red-400">
+              <button type="button" onClick={() => updateVoice({ examplePosts: voice.examplePosts.filter((_, idx) => idx !== i) })} className="text-muted-foreground/60 hover:text-red-400">
                 <X className="h-4 w-4" />
               </button>
             </div>

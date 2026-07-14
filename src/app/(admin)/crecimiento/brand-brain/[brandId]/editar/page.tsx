@@ -18,17 +18,17 @@ export default async function EditarMarcaPage({ params }: Props) {
       <nav className="mb-6">
         <Link
           href={`/crecimiento/brand-brain/${brandId}`}
-          className="flex items-center gap-1.5 font-roboto text-sm text-zinc-500 hover:text-zinc-300"
+          className="flex items-center gap-1.5 font-roboto text-sm text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" /> {brand.name}
         </Link>
       </nav>
       <div className="mb-8">
-        <h1 className="font-poppins text-3xl font-bold tracking-tight text-zinc-50">
+        <h1 className="font-poppins text-3xl font-bold tracking-tight text-foreground">
           Editar Brand Brain
         </h1>
-        <p className="mt-1 font-roboto text-sm text-zinc-500">
-          Actualiza la memoria de <span className="text-zinc-300">{brand.name}</span>.
+        <p className="mt-1 font-roboto text-sm text-muted-foreground">
+          Actualiza la memoria de <span className="text-foreground">{brand.name}</span>.
         </p>
       </div>
       <BrandBrainWizard mode="edit" initialData={brand} />

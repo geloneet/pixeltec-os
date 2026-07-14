@@ -11,12 +11,12 @@ interface Props {
 export function BrandBrainScore({ score, showLabel = true, size = 'md' }: Props) {
   const color =
     score >= 80
-      ? 'text-emerald-400 bg-emerald-500/10'
+      ? 'text-emerald-700 dark:text-emerald-400 bg-emerald-500/10'
       : score >= 60
-        ? 'text-cyan-400 bg-cyan-500/10'
+        ? 'text-cyan-700 dark:text-cyan-400 bg-cyan-500/10'
         : score >= 30
-          ? 'text-amber-400 bg-amber-500/10'
-          : 'text-zinc-500 bg-zinc-800/50';
+          ? 'text-amber-700 dark:text-amber-400 bg-amber-500/10'
+          : 'text-muted-foreground bg-muted';
 
   const label =
     score >= 80
@@ -39,7 +39,7 @@ export function BrandBrainScore({ score, showLabel = true, size = 'md' }: Props)
         {score}%
       </div>
       {showLabel && (
-        <span className={cn('font-roboto text-zinc-500', size === 'sm' ? 'text-xs' : 'text-sm')}>
+        <span className={cn('font-roboto text-muted-foreground', size === 'sm' ? 'text-xs' : 'text-sm')}>
           {label}
         </span>
       )}

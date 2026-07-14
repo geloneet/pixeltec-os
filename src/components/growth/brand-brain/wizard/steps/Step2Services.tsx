@@ -44,16 +44,16 @@ export function Step2Services({ data, onChange }: Props) {
   return (
     <div className="space-y-3">
       <div className="mb-1 flex items-center justify-between">
-        <p className="font-roboto text-sm text-zinc-400">
+        <p className="font-roboto text-sm text-muted-foreground">
           Define los servicios que ofreces.{' '}
-          <span className="text-zinc-600">Mínimo 1, máximo 10.</span>
+          <span className="text-muted-foreground/70">Mínimo 1, máximo 10.</span>
         </p>
-        <span className="font-roboto text-xs text-zinc-600">{services.length}/10</span>
+        <span className="font-roboto text-xs text-muted-foreground/70">{services.length}/10</span>
       </div>
 
       {services.length === 0 && (
-        <div className="rounded-xl border border-dashed border-zinc-700/50 p-6 text-center">
-          <p className="font-roboto text-sm text-zinc-600">Aún no tienes servicios. Agrega al menos uno.</p>
+        <div className="rounded-xl border border-dashed border-border p-6 text-center">
+          <p className="font-roboto text-sm text-muted-foreground/70">Aún no tienes servicios. Agrega al menos uno.</p>
         </div>
       )}
 
@@ -72,7 +72,7 @@ export function Step2Services({ data, onChange }: Props) {
           type="button"
           variant="outline"
           onClick={addService}
-          className="w-full gap-2 border-zinc-700/60 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200"
+          className="w-full gap-2 border-border text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
         >
           <Plus className="h-4 w-4" />
           Agregar servicio

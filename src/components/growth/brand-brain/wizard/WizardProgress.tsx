@@ -30,8 +30,8 @@ export function WizardProgress({ currentStep }: Props) {
                   done
                     ? 'border-cyan-500 bg-cyan-500 text-white'
                     : active
-                      ? 'border-cyan-500 bg-zinc-900 text-cyan-400'
-                      : 'border-zinc-700 bg-zinc-900 text-zinc-600'
+                      ? 'border-cyan-500 bg-secondary text-cyan-400'
+                      : 'border-border bg-secondary text-muted-foreground/60'
                 )}
               >
                 {done ? <Check className="h-4 w-4" /> : i + 1}
@@ -39,7 +39,7 @@ export function WizardProgress({ currentStep }: Props) {
               <span
                 className={cn(
                   'mt-1 hidden text-[10px] sm:block',
-                  active ? 'text-cyan-400' : done ? 'text-zinc-400' : 'text-zinc-600'
+                  active ? 'text-cyan-400' : done ? 'text-muted-foreground' : 'text-muted-foreground/60'
                 )}
               >
                 {step.label}
@@ -49,7 +49,7 @@ export function WizardProgress({ currentStep }: Props) {
               <div
                 className={cn(
                   'mb-4 h-px w-8 transition-colors sm:w-14',
-                  i < currentStep ? 'bg-cyan-500' : 'bg-zinc-800'
+                  i < currentStep ? 'bg-cyan-500' : 'bg-secondary'
                 )}
               />
             )}

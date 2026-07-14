@@ -11,7 +11,7 @@ interface Props {
 function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
   return (
     <div>
-      <label className="mb-1.5 block font-roboto text-sm font-medium text-zinc-300">
+      <label className="mb-1.5 block font-roboto text-sm font-medium text-muted-foreground">
         {label} {required && <span className="text-red-400">*</span>}
       </label>
       {children}
@@ -19,7 +19,7 @@ function Field({ label, required, children }: { label: string; required?: boolea
   );
 }
 
-const inputCls = 'w-full rounded-xl border border-zinc-700/60 bg-zinc-800/50 px-3.5 py-2.5 font-roboto text-sm text-zinc-100 placeholder-zinc-600 outline-none transition-colors focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/30';
+const inputCls = 'w-full rounded-xl border border-border bg-background px-3.5 py-2.5 font-roboto text-sm text-foreground placeholder:text-muted-foreground outline-none transition-colors focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/30';
 
 export function Step1Business({ data, onChange }: Props) {
   const biz = data.business ?? { industry: '', location: '', services: [], certifications: [] };
