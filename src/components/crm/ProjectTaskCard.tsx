@@ -75,7 +75,7 @@ export function ProjectTaskCard({
   return (
     <div
       className={cn(
-        "group rounded-xl border border-white/[0.06] bg-zinc-900/20 px-4 py-3.5 transition-all hover:border-white/[0.10]",
+        "group rounded-xl border border-border bg-card px-4 py-3.5 transition-all hover:bg-secondary/40",
         isCompleted && "opacity-40"
       )}
     >
@@ -88,35 +88,35 @@ export function ProjectTaskCard({
         <div className="min-w-0 flex-1">
           <p
             className={cn(
-              "text-sm font-medium text-zinc-200 leading-snug",
+              "text-sm font-medium text-foreground leading-snug",
               isCompleted && "line-through"
             )}
           >
             {task.name}
           </p>
           {task.desc && (
-            <p className="mt-0.5 truncate text-[11px] text-zinc-500">{task.desc}</p>
+            <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{task.desc}</p>
           )}
         </div>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md text-zinc-600 opacity-0 transition-all hover:bg-zinc-800 hover:text-zinc-300 group-hover:opacity-100">
+            <button className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-all hover:bg-secondary hover:text-foreground group-hover:opacity-100">
               <MoreHorizontal className="h-3.5 w-3.5" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent
             align="end"
-            className="w-36 border-zinc-800 bg-zinc-900 p-1 text-xs"
+            className="w-36 p-1 text-xs"
           >
             <DropdownMenuItem
               onClick={onEdit}
-              className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-[11px] text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
+              className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-[11px] text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
             >
               <Pencil className="h-3 w-3" />
               Editar
             </DropdownMenuItem>
-            <DropdownMenuSeparator className="my-1 border-zinc-800" />
+            <DropdownMenuSeparator className="my-1" />
             <DropdownMenuItem
               onClick={onDelete}
               className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-[11px] text-red-400/80 transition-colors hover:bg-red-500/10 hover:text-red-400"
@@ -132,7 +132,7 @@ export function ProjectTaskCard({
       <div className="mt-2 flex items-center gap-3 pl-[18px]">
         <TaskContextCapsule task={task} sessions={sessions} />
         {statsLine && (
-          <span className="text-[10px] text-zinc-700">{statsLine}</span>
+          <span className="text-[10px] text-muted-foreground/60">{statsLine}</span>
         )}
       </div>
 
