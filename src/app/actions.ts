@@ -656,51 +656,6 @@ export async function subscribeToNewsletterAction(
   return { success: true };
 }
 
-export async function sendTelegramNotification(message: string): Promise<{ success: boolean; error?: string }> {
-  // Sin prefijo NEXT_PUBLIC_: este server action corre solo en el servidor, y un
-  // token de bot no debe arriesgarse a inlinearse en el bundle del navegador.
-  const token = process.env.TELEGRAM_BOT_TOKEN;
-  const chatId = process.env.TELEGRAM_CHAT_ID;
-
-  if (!token || !chatId) {
-    console.error('Telegram Bot Token o Chat ID no están configurados en las variables de entorno.');
-    return { success: false, error: 'Credenciales de Telegram no configuradas.' };
-  }
-
-  const url = `https://api.telegram.org/bot${token}/sendMessage`;
-
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: message,
-        parse_mode: 'Markdown',
-      }),
-      cache: 'no-store',
-    });
-
-    const result = await response.json();
-
-    if (!result.ok) {
-      console.error('Error de la API de Telegram:', result.description);
-      return { success: false, error: result.description };
-    }
-
-    return { success: true };
-  } catch (error) {
-    console.error('Fallo al enviar la notificación de Telegram:', error);
-    if (error instanceof Error) {
-        return { success: false, error: `Error de red: ${error.message}` };
-    }
-    return { success: false, error: 'Fallo al enviar la notificación por un error desconocido.' };
-  }
-}
-
-
 // ─── Email Server Actions ─────────────────────��────────────────────────────────
 
 const welcomeEmailSchema = z.object({

@@ -197,7 +197,7 @@ function ProjectCard({ project: p, stats, clientId, navigateToProject, setModal 
 
 interface ClientDetailProps {
   client: CRMClient;
-  setView: (v: "asistente" | "clients" | "client" | "project" | "search") => void;
+  setView: (v: "clients" | "client" | "project" | "search") => void;
   navigateToProject: (cid: string, pid: string) => void;
   setModal: (m: { type: string; data?: Record<string, string> } | null) => void;
   deleteClient: (id: string) => void;
