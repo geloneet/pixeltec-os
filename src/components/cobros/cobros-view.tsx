@@ -27,11 +27,11 @@ const PILLS: { id: PillFilter; label: string }[] = [
 ];
 
 const STATUS_CLASSES: Record<BillingStatus, string> = {
-  pendiente: "bg-zinc-800 text-zinc-400",
-  pagado: "bg-emerald-500/10 text-emerald-400",
-  vencido: "bg-red-500/10 text-red-400",
-  parcial: "bg-amber-500/10 text-amber-400",
-  cancelado: "bg-zinc-800 text-zinc-600",
+  pendiente: "bg-muted text-muted-foreground",
+  pagado: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
+  vencido: "bg-red-500/10 text-red-700 dark:text-red-400",
+  parcial: "bg-amber-500/10 text-amber-700 dark:text-amber-400",
+  cancelado: "bg-muted text-muted-foreground",
 };
 
 function formatDateES(dateOnly: string): string {
@@ -108,21 +108,21 @@ export function CobrosView() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
-      <h1 className="mb-6 text-2xl font-semibold text-zinc-100">Cobros</h1>
+      <h1 className="mb-6 text-2xl font-semibold text-foreground">Cobros</h1>
 
       {/* Summary */}
       <div className="mb-6 grid grid-cols-3 gap-4">
-        <div className="rounded-[10px] border border-zinc-800 bg-[#0F0F12] p-4">
-          <p className="mb-1 text-xs text-zinc-500">Pendiente (activo)</p>
-          <p className="text-xl font-semibold text-zinc-100">{formatCurrency(totalPendiente)}</p>
+        <div className="rounded-[10px] border border-border bg-card p-4">
+          <p className="mb-1 text-xs text-muted-foreground">Pendiente (activo)</p>
+          <p className="text-xl font-semibold text-foreground">{formatCurrency(totalPendiente)}</p>
         </div>
-        <div className="rounded-[10px] border border-zinc-800 bg-[#0F0F12] p-4">
-          <p className="mb-1 text-xs text-zinc-500">Vencido</p>
-          <p className="text-xl font-semibold text-red-400">{formatCurrency(totalVencido)}</p>
+        <div className="rounded-[10px] border border-border bg-card p-4">
+          <p className="mb-1 text-xs text-muted-foreground">Vencido</p>
+          <p className="text-xl font-semibold text-red-700 dark:text-red-400">{formatCurrency(totalVencido)}</p>
         </div>
-        <div className="rounded-[10px] border border-zinc-800 bg-[#0F0F12] p-4">
-          <p className="mb-1 text-xs text-zinc-500">Pagado (histórico)</p>
-          <p className="text-xl font-semibold text-emerald-400">{formatCurrency(totalPagado)}</p>
+        <div className="rounded-[10px] border border-border bg-card p-4">
+          <p className="mb-1 text-xs text-muted-foreground">Pagado (histórico)</p>
+          <p className="text-xl font-semibold text-emerald-700 dark:text-emerald-400">{formatCurrency(totalPagado)}</p>
         </div>
       </div>
 
@@ -135,7 +135,7 @@ export function CobrosView() {
             className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-all ${
               pill === p.id
                 ? "border-cyan-500/30 bg-cyan-500/10 text-cyan-300"
-                : "border-zinc-800 bg-transparent text-zinc-500 hover:text-zinc-300"
+                : "border-border bg-transparent text-muted-foreground hover:text-foreground"
             }`}
           >
             {p.label}
@@ -148,7 +148,7 @@ export function CobrosView() {
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value as BillingStatus | "")}
-          className="rounded-lg border border-zinc-800 bg-[#0F0F12] px-3 py-1.5 text-xs text-zinc-300 focus:border-cyan-500/40 focus:outline-none"
+          className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs text-foreground focus:border-cyan-500/40 focus:outline-none"
         >
           <option value="">Todos los estados</option>
           {(Object.keys(BILLING_STATUS_LABELS) as BillingStatus[]).map((s) => (
@@ -159,7 +159,7 @@ export function CobrosView() {
         <select
           value={clientFilter}
           onChange={(e) => setClientFilter(e.target.value)}
-          className="rounded-lg border border-zinc-800 bg-[#0F0F12] px-3 py-1.5 text-xs text-zinc-300 focus:border-cyan-500/40 focus:outline-none"
+          className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs text-foreground focus:border-cyan-500/40 focus:outline-none"
         >
           <option value="">Todos los clientes</option>
           {clientOptions.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
@@ -168,7 +168,7 @@ export function CobrosView() {
         <select
           value={frequencyFilter}
           onChange={(e) => setFrequencyFilter(e.target.value as BillingFrequency | "")}
-          className="rounded-lg border border-zinc-800 bg-[#0F0F12] px-3 py-1.5 text-xs text-zinc-300 focus:border-cyan-500/40 focus:outline-none"
+          className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs text-foreground focus:border-cyan-500/40 focus:outline-none"
         >
           <option value="">Toda frecuencia</option>
           {(Object.keys(BILLING_FREQUENCY_LABELS) as BillingFrequency[]).map((f) => (
@@ -179,7 +179,7 @@ export function CobrosView() {
         <select
           value={contractFilter}
           onChange={(e) => setContractFilter(e.target.value)}
-          className="rounded-lg border border-zinc-800 bg-[#0F0F12] px-3 py-1.5 text-xs text-zinc-300 focus:border-cyan-500/40 focus:outline-none"
+          className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs text-foreground focus:border-cyan-500/40 focus:outline-none"
         >
           <option value="">Todo contrato</option>
           {contractOptions.map(([id, title]) => <option key={id} value={id}>{title}</option>)}
@@ -188,7 +188,7 @@ export function CobrosView() {
         <select
           value={methodFilter}
           onChange={(e) => setMethodFilter(e.target.value as PaymentMethod | "")}
-          className="rounded-lg border border-zinc-800 bg-[#0F0F12] px-3 py-1.5 text-xs text-zinc-300 focus:border-cyan-500/40 focus:outline-none"
+          className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs text-foreground focus:border-cyan-500/40 focus:outline-none"
         >
           <option value="">Todo método de pago</option>
           {(Object.keys(PAYMENT_METHOD_LABELS) as PaymentMethod[]).map((m) => (
@@ -201,39 +201,39 @@ export function CobrosView() {
           value={dueBeforeFilter}
           onChange={(e) => setDueBeforeFilter(e.target.value)}
           title="Vencimiento antes de"
-          className="rounded-lg border border-zinc-800 bg-[#0F0F12] px-3 py-1.5 text-xs text-zinc-300 focus:border-cyan-500/40 focus:outline-none"
+          className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs text-foreground focus:border-cyan-500/40 focus:outline-none"
         />
       </div>
 
       {/* Table */}
       {filtered.length === 0 ? (
         <div className="flex min-h-[30vh] flex-col items-center justify-center text-center">
-          <p className="text-sm text-zinc-500">No hay cobros con estos filtros.</p>
+          <p className="text-sm text-muted-foreground">No hay cobros con estos filtros.</p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-[10px] border border-zinc-800 bg-[#0F0F12]">
+        <div className="overflow-hidden rounded-[10px] border border-border bg-card">
           <div className="hidden overflow-x-auto sm:block">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-zinc-800">
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-zinc-500">Concepto</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-zinc-500">Cliente</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wide text-zinc-500">Monto</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wide text-zinc-500">Frecuencia</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-zinc-500">Vencimiento</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wide text-zinc-500">Estado</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wide text-zinc-500">Acciones</th>
+                <tr className="border-b border-border">
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">Concepto</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">Cliente</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wide text-muted-foreground">Monto</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wide text-muted-foreground">Frecuencia</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">Vencimiento</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wide text-muted-foreground">Estado</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wide text-muted-foreground">Acciones</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-800/60">
+              <tbody className="divide-y divide-border">
                 {filtered.map((item) => (
-                  <tr key={item.id} className="transition-colors hover:bg-zinc-900/40">
+                  <tr key={item.id} className="transition-colors hover:bg-secondary/40">
                     <td className="px-4 py-3">
-                      <span className="font-medium text-zinc-200">{item.concept}</span>
-                      {item.contractTitle && <p className="text-[10px] text-zinc-600">{item.contractTitle}</p>}
+                      <span className="font-medium text-foreground">{item.concept}</span>
+                      {item.contractTitle && <p className="text-[10px] text-muted-foreground/60">{item.contractTitle}</p>}
                     </td>
-                    <td className="px-4 py-3 text-zinc-400">{item.clientName ?? "—"}</td>
-                    <td className="px-4 py-3 text-right font-medium tabular-nums text-zinc-200">
+                    <td className="px-4 py-3 text-muted-foreground">{item.clientName ?? "—"}</td>
+                    <td className="px-4 py-3 text-right font-medium tabular-nums text-foreground">
                       {formatCurrency(item.amount)}
                     </td>
                     <td className="px-4 py-3 text-center">
@@ -241,10 +241,10 @@ export function CobrosView() {
                         {BILLING_FREQUENCY_LABELS[item.frequency]}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-xs text-zinc-400">
+                    <td className="px-4 py-3 text-xs text-muted-foreground">
                       {formatDateES(item.dueDate)}
                       {item.nextDueDate && (
-                        <p className="text-[10px] text-zinc-600">Próximo: {formatDateES(item.nextDueDate)}</p>
+                        <p className="text-[10px] text-muted-foreground/60">Próximo: {formatDateES(item.nextDueDate)}</p>
                       )}
                     </td>
                     <td className="px-4 py-3 text-center">
@@ -261,7 +261,7 @@ export function CobrosView() {
                           Registrar pago
                         </button>
                       ) : (
-                        <span className="text-[11px] text-zinc-700">—</span>
+                        <span className="text-[11px] text-muted-foreground/70">—</span>
                       )}
                     </td>
                   </tr>
@@ -271,19 +271,19 @@ export function CobrosView() {
           </div>
 
           {/* Mobile cards */}
-          <div className="divide-y divide-zinc-800/60 sm:hidden">
+          <div className="divide-y divide-border sm:hidden">
             {filtered.map((item) => (
               <div key={item.id} className="space-y-2 px-4 py-4">
                 <div className="flex items-start justify-between gap-2">
-                  <p className="text-[13px] font-medium leading-snug text-zinc-200">{item.concept}</p>
+                  <p className="text-[13px] font-medium leading-snug text-foreground">{item.concept}</p>
                   <span className={`flex-shrink-0 inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium ${STATUS_CLASSES[item.status]}`}>
                     {BILLING_STATUS_LABELS[item.status]}
                   </span>
                 </div>
-                <p className="text-[11px] text-zinc-500">{item.clientName ?? "—"}</p>
+                <p className="text-[11px] text-muted-foreground">{item.clientName ?? "—"}</p>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold tabular-nums text-zinc-100">{formatCurrency(item.amount)}</span>
-                  <span className="text-[11px] text-zinc-500">{formatDateES(item.dueDate)}</span>
+                  <span className="text-sm font-semibold tabular-nums text-foreground">{formatCurrency(item.amount)}</span>
+                  <span className="text-[11px] text-muted-foreground">{formatDateES(item.dueDate)}</span>
                 </div>
                 {item.status !== "pagado" && item.status !== "cancelado" && (
                   <button

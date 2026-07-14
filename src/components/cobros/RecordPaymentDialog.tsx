@@ -50,59 +50,59 @@ export function RecordPaymentDialog({ item, onClose, onRecorded }: Props) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
       <div
-        className="w-full max-w-md rounded-xl border border-white/[0.08] bg-zinc-950 p-5 shadow-2xl"
+        className="w-full max-w-md rounded-xl border border-border bg-card p-5 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-zinc-200">Registrar pago</h3>
-          <button onClick={onClose} className="text-zinc-600 hover:text-zinc-300 transition-colors">
+          <h3 className="text-sm font-semibold text-foreground">Registrar pago</h3>
+          <button onClick={onClose} className="text-muted-foreground/60 hover:text-foreground transition-colors">
             <X className="h-4 w-4" />
           </button>
         </div>
 
-        <p className="mb-4 text-xs text-zinc-500">
-          {item.concept} · adeudo del período: <span className="text-zinc-300">{formatCurrency(item.amount)}</span>
+        <p className="mb-4 text-xs text-muted-foreground">
+          {item.concept} · adeudo del período: <span className="text-foreground">{formatCurrency(item.amount)}</span>
         </p>
 
         <div className="space-y-3">
           <div>
-            <label className="mb-1 block text-xs font-medium text-zinc-400">Monto</label>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">Monto</label>
             <input
               type="number" min={0} step="0.01" value={amount || ""}
               onChange={(e) => setAmount(Number(e.target.value))}
-              className="w-full rounded-lg border border-white/[0.06] bg-zinc-900/60 px-3 py-2 text-sm text-zinc-200 focus:border-cyan-500/40 focus:outline-none"
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-cyan-500/40 focus:outline-none"
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-zinc-400">Método de pago</label>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">Método de pago</label>
             <select
               value={method}
               onChange={(e) => setMethod(e.target.value as PaymentMethod)}
-              className="w-full rounded-lg border border-white/[0.06] bg-zinc-900/60 px-3 py-2 text-sm text-zinc-200 focus:border-cyan-500/40 focus:outline-none"
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-cyan-500/40 focus:outline-none"
             >
               {METHODS.map((m) => <option key={m} value={m}>{PAYMENT_METHOD_LABELS[m]}</option>)}
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-zinc-400">Fecha de pago</label>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">Fecha de pago</label>
             <input
               type="date" value={paidAt} onChange={(e) => setPaidAt(e.target.value)}
-              className="w-full rounded-lg border border-white/[0.06] bg-zinc-900/60 px-3 py-2 text-sm text-zinc-200 focus:border-cyan-500/40 focus:outline-none"
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-cyan-500/40 focus:outline-none"
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-zinc-400">Referencia (opcional)</label>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">Referencia (opcional)</label>
             <input
               value={reference} onChange={(e) => setReference(e.target.value)}
               placeholder="No. de transferencia, folio..."
-              className="w-full rounded-lg border border-white/[0.06] bg-zinc-900/60 px-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-600 focus:border-cyan-500/40 focus:outline-none"
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-cyan-500/40 focus:outline-none"
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-zinc-400">Nota (opcional)</label>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">Nota (opcional)</label>
             <textarea
               value={note} onChange={(e) => setNote(e.target.value)} rows={2}
-              className="w-full rounded-lg border border-white/[0.06] bg-zinc-900/60 px-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-600 focus:border-cyan-500/40 focus:outline-none"
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-cyan-500/40 focus:outline-none"
             />
           </div>
         </div>
@@ -110,13 +110,13 @@ export function RecordPaymentDialog({ item, onClose, onRecorded }: Props) {
         {error && <p className="mt-3 text-xs text-red-400">{error}</p>}
 
         {item.paymentHistory.length > 0 && (
-          <div className="mt-4 border-t border-white/[0.06] pt-3">
-            <p className="mb-2 text-[10px] font-medium uppercase tracking-wide text-zinc-500">Historial de pagos</p>
+          <div className="mt-4 border-t border-border pt-3">
+            <p className="mb-2 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Historial de pagos</p>
             <div className="max-h-32 space-y-1.5 overflow-y-auto">
               {item.paymentHistory.map((p) => (
-                <div key={p.id} className="flex items-center justify-between text-xs text-zinc-500">
+                <div key={p.id} className="flex items-center justify-between text-xs text-muted-foreground">
                   <span>{p.paidAt} · {PAYMENT_METHOD_LABELS[p.method]}</span>
-                  <span className="text-zinc-300">{formatCurrency(p.amount)}</span>
+                  <span className="text-foreground">{formatCurrency(p.amount)}</span>
                 </div>
               ))}
             </div>
@@ -133,7 +133,7 @@ export function RecordPaymentDialog({ item, onClose, onRecorded }: Props) {
           </button>
           <button
             onClick={onClose}
-            className="rounded-lg border border-white/[0.06] px-4 py-2 text-sm text-zinc-500 transition-all hover:text-zinc-300"
+            className="rounded-lg border border-border px-4 py-2 text-sm text-muted-foreground transition-all hover:text-foreground"
           >
             Cancelar
           </button>
