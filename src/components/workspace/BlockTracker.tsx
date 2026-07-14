@@ -72,8 +72,8 @@ function BlockerCard({
       <div className="flex items-start gap-2 mb-1.5">
         {(() => { const { Icon, cls } = STATUS_ICON[blocker.status]; return <Icon className={`h-3.5 w-3.5 flex-shrink-0 mt-0.5 ${cls}`} />; })()}
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-medium text-zinc-300">{blocker.description}</p>
-          <p className="text-[0.65rem] text-zinc-600 mt-0.5">
+          <p className="text-xs font-medium text-foreground">{blocker.description}</p>
+          <p className="text-[0.65rem] text-muted-foreground/70 mt-0.5">
             {BLOCKER_LABELS[blocker.type]}
             {" · "}
             {BLOCKER_IMPACT_LABELS[blocker.impact]}
@@ -159,9 +159,9 @@ export function BlockTracker({ blockers, onAdd, onUpdateStatus, stats, prefillDe
   const isEmpty = active.length === 0 && waiting.length === 0 && resolved.length === 0;
 
   return (
-    <div className="rounded-xl border border-white/[0.06] bg-zinc-900/20 p-4">
+    <div className="rounded-xl border border-border bg-card p-4">
       <div className="flex items-center justify-between mb-3">
-        <p className="text-xs font-semibold text-zinc-400">
+        <p className="text-xs font-semibold text-muted-foreground">
           Bloqueos activos
           {(active.length + waiting.length) > 0 && (
             <span className="ml-2 rounded-full bg-red-500/10 px-1.5 py-0.5 text-[0.6rem] font-medium text-red-400">
@@ -179,11 +179,11 @@ export function BlockTracker({ blockers, onAdd, onUpdateStatus, stats, prefillDe
 
       {/* Report form */}
       {open && (
-        <div className="mb-3 rounded-lg border border-white/[0.06] bg-zinc-900/40 p-3 space-y-2">
+        <div className="mb-3 rounded-lg border border-border bg-secondary/40 p-3 space-y-2">
           <select
             value={type}
             onChange={e => setType(e.target.value as BlockerType)}
-            className="w-full rounded-lg border border-white/[0.06] bg-zinc-900/60 px-3 py-2 text-xs text-zinc-300 focus:outline-none"
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground focus:outline-none"
           >
             {BLOCKER_TYPES.map(t => (
               <option key={t} value={t}>{BLOCKER_LABELS[t]}</option>
@@ -195,18 +195,18 @@ export function BlockTracker({ blockers, onAdd, onUpdateStatus, stats, prefillDe
             onChange={e => setDescription(e.target.value)}
             onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); handleSubmit(); } }}
             placeholder="Describe el bloqueo... (solo si impide avanzar más de 2 min)"
-            className="w-full rounded-lg border border-white/[0.06] bg-zinc-900/60 px-3 py-2 text-xs text-zinc-300 placeholder:text-zinc-600 focus:border-red-500/30 focus:outline-none transition-colors"
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:border-red-500/30 focus:outline-none transition-colors"
           />
           <div className="flex gap-1.5 flex-wrap">
-            <span className="text-[0.65rem] text-zinc-600 self-center">Impacto:</span>
+            <span className="text-[0.65rem] text-muted-foreground/70 self-center">Impacto:</span>
             {IMPACTS.map(imp => (
               <button
                 key={imp}
                 onClick={() => setImpact(imp)}
                 className={`rounded px-2 py-0.5 text-[0.65rem] border transition-all ${
                   impact === imp
-                    ? "border-zinc-500 text-zinc-200 bg-zinc-700"
-                    : "border-transparent text-zinc-600 hover:text-zinc-400"
+                    ? "border-border text-foreground bg-secondary"
+                    : "border-transparent text-muted-foreground/70 hover:text-muted-foreground"
                 }`}
               >
                 {BLOCKER_IMPACT_LABELS[imp]}
@@ -214,15 +214,15 @@ export function BlockTracker({ blockers, onAdd, onUpdateStatus, stats, prefillDe
             ))}
           </div>
           <div className="flex gap-1.5 flex-wrap">
-            <span className="text-[0.65rem] text-zinc-600 self-center">Origen:</span>
+            <span className="text-[0.65rem] text-muted-foreground/70 self-center">Origen:</span>
             {SOURCES.map(s => (
               <button
                 key={s}
                 onClick={() => setSource(s)}
                 className={`rounded px-2 py-0.5 text-[0.65rem] border transition-all ${
                   source === s
-                    ? "border-zinc-500 text-zinc-200 bg-zinc-700"
-                    : "border-transparent text-zinc-600 hover:text-zinc-400"
+                    ? "border-border text-foreground bg-secondary"
+                    : "border-transparent text-muted-foreground/70 hover:text-muted-foreground"
                 }`}
               >
                 {BLOCKER_SOURCE_LABELS[s]}
@@ -239,7 +239,7 @@ export function BlockTracker({ blockers, onAdd, onUpdateStatus, stats, prefillDe
             </button>
             <button
               onClick={() => setOpen(false)}
-              className="rounded-lg border border-white/[0.06] px-3 py-1.5 text-xs text-zinc-500 hover:text-zinc-300 transition-all"
+              className="rounded-lg border border-border px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-all"
             >
               Cancelar
             </button>
@@ -255,17 +255,17 @@ export function BlockTracker({ blockers, onAdd, onUpdateStatus, stats, prefillDe
             <div className="flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4 text-green-400/80 flex-shrink-0" />
               <div>
-                <p className="text-xs text-zinc-300 font-medium">Todo despejado</p>
-                <p className="text-[0.65rem] text-zinc-600">0 bloqueos activos</p>
+                <p className="text-xs text-foreground font-medium">Todo despejado</p>
+                <p className="text-[0.65rem] text-muted-foreground/70">0 bloqueos activos</p>
               </div>
             </div>
           </div>
           {/* Stats grid */}
           {stats && stats.lastBlockerDaysAgo !== null ? (
             <div className="grid grid-cols-2 gap-2">
-              <div className="rounded-lg bg-zinc-900/40 border border-white/[0.04] px-3 py-2">
-                <p className="text-[0.6rem] text-zinc-600 uppercase tracking-wider mb-0.5">Último bloqueo</p>
-                <p className="text-xs text-zinc-400">
+              <div className="rounded-lg bg-secondary/40 border border-border px-3 py-2">
+                <p className="text-[0.6rem] text-muted-foreground/70 uppercase tracking-wider mb-0.5">Último bloqueo</p>
+                <p className="text-xs text-muted-foreground">
                   {stats.lastBlockerDaysAgo === 0
                     ? "Hoy"
                     : stats.lastBlockerDaysAgo === 1
@@ -273,15 +273,15 @@ export function BlockTracker({ blockers, onAdd, onUpdateStatus, stats, prefillDe
                       : `Hace ${stats.lastBlockerDaysAgo} días`}
                 </p>
               </div>
-              <div className="rounded-lg bg-zinc-900/40 border border-white/[0.04] px-3 py-2">
-                <p className="text-[0.6rem] text-zinc-600 uppercase tracking-wider mb-0.5">Promedio bloqueado</p>
-                <p className="text-xs text-zinc-400">
+              <div className="rounded-lg bg-secondary/40 border border-border px-3 py-2">
+                <p className="text-[0.6rem] text-muted-foreground/70 uppercase tracking-wider mb-0.5">Promedio bloqueado</p>
+                <p className="text-xs text-muted-foreground">
                   {stats.avgBlockMinutes !== null ? `${stats.avgBlockMinutes} min` : "—"}
                 </p>
               </div>
             </div>
           ) : (
-            <p className="text-[0.65rem] text-zinc-700">Sin historial de bloqueos · flujo limpio</p>
+            <p className="text-[0.65rem] text-muted-foreground/60">Sin historial de bloqueos · flujo limpio</p>
           )}
         </div>
       )}
@@ -299,8 +299,8 @@ export function BlockTracker({ blockers, onAdd, onUpdateStatus, stats, prefillDe
 
       {/* Resolved */}
       {resolved.length > 0 && (
-        <div className="space-y-1.5 mt-2 border-t border-white/[0.04] pt-2">
-          <p className="text-[0.65rem] text-zinc-700 font-medium uppercase tracking-wider">Resueltos</p>
+        <div className="space-y-1.5 mt-2 border-t border-border pt-2">
+          <p className="text-[0.65rem] text-muted-foreground/60 font-medium uppercase tracking-wider">Resueltos</p>
           <AnimatePresence>
             {resolved.map(b => (
               <BlockerCard key={b.id} blocker={b} onUpdateStatus={onUpdateStatus} />

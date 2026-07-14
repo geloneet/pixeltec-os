@@ -83,7 +83,7 @@ function CollapsibleSection({ title, children, defaultOpen = true }: {
     <div>
       <button
         onClick={() => setOpen(o => !o)}
-        className="flex w-full items-center gap-1.5 py-1.5 text-[0.65rem] font-medium uppercase tracking-normal text-zinc-600 hover:text-zinc-400 transition-colors"
+        className="flex w-full items-center gap-1.5 py-1.5 text-[0.65rem] font-medium uppercase tracking-normal text-muted-foreground/70 hover:text-muted-foreground transition-colors"
       >
         {open ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
         {title}
@@ -192,10 +192,10 @@ export function ExecutionAssistant({ session, project, elapsed, onSaveAsObservat
   return (
     <div className="flex flex-col gap-0 h-full overflow-y-auto pb-6">
       {/* Timer + finalize */}
-      <div className="px-4 pt-4 pb-3 border-b border-white/[0.04]">
+      <div className="px-4 pt-4 pb-3 border-b border-border">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <span className="font-mono text-[1.5rem] font-bold tabular-nums text-zinc-100 leading-none">
+            <span className="font-mono text-[1.5rem] font-bold tabular-nums text-foreground leading-none">
               {formatTimer(elapsed)}
             </span>
             <div className="flex items-center gap-2 mt-0.5">
@@ -204,7 +204,7 @@ export function ExecutionAssistant({ session, project, elapsed, onSaveAsObservat
                 Activa
               </span>
               {productivityLbl && (
-                <span className="text-[0.65rem] text-zinc-600">{productivityLbl}</span>
+                <span className="text-[0.65rem] text-muted-foreground/70">{productivityLbl}</span>
               )}
             </div>
           </div>
@@ -219,13 +219,13 @@ export function ExecutionAssistant({ session, project, elapsed, onSaveAsObservat
       </div>
 
       {/* Session health with numeric score */}
-      <div className={`flex items-center justify-between px-4 py-2.5 border-b border-white/[0.04] ${hConf.text}`}>
+      <div className={`flex items-center justify-between px-4 py-2.5 border-b border-border ${hConf.text}`}>
         <div className="flex items-center gap-2">
           <span className={`h-2 w-2 rounded-full flex-shrink-0 ${hConf.dot}`} />
           <span className="text-xs font-medium">{hConf.label}</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="text-[0.6rem] text-zinc-700">Health Score</span>
+          <span className="text-[0.6rem] text-muted-foreground/60">Health Score</span>
           <motion.span
             key={score}
             initial={{ opacity: 0.3 }}
@@ -238,42 +238,42 @@ export function ExecutionAssistant({ session, project, elapsed, onSaveAsObservat
         </div>
       </div>
 
-      <div className="px-4 py-3 space-y-0 divide-y divide-white/[0.03]">
+      <div className="px-4 py-3 space-y-0 divide-y divide-border">
 
         {/* Contexto */}
         <CollapsibleSection title="Contexto">
           <div className="space-y-1 pt-1">
             <div className="flex justify-between text-xs">
-              <span className="text-zinc-600">Cliente</span>
-              <span className="text-zinc-300 text-right truncate max-w-[60%]">{session.clientName}</span>
+              <span className="text-muted-foreground/70">Cliente</span>
+              <span className="text-foreground text-right truncate max-w-[60%]">{session.clientName}</span>
             </div>
             <div className="flex justify-between text-xs">
-              <span className="text-zinc-600">Proyecto</span>
-              <span className="text-zinc-400 text-right truncate max-w-[60%]">{session.projectName}</span>
+              <span className="text-muted-foreground/70">Proyecto</span>
+              <span className="text-muted-foreground text-right truncate max-w-[60%]">{session.projectName}</span>
             </div>
             <div className="flex justify-between text-xs gap-2">
-              <span className="text-zinc-600 flex-shrink-0">Tarea</span>
-              <span className="text-zinc-400 text-right truncate">{session.taskName}</span>
+              <span className="text-muted-foreground/70 flex-shrink-0">Tarea</span>
+              <span className="text-muted-foreground text-right truncate">{session.taskName}</span>
             </div>
             {project.tech && (
               <div className="flex justify-between text-xs">
-                <span className="text-zinc-600">Stack</span>
-                <span className="text-zinc-400 text-right max-w-[60%] truncate">{project.tech}</span>
+                <span className="text-muted-foreground/70">Stack</span>
+                <span className="text-muted-foreground text-right max-w-[60%] truncate">{project.tech}</span>
               </div>
             )}
             <div className="flex justify-between text-xs">
-              <span className="text-zinc-600">Sesión</span>
-              <span className="text-zinc-400">{formatElapsed(elapsed)}</span>
+              <span className="text-muted-foreground/70">Sesión</span>
+              <span className="text-muted-foreground">{formatElapsed(elapsed)}</span>
             </div>
             {totalGoals > 0 && (
               <div className="flex justify-between text-xs">
-                <span className="text-zinc-600">Objetivos</span>
+                <span className="text-muted-foreground/70">Objetivos</span>
                 <motion.span
                   key={completedGoals}
                   initial={{ opacity: 0.3 }}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.2 }}
-                  className={completedGoals === totalGoals ? "text-green-400" : "text-zinc-400"}
+                  className={completedGoals === totalGoals ? "text-green-400" : "text-muted-foreground"}
                 >
                   {completedGoals}/{totalGoals} completados
                 </motion.span>
@@ -281,13 +281,13 @@ export function ExecutionAssistant({ session, project, elapsed, onSaveAsObservat
             )}
             {inProgressActivity && (
               <div className="flex justify-between text-xs gap-2">
-                <span className="text-zinc-600 flex-shrink-0">Actividad</span>
+                <span className="text-muted-foreground/70 flex-shrink-0">Actividad</span>
                 <motion.span
                   key={inProgressActivity.id}
                   initial={{ opacity: 0.3 }}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.2 }}
-                  className="text-zinc-400 text-right truncate"
+                  className="text-muted-foreground text-right truncate"
                 >
                   {inProgressActivity.description}
                 </motion.span>
@@ -306,7 +306,7 @@ export function ExecutionAssistant({ session, project, elapsed, onSaveAsObservat
               "Revisar consola de errores",
               "Revisar logs del servidor",
             ].map(tip => (
-              <li key={tip} className="flex items-start gap-1.5 text-xs text-zinc-500">
+              <li key={tip} className="flex items-start gap-1.5 text-xs text-muted-foreground">
                 <span className="text-amber-500/60 flex-shrink-0">·</span>
                 {tip}
               </li>
@@ -321,14 +321,14 @@ export function ExecutionAssistant({ session, project, elapsed, onSaveAsObservat
               <button
                 key={i}
                 onClick={() => toggleCheck(i)}
-                className="flex w-full items-center gap-2 text-left text-xs text-zinc-400 hover:text-zinc-200 transition-colors"
+                className="flex w-full items-center gap-2 text-left text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
                 <span className={`h-3.5 w-3.5 flex-shrink-0 rounded border transition-all ${
-                  deployChecks.has(i) ? "border-green-500 bg-green-500/20" : "border-zinc-700"
+                  deployChecks.has(i) ? "border-green-500 bg-green-500/20" : "border-border"
                 }`}>
                   {deployChecks.has(i) && <Check className="h-2.5 w-2.5 text-green-400 m-auto" />}
                 </span>
-                <span className={deployChecks.has(i) ? "line-through text-zinc-600" : ""}>{item}</span>
+                <span className={deployChecks.has(i) ? "line-through text-muted-foreground/70" : ""}>{item}</span>
               </button>
             ))}
           </div>
@@ -338,15 +338,15 @@ export function ExecutionAssistant({ session, project, elapsed, onSaveAsObservat
         <CollapsibleSection title="Comandos" defaultOpen={false}>
           <div className="space-y-2 pt-1">
             {commands.map((c, i) => (
-              <div key={i} className="group rounded-lg bg-black/40 border border-white/[0.06] px-2.5 py-2">
+              <div key={i} className="group rounded-lg bg-black/40 border border-border px-2.5 py-2">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="font-mono text-[0.7rem] text-cyan-400 truncate">{c.cmd}</p>
-                    <p className="text-[0.65rem] text-zinc-600 mt-0.5">{c.desc}</p>
+                    <p className="text-[0.65rem] text-muted-foreground/70 mt-0.5">{c.desc}</p>
                   </div>
                   <button
                     onClick={() => handleCopyCmd(i, c.cmd)}
-                    className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[0.6rem] border border-white/[0.06] text-zinc-600 hover:text-zinc-300 hover:border-zinc-600 transition-all flex-shrink-0 mt-0.5"
+                    className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[0.6rem] border border-border text-muted-foreground/70 hover:text-foreground hover:bg-secondary/60 transition-all flex-shrink-0 mt-0.5"
                   >
                     {copiedCmdIdx === i
                       ? <><Check className="h-2.5 w-2.5 text-green-400" /> Copiado</>
@@ -369,7 +369,7 @@ export function ExecutionAssistant({ session, project, elapsed, onSaveAsObservat
                   key={key}
                   onClick={() => runPrompt(key)}
                   disabled={aiLoading}
-                  className="rounded-lg border border-white/[0.06] bg-zinc-900/40 px-2.5 py-1 text-[0.65rem] text-zinc-400 hover:text-zinc-200 hover:border-zinc-600 transition-all disabled:opacity-40"
+                  className="rounded-lg border border-border bg-card px-2.5 py-1 text-[0.65rem] text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-all disabled:opacity-40"
                 >
                   {PROMPT_LABELS[key]}
                 </button>
@@ -384,12 +384,12 @@ export function ExecutionAssistant({ session, project, elapsed, onSaveAsObservat
                 onChange={e => setFreeText(e.target.value)}
                 onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); runPrompt("libre", freeText); setFreeText(""); }}}
                 placeholder="Pregunta libre..."
-                className="flex-1 rounded-lg border border-white/[0.06] bg-zinc-900/40 px-2.5 py-1.5 text-xs text-zinc-200 placeholder:text-zinc-600 focus:border-cyan-500/30 focus:outline-none transition-colors"
+                className="flex-1 rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:border-cyan-500/30 focus:outline-none transition-colors"
               />
               <button
                 onClick={() => { runPrompt("libre", freeText); setFreeText(""); }}
                 disabled={!freeText.trim() || aiLoading}
-                className="rounded-lg border border-white/[0.06] bg-zinc-900/40 px-2.5 py-1.5 text-zinc-500 hover:text-zinc-200 transition-all disabled:opacity-40"
+                className="rounded-lg border border-border bg-background px-2.5 py-1.5 text-muted-foreground hover:text-foreground transition-all disabled:opacity-40"
               >
                 <CornerDownLeft className="h-3.5 w-3.5" />
               </button>
@@ -399,25 +399,25 @@ export function ExecutionAssistant({ session, project, elapsed, onSaveAsObservat
             {aiLoading && (
               <div className="flex items-center gap-2 py-2">
                 <Spinner size="sm" className="text-cyan-400" />
-                <span className="text-xs text-zinc-600">Consultando asistente...</span>
+                <span className="text-xs text-muted-foreground/70">Consultando asistente...</span>
               </div>
             )}
 
             {/* Result */}
             {aiResult && !aiLoading && (
-              <div className="rounded-lg border border-white/[0.06] bg-zinc-900/30 p-3 space-y-2">
-                <p className="text-xs text-zinc-300 leading-relaxed whitespace-pre-line">{aiResult}</p>
-                <div className="flex gap-1.5 flex-wrap border-t border-white/[0.04] pt-2">
+              <div className="rounded-lg border border-border bg-card p-3 space-y-2">
+                <p className="text-xs text-foreground leading-relaxed whitespace-pre-line">{aiResult}</p>
+                <div className="flex gap-1.5 flex-wrap border-t border-border pt-2">
                   <button
                     onClick={handleCopy}
-                    className="flex items-center gap-1 rounded px-2 py-0.5 text-[0.65rem] border border-white/[0.06] text-zinc-500 hover:text-zinc-300 transition-all"
+                    className="flex items-center gap-1 rounded px-2 py-0.5 text-[0.65rem] border border-border text-muted-foreground hover:text-foreground transition-all"
                   >
                     {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
                     {copied ? "Copiado" : "Copiar"}
                   </button>
                   <button
                     onClick={() => onSaveAsObservation(aiResult)}
-                    className="rounded px-2 py-0.5 text-[0.65rem] border border-white/[0.06] text-zinc-500 hover:text-zinc-300 transition-all"
+                    className="rounded px-2 py-0.5 text-[0.65rem] border border-border text-muted-foreground hover:text-foreground transition-all"
                   >
                     Guardar como observación
                   </button>
@@ -433,7 +433,7 @@ export function ExecutionAssistant({ session, project, elapsed, onSaveAsObservat
 
             {/* Last query */}
             {lastPrompt && !aiLoading && (
-              <div className="flex items-center justify-between text-[0.65rem] text-zinc-700 border-t border-white/[0.04] pt-2">
+              <div className="flex items-center justify-between text-[0.65rem] text-muted-foreground/60 border-t border-border pt-2">
                 <span>
                   Última: &ldquo;{lastPrompt.label.substring(0, 20)}&rdquo;
                   {" · "}
@@ -441,7 +441,7 @@ export function ExecutionAssistant({ session, project, elapsed, onSaveAsObservat
                 </span>
                 <button
                   onClick={() => runPrompt(lastPrompt.key)}
-                  className="text-zinc-600 hover:text-zinc-400 transition-colors"
+                  className="text-muted-foreground/70 hover:text-muted-foreground transition-colors"
                 >
                   Repetir
                 </button>

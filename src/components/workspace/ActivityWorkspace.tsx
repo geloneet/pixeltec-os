@@ -65,14 +65,14 @@ function EnergyBar({ startedAt, estimatedMinutes }: { startedAt: string; estimat
   return (
     <div className="mt-1.5">
       <div className="flex items-center justify-between mb-0.5">
-        <span className="text-[0.6rem] text-zinc-700">Energía</span>
+        <span className="text-[0.6rem] text-muted-foreground/60">Energía</span>
         {label && (
           <span className={`text-[0.6rem] ${mins >= 150 ? "text-red-400/80" : "text-amber-400/80"}`}>
             {label}
           </span>
         )}
       </div>
-      <div className="h-0.5 rounded-full bg-zinc-800 overflow-hidden">
+      <div className="h-0.5 rounded-full bg-secondary overflow-hidden">
         <motion.div
           className={`h-full rounded-full ${barColor}`}
           animate={{ width: `${pct}%` }}
@@ -137,12 +137,12 @@ export function ActivityWorkspace({ activities, onStart, onDone, onUpdateText }:
   const inProgressCount = inProgress ? 1 : 0;
 
   return (
-    <div className="rounded-xl border border-white/[0.06] bg-zinc-900/20 p-4">
+    <div className="rounded-xl border border-border bg-card p-4">
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
-        <p className="text-xs font-semibold text-zinc-400">Actividades</p>
+        <p className="text-xs font-semibold text-muted-foreground">Actividades</p>
         {totalCount > 0 && (
-          <span className="text-[0.65rem] text-zinc-600">
+          <span className="text-[0.65rem] text-muted-foreground/70">
             {completedCount} completada{completedCount !== 1 ? "s" : ""}
             {inProgressCount > 0 && " · 1 en progreso"}
           </span>
@@ -171,9 +171,9 @@ export function ActivityWorkspace({ activities, onStart, onDone, onUpdateText }:
                   onChange={e => setEditText(e.target.value)}
                   onBlur={() => { if (editText.trim()) onUpdateText(editText.trim()); }}
                   onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); if (editText.trim()) onUpdateText(editText.trim()); inputRef.current?.blur(); }}}
-                  className="w-full bg-transparent text-sm text-zinc-200 focus:outline-none"
+                  className="w-full bg-transparent text-sm text-foreground focus:outline-none"
                 />
-                <p className="text-[0.65rem] text-zinc-600 mt-0.5">
+                <p className="text-[0.65rem] text-muted-foreground/70 mt-0.5">
                   En progreso · <LiveDuration startedAt={inProgress.startedAt} />
                   {inProgress.estimatedMinutes && (
                     <span className="ml-1.5">· Est: {inProgress.estimatedMinutes >= 60 ? `${inProgress.estimatedMinutes / 60}h` : `${inProgress.estimatedMinutes} min`}</span>
@@ -187,7 +187,7 @@ export function ActivityWorkspace({ activities, onStart, onDone, onUpdateText }:
                 {/* Edit (pencil) — reveals input focus */}
                 <button
                   onClick={() => inputRef.current?.focus()}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity text-zinc-600 hover:text-zinc-400"
+                  className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground/70 hover:text-muted-foreground"
                   title="Editar"
                 >
                   <Pencil className="h-3 w-3" />
@@ -217,7 +217,7 @@ export function ActivityWorkspace({ activities, onStart, onDone, onUpdateText }:
             </button>
             <button
               onClick={() => setShowConfirm(false)}
-              className="rounded-lg border border-white/[0.06] px-3 py-1.5 text-xs text-zinc-500 hover:text-zinc-300 transition-all"
+              className="rounded-lg border border-border px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-all"
             >
               Cancelar
             </button>
@@ -227,7 +227,7 @@ export function ActivityWorkspace({ activities, onStart, onDone, onUpdateText }:
 
       {/* New activity form */}
       {showStartForm && !showConfirm && (
-        <div className="mb-3 rounded-lg border border-white/[0.06] bg-zinc-900/40 p-3 space-y-2">
+        <div className="mb-3 rounded-lg border border-border bg-secondary/40 p-3 space-y-2">
           <input
             autoFocus
             type="text"
@@ -235,10 +235,10 @@ export function ActivityWorkspace({ activities, onStart, onDone, onUpdateText }:
             onChange={e => setNewText(e.target.value)}
             onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); handleStartRequest(); } if (e.key === "Escape") { setShowStartForm(false); setNewText(""); }}}
             placeholder="Describe la actividad..."
-            className="w-full bg-transparent border-b border-white/[0.06] pb-1.5 text-sm text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-cyan-500/30 transition-colors"
+            className="w-full bg-transparent border-b border-border pb-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-cyan-500/30 transition-colors"
           />
           <div className="flex items-center gap-1.5">
-            <span className="text-[0.65rem] text-zinc-600">Estimación:</span>
+            <span className="text-[0.65rem] text-muted-foreground/70">Estimación:</span>
             {ESTIMATE_OPTIONS.map(opt => (
               <button
                 key={String(opt.value)}
@@ -246,7 +246,7 @@ export function ActivityWorkspace({ activities, onStart, onDone, onUpdateText }:
                 className={`rounded px-2 py-0.5 text-[0.65rem] transition-all ${
                   estimate === opt.value
                     ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/30"
-                    : "text-zinc-600 hover:text-zinc-400 border border-transparent"
+                    : "text-muted-foreground/70 hover:text-muted-foreground border border-transparent"
                 }`}
               >
                 {opt.label}
@@ -257,13 +257,13 @@ export function ActivityWorkspace({ activities, onStart, onDone, onUpdateText }:
             <button
               onClick={handleStartRequest}
               disabled={!newText.trim()}
-              className="flex-1 rounded-lg bg-zinc-800 py-1.5 text-xs font-medium text-zinc-200 hover:bg-zinc-700 transition-all disabled:opacity-40"
+              className="flex-1 rounded-lg bg-secondary py-1.5 text-xs font-medium text-secondary-foreground hover:bg-secondary/80 transition-all disabled:opacity-40"
             >
               Iniciar actividad
             </button>
             <button
               onClick={() => { setShowStartForm(false); setNewText(""); setEstimate(undefined); }}
-              className="rounded-lg border border-white/[0.06] px-3 py-1.5 text-xs text-zinc-500 hover:text-zinc-300 transition-all"
+              className="rounded-lg border border-border px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-all"
             >
               Cancelar
             </button>
@@ -274,7 +274,7 @@ export function ActivityWorkspace({ activities, onStart, onDone, onUpdateText }:
       {/* Completed timeline — compact */}
       {completed.length > 0 && (
         <div className="mb-3">
-          <p className="text-[0.65rem] font-medium text-zinc-600 mb-1.5 uppercase tracking-wider">Hoy</p>
+          <p className="text-[0.65rem] font-medium text-muted-foreground/70 mb-1.5 uppercase tracking-wider">Hoy</p>
           <div className="space-y-0">
             <AnimatePresence initial={false}>
               {completed.map((activity, i) => {
@@ -291,22 +291,22 @@ export function ActivityWorkspace({ activities, onStart, onDone, onUpdateText }:
                   >
                     {/* Timeline rail */}
                     <div className="flex flex-col items-center flex-shrink-0">
-                      <div className="h-2 w-2 rounded-full bg-zinc-600 mt-1" />
+                      <div className="h-2 w-2 rounded-full bg-muted-foreground/40 mt-1" />
                       {i < completed.length - 1 && (
-                        <div className="w-px flex-1 bg-white/[0.04] mt-1" style={{ minHeight: "14px" }} />
+                        <div className="w-px flex-1 bg-border mt-1" style={{ minHeight: "14px" }} />
                       )}
                     </div>
                     <div className="pb-2 min-w-0 flex-1">
                       <div className="flex items-baseline gap-1.5 flex-wrap">
-                        <span className="text-[0.65rem] text-zinc-600 tabular-nums flex-shrink-0">
+                        <span className="text-[0.65rem] text-muted-foreground/70 tabular-nums flex-shrink-0">
                           {formatTime(activity.startedAt)}
                         </span>
-                        <p className="text-xs text-zinc-400 leading-snug">
+                        <p className="text-xs text-muted-foreground leading-snug">
                           <Check className="h-3 w-3 text-green-500/70 flex-shrink-0 inline-block mr-1 -mb-0.5" />
                           {activity.description}
                         </p>
                       </div>
-                      <p className="text-[0.65rem] text-zinc-700 pl-[calc(2.75rem)]">
+                      <p className="text-[0.65rem] text-muted-foreground/60 pl-[calc(2.75rem)]">
                         {real}{est && ` · Est: ${est >= 60 ? `${est / 60}h` : `${est}m`}`}
                       </p>
                     </div>
@@ -317,9 +317,9 @@ export function ActivityWorkspace({ activities, onStart, onDone, onUpdateText }:
             {/* Session start */}
             <div className="flex gap-2">
               <div className="flex flex-col items-center">
-                <div className="h-2 w-2 rounded-full border border-zinc-700 mt-1" />
+                <div className="h-2 w-2 rounded-full border border-border mt-1" />
               </div>
-              <p className="text-[0.65rem] text-zinc-700 pb-1.5">Sesión iniciada</p>
+              <p className="text-[0.65rem] text-muted-foreground/60 pb-1.5">Sesión iniciada</p>
             </div>
           </div>
         </div>
@@ -328,12 +328,12 @@ export function ActivityWorkspace({ activities, onStart, onDone, onUpdateText }:
       {/* Empty state */}
       {!inProgress && completed.length === 0 && !showStartForm && (
         <div className="flex flex-col items-center text-center py-4 mb-2 gap-2">
-          <div className="h-8 w-8 rounded-xl bg-zinc-800/60 flex items-center justify-center">
-            <Play className="h-4 w-4 text-zinc-600" />
+          <div className="h-8 w-8 rounded-xl bg-secondary flex items-center justify-center">
+            <Play className="h-4 w-4 text-muted-foreground/70" />
           </div>
           <div>
-            <p className="text-xs text-zinc-400 font-medium">Comienza tu primera actividad</p>
-            <p className="text-[0.65rem] text-zinc-600 mt-0.5 max-w-[200px] leading-relaxed">
+            <p className="text-xs text-muted-foreground font-medium">Comienza tu primera actividad</p>
+            <p className="text-[0.65rem] text-muted-foreground/70 mt-0.5 max-w-[200px] leading-relaxed">
               Las actividades registran en qué inviertes tu tiempo durante la sesión.
             </p>
           </div>
