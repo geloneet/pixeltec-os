@@ -29,7 +29,7 @@ export function ApproveBar({ label, onApprove, disabled, busy }: Props) {
         )}
         {label}
       </button>
-      <span className="text-[11px] text-zinc-600">
+      <span className="text-[11px] text-muted-foreground/70">
         Al aprobar se sella el documento. Podrás reabrirlo, pero quedará registrado.
       </span>
     </div>

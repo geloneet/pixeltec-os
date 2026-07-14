@@ -51,22 +51,22 @@ export function SealedStationView({
   };
 
   return (
-    <div className="rounded-xl border border-cyan-500/20 bg-zinc-900/40">
+    <div className="rounded-xl border border-cyan-500/20 bg-card">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         className="flex w-full items-center gap-2 px-4 py-3 text-left"
       >
         {open ? (
-          <ChevronDown className="h-4 w-4 flex-shrink-0 text-zinc-500" />
+          <ChevronDown className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
         ) : (
-          <ChevronRight className="h-4 w-4 flex-shrink-0 text-zinc-500" />
+          <ChevronRight className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
         )}
         <Lock className="h-3.5 w-3.5 flex-shrink-0 text-cyan-400" />
-        <span className="text-sm font-semibold text-zinc-100">{title}</span>
-        <span className="truncate text-xs text-zinc-500">· {sealName}</span>
+        <span className="text-sm font-semibold text-foreground">{title}</span>
+        <span className="truncate text-xs text-muted-foreground">· {sealName}</span>
         {sealedAtLabel && (
-          <span className="ml-auto hidden flex-shrink-0 text-[11px] text-zinc-600 sm:block">
+          <span className="ml-auto hidden flex-shrink-0 text-[11px] text-muted-foreground/70 sm:block">
             Sellado {sealedAtLabel}
             {sealedByName ? ` · ${sealedByName}` : ""}
           </span>
@@ -74,15 +74,15 @@ export function SealedStationView({
       </button>
 
       {open && (
-        <div className="border-t border-white/[0.06] px-4 py-4">
+        <div className="border-t border-border px-4 py-4">
           <KnowledgeMarkdown content={content} />
 
-          <div className="mt-4 border-t border-white/[0.06] pt-3">
+          <div className="mt-4 border-t border-border pt-3">
             {!reopening ? (
               <button
                 type="button"
                 onClick={() => setReopening(true)}
-                className="flex items-center gap-1.5 text-xs text-zinc-500 transition-colors hover:text-amber-400"
+                className="flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-amber-400"
               >
                 <RotateCcw className="h-3.5 w-3.5" />
                 Reabrir estación
@@ -90,7 +90,7 @@ export function SealedStationView({
             ) : (
               <div className="space-y-2">
                 {hasDownstream && (
-                  <div className="flex items-start gap-2 rounded-md border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-[11px] text-amber-300/90">
+                  <div className="flex items-start gap-2 rounded-md border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-[11px] text-amber-700 dark:text-amber-300/90">
                     <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
                     Reabrir esta estación invalidará los sellos de las estaciones
                     posteriores (tendrás que volver a aprobarlas).
@@ -101,7 +101,7 @@ export function SealedStationView({
                   onChange={(e) => setReason(e.target.value)}
                   rows={2}
                   placeholder="¿Por qué reabres esta estación? (queda registrado)"
-                  className="w-full resize-none rounded-md border border-zinc-700/50 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-amber-400/40"
+                  className="w-full resize-none rounded-md border border-border bg-secondary/40 px-3 py-2 text-sm text-foreground placeholder-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-amber-400/40"
                 />
                 <div className="flex items-center gap-2">
                   <button
@@ -119,7 +119,7 @@ export function SealedStationView({
                       setReopening(false);
                       setReason("");
                     }}
-                    className="text-xs text-zinc-500 hover:text-zinc-300"
+                    className="text-xs text-muted-foreground hover:text-foreground"
                   >
                     Cancelar
                   </button>

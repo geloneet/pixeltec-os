@@ -16,8 +16,8 @@ const EVENT_LABEL: Record<WsEvent["type"], string> = {
 };
 
 const EVENT_COLOR: Record<WsEvent["type"], string> = {
-  created: "text-zinc-400",
-  started: "text-zinc-400",
+  created: "text-muted-foreground",
+  started: "text-muted-foreground",
   sealed: "text-cyan-400",
   reopened: "text-amber-400",
   invalidated: "text-amber-500",
@@ -30,28 +30,28 @@ export function DefinitionAuditTrail({ events }: { events: WsEvent[] }) {
   if (events.length === 0) return null;
 
   return (
-    <div className="rounded-lg border border-white/[0.06] bg-zinc-900/20">
+    <div className="rounded-lg border border-border bg-card">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs text-zinc-500 hover:text-zinc-300"
+        className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs text-muted-foreground hover:text-foreground"
       >
         {open ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
         <History className="h-3.5 w-3.5" />
         Historial ({events.length})
       </button>
       {open && (
-        <ul className="space-y-2 border-t border-white/[0.06] px-3 py-3">
+        <ul className="space-y-2 border-t border-border px-3 py-3">
           {events.map((e) => (
             <li key={e.id} className="text-[11px] leading-relaxed">
               <span className={cn("font-medium", EVENT_COLOR[e.type])}>
                 {EVENT_LABEL[e.type]}
               </span>
               {e.station && (
-                <span className="text-zinc-600"> · {getStationMeta(e.station).stepLabel}</span>
+                <span className="text-muted-foreground/70"> · {getStationMeta(e.station).stepLabel}</span>
               )}
-              <span className="text-zinc-600"> · {e.actorName} · {formatDate(e.createdAt)}</span>
-              {e.reason && <div className="mt-0.5 text-zinc-500">“{e.reason}”</div>}
+              <span className="text-muted-foreground/70"> · {e.actorName} · {formatDate(e.createdAt)}</span>
+              {e.reason && <div className="mt-0.5 text-muted-foreground">“{e.reason}”</div>}
             </li>
           ))}
         </ul>

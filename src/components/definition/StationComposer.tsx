@@ -34,15 +34,15 @@ export function StationComposer({ onSend, disabled, placeholder }: Props) {
         rows={3}
         disabled={disabled}
         placeholder={placeholder ?? "Responde con los cambios que quieras al documento…"}
-        className="w-full resize-none rounded-md border border-zinc-700/50 bg-zinc-800 px-3 py-2.5 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-cyan-400/40 disabled:opacity-50"
+        className="w-full resize-none rounded-md border border-border bg-secondary/40 px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-cyan-400/40 disabled:opacity-50"
       />
       <div className="flex items-center justify-between">
-        <span className="text-[11px] text-zinc-600">⌘/Ctrl + Enter para enviar</span>
+        <span className="text-[11px] text-muted-foreground/70">⌘/Ctrl + Enter para enviar</span>
         <button
           type="button"
           onClick={submit}
           disabled={disabled || !text.trim()}
-          className="flex items-center gap-1.5 rounded-md border border-white/[0.08] bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-zinc-300 transition-colors hover:bg-white/[0.08] hover:text-zinc-100 disabled:opacity-40"
+          className="flex items-center gap-1.5 rounded-md border border-border bg-secondary/40 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary/60 hover:text-foreground disabled:opacity-40"
         >
           <Send className="h-3.5 w-3.5" />
           Enviar ajustes

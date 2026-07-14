@@ -68,18 +68,18 @@ export function DraftEditor({ data }: Props) {
     <div className="mx-auto w-full max-w-2xl px-4 py-8">
       <div className="mb-6">
         <div className="mb-1 flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-zinc-500" />
-          <h1 className="text-lg font-semibold text-zinc-100">Borrador</h1>
+          <Sparkles className="h-4 w-4 text-muted-foreground" />
+          <h1 className="text-lg font-semibold text-foreground">Borrador</h1>
         </div>
-        <p className="text-xs text-zinc-500">
+        <p className="text-xs text-muted-foreground">
           Cliente: {data.clientName} · Todavía no arranca — edita lo que necesites y
           comienza la definición cuando estés listo.
         </p>
       </div>
 
-      <div className="rounded-xl border border-white/[0.06] bg-zinc-900/30 p-5">
-        <label className="mb-2 flex items-center gap-1.5 text-sm font-medium text-zinc-200">
-          <FileText className="h-4 w-4 text-zinc-400" />
+      <div className="rounded-xl border border-border bg-card p-5">
+        <label className="mb-2 flex items-center gap-1.5 text-sm font-medium text-foreground">
+          <FileText className="h-4 w-4 text-muted-foreground" />
           Nombre del proyecto
         </label>
         <input
@@ -88,11 +88,11 @@ export function DraftEditor({ data }: Props) {
           onChange={(e) => setTitle(e.target.value)}
           maxLength={200}
           placeholder="Ej. Rediseño del portal de clientes"
-          className="w-full rounded-md border border-zinc-700/50 bg-zinc-800 px-3.5 py-2.5 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-cyan-400/40"
+          className="w-full rounded-md border border-border bg-secondary/40 px-3.5 py-2.5 text-sm text-foreground placeholder-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-cyan-400/40"
         />
 
-        <label className="mb-2 mt-5 flex items-center gap-1.5 text-sm font-medium text-zinc-200">
-          <Brain className="h-4 w-4 text-zinc-400" />
+        <label className="mb-2 mt-5 flex items-center gap-1.5 text-sm font-medium text-foreground">
+          <Brain className="h-4 w-4 text-muted-foreground" />
           Descarga mental
         </label>
         <textarea
@@ -100,10 +100,10 @@ export function DraftEditor({ data }: Props) {
           onChange={(e) => setBrainDump(e.target.value)}
           rows={10}
           placeholder="Escribe tu idea, los problemas a solucionar o todo lo que tengas en la cabeza para poder aterrizarlo…"
-          className="w-full resize-none rounded-md border border-zinc-700/50 bg-zinc-800 px-3.5 py-3 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-cyan-400/40"
+          className="w-full resize-none rounded-md border border-border bg-secondary/40 px-3.5 py-3 text-sm text-foreground placeholder-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-cyan-400/40"
         />
         <div className="mt-3 flex items-center justify-between">
-          <span className="text-[11px] text-zinc-600">
+          <span className="text-[11px] text-muted-foreground/70">
             {brainDump.trim().length < MIN_BRAIN_DUMP
               ? "Escribe al menos un par de frases"
               : `${brainDump.trim().length} caracteres`}
@@ -113,7 +113,7 @@ export function DraftEditor({ data }: Props) {
               type="button"
               onClick={saveDraft}
               disabled={!valid || busy !== null}
-              className="flex items-center gap-2 rounded-md border border-zinc-700/50 bg-transparent px-4 py-2 text-sm font-medium text-zinc-300 transition-colors hover:bg-white/[0.04] disabled:opacity-40"
+              className="flex items-center gap-2 rounded-md border border-border bg-transparent px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary/60 disabled:opacity-40"
             >
               {busy === "save" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
               Guardar borrador

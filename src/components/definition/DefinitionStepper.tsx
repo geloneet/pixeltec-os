@@ -38,10 +38,10 @@ export function DefinitionStepper({ statuses, current, completed }: Props) {
                   sealed
                     ? "border-cyan-500 bg-cyan-500 text-white"
                     : invalid
-                      ? "border-amber-500 bg-zinc-900 text-amber-400"
+                      ? "border-amber-500 bg-background text-amber-400"
                       : active
-                        ? "border-cyan-500 bg-zinc-900 text-cyan-400"
-                        : "border-zinc-700 bg-zinc-900 text-zinc-600"
+                        ? "border-cyan-500 bg-background text-cyan-400"
+                        : "border-border bg-background text-muted-foreground/60"
                 )}
                 title={step.title}
               >
@@ -59,10 +59,10 @@ export function DefinitionStepper({ statuses, current, completed }: Props) {
                   active
                     ? "text-cyan-400"
                     : sealed
-                      ? "text-zinc-400"
+                      ? "text-muted-foreground"
                       : invalid
                         ? "text-amber-400"
-                        : "text-zinc-600"
+                        : "text-muted-foreground/60"
                 )}
               >
                 {step.stepLabel}
@@ -74,7 +74,7 @@ export function DefinitionStepper({ statuses, current, completed }: Props) {
                   "mb-4 h-px w-8 transition-colors sm:w-14",
                   statuses[STATION_META[i + 1].id] === "sealed" || sealed
                     ? "bg-cyan-500"
-                    : "bg-zinc-800"
+                    : "bg-secondary"
                 )}
               />
             )}

@@ -162,14 +162,14 @@ export function DefinitionWorkspace({ data }: Props) {
     <div className="mx-auto w-full max-w-3xl px-4 py-6">
       {/* Encabezado */}
       <div className="mb-4">
-        <h1 className="text-lg font-semibold text-zinc-100">{data.title}</h1>
-        <p className="mt-0.5 text-xs text-zinc-500">
+        <h1 className="text-lg font-semibold text-foreground">{data.title}</h1>
+        <p className="mt-0.5 text-xs text-muted-foreground">
           Definición de proyecto · {data.clientName}
         </p>
       </div>
 
       {/* Stepper — siempre visible */}
-      <div className="sticky top-0 z-10 -mx-4 mb-6 border-b border-white/[0.06] bg-zinc-950/80 px-4 py-4 backdrop-blur">
+      <div className="sticky top-0 z-10 -mx-4 mb-6 border-b border-border bg-card px-4 py-4">
         <DefinitionStepper statuses={statuses} current={active} completed={completed} />
       </div>
 
@@ -177,18 +177,18 @@ export function DefinitionWorkspace({ data }: Props) {
       <button
         type="button"
         onClick={() => setShowBrainDump((v) => !v)}
-        className="mb-4 flex w-full items-center gap-2 rounded-lg border border-white/[0.06] bg-zinc-900/30 px-3 py-2 text-left text-xs text-zinc-400 hover:text-zinc-200"
+        className="mb-4 flex w-full items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-left text-xs text-muted-foreground hover:text-foreground"
       >
         {showBrainDump ? (
           <ChevronDown className="h-3.5 w-3.5" />
         ) : (
           <ChevronRight className="h-3.5 w-3.5" />
         )}
-        <Brain className="h-3.5 w-3.5 text-zinc-500" />
+        <Brain className="h-3.5 w-3.5 text-muted-foreground" />
         Descarga mental original
       </button>
       {showBrainDump && (
-        <div className="mb-6 whitespace-pre-wrap rounded-lg border border-white/[0.06] bg-zinc-900/30 px-4 py-3 text-sm text-zinc-300">
+        <div className="mb-6 whitespace-pre-wrap rounded-lg border border-border bg-card px-4 py-3 text-sm text-foreground">
           {data.brainDump}
         </div>
       )}
@@ -216,18 +216,18 @@ export function DefinitionWorkspace({ data }: Props) {
           })}
 
           {/* Estación activa */}
-          <div className="rounded-xl border border-cyan-500/20 bg-zinc-900/20 p-5">
+          <div className="rounded-xl border border-cyan-500/20 bg-card p-5">
             <div className="mb-1 flex items-center gap-2">
-              <span className="text-sm font-semibold text-zinc-100">
+              <span className="text-sm font-semibold text-foreground">
                 {activeMeta.title}
               </span>
               {activeRow?.status === "invalidated" && (
-                <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-400">
+                <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-400">
                   reabrir upstream la invalidó — regenera
                 </span>
               )}
             </div>
-            <p className="mb-4 text-xs text-zinc-500">{activeMeta.hint}</p>
+            <p className="mb-4 text-xs text-muted-foreground">{activeMeta.hint}</p>
 
             <StationThread messages={messages} generating={generating} />
 
@@ -235,12 +235,12 @@ export function DefinitionWorkspace({ data }: Props) {
               <div className="mt-4 flex items-center justify-between gap-3 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2.5">
                 <div className="flex items-start gap-2">
                   <AlertCircle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-amber-400" />
-                  <p className="text-xs text-amber-300">{genError}</p>
+                  <p className="text-xs text-amber-700 dark:text-amber-300">{genError}</p>
                 </div>
                 <button
                   type="button"
                   onClick={() => generate()}
-                  className="flex flex-shrink-0 items-center gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-300 transition-colors hover:bg-amber-500/20"
+                  className="flex flex-shrink-0 items-center gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-700 dark:text-amber-300 transition-colors hover:bg-amber-500/20"
                 >
                   <RefreshCw className="h-3 w-3" />
                   Reintentar
@@ -249,7 +249,7 @@ export function DefinitionWorkspace({ data }: Props) {
             )}
 
             {hasDraft && !generating && (
-              <div className="mt-5 space-y-4 border-t border-white/[0.06] pt-4">
+              <div className="mt-5 space-y-4 border-t border-border pt-4">
                 <StationComposer
                   onSend={(text) => generate(text)}
                   disabled={generating || busy}
@@ -267,7 +267,7 @@ export function DefinitionWorkspace({ data }: Props) {
       )}
 
       {completed && (
-        <div className="mt-6 flex items-center gap-2 rounded-lg border border-cyan-500/20 bg-cyan-500/5 px-4 py-3 text-sm text-cyan-300">
+        <div className="mt-6 flex items-center gap-2 rounded-lg border border-cyan-500/20 bg-cyan-500/5 px-4 py-3 text-sm text-cyan-700 dark:text-cyan-300">
           <CheckCircle2 className="h-4 w-4" />
           Proceso completo — los {STATION_META.filter((m) => m.deliverable).length}{" "}
           documentos están sellados y listos para descargar.

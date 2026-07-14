@@ -27,7 +27,7 @@ export function StationThread({ messages, generating }: Props) {
         m.role === "assistant" ? (
           <div
             key={m.id}
-            className="rounded-xl border border-white/[0.06] bg-zinc-900/40 p-4"
+            className="rounded-xl border border-border bg-card p-4"
           >
             <div className="mb-2 flex items-center gap-1.5 text-[11px] font-medium text-cyan-400">
               <Sparkles className="h-3.5 w-3.5" />
@@ -37,14 +37,14 @@ export function StationThread({ messages, generating }: Props) {
           </div>
         ) : (
           <div key={m.id} className="flex justify-end">
-            <div className="max-w-[85%] whitespace-pre-wrap rounded-xl rounded-br-sm bg-cyan-500/10 px-3.5 py-2.5 text-sm text-zinc-100 ring-1 ring-cyan-500/20">
+            <div className="max-w-[85%] whitespace-pre-wrap rounded-xl rounded-br-sm bg-cyan-500/10 px-3.5 py-2.5 text-sm text-foreground ring-1 ring-cyan-500/20">
               {m.content}
             </div>
           </div>
         )
       )}
       {generating && (
-        <div className="flex items-center gap-2 rounded-xl border border-white/[0.06] bg-zinc-900/40 px-4 py-3 text-sm text-zinc-400">
+        <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin text-cyan-400" />
           El PM está trabajando en la propuesta…
         </div>
