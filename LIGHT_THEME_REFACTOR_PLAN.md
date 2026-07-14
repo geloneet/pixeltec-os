@@ -1,8 +1,8 @@
 # LIGHT_THEME_REFACTOR_PLAN.md
 
-**Estado:** Borrador v1 — para revisión conjunta antes de aprobar fases.
-**Alcance:** Dashboard de PixelTEC OS (`src/app/(admin)/**`, `src/components/**` excepto el sitio público de marketing, que se audita por separado en la nota final).
-**No se ha tocado ningún componente para producir este documento** — es 100% auditoría de solo lectura.
+**Estado:** ✅ Fases 1–9 completas y verificadas (2026-07-14). Las 9 fases se ejecutaron con subagentes dedicados (lint + typecheck + vitest en verde en cada dispatch), más una revisión final de todo el rango (`9fe5567..HEAD`, agente en Opus) que encontró y cerró un hallazgo Importante (badges de estado con contraste bajo en ~10 archivos). Sin regresiones en tema oscuro confirmadas. Commits locales en `main`, pendientes de push/deploy con confirmación aparte.
+**Alcance:** Dashboard de PixelTEC OS (`src/app/(admin)/**`, `src/components/**` excepto el sitio público de marketing y el Portal de Cliente — este último deliberadamente fijo en oscuro, ver `globals.css`).
+**Excepciones aceptadas y documentadas** (no son deuda): `logs-sheet.tsx`, `ServerView.tsx` (visor de logs) y `KnowledgeMarkdown.tsx` (bloque de código) mantienen fondo oscuro fijo — convención de terminal/código, igual en ambos temas por diseño. Acentos de marca (cyan) y semánticos (verde/ámbar/rojo) sin variante `dark:` en iconos, hovers y CTAs — precedente establecido esta sesión.
 
 ---
 
