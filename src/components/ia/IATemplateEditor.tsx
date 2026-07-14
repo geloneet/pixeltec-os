@@ -55,13 +55,13 @@ export function IATemplateEditor({ template, onSave, onClose }: Props) {
   return (
     <div className="fixed inset-0 z-50 flex">
       <div className="flex-1 bg-black/50" onClick={onClose} />
-      <div className="flex h-full w-full max-w-xl flex-col border-l border-white/[0.06] bg-[#0F0F12] shadow-2xl">
+      <div className="flex h-full w-full max-w-xl flex-col border-l border-border bg-background shadow-2xl">
         {/* Header */}
-        <div className="flex flex-shrink-0 items-center justify-between border-b border-white/[0.06] px-6 py-4">
-          <h2 className="text-sm font-bold text-zinc-100">
+        <div className="flex flex-shrink-0 items-center justify-between border-b border-border px-6 py-4">
+          <h2 className="text-sm font-bold text-foreground">
             {template ? "Editar plantilla" : "Nueva plantilla"}
           </h2>
-          <button onClick={onClose} className="rounded-lg p-1.5 text-zinc-500 hover:text-zinc-300 transition-colors">
+          <button onClick={onClose} className="rounded-lg p-1.5 text-muted-foreground hover:text-foreground transition-colors">
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -70,18 +70,18 @@ export function IATemplateEditor({ template, onSave, onClose }: Props) {
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
           {/* Name */}
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-zinc-400">Nombre</label>
+            <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Nombre</label>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full rounded-lg border border-white/[0.06] bg-zinc-900/60 px-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-600 focus:border-cyan-500/40 focus:outline-none"
+              className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:border-cyan-500/40 focus:outline-none"
               placeholder="Contrato de servicios web"
             />
           </div>
 
           {/* Type */}
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-zinc-400">Tipo</label>
+            <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Tipo</label>
             <div className="grid grid-cols-3 gap-1.5">
               {IA_TEMPLATE_TYPES.map((t) => (
                 <button
@@ -91,7 +91,7 @@ export function IATemplateEditor({ template, onSave, onClose }: Props) {
                     "rounded-lg border py-1.5 text-xs font-medium transition-all",
                     type === t
                       ? "border-cyan-500/40 bg-cyan-500/10 text-cyan-300"
-                      : "border-white/[0.06] bg-zinc-900/40 text-zinc-500 hover:text-zinc-300",
+                      : "border-border bg-card text-muted-foreground hover:text-foreground",
                   )}
                 >
                   {IA_TEMPLATE_TYPE_LABELS[t]}
@@ -102,26 +102,26 @@ export function IATemplateEditor({ template, onSave, onClose }: Props) {
 
           {/* Description */}
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-zinc-400">Descripción</label>
+            <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Descripción</label>
             <input
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full rounded-lg border border-white/[0.06] bg-zinc-900/60 px-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-600 focus:border-cyan-500/40 focus:outline-none"
+              className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:border-cyan-500/40 focus:outline-none"
               placeholder="Descripción breve de la plantilla"
             />
           </div>
 
           {/* Content */}
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-zinc-400">
+            <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
               Contenido{" "}
-              <span className="text-zinc-600 font-normal">— usa {"{{"} variable {"}}"}  para insertar campos</span>
+              <span className="text-muted-foreground/60 font-normal">— usa {"{{"} variable {"}}"}  para insertar campos</span>
             </label>
             <textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
               rows={12}
-              className="w-full rounded-lg border border-white/[0.06] bg-zinc-900/60 px-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-600 focus:border-cyan-500/40 focus:outline-none resize-y font-mono"
+              className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:border-cyan-500/40 focus:outline-none resize-y font-mono"
               placeholder={"CONTRATO DE SERVICIOS\n\nEntre {{nombre_empresa}} y PixelTEC...\n\nFecha: {{fecha_inicio}}\nMonto: ${{monto}} MXN"}
             />
           </div>
@@ -129,10 +129,10 @@ export function IATemplateEditor({ template, onSave, onClose }: Props) {
           {/* Detected variables */}
           {detectedVars.length > 0 && (
             <div>
-              <p className="mb-1.5 text-xs font-medium text-zinc-400">Variables detectadas</p>
+              <p className="mb-1.5 text-xs font-medium text-muted-foreground">Variables detectadas</p>
               <div className="flex flex-wrap gap-1.5">
                 {detectedVars.map((v) => (
-                  <span key={v} className="rounded-md bg-zinc-800/60 px-2 py-0.5 font-mono text-[11px] text-zinc-300">
+                  <span key={v} className="rounded-md bg-muted px-2 py-0.5 font-mono text-[11px] text-muted-foreground">
                     {`{{${v}}}`}
                   </span>
                 ))}
@@ -146,14 +146,14 @@ export function IATemplateEditor({ template, onSave, onClose }: Props) {
               type="checkbox"
               checked={isDefault}
               onChange={(e) => setIsDefault(e.target.checked)}
-              className="h-4 w-4 rounded border-zinc-600 bg-zinc-900 accent-cyan-500"
+              className="h-4 w-4 rounded border-border bg-card accent-cyan-500"
             />
-            <span className="text-sm text-zinc-400">Marcar como plantilla predeterminada</span>
+            <span className="text-sm text-muted-foreground">Marcar como plantilla predeterminada</span>
           </label>
         </div>
 
         {/* Footer */}
-        <div className="flex flex-shrink-0 gap-2 border-t border-white/[0.06] px-6 py-4">
+        <div className="flex flex-shrink-0 gap-2 border-t border-border px-6 py-4">
           <button
             onClick={handleSave}
             disabled={!name.trim() || !content.trim() || saving}
@@ -163,7 +163,7 @@ export function IATemplateEditor({ template, onSave, onClose }: Props) {
           </button>
           <button
             onClick={onClose}
-            className="rounded-lg border border-white/[0.06] px-4 py-2.5 text-sm text-zinc-500 hover:text-zinc-300 transition-all"
+            className="rounded-lg border border-border px-4 py-2.5 text-sm text-muted-foreground hover:text-foreground transition-all"
           >
             Cancelar
           </button>

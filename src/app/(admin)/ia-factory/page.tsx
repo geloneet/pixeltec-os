@@ -51,11 +51,11 @@ export default function IAFactoryPage() {
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="flex-shrink-0 border-b border-white/[0.06] bg-zinc-950/40 px-6 py-4">
+      <div className="flex-shrink-0 border-b border-border bg-background px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-cyan-400" />
-            <h1 className="text-base font-bold text-zinc-100">Centro IA</h1>
+            <h1 className="text-base font-bold text-foreground">Centro IA</h1>
           </div>
           <button
             onClick={() => setEditorTemplate(null)}
@@ -76,7 +76,7 @@ export default function IAFactoryPage() {
                 "relative flex-shrink-0 px-3 py-1.5 text-xs font-medium transition-colors rounded-lg",
                 activeType === t
                   ? "text-cyan-300 bg-cyan-500/10"
-                  : "text-zinc-500 hover:text-zinc-300",
+                  : "text-muted-foreground hover:text-foreground",
               )}
             >
               {t === "all" ? "Todas" : IA_TEMPLATE_TYPE_LABELS[t]}
@@ -88,14 +88,14 @@ export default function IAFactoryPage() {
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-6">
         {loading ? (
-          <div className="flex items-center justify-center py-16 text-sm text-zinc-600">
+          <div className="flex items-center justify-center py-16 text-sm text-muted-foreground/60">
             Cargando plantillas...
           </div>
         ) : templates.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
-            <Sparkles className="mx-auto mb-3 h-8 w-8 text-zinc-700" />
-            <p className="text-sm font-medium text-zinc-400 mb-1">Sin plantillas</p>
-            <p className="text-xs text-zinc-600 mb-4">
+            <Sparkles className="mx-auto mb-3 h-8 w-8 text-muted-foreground/60" />
+            <p className="text-sm font-medium text-muted-foreground mb-1">Sin plantillas</p>
+            <p className="text-xs text-muted-foreground/60 mb-4">
               {activeType === "all"
                 ? "Crea tu primera plantilla IA para contratos, facturas, discovery y más"
                 : `No hay plantillas de tipo "${IA_TEMPLATE_TYPE_LABELS[activeType as IATemplateType]}"`}
