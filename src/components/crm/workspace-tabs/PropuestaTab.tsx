@@ -7,6 +7,7 @@ import {
   ChevronDown, ChevronUp, Copy, Check, Pencil, Printer, Plus, Trash2,
 } from "lucide-react";
 import { useUser } from "@/hooks/use-user";
+import { formatCurrency } from "@/lib/utils";
 import { KnowledgeMarkdown } from "@/components/crm/KnowledgeMarkdown";
 import {
   BILLING_FREQUENCY_LABELS,
@@ -48,6 +49,14 @@ function emailText(proposal: Proposal) {
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("es-MX");
+}
+
+// Propuestas creadas desde el flujo de Definición de Proyecto ("Nuevo
+// Proyecto") nacen con billingItemDrafts vacío a propósito — el dinero se
+// llena después, aquí. Este helper detecta esa falta para avisar antes de
+// que se le olvide a quien la termina de armar.
+function hasInvestment(p: Proposal): boolean {
+  return (p.billingItemDrafts?.length ?? 0) > 0;
 }
 
 /** Prints the proposal PDF via a hidden iframe — no new tab, no extra viewer chrome. */
@@ -132,10 +141,11 @@ export function PropuestaTab({ clientId, clientName, clientEmail, onConvertToCon
   // Create/edit form (shared — the two views are mutually exclusive)
   const [title, setTitle]     = useState("");
   const [scope, setScope]     = useState("");
-  const [budget, setBudget]   = useState("");
   const [timeline, setTimeline] = useState("");
-  const [showPricing, setShowPricing] = useState(false);
-  const [priceLines, setPriceLines] = useState<PriceLine[]>([]);
+  // Inversión del proyecto — conceptos con monto y cadencia de pago. Reemplaza
+  // al viejo campo libre "Presupuesto"; estos mismos conceptos viajan al
+  // contrato al convertir la propuesta (ver cleanPriceLines).
+  const [priceLines, setPriceLines] = useState<PriceLine[]>([newPriceLine()]);
   const [generating, setGenerating] = useState(false);
   const [generatedData, setGeneratedData] = useState<{ solution: string; deliverables: string; benefits: string } | null>(null);
   const [saving, setSaving]   = useState(false);
@@ -170,7 +180,7 @@ export function PropuestaTab({ clientId, clientName, clientEmail, onConvertToCon
       const res = await fetch("/api/documents/proposal-generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clientName, scope, budget, timeline }),
+        body: JSON.stringify({ clientName, scope, timeline }),
       });
       const data = await res.json() as { solution: string; deliverables: string; benefits: string };
       setGeneratedData(data);
@@ -180,9 +190,9 @@ export function PropuestaTab({ clientId, clientName, clientEmail, onConvertToCon
   };
 
   const resetForm = () => {
-    setTitle(""); setScope(""); setBudget(""); setTimeline("");
+    setTitle(""); setScope(""); setTimeline("");
     setGeneratedData(null);
-    setShowPricing(false); setPriceLines([]);
+    setPriceLines([newPriceLine()]);
   };
 
   const addPriceLine = () => setPriceLines(prev => [...prev, newPriceLine()]);
@@ -205,7 +215,6 @@ export function PropuestaTab({ clientId, clientName, clientEmail, onConvertToCon
         solution: generatedData?.solution,
         deliverables: generatedData?.deliverables,
         benefits: generatedData?.benefits,
-        budget: budget.trim() || undefined,
         timeline: timeline.trim() || undefined,
         billingItemDrafts: cleanPriceLines(),
         status: "borrador",
@@ -231,7 +240,6 @@ export function PropuestaTab({ clientId, clientName, clientEmail, onConvertToCon
     if (!selected) return;
     setTitle(selected.title);
     setScope(selected.scope);
-    setBudget(selected.budget ?? "");
     setTimeline(selected.timeline ?? "");
     setGeneratedData({
       solution: selected.solution ?? "",
@@ -239,8 +247,7 @@ export function PropuestaTab({ clientId, clientName, clientEmail, onConvertToCon
       benefits: selected.benefits ?? "",
     });
     const existingLines = (selected.billingItemDrafts ?? []).map(l => ({ ...l, key: crypto.randomUUID() }));
-    setPriceLines(existingLines);
-    setShowPricing(existingLines.length > 0);
+    setPriceLines(existingLines.length > 0 ? existingLines : [newPriceLine()]);
     setView("edit");
   };
 
@@ -259,7 +266,6 @@ export function PropuestaTab({ clientId, clientName, clientEmail, onConvertToCon
         solution: generatedData?.solution || undefined,
         deliverables: generatedData?.deliverables || undefined,
         benefits: generatedData?.benefits || undefined,
-        budget: budget.trim() || undefined,
         timeline: timeline.trim() || undefined,
         billingItemDrafts: cleanPriceLines(),
       };
@@ -277,6 +283,13 @@ export function PropuestaTab({ clientId, clientName, clientEmail, onConvertToCon
 
   const handlePublish = async () => {
     if (!selected) return;
+    if (!hasInvestment(selected)) {
+      const proceed = window.confirm(
+        "Esta propuesta no tiene conceptos de inversión cargados — el cliente no verá ningún precio. " +
+        "¿Publicarla de todas formas?"
+      );
+      if (!proceed) return;
+    }
     setPublishing(true);
     try {
       const token = await publishProposal(selected);
@@ -290,6 +303,13 @@ export function PropuestaTab({ clientId, clientName, clientEmail, onConvertToCon
 
   const handleSendEmail = async () => {
     if (!selected || !clientEmail || !user) return;
+    if (!hasInvestment(selected)) {
+      const proceed = window.confirm(
+        "Esta propuesta no tiene conceptos de inversión cargados — el cliente no verá ningún precio. " +
+        "¿Enviarla de todas formas?"
+      );
+      if (!proceed) return;
+    }
     setSendingEmail(true);
     try {
       await sendProposalEmail(selected.id, clientEmail);
@@ -358,9 +378,19 @@ export function PropuestaTab({ clientId, clientName, clientEmail, onConvertToCon
                   <span className="text-[10px] font-mono text-muted-foreground flex-shrink-0">{p.reference}</span>
                 )}
               </div>
-              <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium flex-shrink-0 ${STATUS_CONFIG[p.status].classes}`}>
-                {STATUS_CONFIG[p.status].label}
-              </span>
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                {!hasInvestment(p) && p.status !== "rechazada" && p.status !== "vencida" && (
+                  <span
+                    title="Sin conceptos de inversión cargados"
+                    className="inline-flex items-center rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300"
+                  >
+                    Sin inversión
+                  </span>
+                )}
+                <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium ${STATUS_CONFIG[p.status].classes}`}>
+                  {STATUS_CONFIG[p.status].label}
+                </span>
+              </div>
             </div>
             <div className="flex items-center gap-3 text-xs text-muted-foreground">
               <span>{formatDate(p.createdAt)}</span>
@@ -415,88 +445,11 @@ export function PropuestaTab({ clientId, clientName, clientEmail, onConvertToCon
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Presupuesto <span className="text-muted-foreground">(opcional)</span></label>
-            <input type="text" value={budget} onChange={e => setBudget(e.target.value)} placeholder="Ej: $50,000 MXN"
-              className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm text-foreground placeholder-muted-foreground focus:border-cyan-500/40 focus:outline-none"
-            />
-          </div>
-          <div>
-            <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Timeline <span className="text-muted-foreground">(opcional)</span></label>
-            <input type="text" value={timeline} onChange={e => setTimeline(e.target.value)} placeholder="Ej: 6 semanas"
-              className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm text-foreground placeholder-muted-foreground focus:border-cyan-500/40 focus:outline-none"
-            />
-          </div>
-        </div>
-
         <div>
-          <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-            <input
-              type="checkbox"
-              checked={showPricing}
-              onChange={e => {
-                setShowPricing(e.target.checked);
-                if (e.target.checked && priceLines.length === 0) addPriceLine();
-              }}
-              className="h-3.5 w-3.5 rounded border-border bg-secondary accent-cyan-500"
-            />
-            Agregar precios
-          </label>
-
-          {showPricing && (
-            <div className="mt-2 space-y-2">
-              {priceLines.map((line) => (
-                <div key={line.key} className="rounded-xl border border-border bg-secondary/40 p-3 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <input
-                      value={line.concept}
-                      onChange={e => updatePriceLine(line.key, { concept: e.target.value })}
-                      placeholder="Concepto (ej. Costo Desarrollo: app + dominio 1 año incluido)"
-                      className="flex-1 rounded-lg border border-border bg-secondary px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-cyan-500/40 focus:outline-none"
-                    />
-                    <button
-                      onClick={() => removePriceLine(line.key)}
-                      title="Eliminar"
-                      className="flex-shrink-0 text-muted-foreground hover:text-red-400 transition-colors"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <input
-                      type="number"
-                      min={0}
-                      step="0.01"
-                      value={line.amount || ""}
-                      onChange={e => updatePriceLine(line.key, { amount: Number(e.target.value) })}
-                      placeholder="Monto"
-                      className="rounded-lg border border-border bg-secondary px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-cyan-500/40 focus:outline-none"
-                    />
-                    <select
-                      value={line.frequency}
-                      onChange={e => updatePriceLine(line.key, { frequency: e.target.value as BillingFrequency })}
-                      className="rounded-lg border border-border bg-secondary px-3 py-2 text-sm text-foreground focus:border-cyan-500/40 focus:outline-none"
-                    >
-                      {PRICE_FREQUENCIES.map(f => (
-                        <option key={f} value={f}>{BILLING_FREQUENCY_LABELS[f]}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              ))}
-              <button
-                onClick={addPriceLine}
-                className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border py-2 text-xs text-muted-foreground transition-all hover:border-cyan-500/30 hover:text-cyan-300"
-              >
-                <Plus className="h-3.5 w-3.5" /> Agregar concepto de cobro
-              </button>
-              <p className="text-[10px] text-muted-foreground">
-                La frecuencia ya cubre cobros recurrentes — deja &ldquo;Único&rdquo; para un cobro
-                de una sola vez, o elige mensual/trimestral/semestral/anual para que se repita.
-              </p>
-            </div>
-          )}
+          <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Timeline <span className="text-muted-foreground">(opcional)</span></label>
+          <input type="text" value={timeline} onChange={e => setTimeline(e.target.value)} placeholder="Ej: 6 semanas"
+            className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm text-foreground placeholder-muted-foreground focus:border-cyan-500/40 focus:outline-none"
+          />
         </div>
 
         <button
@@ -525,6 +478,64 @@ export function PropuestaTab({ clientId, clientName, clientEmail, onConvertToCon
             ))}
           </div>
         )}
+
+        <div>
+          <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+            Inversión del proyecto <span className="text-muted-foreground">— conceptos y cadencia de pago</span>
+          </label>
+          <div className="space-y-2">
+            {priceLines.map((line) => (
+              <div key={line.key} className="rounded-xl border border-border bg-secondary/40 p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    value={line.concept}
+                    onChange={e => updatePriceLine(line.key, { concept: e.target.value })}
+                    placeholder="Concepto (ej. Desarrollo del sistema, Alojamiento y mantenimiento anual...)"
+                    className="flex-1 rounded-lg border border-border bg-secondary px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-cyan-500/40 focus:outline-none"
+                  />
+                  <button
+                    onClick={() => removePriceLine(line.key)}
+                    title="Eliminar"
+                    className="flex-shrink-0 text-muted-foreground hover:text-red-400 transition-colors"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={line.amount || ""}
+                    onChange={e => updatePriceLine(line.key, { amount: Number(e.target.value) })}
+                    placeholder="Monto (MXN)"
+                    className="rounded-lg border border-border bg-secondary px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-cyan-500/40 focus:outline-none"
+                  />
+                  <select
+                    value={line.frequency}
+                    onChange={e => updatePriceLine(line.key, { frequency: e.target.value as BillingFrequency })}
+                    className="rounded-lg border border-border bg-secondary px-3 py-2 text-sm text-foreground focus:border-cyan-500/40 focus:outline-none"
+                  >
+                    {PRICE_FREQUENCIES.map(f => (
+                      <option key={f} value={f}>{BILLING_FREQUENCY_LABELS[f]}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            ))}
+            <button
+              onClick={addPriceLine}
+              className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border py-2 text-xs text-muted-foreground transition-all hover:border-cyan-500/30 hover:text-cyan-300"
+            >
+              <Plus className="h-3.5 w-3.5" /> Agregar concepto de inversión
+            </button>
+            <p className="text-[10px] text-muted-foreground">
+              Estos conceptos se muestran al cliente en la propuesta y viajan al contrato al convertirla.
+              La cadencia ya cubre cobros recurrentes — deja &ldquo;Pago único&rdquo; para un pago de una
+              sola vez, o elige mensual/trimestral/semestral/anual para que se repita.
+            </p>
+          </div>
+        </div>
 
         <div className="flex items-center gap-3">
           <button
@@ -570,6 +581,22 @@ export function PropuestaTab({ clientId, clientName, clientEmail, onConvertToCon
           {STATUS_CONFIG[selected.status].label}
         </span>
       </div>
+
+      {/* Aviso: propuestas creadas desde "Nuevo Proyecto" (Definición) nacen sin
+          conceptos de inversión — hay que cargarlos aquí antes de enviarla. */}
+      {!hasInvestment(selected) && selected.status !== "rechazada" && selected.status !== "vencida" && (
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-2.5">
+          <p className="text-xs text-amber-700 dark:text-amber-300">
+            Sin conceptos de inversión cargados — el cliente no verá ningún precio.
+          </p>
+          <button
+            onClick={handleOpenEdit}
+            className="flex-shrink-0 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-[11px] font-medium text-amber-700 hover:bg-amber-500/20 dark:text-amber-300 transition-all"
+          >
+            Agregar inversión
+          </button>
+        </div>
+      )}
 
       {/* Quick actions */}
       <div className="flex flex-wrap gap-2">
@@ -753,6 +780,23 @@ export function PropuestaTab({ clientId, clientName, clientEmail, onConvertToCon
         </div>
       )}
 
+      {selected.billingItemDrafts && selected.billingItemDrafts.length > 0 && (
+        <div className="rounded-xl border border-border bg-card p-4">
+          <p className="mb-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">Inversión del proyecto</p>
+          <div className="space-y-1.5">
+            {selected.billingItemDrafts.map((item, i) => (
+              <div key={i} className="flex items-center justify-between gap-3 text-sm">
+                <span className="text-foreground">{item.concept}</span>
+                <span className="whitespace-nowrap text-muted-foreground">
+                  {formatCurrency(item.amount)} · {BILLING_FREQUENCY_LABELS[item.frequency]}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* selected.budget: campo libre legado — ya no lo captura el form, se conserva por compatibilidad con propuestas anteriores */}
       {(selected.budget || selected.timeline) && (
         <div className="flex gap-3">
           {selected.budget && (

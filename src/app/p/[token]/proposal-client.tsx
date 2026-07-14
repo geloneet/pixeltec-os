@@ -8,12 +8,15 @@ import type { Components } from "react-markdown";
 import { Check, X, Download, ChevronDown, ChevronUp } from "lucide-react";
 import { ObfuscatedMailto } from "@/components/ui/obfuscated-mailto";
 import { Spinner } from "@/components/ui/spinner";
-import type { Proposal } from "@/types/documents";
+import { formatCurrency } from "@/lib/utils";
+import { BILLING_FREQUENCY_LABELS, type Proposal } from "@/types/documents";
 
 interface Props {
   proposal: Proposal;
   token: string;
 }
+
+type SectionKey = "oportunidad" | "solucion" | "entregables" | "proceso" | "inversion" | "beneficios";
 
 const STATUS_LABEL: Record<Proposal["status"], string> = {
   borrador: "Borrador",
@@ -24,14 +27,14 @@ const STATUS_LABEL: Record<Proposal["status"], string> = {
   vencida: "Vencida",
 };
 
-// Mismo boilerplate que el PDF (src/app/api/documents/proposal-pdf/route.tsx) —
+// Mismo boilerplate que el PDF (src/lib/documents/pdf-render-worker/render-proposal.mjs) —
 // no depende de datos de la propuesta, es la metodología estándar de PixelTEC.
 const PHASES = [
-  { n: "01", label: "Discovery", desc: "Entendemos el problema real, el contexto del negocio y los objetivos detrás del proyecto." },
-  { n: "02", label: "Diseño y arquitectura", desc: "Definimos la solución técnica y la experiencia antes de escribir una sola línea de código." },
-  { n: "03", label: "Desarrollo", desc: "Construcción iterativa, con avances visibles en cada etapa del proceso." },
-  { n: "04", label: "Validación", desc: "Pruebas, ajustes y revisión conjunta contigo antes del lanzamiento." },
-  { n: "05", label: "Entrega y capacitación", desc: "Puesta en producción y acompañamiento para tu equipo." },
+  { n: "01", tag: "Inicio", label: "Discovery", desc: "Entendemos el problema real, el contexto del negocio y los objetivos detrás del proyecto." },
+  { n: "02", tag: "Aprobación", label: "Diseño y arquitectura", desc: "Definimos la solución técnica y la experiencia antes de escribir una sola línea de código." },
+  { n: "03", tag: "Construcción", label: "Desarrollo", desc: "Construcción iterativa, con avances visibles en cada etapa del proceso." },
+  { n: "04", tag: "Revisión", label: "Validación", desc: "Pruebas, ajustes y revisión conjunta contigo antes del lanzamiento." },
+  { n: "05", tag: "Entrega", label: "Entrega y capacitación", desc: "Puesta en producción y acompañamiento para tu equipo." },
 ];
 
 const TERMS: Array<{ label: string; value: string }> = [
@@ -158,6 +161,25 @@ export function ProposalClient({ proposal, token }: Props) {
   const deliverableItems = proposal.deliverables ? parseBullets(proposal.deliverables) : [];
   const benefitItems = proposal.benefits ? parseBullets(proposal.benefits) : [];
   const benefitParagraph = proposal.benefits && benefitItems.length === 0 ? proposal.benefits : null;
+  // Conceptos de inversión — mismo filtro defensivo que el PDF.
+  const investItems = (proposal.billingItemDrafts ?? []).filter((i) => i.concept && i.amount > 0);
+
+  // Numeración secuencial de secciones — igual criterio que el PDF: solo se
+  // numeran las que realmente están presentes, sin huecos.
+  const hasSolution = Boolean(proposal.solution);
+  const hasDeliverablesSection = deliverableItems.length > 0;
+  const hasInvestment = investItems.length > 0;
+  const hasBenefitsSection = benefitItems.length > 0 || Boolean(benefitParagraph);
+  const presentSections: SectionKey[] = [
+    "oportunidad",
+    ...(hasSolution ? (["solucion"] satisfies SectionKey[]) : []),
+    ...(hasDeliverablesSection ? (["entregables"] satisfies SectionKey[]) : []),
+    "proceso",
+    ...(hasInvestment ? (["inversion"] satisfies SectionKey[]) : []),
+    ...(hasBenefitsSection ? (["beneficios"] satisfies SectionKey[]) : []),
+  ];
+  const numberOf = (key: SectionKey) =>
+    String(presentSections.indexOf(key) + 1).padStart(2, "0");
 
   return (
     <div className="min-h-screen bg-white" style={{ fontFamily: "Poppins, system-ui, -apple-system, sans-serif" }}>
@@ -252,18 +274,18 @@ export function ProposalClient({ proposal, token }: Props) {
           </div>
         )}
 
-        <Section label="Resumen ejecutivo">
+        <NumberedSection eyebrow="EL PROYECTO" number={numberOf("oportunidad")} title="La oportunidad">
           <ProposalMarkdown content={proposal.scope} />
-        </Section>
+        </NumberedSection>
 
-        {proposal.solution && (
-          <Section label="Solución propuesta">
-            <ProposalMarkdown content={proposal.solution} />
-          </Section>
+        {hasSolution && (
+          <NumberedSection eyebrow="LA SOLUCIÓN" number={numberOf("solucion")} title="Qué vamos a construir">
+            <ProposalMarkdown content={proposal.solution!} />
+          </NumberedSection>
         )}
 
-        {deliverableItems.length > 0 && (
-          <Section label="Alcance y entregables">
+        {hasDeliverablesSection && (
+          <NumberedSection eyebrow="LO QUE INCLUYE, EN CONCRETO" number={numberOf("entregables")} title="Especificaciones del proyecto">
             <ul className="space-y-2">
               {deliverableItems.map((item, i) => (
                 <li key={i} className="flex items-start gap-2.5 text-sm text-slate-700">
@@ -272,37 +294,16 @@ export function ProposalClient({ proposal, token }: Props) {
                 </li>
               ))}
             </ul>
-          </Section>
+          </NumberedSection>
         )}
 
-        {benefitItems.length > 0 && (
-          <Section label="Beneficios">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {benefitItems.map((item, i) => (
-                <div key={i} className="flex gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3.5">
-                  <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md bg-[#2196F3]/10 text-[0.6rem] font-bold text-[#2196F3]">
-                    {String(i + 1).padStart(2, "0")}
-                  </span>
-                  <p className="text-[0.8rem] leading-snug text-slate-700">{item}</p>
-                </div>
-              ))}
-            </div>
-          </Section>
-        )}
-        {benefitParagraph && (
-          <Section label="Beneficios">
-            <ProposalMarkdown content={benefitParagraph} />
-          </Section>
-        )}
-
-        {(proposal.budget || proposal.timeline) && (
-          <div className="my-9 grid grid-cols-2 gap-3">
-            {proposal.budget && <InvestCard label="Inversión" value={proposal.budget} />}
-            {proposal.timeline && <InvestCard label="Tiempo estimado" value={proposal.timeline} />}
-          </div>
-        )}
-
-        <Section label="Fases del proyecto">
+        <NumberedSection eyebrow="CÓMO TRABAJAMOS" number={numberOf("proceso")} title="El proceso, paso a paso">
+          {proposal.timeline && (
+            <p className="mb-4 text-sm text-slate-700">
+              <span className="font-bold text-slate-900">Tiempo estimado: </span>
+              {proposal.timeline}
+            </p>
+          )}
           <div className="flex flex-col">
             {PHASES.map((phase, i) => (
               <div key={phase.n} className="flex gap-4">
@@ -313,15 +314,72 @@ export function ProposalClient({ proposal, token }: Props) {
                   {i < PHASES.length - 1 && <div className="mt-1 w-px flex-1 bg-slate-200" />}
                 </div>
                 <div className="pb-6">
-                  <p className="text-sm font-bold text-slate-900">{phase.label}</p>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-bold text-slate-900">{phase.label}</p>
+                    <span className="text-[0.6rem] font-bold uppercase tracking-wider text-[#2196F3]">{phase.tag}</span>
+                  </div>
                   <p className="mt-0.5 text-xs leading-relaxed text-slate-500">{phase.desc}</p>
                 </div>
               </div>
             ))}
           </div>
-        </Section>
+        </NumberedSection>
 
-        <Section label="Condiciones comerciales">
+        {hasInvestment && (
+          <NumberedSection eyebrow="LA INVERSIÓN" number={numberOf("inversion")} title="Inversión del proyecto">
+            <p className="mb-4 text-sm text-slate-600">
+              Detalle de la inversión requerida para este proyecto, por concepto.
+            </p>
+            <div className="overflow-hidden rounded-xl border border-slate-200">
+              <table className="w-full text-sm">
+                <thead className="bg-[#0F172A] text-white">
+                  <tr>
+                    <th className="px-4 py-2.5 text-left text-[0.65rem] font-bold uppercase tracking-wider">Concepto</th>
+                    <th className="px-4 py-2.5 text-right text-[0.65rem] font-bold uppercase tracking-wider">Inversión</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {investItems.map((item, i) => (
+                    <tr key={i} className="border-t border-slate-200">
+                      <td className="px-4 py-3 align-top text-slate-700">{item.concept}</td>
+                      <td className="px-4 py-3 text-right align-top">
+                        <div className="font-extrabold text-slate-900">{formatCurrency(item.amount)}</div>
+                        <div className="text-[0.6rem] uppercase tracking-wide text-slate-400">
+                          MXN · {BILLING_FREQUENCY_LABELS[item.frequency]}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="mt-3 text-[0.7rem] italic text-slate-400">
+              Los montos están en pesos mexicanos (MXN) y no incluyen IVA; si requiere factura, se agrega el 16% correspondiente.
+            </p>
+          </NumberedSection>
+        )}
+
+        {benefitItems.length > 0 && (
+          <NumberedSection eyebrow="POR QUÉ PIXELTEC" number={numberOf("beneficios")} title="Beneficios">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {benefitItems.map((item, i) => (
+                <div key={i} className="flex gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3.5">
+                  <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md bg-[#2196F3]/10 text-[0.6rem] font-bold text-[#2196F3]">
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  <p className="text-[0.8rem] leading-snug text-slate-700">{item}</p>
+                </div>
+              ))}
+            </div>
+          </NumberedSection>
+        )}
+        {benefitParagraph && (
+          <NumberedSection eyebrow="POR QUÉ PIXELTEC" number={numberOf("beneficios")} title="Beneficios">
+            <ProposalMarkdown content={benefitParagraph} />
+          </NumberedSection>
+        )}
+
+        <MinorHeading label="Condiciones comerciales">
           <div className="space-y-2.5 rounded-xl border border-slate-200 bg-slate-50 p-4">
             {TERMS.map((term) => (
               <div key={term.label} className="flex gap-3 text-xs">
@@ -330,7 +388,7 @@ export function ProposalClient({ proposal, token }: Props) {
               </div>
             ))}
           </div>
-        </Section>
+        </MinorHeading>
 
         <div className="my-9 border-t border-slate-200" />
 
@@ -451,13 +509,37 @@ export function ProposalClient({ proposal, token }: Props) {
               +52 322 137 8336
             </a>
           </div>
+          <div className="mt-6">
+            <p className="text-sm font-bold text-slate-900">Miguel Robles</p>
+            <p className="mt-0.5 text-xs text-slate-500">Fundador &amp; Lead Architect · PIXELTEC</p>
+          </div>
         </div>
       </main>
     </div>
   );
 }
 
-function Section({ label, children }: { label: string; children: React.ReactNode }) {
+// Encabezado de sección numerada — eyebrow + "0X" + título + divisoria, misma
+// composición estructural que NumberedSection en el worker de PDF.
+function NumberedSection({
+  eyebrow, number, title, children,
+}: { eyebrow: string; number: string; title: string; children: React.ReactNode }) {
+  return (
+    <div className="mb-9">
+      <p className="mb-1.5 text-[0.65rem] font-bold uppercase tracking-widest text-[#2196F3]">{eyebrow}</p>
+      <div className="mb-3 flex items-end gap-2">
+        <span className="text-sm font-extrabold text-[#2196F3]">{number}</span>
+        <h2 className="text-lg font-extrabold text-slate-900">{title}</h2>
+      </div>
+      <div className="mb-4 h-px bg-slate-200" />
+      {children}
+    </div>
+  );
+}
+
+// Encabezado menor (bar + label) — reservado para "Condiciones comerciales",
+// que va como nota de cierre y no como sección numerada propia.
+function MinorHeading({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="mb-9">
       <div className="mb-3 flex items-center gap-2.5">
@@ -474,16 +556,6 @@ function HeroMeta({ label, value }: { label: string; value: string }) {
     <div>
       <p className="mb-1 text-[0.6rem] font-bold uppercase tracking-wider text-[#5B6478]">{label}</p>
       <p className="text-[0.8rem] font-semibold text-white">{value}</p>
-    </div>
-  );
-}
-
-function InvestCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="relative overflow-hidden rounded-xl border border-slate-200 bg-[#0F172A] p-4">
-      <div className="absolute inset-x-0 top-0 h-[3px] bg-[#2196F3]" />
-      <p className="mb-2 text-[0.6rem] font-bold uppercase tracking-wider text-[#8B93A7]">{label}</p>
-      <p className="text-lg font-extrabold text-white">{value}</p>
     </div>
   );
 }

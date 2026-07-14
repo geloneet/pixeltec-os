@@ -19,6 +19,13 @@
 //
 // Uso: node render-proposal.mjs <inputJsonPath> <outputPdfPath>
 // Lee el Proposal (JSON) de inputJsonPath, escribe el PDF binario en outputPdfPath.
+//
+// ESTRUCTURA DEL DOCUMENTO (reconstruida sobre docs/Propuesta_Villa_Don_Eduardo_
+// PIXELTEC_1.pdf — solo armazón/secciones, la identidad visual sigue siendo la
+// de PixelTEC): portada con "Preparado para / Preparado por", secciones
+// numeradas (una por página) con eyebrow + número + título, tabla de
+// "Inversión del proyecto" (concepto + monto + cadencia de pago), condiciones
+// comerciales y página de cierre con firma.
 
 import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -97,11 +104,11 @@ const STATUS_LABEL = {
 };
 
 const PHASES = [
-  { n: "01", label: "Discovery", desc: "Entendemos el problema real, el contexto del negocio y los objetivos detrás del proyecto." },
-  { n: "02", label: "Diseño y arquitectura", desc: "Definimos la solución técnica y la experiencia antes de escribir una sola línea de código." },
-  { n: "03", label: "Desarrollo", desc: "Construcción iterativa, con avances visibles en cada etapa del proceso." },
-  { n: "04", label: "Validación", desc: "Pruebas, ajustes y revisión conjunta contigo antes del lanzamiento." },
-  { n: "05", label: "Entrega y capacitación", desc: "Puesta en producción y acompañamiento para tu equipo." },
+  { n: "01", tag: "Inicio", label: "Discovery", desc: "Entendemos el problema real, el contexto del negocio y los objetivos detrás del proyecto." },
+  { n: "02", tag: "Aprobación", label: "Diseño y arquitectura", desc: "Definimos la solución técnica y la experiencia antes de escribir una sola línea de código." },
+  { n: "03", tag: "Construcción", label: "Desarrollo", desc: "Construcción iterativa, con avances visibles en cada etapa del proceso." },
+  { n: "04", tag: "Revisión", label: "Validación", desc: "Pruebas, ajustes y revisión conjunta contigo antes del lanzamiento." },
+  { n: "05", tag: "Entrega", label: "Entrega y capacitación", desc: "Puesta en producción y acompañamiento para tu equipo." },
 ];
 
 const TERMS = [
@@ -111,6 +118,27 @@ const TERMS = [
   { label: "Qué no incluye", value: "Cualquier alcance, entregable o servicio no descrito explícitamente en esta propuesta." },
   { label: "Cambios fuera de alcance", value: "Cualquier solicitud adicional se evalúa y cotiza por separado antes de iniciar su desarrollo." },
 ];
+
+// Etiquetas de cadencia de pago — mismas 5 frecuencias fijas del formulario
+// (ver BILLING_FREQUENCY_LABELS en src/types/documents.ts; se repite aquí
+// porque este worker no puede importar TypeScript).
+const FREQ_LABEL = {
+  unico: "Pago único",
+  mensual: "Mensual",
+  trimestral: "Trimestral",
+  semestral: "Semestral",
+  anual: "Anual",
+};
+
+function formatMXN(n) {
+  const decimals = Number.isInteger(n) ? 0 : 2;
+  return new Intl.NumberFormat("es-MX", {
+    style: "currency",
+    currency: "MXN",
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  }).format(n);
+}
 
 // Convierte "**negritas**"/"*cursivas*" en spans de Text anidados — sin esto
 // los asteriscos salen literales (@react-pdf/renderer no interpreta
@@ -272,7 +300,24 @@ function CoverMeta({ label, value }) {
   ]);
 }
 
-function Section({ label, children }) {
+// Encabezado de sección numerada — eyebrow + "0X" + título grande + línea
+// divisoria, una por página (break=true en todas menos la primera). Es el
+// equivalente estructural de "01 La oportunidad" en la referencia.
+function NumberedSection({ eyebrow, number, title, breakBefore, children }) {
+  return h(View, { style: styles.numberedSection, break: Boolean(breakBefore), wrap: true }, [
+    h(Text, { style: styles.numberedEyebrow, key: "eyebrow" }, eyebrow),
+    h(View, { style: styles.numberedTitleRow, key: "title" }, [
+      h(Text, { style: styles.numberedNumber, key: "n" }, number),
+      h(Text, { style: styles.numberedTitle, key: "t" }, title),
+    ]),
+    h(View, { style: styles.numberedDivider, key: "div" }),
+    children,
+  ]);
+}
+
+// Encabezado menor (bar + label pequeño) — reservado para "Condiciones
+// comerciales", que va como nota de cierre y no como sección numerada propia.
+function MinorHeading({ label, children }) {
   return h(View, { style: styles.section }, [
     h(View, { style: styles.sectionLabelRow, key: "head" }, [
       h(View, { style: styles.sectionLabelBar, key: "bar" }),
@@ -283,11 +328,14 @@ function Section({ label, children }) {
 }
 
 function ProposalDocument({ proposal }) {
-  const dateStr = new Date(proposal.createdAt).toLocaleDateString("es-MX", {
-    day: "2-digit", month: "long", year: "numeric",
+  const monthYearStr = new Date(proposal.createdAt).toLocaleDateString("es-MX", {
+    month: "long", year: "numeric",
   });
   const hasDeliverables = Boolean(proposal.deliverables && proposal.deliverables.trim());
   const hasBenefits = Boolean(proposal.benefits && proposal.benefits.trim());
+  // Conceptos de inversión — mismo filtro que cleanPriceLines() en el form
+  // (defensivo por si llega data vieja/sucia).
+  const investItems = (proposal.billingItemDrafts ?? []).filter((i) => i && i.concept && i.amount > 0);
 
   const coverGridLines = [
     ...Array.from({ length: 13 }, (_, i) =>
@@ -315,11 +363,11 @@ function ProposalDocument({ proposal }) {
       ])),
     h(View, { style: styles.coverContent, key: "content" }, [
       h(Image, { src: LOGO_PATH, style: styles.coverLogo, key: "logo" }),
-      h(Text, { style: styles.coverEyebrow, key: "eyebrow" }, "PROPUESTA COMERCIAL"),
+      h(Text, { style: styles.coverEyebrow, key: "eyebrow" }, "PROPUESTA DE PROYECTO"),
       h(Text, { style: styles.coverTitle, key: "title" }, proposal.title),
       h(View, { style: styles.coverMetaRow, key: "meta" }, [
-        h(CoverMeta, { label: "Cliente", value: proposal.clientName, key: "m1" }),
-        h(CoverMeta, { label: "Fecha", value: dateStr, key: "m2" }),
+        h(CoverMeta, { label: "Preparado para", value: proposal.clientName, key: "m1" }),
+        h(CoverMeta, { label: "Preparado por", value: `PIXELTEC · ${monthYearStr}`, key: "m2" }),
         h(CoverMeta, { label: "Referencia", value: proposal.reference ?? "—", key: "m3" }),
       ]),
     ]),
@@ -332,53 +380,13 @@ function ProposalDocument({ proposal }) {
     ]),
   ]);
 
-  const sections = [];
-
-  sections.push(h(Section, { label: "Resumen ejecutivo", key: "sec-scope" },
-    renderRichText(proposal.scope)));
-
-  if (proposal.solution) {
-    sections.push(h(Section, { label: "Solución propuesta", key: "sec-solution" },
-      renderRichText(proposal.solution)));
-  }
-
-  // deliverables/benefits llegan como markdown rico de la IA (títulos, tablas,
-  // listas numeradas, **negritas**) — se renderizan con renderRichText igual
-  // que scope/solution. Antes usaban parseBullets + un contenedor `wrap:false`
-  // que volcaba cada línea como bullet y, al exceder la página, se encimaba.
-  if (hasDeliverables) {
-    sections.push(h(Section, { label: "Alcance y entregables", key: "sec-deliverables" },
-      renderRichText(proposal.deliverables)));
-  }
-
-  if (hasBenefits) {
-    sections.push(h(Section, { label: "Beneficios", key: "sec-benefits" },
-      renderRichText(proposal.benefits)));
-  }
-
-  if (proposal.budget || proposal.timeline) {
-    sections.push(h(View, { style: styles.investRow, wrap: false, key: "invest" }, [
-      proposal.budget && h(View, { style: styles.investCard, key: "budget" }, [
-        h(View, { style: styles.investAccent, key: "accent" }),
-        h(Text, { style: styles.investLabel, key: "label" }, "Inversión"),
-        h(Text, { style: styles.investValue, key: "value" }, proposal.budget),
-      ]),
-      proposal.timeline && h(View, { style: styles.investCard, key: "timeline" }, [
-        h(View, { style: styles.investAccent, key: "accent" }),
-        h(Text, { style: styles.investLabel, key: "label" }, "Tiempo estimado"),
-        h(Text, { style: styles.investValue, key: "value" }, proposal.timeline),
-      ]),
-    ].filter(Boolean)));
-  }
-
-  if (proposal.status === "aceptada") {
-    sections.push(h(View, { style: styles.acceptedBanner, wrap: false, key: "accepted" },
-      h(Text, { style: styles.acceptedText },
-        `Propuesta aceptada${proposal.acceptedAt ? ` el ${new Date(proposal.acceptedAt).toLocaleDateString("es-MX")}` : ""}`)));
-  }
-
-  sections.push(h(Section, { label: "Fases del proyecto", key: "sec-phases" },
-    h(View, { style: styles.phaseList },
+  // ── Cuerpo de "El proceso, paso a paso" — timeline (si existe) + fases ──
+  const processBody = [
+    proposal.timeline && h(Text, { style: styles.paragraph, key: "timeline-intro" }, [
+      h(Text, { style: styles.bold, key: "b" }, "Tiempo estimado: "),
+      proposal.timeline,
+    ]),
+    h(View, { style: styles.phaseList, key: "phases" },
       PHASES.map((phase, i) =>
         h(View, { style: styles.phaseRow, wrap: false, key: phase.n }, [
           h(View, { style: styles.phaseNumberCol, key: "col" }, [
@@ -387,12 +395,69 @@ function ProposalDocument({ proposal }) {
             i < PHASES.length - 1 && h(View, { style: styles.phaseConnector, key: "connector" }),
           ].filter(Boolean)),
           h(View, { style: styles.phaseTextCol, key: "text" }, [
-            h(Text, { style: styles.phaseLabel, key: "label" }, phase.label),
+            h(View, { style: styles.phaseTextTop, key: "top" }, [
+              h(Text, { style: styles.phaseLabel, key: "label" }, phase.label),
+              h(Text, { style: styles.phaseTag, key: "tag" }, phase.tag.toUpperCase()),
+            ]),
             h(Text, { style: styles.phaseDesc, key: "desc" }, phase.desc),
           ]),
-        ])))));
+        ]))),
+  ].filter(Boolean);
 
-  sections.push(h(Section, { label: "Condiciones comerciales", key: "sec-terms" },
+  // ── Cuerpo de "Inversión del proyecto" — tabla concepto/monto/cadencia ──
+  const investmentBody = [
+    h(Text, { style: styles.paragraph, key: "intro" },
+      "Detalle de la inversión requerida para este proyecto, por concepto."),
+    h(View, { style: styles.investTable, key: "table" }, [
+      h(View, { style: styles.investTableHeaderRow, key: "head" }, [
+        h(Text, { style: styles.investTableHeaderConcept, key: "c" }, "CONCEPTO"),
+        h(Text, { style: styles.investTableHeaderAmount, key: "a" }, "INVERSIÓN"),
+      ]),
+      ...investItems.map((item, i) =>
+        h(View, { style: styles.investTableRow, wrap: false, key: `row${i}` }, [
+          h(Text, { style: styles.investConceptText, key: "c" }, item.concept),
+          h(View, { style: styles.investAmountCol, key: "a" }, [
+            h(Text, { style: styles.investAmountValue, key: "v" }, formatMXN(item.amount)),
+            h(Text, { style: styles.investFreqLabel, key: "f" }, `MXN · ${FREQ_LABEL[item.frequency] ?? item.frequency}`),
+          ]),
+        ])),
+    ]),
+    h(Text, { style: styles.investNote, key: "note" },
+      "Los montos están en pesos mexicanos (MXN) y no incluyen IVA; si requiere factura, se agrega el 16% correspondiente."),
+  ];
+
+  // ── Secciones numeradas — se numeran de forma secuencial según lo que
+  // realmente esté presente (sin huecos si falta solution/deliverables/benefits).
+  const sectionDefs = [
+    { eyebrow: "EL PROYECTO", title: "La oportunidad", present: true, body: () => renderRichText(proposal.scope) },
+    { eyebrow: "LA SOLUCIÓN", title: "Qué vamos a construir", present: Boolean(proposal.solution), body: () => renderRichText(proposal.solution) },
+    { eyebrow: "LO QUE INCLUYE, EN CONCRETO", title: "Especificaciones del proyecto", present: hasDeliverables, body: () => renderRichText(proposal.deliverables) },
+    { eyebrow: "CÓMO TRABAJAMOS", title: "El proceso, paso a paso", present: true, body: () => processBody },
+    { eyebrow: "LA INVERSIÓN", title: "Inversión del proyecto", present: investItems.length > 0, body: () => investmentBody },
+    { eyebrow: "POR QUÉ PIXELTEC", title: "Beneficios", present: hasBenefits, body: () => renderRichText(proposal.benefits) },
+  ];
+
+  const sections = [];
+  let n = 0;
+  for (const def of sectionDefs) {
+    if (!def.present) continue;
+    n++;
+    sections.push(h(NumberedSection, {
+      eyebrow: def.eyebrow,
+      number: String(n).padStart(2, "0"),
+      title: def.title,
+      breakBefore: n > 1,
+      key: `sec-${n}`,
+    }, def.body()));
+  }
+
+  if (proposal.status === "aceptada") {
+    sections.push(h(View, { style: styles.acceptedBanner, wrap: false, key: "accepted" },
+      h(Text, { style: styles.acceptedText },
+        `Propuesta aceptada${proposal.acceptedAt ? ` el ${new Date(proposal.acceptedAt).toLocaleDateString("es-MX")}` : ""}`)));
+  }
+
+  sections.push(h(MinorHeading, { label: "Condiciones comerciales", key: "sec-terms" },
     h(View, { style: styles.termsCard },
       TERMS.map((term) =>
         h(View, { style: styles.termRow, wrap: false, key: term.label }, [
@@ -400,7 +465,7 @@ function ProposalDocument({ proposal }) {
           h(Text, { style: styles.termValue, key: "value" }, term.value),
         ])))));
 
-  sections.push(h(View, { style: styles.closing, wrap: false, key: "closing" }, [
+  sections.push(h(View, { style: styles.closing, break: true, wrap: false, key: "closing" }, [
     h(Image, { src: LOGO_PATH, style: styles.closingLogo, key: "logo" }),
     h(Text, { style: styles.closingTitle, key: "title" }, "Gracias por confiar en nosotros."),
     h(Text, { style: styles.closingSub, key: "sub" }, "Estamos listos para comenzar cuando tú lo estés."),
@@ -410,6 +475,10 @@ function ProposalDocument({ proposal }) {
       h(Link, { src: "https://pixeltec.mx", style: styles.closingContactLink, key: "web" }, "pixeltec.mx"),
       h(Text, { style: styles.closingDot, key: "d2" }, "·"),
       h(Link, { src: "https://api.whatsapp.com/send?phone=523221378336", style: styles.closingContactLink, key: "wa" }, "+52 322 137 8336"),
+    ]),
+    h(View, { style: styles.closingSignature, key: "signature" }, [
+      h(Text, { style: styles.closingSignatureName, key: "name" }, "Miguel Robles"),
+      h(Text, { style: styles.closingSignatureRole, key: "role" }, "Fundador & Lead Architect · PIXELTEC"),
     ]),
   ]));
 
@@ -494,12 +563,25 @@ const styles = StyleSheet.create({
     textAlign: "center", fontSize: 8, color: COLOR.faint,
   },
 
+  // Encabezado de sección numerada (01, 02, …) — una por página.
+  numberedSection: { marginBottom: 22 },
+  numberedEyebrow: {
+    fontSize: 9, fontWeight: 700, color: COLOR.primary, letterSpacing: 1.5,
+    textTransform: "uppercase", marginBottom: 8,
+  },
+  numberedTitleRow: { flexDirection: "row", alignItems: "flex-end", gap: 8 },
+  numberedNumber: { fontSize: 13, fontWeight: 800, color: COLOR.primary },
+  numberedTitle: { fontSize: 18, fontWeight: 800, color: COLOR.ink },
+  numberedDivider: { height: 1, backgroundColor: COLOR.border, marginTop: 10, marginBottom: 16 },
+
+  // Encabezado menor (Condiciones comerciales).
   section: { marginBottom: 22 },
   sectionLabelRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 },
   sectionLabelBar: { width: 3, height: 11, backgroundColor: COLOR.primary, borderRadius: 1.5 },
   sectionLabel: {
     fontSize: 9, fontWeight: 700, color: COLOR.primary, letterSpacing: 1.5, textTransform: "uppercase",
   },
+
   paragraph: { fontSize: 10.5, lineHeight: 1.6, color: COLOR.body, marginBottom: 8 },
   blockHeading: { fontSize: 11.5, fontWeight: 700, color: COLOR.ink, marginTop: 8, marginBottom: 5 },
   blockHeadingLg: { fontSize: 13, fontWeight: 700, color: COLOR.ink, marginTop: 12, marginBottom: 6 },
@@ -522,37 +604,29 @@ const styles = StyleSheet.create({
   tableCellHeadText: { fontSize: 8.5, fontWeight: 700, color: COLOR.ink },
   tableCellText: { fontSize: 8.5, lineHeight: 1.4, color: COLOR.body },
 
-  checklist: { display: "flex", flexDirection: "column", gap: 8 },
-  checklistItem: { flexDirection: "row", alignItems: "flex-start", gap: 9 },
-  checklistDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: COLOR.primary, marginTop: 3.5 },
-  checklistText: { fontSize: 10.5, lineHeight: 1.5, color: COLOR.body, flex: 1 },
-
-  benefitGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
-  benefitBlock: {
-    width: "48%", flexDirection: "row", gap: 10, alignItems: "flex-start",
-    backgroundColor: COLOR.cardBg, borderWidth: 0.75, borderColor: COLOR.border,
-    borderRadius: 8, padding: 12,
+  // Tabla de Inversión del proyecto (concepto | monto + cadencia).
+  investTable: {
+    display: "flex", flexDirection: "column", marginBottom: 10,
+    borderWidth: 0.75, borderColor: COLOR.border, borderRadius: 6, overflow: "hidden",
   },
-  benefitBadge: {
-    width: 20, height: 20, borderRadius: 5, backgroundColor: COLOR.primaryDim,
-    alignItems: "center", justifyContent: "center", flexShrink: 0,
+  investTableHeaderRow: {
+    flexDirection: "row", backgroundColor: COLOR.ink, paddingVertical: 8, paddingHorizontal: 10,
   },
-  benefitBadgeText: { fontSize: 7.5, fontWeight: 700, color: COLOR.primary },
-  benefitText: { fontSize: 9.5, lineHeight: 1.45, color: COLOR.body, flex: 1 },
-
-  investRow: { flexDirection: "row", gap: 12, marginBottom: 24 },
-  investCard: {
-    flex: 1, borderRadius: 10, borderWidth: 0.75, borderColor: COLOR.border,
-    backgroundColor: COLOR.ink, padding: 16, position: "relative", overflow: "hidden",
+  investTableHeaderConcept: {
+    flex: 1, fontSize: 8, fontWeight: 700, color: COLOR.white, letterSpacing: 1, textTransform: "uppercase",
   },
-  investAccent: {
-    position: "absolute", top: 0, left: 0, right: 0, height: 3, backgroundColor: COLOR.primary,
+  investTableHeaderAmount: {
+    fontSize: 8, fontWeight: 700, color: COLOR.white, letterSpacing: 1, textTransform: "uppercase", textAlign: "right",
   },
-  investLabel: {
-    fontSize: 8, fontWeight: 700, color: "#8B93A7", letterSpacing: 1.2,
-    textTransform: "uppercase", marginBottom: 8,
+  investTableRow: {
+    flexDirection: "row", alignItems: "center", paddingVertical: 10, paddingHorizontal: 10,
+    borderTopWidth: 0.75, borderTopColor: COLOR.border,
   },
-  investValue: { fontSize: 17, fontWeight: 800, color: COLOR.white },
+  investConceptText: { flex: 1, fontSize: 10, lineHeight: 1.45, color: COLOR.ink, paddingRight: 10 },
+  investAmountCol: { alignItems: "flex-end" },
+  investAmountValue: { fontSize: 12, fontWeight: 800, color: COLOR.ink },
+  investFreqLabel: { fontSize: 7.5, color: COLOR.muted, marginTop: 2, textTransform: "uppercase", letterSpacing: 0.5 },
+  investNote: { fontSize: 8, lineHeight: 1.4, color: COLOR.faint, fontStyle: "italic" },
 
   acceptedBanner: {
     backgroundColor: COLOR.successBg, borderWidth: 0.75, borderColor: COLOR.successBorder,
@@ -570,7 +644,9 @@ const styles = StyleSheet.create({
   phaseNumberText: { fontSize: 7.5, fontWeight: 700, color: COLOR.primary },
   phaseConnector: { width: 1, flex: 1, minHeight: 18, backgroundColor: COLOR.border, marginTop: 2 },
   phaseTextCol: { flex: 1, paddingBottom: 16 },
-  phaseLabel: { fontSize: 10.5, fontWeight: 700, color: COLOR.ink, marginBottom: 3 },
+  phaseTextTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 3 },
+  phaseLabel: { fontSize: 10.5, fontWeight: 700, color: COLOR.ink },
+  phaseTag: { fontSize: 7.5, fontWeight: 700, color: COLOR.primary, letterSpacing: 1 },
   phaseDesc: { fontSize: 9, lineHeight: 1.45, color: COLOR.muted },
 
   termsCard: {
@@ -591,6 +667,9 @@ const styles = StyleSheet.create({
   closingContactRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 14 },
   closingContactLink: { fontSize: 8.5, color: COLOR.primary, textDecoration: "none" },
   closingDot: { fontSize: 8.5, color: COLOR.faint },
+  closingSignature: { marginTop: 24, alignItems: "center" },
+  closingSignatureName: { fontSize: 10.5, fontWeight: 700, color: COLOR.ink },
+  closingSignatureRole: { fontSize: 8.5, color: COLOR.muted, marginTop: 2 },
 });
 
 async function main() {
