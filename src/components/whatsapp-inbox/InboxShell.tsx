@@ -40,9 +40,9 @@ export function InboxShell({ tenantId, onOpenConfig }: InboxShellProps) {
       <div className="flex h-full items-center justify-center p-8">
         <div className="max-w-md rounded-xl border border-amber-500/30 bg-amber-500/5 p-6 text-center">
           <MessageCircle className="mx-auto mb-3 h-8 w-8 text-amber-400" />
-          <h2 className="mb-2 text-lg font-semibold text-zinc-100">Inbox no configurado</h2>
-          <p className="text-sm text-zinc-400">
-            Falta <code className="text-amber-300">PIXELBOT_TENANT_ID</code> en las variables de
+          <h2 className="mb-2 text-lg font-semibold text-foreground">Inbox no configurado</h2>
+          <p className="text-sm text-muted-foreground">
+            Falta <code className="text-amber-700 dark:text-amber-300">PIXELBOT_TENANT_ID</code> en las variables de
             entorno. Obtén el id del tenant desde el SQLite de pixelbot y vuelve a desplegar.
           </p>
         </div>
@@ -55,7 +55,7 @@ export function InboxShell({ tenantId, onOpenConfig }: InboxShellProps) {
       {/* Panel izquierdo: lista de conversaciones */}
       <div
         className={
-          "min-h-0 w-full border-r border-zinc-800/60 md:block md:w-80 md:flex-shrink-0 lg:w-[22.5rem] " +
+          "min-h-0 w-full border-r border-border md:block md:w-80 md:flex-shrink-0 lg:w-[22.5rem] " +
           (selectedPhone ? "hidden" : "block")
         }
       >
@@ -90,14 +90,14 @@ export function InboxShell({ tenantId, onOpenConfig }: InboxShellProps) {
           />
         ) : (
           <div className="flex h-full items-center justify-center p-6">
-            <div className="w-full max-w-sm rounded-2xl border border-white/[0.06] bg-zinc-950/60 p-8 text-center shadow-xl backdrop-blur">
+            <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-8 text-center shadow-xl">
               <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-cyan-500/20 bg-cyan-500/10">
                 <MessageCircle className="h-6 w-6 text-cyan-400" />
               </div>
-              <h2 className="text-base font-semibold text-zinc-100">
+              <h2 className="text-base font-semibold text-foreground">
                 Selecciona una conversación
               </h2>
-              <p className="mt-1.5 text-sm leading-relaxed text-zinc-500">
+              <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
                 Elige un chat del inbox para revisar mensajes, clasificar el contacto o tomar
                 control humano.
               </p>
@@ -105,7 +105,7 @@ export function InboxShell({ tenantId, onOpenConfig }: InboxShellProps) {
                 <button
                   type="button"
                   onClick={onOpenConfig}
-                  className="inline-flex items-center gap-1.5 rounded-md border border-zinc-800 bg-zinc-900/60 px-3 py-1.5 text-xs text-zinc-300 transition-colors hover:border-zinc-700 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40"
+                  className="inline-flex items-center gap-1.5 rounded-md border border-border bg-secondary/40 px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-border hover:bg-secondary/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40"
                 >
                   <Settings2 className="h-3.5 w-3.5" />
                   Ver configuración del bot
@@ -113,7 +113,7 @@ export function InboxShell({ tenantId, onOpenConfig }: InboxShellProps) {
                 <button
                   type="button"
                   onClick={() => setQuickFilter("sin_responder")}
-                  className="inline-flex items-center rounded-md border border-zinc-800 bg-zinc-900/60 px-3 py-1.5 text-xs text-zinc-300 transition-colors hover:border-zinc-700 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40"
+                  className="inline-flex items-center rounded-md border border-border bg-secondary/40 px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-border hover:bg-secondary/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40"
                 >
                   Filtrar sin responder
                 </button>
@@ -132,7 +132,7 @@ export function InboxShell({ tenantId, onOpenConfig }: InboxShellProps) {
             onClick={() => setPanelOpen(false)}
             className="absolute inset-0 z-10 cursor-default bg-black/50 backdrop-blur-[2px] animate-in fade-in-0 duration-200 xl:hidden"
           />
-          <div className="absolute inset-y-0 right-0 z-20 w-80 max-w-[85vw] shrink-0 border-l border-zinc-800/60 bg-[#0a0a0b] shadow-2xl animate-in slide-in-from-right-4 duration-200 xl:static xl:z-auto xl:max-w-none xl:animate-none xl:shadow-none">
+          <div className="absolute inset-y-0 right-0 z-20 w-80 max-w-[85vw] shrink-0 border-l border-border bg-card shadow-2xl animate-in slide-in-from-right-4 duration-200 xl:static xl:z-auto xl:max-w-none xl:animate-none xl:shadow-none">
             <ContactPanel
               key={selectedPhone}
               tenantId={tenantId}

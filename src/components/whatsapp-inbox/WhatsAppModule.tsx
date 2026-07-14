@@ -26,8 +26,8 @@ export function WhatsAppModule({ tenantId }: WhatsAppModuleProps) {
   return (
     <div className="flex h-full min-h-0 flex-col">
       {/* Header + tab bar */}
-      <div className="flex-shrink-0 border-b border-white/[0.06] bg-zinc-950/40 px-4 pt-3">
-        <h1 className="text-sm font-semibold text-zinc-100">WhatsApp</h1>
+      <div className="flex-shrink-0 border-b border-border bg-card px-4 pt-3">
+        <h1 className="text-sm font-semibold text-foreground">WhatsApp</h1>
         <div className="mt-2 flex items-center gap-0.5 overflow-x-auto scrollbar-none">
           {MODULE_TABS.map((tab) => (
             <button
@@ -37,7 +37,7 @@ export function WhatsAppModule({ tenantId }: WhatsAppModuleProps) {
               className={cn(
                 "relative flex-shrink-0 px-4 py-3 text-sm font-medium transition-colors",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40",
-                activeTab === tab.id ? "text-cyan-300" : "text-zinc-500 hover:text-zinc-300"
+                activeTab === tab.id ? "text-cyan-300" : "text-muted-foreground hover:text-foreground"
               )}
             >
               {tab.label}

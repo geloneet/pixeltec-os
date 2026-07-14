@@ -90,10 +90,10 @@ export const STATUS_META: Record<ConversationStatus, { label: string; className:
   archivado:         { label: 'Archivado',         className: 'text-zinc-400 bg-zinc-500/10 border-zinc-500/30' },
 };
 export const CLASSIFICATION_META: Record<ContactClassification, { label: string; className: string }> = {
-  cliente:   { label: 'Cliente',   className: 'text-emerald-300 bg-emerald-500/10 border-emerald-500/30' },
-  prospecto: { label: 'Prospecto', className: 'text-violet-300 bg-violet-500/10 border-violet-500/30' },
-  soporte:   { label: 'Soporte',   className: 'text-orange-300 bg-orange-500/10 border-orange-500/30' },
-  proveedor: { label: 'Proveedor', className: 'text-blue-300 bg-blue-500/10 border-blue-500/30' },
-  spam:      { label: 'Spam',      className: 'text-red-300 bg-red-500/10 border-red-500/30' },
-  otro:      { label: 'Otro',      className: 'text-zinc-300 bg-zinc-500/10 border-zinc-500/30' },
+  cliente:   { label: 'Cliente',   className: 'text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 border-emerald-500/30' },
+  prospecto: { label: 'Prospecto', className: 'text-violet-700 dark:text-violet-300 bg-violet-500/10 border-violet-500/30' },
+  soporte:   { label: 'Soporte',   className: 'text-orange-700 dark:text-orange-300 bg-orange-500/10 border-orange-500/30' },
+  proveedor: { label: 'Proveedor', className: 'text-blue-700 dark:text-blue-300 bg-blue-500/10 border-blue-500/30' },
+  spam:      { label: 'Spam',      className: 'text-red-700 dark:text-red-300 bg-red-500/10 border-red-500/30' },
+  otro:      { label: 'Otro',      className: 'text-muted-foreground bg-muted border-border' },
 };

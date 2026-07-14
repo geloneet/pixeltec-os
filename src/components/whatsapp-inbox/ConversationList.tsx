@@ -13,9 +13,9 @@ import {
 } from "@/types/whatsapp-inbox";
 
 const MODE_META: Record<WhatsAppMode, { label: string; icon: typeof Bot; className: string }> = {
-  BOT: { label: "Bot", icon: Bot, className: "text-cyan-400 bg-cyan-500/10 border-cyan-500/30" },
-  HUMAN: { label: "Tú", icon: Hand, className: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30" },
-  PAUSED: { label: "Pausa", icon: PauseCircle, className: "text-amber-400 bg-amber-500/10 border-amber-500/30" },
+  BOT: { label: "Bot", icon: Bot, className: "text-cyan-700 dark:text-cyan-400 bg-cyan-500/10 border-cyan-500/30" },
+  HUMAN: { label: "Tú", icon: Hand, className: "text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/30" },
+  PAUSED: { label: "Pausa", icon: PauseCircle, className: "text-amber-700 dark:text-amber-400 bg-amber-500/10 border-amber-500/30" },
 };
 
 /**
@@ -202,7 +202,7 @@ export function ConversationList({
   if (loading) {
     return (
       <div className="flex h-40 items-center justify-center">
-        <Spinner size="md" className="text-zinc-500" />
+        <Spinner size="md" className="text-muted-foreground" />
       </div>
     );
   }
@@ -217,7 +217,7 @@ export function ConversationList({
 
   if (!conversations?.length) {
     return (
-      <div className="p-6 text-center text-sm text-zinc-500">
+      <div className="p-6 text-center text-sm text-muted-foreground">
         Sin conversaciones todavía. Cuando alguien le escriba al bot, aparecerá aquí.
       </div>
     );
@@ -233,9 +233,9 @@ export function ConversationList({
         </div>
       )}
       {/* Cabecera fija: título + búsqueda + carpetas + filtros rápidos */}
-      <div className="flex-shrink-0 space-y-2.5 border-b border-zinc-800/60 px-4 py-3">
+      <div className="flex-shrink-0 space-y-2.5 border-b border-border px-4 py-3">
         <div className="flex items-center justify-between gap-2">
-          <h1 className="text-sm font-semibold uppercase tracking-wider text-zinc-400">
+          <h1 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
             WhatsApp — {filteredConversations.length} conversación
             {filteredConversations.length === 1 ? "" : "es"}
           </h1>
@@ -243,7 +243,7 @@ export function ConversationList({
             <button
               type="button"
               onClick={clearFilters}
-              className="flex-shrink-0 text-[11px] text-zinc-500 transition-colors hover:text-cyan-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40"
+              className="flex-shrink-0 text-[11px] text-muted-foreground transition-colors hover:text-cyan-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40"
             >
               Limpiar filtros
             </button>
@@ -251,19 +251,19 @@ export function ConversationList({
         </div>
 
         <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar por nombre, teléfono, mensaje, etiqueta o tipo…"
-            className="w-full rounded-lg border border-zinc-800 bg-zinc-900/60 py-2 pl-9 pr-3 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-cyan-500/50 focus:outline-none"
+            className="w-full rounded-lg border border-border bg-secondary/40 py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground/60 focus:border-cyan-500/50 focus:outline-none"
           />
         </div>
 
         {/* Nivel A: carpetas por tipo de contacto */}
         <div>
-          <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-600">
+          <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60">
             Contactos
           </p>
           <div className="mt-1.5 grid grid-cols-2 gap-1">
@@ -280,15 +280,15 @@ export function ConversationList({
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40",
                     cat.id === "todos" && "col-span-2",
                     isActive
-                      ? "border-cyan-500/40 bg-cyan-500/10 text-cyan-200"
-                      : "border-transparent text-zinc-400 hover:bg-zinc-900/70 hover:text-zinc-200"
+                      ? "border-cyan-500/40 bg-cyan-500/10 text-cyan-700 dark:text-cyan-200"
+                      : "border-transparent text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
                   )}
                 >
                   <span className="truncate">{cat.label}</span>
                   <span
                     className={cn(
                       "flex-shrink-0 text-[10px] tabular-nums",
-                      isActive ? "text-cyan-300/80" : "text-zinc-600"
+                      isActive ? "text-cyan-700/80 dark:text-cyan-300/80" : "text-muted-foreground/60"
                     )}
                   >
                     {categoryCounts.get(cat.id) ?? 0}
@@ -314,8 +314,8 @@ export function ConversationList({
                     "flex-shrink-0 whitespace-nowrap rounded-full border px-2.5 py-1 text-xs transition-colors",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40",
                     isActive
-                      ? "border-cyan-500/50 bg-cyan-500/10 text-cyan-300"
-                      : "border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200"
+                      ? "border-cyan-500/50 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300"
+                      : "border-border text-muted-foreground hover:border-border hover:text-foreground"
                   )}
                 >
                   {filter.label}
@@ -325,24 +325,24 @@ export function ConversationList({
           </div>
           <div
             aria-hidden
-            className="pointer-events-none absolute inset-y-0 left-0 w-3 bg-gradient-to-r from-[#030303] to-transparent"
+            className="pointer-events-none absolute inset-y-0 left-0 w-3 bg-gradient-to-r from-background/80 to-transparent"
           />
           <div
             aria-hidden
-            className="pointer-events-none absolute inset-y-0 right-0 w-3 bg-gradient-to-l from-[#030303] to-transparent"
+            className="pointer-events-none absolute inset-y-0 right-0 w-3 bg-gradient-to-l from-background/80 to-transparent"
           />
         </div>
       </div>
 
       <ul className="scrollbar-soft min-h-0 flex-1 overflow-y-auto">
         {filteredConversations.length === 0 ? (
-          <div className="space-y-2 p-6 text-center text-sm text-zinc-500">
+          <div className="space-y-2 p-6 text-center text-sm text-muted-foreground">
             <p>No hay conversaciones con estos filtros.</p>
             {hasActiveFilters && (
               <button
                 type="button"
                 onClick={clearFilters}
-                className="rounded-md border border-zinc-800 px-2.5 py-1 text-xs text-zinc-400 transition-colors hover:border-zinc-700 hover:text-cyan-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40"
+                className="rounded-md border border-border px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:border-border hover:text-cyan-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40"
               >
                 Limpiar filtros
               </button>
@@ -361,14 +361,14 @@ export function ConversationList({
               extraBadges.push({
                 key: "urgent",
                 label: "Urgente",
-                className: "text-red-300 bg-red-500/10 border-red-500/30",
+                className: "text-red-700 dark:text-red-300 bg-red-500/10 border-red-500/30",
               });
             }
             if (!contact?.status || contact.status === "nuevo") {
               extraBadges.push({
                 key: "nuevo",
                 label: "Nuevo",
-                className: "text-sky-300 bg-sky-500/10 border-sky-500/30",
+                className: "text-sky-700 dark:text-sky-300 bg-sky-500/10 border-sky-500/30",
               });
             }
             if (contact?.classification) {
@@ -389,8 +389,8 @@ export function ConversationList({
                   onClick={() => onSelect(conv.id)}
                   aria-current={isSelected || undefined}
                   className={cn(
-                    "relative flex w-full items-start gap-3 border-b border-zinc-900 px-4 py-3 text-left transition-colors",
-                    isSelected ? "bg-zinc-800/60" : "hover:bg-zinc-900/60"
+                    "relative flex w-full items-start gap-3 border-b border-border px-4 py-3 text-left transition-colors",
+                    isSelected ? "bg-secondary" : "hover:bg-secondary/40"
                   )}
                 >
                   {isSelected && (
@@ -407,17 +407,17 @@ export function ConversationList({
                           className="h-2 w-2 flex-shrink-0 rounded-full bg-cyan-400"
                         />
                       )}
-                      <span className="truncate font-medium text-zinc-100">
+                      <span className="truncate font-medium text-foreground">
                         {contact?.name ?? conv.id}
                       </span>
-                      <span className="ml-auto flex-shrink-0 text-xs text-zinc-500">
+                      <span className="ml-auto flex-shrink-0 text-xs text-muted-foreground">
                         {formatRelative(conv.lastMessageAt)}
                       </span>
                     </div>
                     {contact?.name && (
-                      <p className="truncate text-xs text-zinc-500">{conv.id}</p>
+                      <p className="truncate text-xs text-muted-foreground">{conv.id}</p>
                     )}
-                    <p className="mt-0.5 truncate text-sm text-zinc-400">
+                    <p className="mt-0.5 truncate text-sm text-muted-foreground">
                       {conv.lastMessagePreview ?? ""}
                     </p>
                     <div className="mt-1.5 flex flex-wrap items-center gap-1">

@@ -89,21 +89,21 @@ export function Composer({ phone, mode, windowOpen, onSent, onNoteSaved }: Compo
   const disabled = isNoteMode ? sending : !canWriteMessage || sending;
 
   return (
-    <div className="border-t border-zinc-800/60 p-3">
+    <div className="border-t border-border p-3">
       {!windowOpen && canWriteMessage && !isNoteMode && (
-        <p className="mb-2 rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-1.5 text-xs text-amber-300">
+        <p className="mb-2 rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-1.5 text-xs text-amber-700 dark:text-amber-300">
           Ventana de 24h cerrada: Meta solo acepta plantillas aprobadas. El envío libre
           probablemente falle.
         </p>
       )}
       <div className="flex items-end gap-2">
-        <div className="flex flex-shrink-0 flex-col gap-1 rounded-lg border border-zinc-800 bg-zinc-900/60 p-1">
+        <div className="flex flex-shrink-0 flex-col gap-1 rounded-lg border border-border bg-secondary/40 p-1">
           <button
             type="button"
             onClick={() => switchMode("message")}
             className={cn(
               "rounded-md px-2 py-1 text-[11px] font-medium transition-colors",
-              !isNoteMode ? "bg-cyan-500/15 text-cyan-300" : "text-zinc-500 hover:text-zinc-300"
+              !isNoteMode ? "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300" : "text-muted-foreground hover:text-foreground"
             )}
           >
             Mensaje
@@ -113,7 +113,7 @@ export function Composer({ phone, mode, windowOpen, onSent, onNoteSaved }: Compo
             onClick={() => switchMode("note")}
             className={cn(
               "rounded-md px-2 py-1 text-[11px] font-medium transition-colors",
-              isNoteMode ? "bg-violet-500/15 text-violet-300" : "text-zinc-500 hover:text-zinc-300"
+              isNoteMode ? "bg-violet-500/15 text-violet-700 dark:text-violet-300" : "text-muted-foreground hover:text-foreground"
             )}
           >
             Nota
@@ -139,10 +139,10 @@ export function Composer({ phone, mode, windowOpen, onSent, onNoteSaved }: Compo
                 : 'Toma el control ("Control humano") para escribir'
           }
           className={cn(
-            "min-h-[44px] flex-1 resize-none rounded-lg border bg-zinc-900/60 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50",
+            "min-h-[44px] flex-1 resize-none rounded-lg border bg-secondary/40 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50",
             isNoteMode
               ? "border-violet-500/40 focus:border-violet-500/60"
-              : "border-zinc-800 focus:border-cyan-500/50"
+              : "border-border focus:border-cyan-500/50"
           )}
         />
         <button

@@ -14,11 +14,11 @@ import {
 import type { ModeResult, WhatsAppMode } from "@/types/whatsapp-inbox";
 
 const OPTIONS: { mode: WhatsAppMode; label: string; icon: typeof Bot; activeClass: string }[] = [
-  { mode: "BOT", label: "Bot", icon: Bot, activeClass: "bg-cyan-500/15 text-cyan-300 border-cyan-500/40" },
-  { mode: "HUMAN", label: "Control humano", icon: Hand, activeClass: "bg-emerald-500/15 text-emerald-300 border-emerald-500/40" },
+  { mode: "BOT", label: "Bot", icon: Bot, activeClass: "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border-cyan-500/40" },
+  { mode: "HUMAN", label: "Control humano", icon: Hand, activeClass: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/40" },
 ];
 
-const PAUSE_ACTIVE_CLASS = "bg-amber-500/15 text-amber-300 border-amber-500/40";
+const PAUSE_ACTIVE_CLASS = "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/40";
 
 const PAUSE_OPTIONS: { label: string; ms: number | null; toast: string }[] = [
   { label: "30 minutos", ms: 30 * 60 * 1000, toast: "Bot en pausa 30 min" },
@@ -70,7 +70,7 @@ export function ModeToggle({ phone, mode, onChanged }: ModeToggleProps) {
   }
 
   return (
-    <div className="flex items-center gap-1 rounded-lg border border-zinc-800 bg-zinc-900/60 p-1">
+    <div className="flex items-center gap-1 rounded-lg border border-border bg-secondary/40 p-1">
       {OPTIONS.map(({ mode: m, label, icon: Icon, activeClass }) => (
         <button
           key={m}
@@ -79,7 +79,7 @@ export function ModeToggle({ phone, mode, onChanged }: ModeToggleProps) {
           onClick={() => void changeMode(m)}
           className={cn(
             "inline-flex items-center gap-1.5 rounded-md border border-transparent px-2.5 py-1 text-xs font-medium transition-colors",
-            mode === m ? activeClass : "text-zinc-400 hover:text-zinc-200"
+            mode === m ? activeClass : "text-muted-foreground hover:text-foreground"
           )}
         >
           {pending === m ? <Spinner size="sm" /> : <Icon className="h-3.5 w-3.5" />}
@@ -94,7 +94,7 @@ export function ModeToggle({ phone, mode, onChanged }: ModeToggleProps) {
             disabled={pending !== null}
             className={cn(
               "inline-flex items-center gap-1.5 rounded-md border border-transparent px-2.5 py-1 text-xs font-medium transition-colors",
-              mode === "PAUSED" ? PAUSE_ACTIVE_CLASS : "text-zinc-400 hover:text-zinc-200"
+              mode === "PAUSED" ? PAUSE_ACTIVE_CLASS : "text-muted-foreground hover:text-foreground"
             )}
           >
             {pending === "PAUSED" ? (
@@ -106,12 +106,12 @@ export function ModeToggle({ phone, mode, onChanged }: ModeToggleProps) {
             <ChevronDown className="h-3 w-3" />
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="border-zinc-800 bg-zinc-900/95 text-zinc-200 backdrop-blur-xl" align="end">
+        <DropdownMenuContent className="border-border bg-popover/95 text-popover-foreground backdrop-blur-xl" align="end">
           {PAUSE_OPTIONS.map((option) => (
             <DropdownMenuItem
               key={option.label}
               onClick={() => handlePause(option)}
-              className="cursor-pointer text-xs focus:bg-white/[0.06] focus:text-zinc-100"
+              className="cursor-pointer text-xs focus:bg-secondary focus:text-foreground"
             >
               {option.label}
             </DropdownMenuItem>
