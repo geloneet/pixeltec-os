@@ -61,10 +61,10 @@ function NotificationItem({
     <button
       type="button"
       className={cn(
-        "w-full flex items-start gap-4 px-4 py-4 rounded-xl text-left transition-colors border",
+        "w-full flex items-start gap-4 px-4 py-4 rounded-xl text-left transition-colors",
         notification.read
-          ? "bg-white/2 border-white/5 hover:bg-white/5"
-          : "bg-sky-500/5 border-sky-500/15 hover:bg-sky-500/10"
+          ? "hover:bg-accent"
+          : "bg-sky-500/5 hover:bg-sky-500/10"
       )}
       onClick={() => onRead(notification.id, notification.href)}
     >
@@ -72,7 +72,7 @@ function NotificationItem({
       <div className="relative mt-0.5 flex-shrink-0">
         {TYPE_ICONS[notification.type]}
         {!notification.read && (
-          <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-sky-400 ring-2 ring-zinc-950" />
+          <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-sky-400 ring-2 ring-background" />
         )}
       </div>
 
@@ -80,7 +80,7 @@ function NotificationItem({
         <p
           className={cn(
             "text-sm font-semibold truncate",
-            notification.read ? "text-zinc-400" : "text-zinc-100"
+            notification.read ? "text-muted-foreground" : "text-foreground"
           )}
         >
           {notification.title}
@@ -88,12 +88,12 @@ function NotificationItem({
         <p
           className={cn(
             "text-sm mt-1 line-clamp-2",
-            notification.read ? "text-zinc-600" : "text-zinc-400"
+            notification.read ? "text-muted-foreground/70" : "text-muted-foreground"
           )}
         >
           {notification.body}
         </p>
-        <p className="text-xs text-zinc-600 mt-1.5">
+        <p className="text-xs text-muted-foreground/60 mt-1.5">
           {relativeTime(notification.createdAt)}
         </p>
       </div>
@@ -128,9 +128,9 @@ export function NotificationsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-zinc-100">Notificaciones</h1>
+          <h1 className="text-2xl font-bold text-foreground">Notificaciones</h1>
           {unreadCount > 0 && (
-            <p className="text-sm text-zinc-500 mt-0.5">
+            <p className="text-sm text-muted-foreground mt-0.5">
               {unreadCount} sin leer
             </p>
           )}
@@ -139,7 +139,7 @@ export function NotificationsPage() {
           <button
             type="button"
             onClick={markAllAsRead}
-            className="text-sm text-sky-400 hover:text-sky-300 transition-colors font-medium"
+            className="text-sm text-sky-600 hover:text-sky-700 dark:text-sky-400 dark:hover:text-sky-300 transition-colors font-medium"
           >
             Marcar todas como leídas
           </button>
@@ -156,7 +156,7 @@ export function NotificationsPage() {
               "px-3 py-1.5 rounded-full text-xs font-medium transition-colors border",
               activeType === null
                 ? "bg-cyan-500/20 border-cyan-500/40 text-cyan-300"
-                : "bg-white/5 border-white/10 text-zinc-400 hover:text-zinc-200 hover:bg-white/10"
+                : "bg-secondary/40 border-border text-muted-foreground hover:text-foreground hover:bg-secondary/70"
             )}
           >
             Todas
@@ -170,7 +170,7 @@ export function NotificationsPage() {
                 "px-3 py-1.5 rounded-full text-xs font-medium transition-colors border",
                 activeType === t
                   ? "bg-cyan-500/20 border-cyan-500/40 text-cyan-300"
-                  : "bg-white/5 border-white/10 text-zinc-400 hover:text-zinc-200 hover:bg-white/10"
+                  : "bg-secondary/40 border-border text-muted-foreground hover:text-foreground hover:bg-secondary/70"
               )}
             >
               {TYPE_LABELS[t]}
@@ -182,13 +182,13 @@ export function NotificationsPage() {
       {/* Loading state */}
       {loading && (
         <div className="flex items-center justify-center py-20">
-          <Spinner size="md" className="text-zinc-500" />
+          <Spinner size="md" className="text-muted-foreground" />
         </div>
       )}
 
       {/* Error state */}
       {!loading && error && (
-        <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 px-4 py-4 text-sm text-rose-400">
+        <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 px-4 py-4 text-sm text-rose-700 dark:text-rose-400">
           Error al cargar notificaciones.
         </div>
       )}
@@ -196,17 +196,17 @@ export function NotificationsPage() {
       {/* Empty state */}
       {!loading && !error && notifications.length === 0 && (
         <div className="flex flex-col items-center justify-center gap-4 py-24 text-center">
-          <BellOff className="h-10 w-10 text-zinc-700" strokeWidth={1.5} />
-          <p className="text-sm text-zinc-500">No tienes notificaciones.</p>
+          <BellOff className="h-10 w-10 text-muted-foreground/50" strokeWidth={1.5} />
+          <p className="text-sm text-muted-foreground">No tienes notificaciones.</p>
         </div>
       )}
 
       {/* Filtered empty state */}
       {!loading && !error && notifications.length > 0 && filtered.length === 0 && (
         <div className="flex flex-col items-center justify-center gap-4 py-16 text-center">
-          <p className="text-sm text-zinc-500">
+          <p className="text-sm text-muted-foreground">
             No hay notificaciones de tipo{" "}
-            <span className="text-zinc-300">{activeType ? TYPE_LABELS[activeType] : ""}</span>.
+            <span className="text-foreground">{activeType ? TYPE_LABELS[activeType] : ""}</span>.
           </p>
         </div>
       )}

@@ -127,7 +127,7 @@ export function AvatarUploader({ initialPhotoUrl }: { initialPhotoUrl?: string |
   return (
     <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-end sm:gap-6">
       {/* Avatar */}
-      <div className="relative h-32 w-32 flex-shrink-0 rounded-full overflow-hidden ring-4 ring-white/10">
+      <div className="relative h-32 w-32 flex-shrink-0 rounded-full overflow-hidden ring-4 ring-border">
         {currentPhoto ? (
           <Image
             src={currentPhoto}
@@ -167,7 +167,7 @@ export function AvatarUploader({ initialPhotoUrl }: { initialPhotoUrl?: string |
               variant="ghost"
               onClick={handleCancel}
               disabled={isPending}
-              className="text-zinc-400 hover:text-white"
+              className="text-muted-foreground hover:text-foreground"
             >
               Cancelar
             </Button>
@@ -178,7 +178,7 @@ export function AvatarUploader({ initialPhotoUrl }: { initialPhotoUrl?: string |
             variant="outline"
             onClick={() => fileInputRef.current?.click()}
             disabled={isPending}
-            className="border-white/10 bg-white/5 text-zinc-300 hover:bg-white/10 hover:text-white"
+            className="border-border bg-secondary/40 text-muted-foreground hover:bg-secondary/70 hover:text-foreground"
           >
             Cambiar foto
           </Button>
@@ -196,17 +196,17 @@ export function AvatarUploader({ initialPhotoUrl }: { initialPhotoUrl?: string |
                 Eliminar foto
               </Button>
             </AlertDialogTrigger>
-            <AlertDialogContent className="bg-zinc-950 border border-white/10">
+            <AlertDialogContent className="border-border bg-background text-foreground">
               <AlertDialogHeader>
-                <AlertDialogTitle className="text-zinc-100">
+                <AlertDialogTitle className="text-foreground">
                   ¿Eliminar foto de perfil?
                 </AlertDialogTitle>
-                <AlertDialogDescription className="text-zinc-400">
+                <AlertDialogDescription className="text-muted-foreground">
                   Se volverán a mostrar tus iniciales como avatar.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel className="border-white/10 bg-white/5 text-zinc-300 hover:bg-white/10">
+                <AlertDialogCancel className="border-border bg-secondary/50 text-foreground hover:bg-secondary">
                   Cancelar
                 </AlertDialogCancel>
                 <AlertDialogAction
@@ -220,7 +220,7 @@ export function AvatarUploader({ initialPhotoUrl }: { initialPhotoUrl?: string |
           </AlertDialog>
         )}
 
-        <p className="text-xs text-zinc-600">JPG, PNG o WebP · máx 2MB · mín 200×200px</p>
+        <p className="text-xs text-muted-foreground/70">JPG, PNG o WebP · máx 2MB · mín 200×200px</p>
       </div>
 
       {/* Hidden file input */}

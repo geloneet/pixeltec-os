@@ -44,7 +44,7 @@ export function clientBadge(stats: ClientStats): ClientBadge {
     return { label: "Atención", colorClass: "bg-red-500/15 text-red-700 dark:text-red-400 border border-red-500/20" };
   }
   if (stats.totalTasks === 0) {
-    return { label: "Sin tareas", colorClass: "bg-zinc-500/15 text-zinc-600 dark:text-zinc-400 border border-zinc-500/20" };
+    return { label: "Sin tareas", colorClass: "bg-muted text-muted-foreground border border-border" };
   }
   if (stats.openTasks > 0) {
     return { label: "En progreso", colorClass: "bg-cyan-500/15 text-cyan-700 dark:text-cyan-400 border border-cyan-500/20" };

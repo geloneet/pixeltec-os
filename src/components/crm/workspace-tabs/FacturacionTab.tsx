@@ -16,12 +16,12 @@ interface Props {
 }
 
 const STATUS_CONFIG = {
-  borrador:  { label: "Borrador",  classes: "bg-zinc-500/15 text-zinc-400 border-zinc-500/20" },
-  enviada:   { label: "Enviada",   classes: "bg-blue-500/15 text-blue-300 border-blue-500/20" },
-  vista:     { label: "Vista",     classes: "bg-cyan-500/15 text-cyan-300 border-cyan-500/20" },
-  pagada:    { label: "Pagada",    classes: "bg-green-500/15 text-green-300 border-green-500/20" },
-  vencida:   { label: "Vencida",   classes: "bg-red-500/15 text-red-400 border-red-500/20" },
-  cancelada: { label: "Cancelada", classes: "bg-zinc-500/15 text-zinc-400 border-zinc-500/20" },
+  borrador:  { label: "Borrador",  classes: "bg-muted text-muted-foreground border-border" },
+  enviada:   { label: "Enviada",   classes: "bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/20" },
+  vista:     { label: "Vista",     classes: "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border-cyan-500/20" },
+  pagada:    { label: "Pagada",    classes: "bg-green-500/15 text-green-700 dark:text-green-300 border-green-500/20" },
+  vencida:   { label: "Vencida",   classes: "bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/20" },
+  cancelada: { label: "Cancelada", classes: "bg-muted text-muted-foreground border-border" },
 } satisfies Record<Invoice["status"], { label: string; classes: string }>;
 
 const formatMXN = (n: number) =>

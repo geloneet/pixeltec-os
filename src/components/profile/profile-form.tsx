@@ -66,11 +66,11 @@ export function ProfileForm({ initialValues }: ProfileFormProps) {
           name="displayName"
           render={({ field }) => (
             <FormItem>
-              <FormLabel className="text-zinc-300">Nombre completo</FormLabel>
+              <FormLabel className="text-muted-foreground">Nombre completo</FormLabel>
               <FormControl>
                 <Input
                   {...field}
-                  className="bg-white/5 border-white/10 text-zinc-100 focus:border-sky-500/50"
+                  className="bg-secondary border-border text-foreground focus:border-sky-500/50"
                   placeholder="Tu nombre"
                 />
               </FormControl>
@@ -80,11 +80,11 @@ export function ProfileForm({ initialValues }: ProfileFormProps) {
         />
 
         <div className="space-y-2">
-          <label className="text-sm font-medium text-zinc-300">Email</label>
+          <label className="text-sm font-medium text-muted-foreground">Email</label>
           <Input
             value={initialValues.email}
             readOnly
-            className="bg-white/5 border-white/10 text-zinc-500 cursor-not-allowed opacity-60"
+            className="bg-secondary border-border text-muted-foreground cursor-not-allowed opacity-60"
           />
         </div>
 
@@ -93,12 +93,12 @@ export function ProfileForm({ initialValues }: ProfileFormProps) {
           name="phone"
           render={({ field }) => (
             <FormItem>
-              <FormLabel className="text-zinc-300">Teléfono</FormLabel>
+              <FormLabel className="text-muted-foreground">Teléfono</FormLabel>
               <FormControl>
                 <Input
                   {...field}
                   value={field.value ?? ""}
-                  className="bg-white/5 border-white/10 text-zinc-100 focus:border-sky-500/50"
+                  className="bg-secondary border-border text-foreground focus:border-sky-500/50"
                   placeholder="+52 55 0000 0000"
                 />
               </FormControl>
@@ -112,13 +112,13 @@ export function ProfileForm({ initialValues }: ProfileFormProps) {
           name="bio"
           render={({ field }) => (
             <FormItem>
-              <FormLabel className="text-zinc-300">Bio corta</FormLabel>
+              <FormLabel className="text-muted-foreground">Bio corta</FormLabel>
               <FormControl>
                 <Textarea
                   {...field}
                   value={field.value ?? ""}
                   rows={3}
-                  className="bg-white/5 border-white/10 text-zinc-100 focus:border-sky-500/50 resize-none"
+                  className="bg-secondary border-border text-foreground focus:border-sky-500/50 resize-none"
                   placeholder="Describe tu rol en pocas palabras"
                 />
               </FormControl>

@@ -130,10 +130,10 @@ export const STATUS_CONFIG: Record<
   CRMTask["status"],
   { label: string; bg: string; text: string; dot: string }
 > = {
-  pendiente:    { label: "Pendiente",       bg: "bg-purple-500/12", text: "text-purple-400",  dot: "bg-purple-400"  },
-  en_progreso:  { label: "En progreso",     bg: "bg-amber-500/12",  text: "text-amber-400",   dot: "bg-amber-400"   },
-  en_revision:  { label: "En revisión",     bg: "bg-blue-500/12",   text: "text-blue-400",    dot: "bg-blue-400"    },
-  completado:   { label: "Completada",      bg: "bg-green-500/12",  text: "text-green-400",   dot: "bg-green-400"   },
-  pausado:      { label: "Pausada",         bg: "bg-zinc-800/60",   text: "text-zinc-400",    dot: "bg-zinc-500"    },
-  bloqueado:    { label: "Bloqueada",       bg: "bg-red-500/12",    text: "text-red-400",     dot: "bg-red-400"     },
+  pendiente:    { label: "Pendiente",       bg: "bg-purple-500/12", text: "text-purple-700 dark:text-purple-400",  dot: "bg-purple-400"  },
+  en_progreso:  { label: "En progreso",     bg: "bg-amber-500/12",  text: "text-amber-700 dark:text-amber-400",   dot: "bg-amber-400"   },
+  en_revision:  { label: "En revisión",     bg: "bg-blue-500/12",   text: "text-blue-700 dark:text-blue-400",    dot: "bg-blue-400"    },
+  completado:   { label: "Completada",      bg: "bg-green-500/12",  text: "text-green-700 dark:text-green-400",   dot: "bg-green-400"   },
+  pausado:      { label: "Pausada",         bg: "bg-muted",         text: "text-muted-foreground",    dot: "bg-muted-foreground"    },
+  bloqueado:    { label: "Bloqueada",       bg: "bg-red-500/12",    text: "text-red-700 dark:text-red-400",     dot: "bg-red-400"     },
 };

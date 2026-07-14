@@ -66,23 +66,23 @@ export default function ConfirmDialog({
   const actionClass =
     variant === 'destructive'
       ? 'bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-full px-5 py-2 text-sm font-semibold transition-colors'
-      : 'bg-white text-black hover:bg-zinc-100 rounded-full px-5 py-2 text-sm font-semibold transition-colors';
+      : 'bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded-full px-5 py-2 text-sm font-semibold transition-colors';
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="bg-zinc-900 border border-white/10 rounded-[1.5rem] shadow-2xl max-w-md">
+      <AlertDialogContent className="border-border bg-background text-foreground rounded-[1.5rem] shadow-2xl max-w-md">
         <AlertDialogHeader>
-          <AlertDialogTitle className="text-white text-lg font-semibold">
+          <AlertDialogTitle className="text-foreground text-lg font-semibold">
             {title}
           </AlertDialogTitle>
-          <AlertDialogDescription className="text-zinc-400 text-sm mt-1">
+          <AlertDialogDescription className="text-muted-foreground text-sm mt-1">
             {description}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter className="mt-2 gap-2">
           <AlertDialogCancel
             disabled={loading}
-            className="bg-transparent border border-white/10 text-zinc-400 hover:bg-white/5 hover:text-white rounded-full px-5 py-2 text-sm transition-colors"
+            className="bg-transparent border border-border text-muted-foreground hover:bg-secondary hover:text-foreground rounded-full px-5 py-2 text-sm transition-colors"
           >
             {cancelLabel}
           </AlertDialogCancel>
