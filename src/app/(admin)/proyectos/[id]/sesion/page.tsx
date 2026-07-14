@@ -39,7 +39,7 @@ export default function SesionPage() {
   if (!client || !project || !task) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
-        <p className="text-zinc-500 text-sm mb-4">Tarea no encontrada</p>
+        <p className="text-muted-foreground text-sm mb-4">Tarea no encontrada</p>
         <button
           onClick={() => router.push(`/proyectos/${params.id}?tab=tareas`)}
           className="rounded-lg bg-cyan-500/10 border border-cyan-500/20 px-4 py-2 text-sm text-cyan-300 hover:bg-cyan-500/20 transition-all"

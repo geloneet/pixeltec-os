@@ -13,13 +13,13 @@ type StatCard = { label: string; value: number; icon: React.ElementType; color: 
 
 function StatTile({ label, value, icon: Icon, color }: StatCard) {
   return (
-    <div className="rounded-xl bg-zinc-900 border border-white/[0.06] p-5 flex items-center gap-4">
+    <div className="rounded-xl bg-card border border-border p-5 flex items-center gap-4">
       <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${color}`}>
         <Icon className="w-5 h-5" />
       </div>
       <div>
-        <p className="text-2xl font-bold text-white">{value}</p>
-        <p className="text-xs text-zinc-500">{label}</p>
+        <p className="text-2xl font-bold text-foreground">{value}</p>
+        <p className="text-xs text-muted-foreground">{label}</p>
       </div>
     </div>
   );
@@ -85,8 +85,8 @@ export default function DocumentosPage() {
   return (
     <div className="max-w-5xl mx-auto px-6 py-8 space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-white">Documentos</h1>
-        <p className="text-sm text-zinc-400 mt-1">Contratos, facturas y propuestas</p>
+        <h1 className="text-2xl font-bold text-foreground">Documentos</h1>
+        <p className="text-sm text-muted-foreground mt-1">Contratos, facturas y propuestas</p>
       </div>
 
       {/* Stats */}
@@ -95,52 +95,52 @@ export default function DocumentosPage() {
           label="Facturas totales"
           value={invoices.length}
           icon={Receipt}
-          color="bg-blue-500/10 text-blue-300"
+          color="bg-blue-500/10 text-blue-700 dark:text-blue-300"
         />
         <StatTile
           label="Facturas pagadas"
           value={invoicePagado}
           icon={FileCheck}
-          color="bg-green-500/10 text-green-300"
+          color="bg-green-500/10 text-green-700 dark:text-green-300"
         />
         <StatTile
           label="Contratos firmados"
           value={contractFirmado}
           icon={FileSignature}
-          color="bg-cyan-500/10 text-cyan-300"
+          color="bg-cyan-500/10 text-cyan-700 dark:text-cyan-300"
         />
         <StatTile
           label="Propuestas"
           value={proposals.length}
           icon={FileText}
-          color="bg-zinc-500/10 text-zinc-300"
+          color="bg-muted text-muted-foreground"
         />
       </div>
 
       <div className="grid md:grid-cols-2 gap-6">
         {/* Recent invoices */}
         <section>
-          <h2 className="text-sm font-semibold text-zinc-300 mb-3">Facturas recientes</h2>
+          <h2 className="text-sm font-semibold text-muted-foreground mb-3">Facturas recientes</h2>
           {recentInvoices.length === 0 ? (
-            <p className="text-xs text-zinc-600">No hay facturas aún.</p>
+            <p className="text-xs text-muted-foreground/60">No hay facturas aún.</p>
           ) : (
             <div className="space-y-2">
               {recentInvoices.map(inv => (
                 <div
                   key={inv.id}
-                  className="flex items-center justify-between rounded-lg bg-zinc-900 border border-white/[0.05] px-4 py-2.5"
+                  className="flex items-center justify-between rounded-lg bg-card border border-border px-4 py-2.5"
                 >
                   <div>
-                    <p className="text-sm font-medium text-white">{inv.number}</p>
-                    <p className="text-xs text-zinc-500">{inv.status}</p>
+                    <p className="text-sm font-medium text-foreground">{inv.number}</p>
+                    <p className="text-xs text-muted-foreground">{inv.status}</p>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="text-sm text-zinc-300">{formatMXN(inv.total)}</span>
+                    <span className="text-sm text-muted-foreground">{formatMXN(inv.total)}</span>
                     <a
                       href={`/api/documents/invoice-pdf?invoiceId=${inv.id}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-xs px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 transition-colors"
+                      className="text-xs px-2 py-1 rounded bg-secondary hover:bg-secondary/80 text-muted-foreground transition-colors"
                     >
                       PDF
                     </a>
@@ -153,27 +153,27 @@ export default function DocumentosPage() {
 
         {/* Recent contracts */}
         <section>
-          <h2 className="text-sm font-semibold text-zinc-300 mb-3">Contratos recientes</h2>
+          <h2 className="text-sm font-semibold text-muted-foreground mb-3">Contratos recientes</h2>
           {recentContracts.length === 0 ? (
-            <p className="text-xs text-zinc-600">No hay contratos aún.</p>
+            <p className="text-xs text-muted-foreground/60">No hay contratos aún.</p>
           ) : (
             <div className="space-y-2">
               {recentContracts.map(con => (
                 <div
                   key={con.id}
-                  className="flex items-center justify-between rounded-lg bg-zinc-900 border border-white/[0.05] px-4 py-2.5"
+                  className="flex items-center justify-between rounded-lg bg-card border border-border px-4 py-2.5"
                 >
                   <div>
-                    <p className="text-sm font-medium text-white truncate max-w-[180px]">
+                    <p className="text-sm font-medium text-foreground truncate max-w-[180px]">
                       {con.title}
                     </p>
-                    <p className="text-xs text-zinc-500">v{con.version} · {con.status}</p>
+                    <p className="text-xs text-muted-foreground">v{con.version} · {con.status}</p>
                   </div>
                   <a
                     href={`/api/documents/contract-pdf?contractId=${con.id}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-xs px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 transition-colors"
+                    className="text-xs px-2 py-1 rounded bg-secondary hover:bg-secondary/80 text-muted-foreground transition-colors"
                   >
                     PDF
                   </a>

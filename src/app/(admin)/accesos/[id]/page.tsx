@@ -25,7 +25,7 @@ export default function AccesoDetailPage() {
   if (!tool) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
-        <p className="text-zinc-500 text-sm mb-4">Recurso no encontrado</p>
+        <p className="text-muted-foreground text-sm mb-4">Recurso no encontrado</p>
         <button
           onClick={() => router.push("/accesos")}
           className="rounded-lg bg-[#0EA5E9] px-4 py-2 text-sm text-white hover:bg-[#0284C7] transition-all duration-150"

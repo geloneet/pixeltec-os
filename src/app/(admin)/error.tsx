@@ -18,10 +18,10 @@ export default function AdminError({
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4">
       <AlertTriangle className="h-12 w-12 text-amber-400" />
-      <h2 className="font-logo text-xl font-bold text-zinc-200">
+      <h2 className="font-logo text-xl font-bold text-foreground">
         Algo salió mal
       </h2>
-      <p className="max-w-md text-center text-sm text-zinc-400">
+      <p className="max-w-md text-center text-sm text-muted-foreground">
         {error.message || "Ocurrió un error inesperado. Intenta recargar."}
       </p>
       <Button onClick={reset} variant="outline">
