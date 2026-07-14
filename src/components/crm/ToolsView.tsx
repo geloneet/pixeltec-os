@@ -40,7 +40,7 @@ function ToolCard({ tool, onSelect, isFav, onToggleFav }: ToolCardProps) {
   return (
     <div
       onClick={onSelect}
-      className="group relative flex cursor-pointer flex-col gap-2 rounded-xl border border-white/[0.06] bg-zinc-900/20 p-4 transition-colors hover:border-white/[0.12] hover:bg-zinc-900/40"
+      className="group relative flex cursor-pointer flex-col gap-2 rounded-xl border border-border bg-card p-4 transition-colors hover:bg-secondary/40"
     >
       {/* Estrella favorito */}
       <button
@@ -49,7 +49,7 @@ function ToolCard({ tool, onSelect, isFav, onToggleFav }: ToolCardProps) {
           "absolute right-3 top-3 rounded p-0.5 transition-colors",
           isFav
             ? "text-yellow-400"
-            : "text-zinc-700 hover:text-zinc-400"
+            : "text-muted-foreground/60 hover:text-muted-foreground"
         )}
         aria-label={isFav ? "Quitar de favoritos" : "Agregar a favoritos"}
       >
@@ -67,7 +67,7 @@ function ToolCard({ tool, onSelect, isFav, onToggleFav }: ToolCardProps) {
       </span>
 
       {/* Nombre */}
-      <p className="pr-6 text-[13px] font-medium leading-snug text-zinc-100">
+      <p className="pr-6 text-[13px] font-medium leading-snug text-foreground">
         {tool.name}
       </p>
 
@@ -77,7 +77,7 @@ function ToolCard({ tool, onSelect, isFav, onToggleFav }: ToolCardProps) {
           {tags.map((tag) => (
             <span
               key={tag}
-              className="rounded-full bg-zinc-800/80 px-2 py-0.5 text-[10px] text-zinc-500"
+              className="rounded-full bg-secondary/40 px-2 py-0.5 text-[10px] text-muted-foreground"
             >
               {tag}
             </span>
@@ -86,7 +86,7 @@ function ToolCard({ tool, onSelect, isFav, onToggleFav }: ToolCardProps) {
       )}
 
       {/* Metadata */}
-      <div className="flex items-center gap-1.5 text-[11px] text-zinc-600">
+      <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground/60">
         <span>
           {tool.tips.length} {tool.tips.length === 1 ? "tip" : "tips"}
         </span>
@@ -117,17 +117,17 @@ export function ToolsView({ tools, onSelectTool, onAddTool }: ToolsViewProps) {
   const showRecent = !hasQuery && tools.length > 4;
 
   const sectionLabel =
-    "mb-3 text-[11px] font-semibold uppercase tracking-widest text-zinc-600";
+    "mb-3 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/60";
 
   return (
     <div className="space-y-6">
       {/* ── Header ── */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-[20px] font-semibold text-zinc-100">
+          <h2 className="text-[20px] font-semibold text-foreground">
             {getNavLabel("/accesos")}
           </h2>
-          <p className="text-[12px] text-zinc-500">
+          <p className="text-[12px] text-muted-foreground">
             Base de conocimiento interna y recursos operativos
           </p>
         </div>
@@ -163,31 +163,31 @@ export function ToolsView({ tools, onSelectTool, onAddTool }: ToolsViewProps) {
         ].map(({ Icon, label, value, colorClass }) => (
           <div
             key={label}
-            className="rounded-xl border border-white/[0.06] bg-zinc-900/20 p-3"
+            className="rounded-xl border border-border bg-card p-3"
           >
             <Icon className={cn("mb-1.5 h-4 w-4", colorClass)} />
-            <p className="text-[18px] font-semibold leading-none text-zinc-100">
+            <p className="text-[18px] font-semibold leading-none text-foreground">
               {value}
             </p>
-            <p className="mt-0.5 text-[11px] text-zinc-500">{label}</p>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">{label}</p>
           </div>
         ))}
       </div>
 
       {/* ── Búsqueda ── */}
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-600" />
+        <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/60" />
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Buscar en recursos, tips y contenido..."
-          className="w-full rounded-xl border border-white/[0.06] bg-zinc-900/20 py-2.5 pl-9 pr-4 text-[13px] text-zinc-200 placeholder:text-zinc-600 transition-colors focus:border-cyan-500/30 focus:bg-zinc-900/40 focus:outline-none"
+          className="w-full rounded-xl border border-border bg-card py-2.5 pl-9 pr-4 text-[13px] text-foreground placeholder:text-muted-foreground/60 transition-colors focus:border-cyan-500/30 focus:bg-secondary/40 focus:outline-none"
         />
       </div>
 
       {/* ── Sin recursos ── */}
       {tools.length === 0 && (
-        <p className="py-16 text-center text-sm text-zinc-500">
+        <p className="py-16 text-center text-sm text-muted-foreground">
           Aún no hay recursos registrados.
         </p>
       )}
@@ -197,7 +197,7 @@ export function ToolsView({ tools, onSelectTool, onAddTool }: ToolsViewProps) {
         <section>
           <p className={sectionLabel}>Resultados ({filtered.length})</p>
           {filtered.length === 0 ? (
-            <p className="py-8 text-center text-sm text-zinc-600">
+            <p className="py-8 text-center text-sm text-muted-foreground/60">
               Sin resultados para &quot;{search}&quot;
             </p>
           ) : (

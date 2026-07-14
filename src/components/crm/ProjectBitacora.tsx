@@ -15,7 +15,7 @@ const MAX_VISIBLE = 5;
 const MAX_PREVIEW = 300;
 
 const CATEGORY_COLORS: Record<ProjectLogCategory, string> = {
-  General:         "bg-zinc-500/15 text-zinc-400 border border-zinc-500/20",
+  General:         "bg-muted text-muted-foreground border border-border",
   Cliente:         "bg-cyan-500/15 text-cyan-400 border border-cyan-500/20",
   Desarrollo:      "bg-purple-500/15 text-purple-400 border border-purple-500/20",
   Infraestructura: "bg-amber-500/15 text-amber-400 border border-amber-500/20",
@@ -93,14 +93,14 @@ export function ProjectBitacora({ project, onAddEntry }: Props) {
     <div>
       {/* Header */}
       <div className="mb-3 flex items-baseline gap-2">
-        <h3 className="text-sm font-semibold text-zinc-300">Bitácora del proyecto</h3>
+        <h3 className="text-sm font-semibold text-foreground">Bitácora del proyecto</h3>
         {headerSub && (
-          <span className="text-[11px] text-zinc-600">{headerSub}</span>
+          <span className="text-[11px] text-muted-foreground/60">{headerSub}</span>
         )}
       </div>
 
       {/* Capture form */}
-      <div className="mb-4 rounded-xl border border-white/[0.06] bg-zinc-900/20 p-4 space-y-3">
+      <div className="mb-4 rounded-xl border border-border bg-card p-4 space-y-3">
         {/* Category selector */}
         <div className="flex flex-wrap gap-1.5">
           {PROJECT_LOG_CATEGORIES.map(cat => (
@@ -111,7 +111,7 @@ export function ProjectBitacora({ project, onAddEntry }: Props) {
                 "rounded-full px-2.5 py-0.5 text-[11px] font-medium transition-colors",
                 category === cat
                   ? CATEGORY_COLORS[cat]
-                  : "bg-zinc-800/60 text-zinc-500 hover:text-zinc-300"
+                  : "bg-secondary/40 text-muted-foreground hover:text-foreground"
               )}
             >
               {cat}
@@ -125,7 +125,7 @@ export function ProjectBitacora({ project, onAddEntry }: Props) {
           onChange={e => setContent(e.target.value)}
           placeholder="Escribe una actualización relevante del proyecto…"
           rows={3}
-          className="w-full resize-none rounded-lg border border-white/[0.06] bg-[#18181B] px-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-600 focus:border-[#0EA5E9]/40 focus:outline-none transition-colors"
+          className="w-full resize-none rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:border-[#0EA5E9]/40 focus:outline-none transition-colors"
         />
 
         {/* Submit */}
@@ -142,7 +142,7 @@ export function ProjectBitacora({ project, onAddEntry }: Props) {
 
       {/* Note list */}
       {visible.length === 0 ? (
-        <p className="text-sm leading-relaxed text-zinc-600">
+        <p className="text-sm leading-relaxed text-muted-foreground/60">
           No existen registros en la bitácora. Utiliza el formulario superior para
           registrar la primera actualización del proyecto.
         </p>
@@ -159,7 +159,7 @@ export function ProjectBitacora({ project, onAddEntry }: Props) {
             return (
               <div
                 key={entry.id}
-                className="rounded-xl border border-white/[0.06] bg-zinc-900/20 px-4 py-3 space-y-1.5"
+                className="rounded-xl border border-border bg-card px-4 py-3 space-y-1.5"
               >
                 <div className="flex items-center gap-2">
                   <span
@@ -171,15 +171,15 @@ export function ProjectBitacora({ project, onAddEntry }: Props) {
                     {entry.category}
                   </span>
                 </div>
-                <p className="text-[11px] text-zinc-500">
+                <p className="text-[11px] text-muted-foreground">
                   {entry.authorName} · {relativeTime(entry.createdAt)}
                 </p>
-                <p className="text-sm leading-relaxed text-zinc-300 whitespace-pre-wrap">
+                <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap">
                   {displayContent}
                   {needsTruncation && (
                     <button
                       onClick={() => toggleExpand(entry.id)}
-                      className="ml-1 text-[11px] text-zinc-500 hover:text-zinc-300 transition-colors"
+                      className="ml-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
                     >
                       {isExpanded ? "ver menos" : "ver más"}
                     </button>
@@ -193,7 +193,7 @@ export function ProjectBitacora({ project, onAddEntry }: Props) {
             <button
               // stub — full history view not yet implemented
               onClick={() => {}}
-              className="mt-1 text-[11px] text-zinc-500 hover:text-zinc-300 transition-colors"
+              className="mt-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
             >
               Ver historial completo →
             </button>

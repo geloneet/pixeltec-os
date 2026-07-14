@@ -55,7 +55,7 @@ interface Toast {
 
 function getStatusBadge(status: string, active: boolean): { label: string; bg: string; text: string } {
   if (!active || status === "paused") {
-    return { label: "Pausado", bg: "bg-zinc-500/10", text: "text-zinc-400" };
+    return { label: "Pausado", bg: "bg-muted", text: "text-muted-foreground" };
   }
   const s = status.toLowerCase();
   if (s.startsWith("up") || s === "online") {
@@ -65,7 +65,7 @@ function getStatusBadge(status: string, active: boolean): { label: string; bg: s
     return { label: "Detenido", bg: "bg-red-500/10", text: "text-red-400" };
   }
   if (s === "manual") {
-    return { label: "Manual", bg: "bg-zinc-500/10", text: "text-zinc-400" };
+    return { label: "Manual", bg: "bg-muted", text: "text-muted-foreground" };
   }
   return { label: "Desconocido", bg: "bg-amber-500/10", text: "text-amber-400" };
 }
@@ -94,7 +94,7 @@ function TypeBadge({ type }: { type: string }) {
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 rounded-md bg-zinc-500/10 px-2 py-0.5 text-[11px] font-medium text-zinc-400">
+    <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
       Manual
     </span>
   );
@@ -102,22 +102,22 @@ function TypeBadge({ type }: { type: string }) {
 
 function SkeletonCard() {
   return (
-    <div className="rounded-[10px] border border-zinc-800 bg-[#0F0F12] p-5 animate-pulse">
-      <div className="h-4 w-24 rounded bg-zinc-800 mb-3" />
-      <div className="h-6 w-16 rounded bg-zinc-800" />
+    <div className="rounded-[10px] border border-border bg-card p-5 animate-pulse">
+      <div className="h-4 w-24 rounded bg-muted mb-3" />
+      <div className="h-6 w-16 rounded bg-muted" />
     </div>
   );
 }
 
 function SkeletonProject() {
   return (
-    <div className="rounded-[10px] border border-zinc-800 bg-[#0F0F12] p-5 animate-pulse">
+    <div className="rounded-[10px] border border-border bg-card p-5 animate-pulse">
       <div className="flex items-center gap-3 mb-3">
-        <div className="h-8 w-8 rounded-lg bg-zinc-800" />
-        <div className="h-4 w-32 rounded bg-zinc-800" />
+        <div className="h-8 w-8 rounded-lg bg-muted" />
+        <div className="h-4 w-32 rounded bg-muted" />
       </div>
-      <div className="h-3 w-48 rounded bg-zinc-800 mb-2" />
-      <div className="h-3 w-24 rounded bg-zinc-800" />
+      <div className="h-3 w-48 rounded bg-muted mb-2" />
+      <div className="h-3 w-24 rounded bg-muted" />
     </div>
   );
 }
@@ -378,15 +378,15 @@ export function ServerView() {
   return (
     <div className="max-w-[900px]">
       <AlertDialog open={!!pendingConfirm} onOpenChange={(open) => { if (!open) setPendingConfirm(null); }}>
-        <AlertDialogContent className="border-zinc-800 bg-[#0F0F12] text-white">
+        <AlertDialogContent className="border-border bg-background text-foreground">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-white">{pendingConfirm?.title}</AlertDialogTitle>
-            <AlertDialogDescription className="text-zinc-400">
+            <AlertDialogTitle className="text-foreground">{pendingConfirm?.title}</AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground">
               {pendingConfirm?.description}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="border-zinc-700 bg-zinc-800/50 text-zinc-300 hover:bg-zinc-800">
+            <AlertDialogCancel className="border-border bg-secondary/50 text-foreground hover:bg-secondary">
               Cancelar
             </AlertDialogCancel>
             <AlertDialogAction
@@ -413,14 +413,14 @@ export function ServerView() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-xl font-bold text-white">Servidor</h2>
-          <p className="text-[13px] text-zinc-500 mt-0.5">Estado del VPS y proyectos desplegados</p>
+          <h2 className="text-xl font-bold text-foreground">Servidor</h2>
+          <p className="text-[13px] text-muted-foreground mt-0.5">Estado del VPS y proyectos desplegados</p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={handleHealthCheck}
             disabled={healthLoading}
-            className="flex items-center gap-2 rounded-lg border border-zinc-800 bg-[#0F0F12] px-3 py-2 text-[13px] text-zinc-400 hover:text-zinc-200 hover:border-zinc-700 transition-colors duration-150 disabled:opacity-50"
+            className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-[13px] text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors duration-150 disabled:opacity-50"
           >
             {healthLoading ? <Spinner size="sm" /> : (
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -431,7 +431,7 @@ export function ServerView() {
           </button>
           <button
             onClick={() => setAddModal(true)}
-            className="flex items-center gap-2 rounded-lg border border-zinc-800 bg-[#0F0F12] px-3 py-2 text-[13px] text-zinc-400 hover:text-zinc-200 hover:border-zinc-700 transition-colors duration-150"
+            className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-[13px] text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors duration-150"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
@@ -441,7 +441,7 @@ export function ServerView() {
           <button
             onClick={handleRefresh}
             disabled={loading}
-            className="flex items-center gap-2 rounded-lg border border-zinc-800 bg-[#0F0F12] px-3 py-2 text-[13px] text-zinc-400 hover:text-zinc-200 hover:border-zinc-700 transition-colors duration-150 disabled:opacity-50"
+            className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-[13px] text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors duration-150 disabled:opacity-50"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={loading ? "animate-spin" : ""}>
               <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
@@ -458,51 +458,51 @@ export function ServerView() {
         </div>
       ) : server && (
         <div className="grid grid-cols-4 gap-3 mb-6">
-          <div className="rounded-[10px] border border-zinc-800 bg-[#0F0F12] p-4">
+          <div className="rounded-[10px] border border-border bg-card p-4">
             <div className="flex items-center gap-2 mb-2">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0EA5E9" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
               </svg>
-              <span className="text-[11px] text-zinc-500 uppercase tracking-wider">Disco</span>
+              <span className="text-[11px] text-muted-foreground uppercase tracking-wider">Disco</span>
             </div>
-            <div className="text-lg font-bold text-white">{server.diskUsed}<span className="text-[13px] text-zinc-500 font-normal"> / {server.diskTotal}</span></div>
-            <div className="mt-2 h-1.5 w-full rounded-full bg-zinc-800">
+            <div className="text-lg font-bold text-foreground">{server.diskUsed}<span className="text-[13px] text-muted-foreground font-normal"> / {server.diskTotal}</span></div>
+            <div className="mt-2 h-1.5 w-full rounded-full bg-muted">
               <div
                 className={`h-full rounded-full transition-all ${diskPct > 90 ? "bg-red-500" : diskPct > 70 ? "bg-amber-500" : "bg-[#0EA5E9]"}`}
                 style={{ width: `${Math.min(diskPct, 100)}%` }}
               />
             </div>
-            <div className="text-[11px] text-zinc-500 mt-1">{server.diskPercent} usado</div>
+            <div className="text-[11px] text-muted-foreground mt-1">{server.diskPercent} usado</div>
           </div>
 
-          <div className="rounded-[10px] border border-zinc-800 bg-[#0F0F12] p-4">
+          <div className="rounded-[10px] border border-border bg-card p-4">
             <div className="flex items-center gap-2 mb-2">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0EA5E9" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 12h.01M10 12h.01M14 12h.01M18 12h.01"/>
               </svg>
-              <span className="text-[11px] text-zinc-500 uppercase tracking-wider">RAM</span>
+              <span className="text-[11px] text-muted-foreground uppercase tracking-wider">RAM</span>
             </div>
-            <div className="text-lg font-bold text-white">{server.memUsed}<span className="text-[13px] text-zinc-500 font-normal"> / {server.memTotal}</span></div>
+            <div className="text-lg font-bold text-foreground">{server.memUsed}<span className="text-[13px] text-muted-foreground font-normal"> / {server.memTotal}</span></div>
           </div>
 
-          <div className="rounded-[10px] border border-zinc-800 bg-[#0F0F12] p-4">
+          <div className="rounded-[10px] border border-border bg-card p-4">
             <div className="flex items-center gap-2 mb-2">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0EA5E9" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
               </svg>
-              <span className="text-[11px] text-zinc-500 uppercase tracking-wider">Uptime</span>
+              <span className="text-[11px] text-muted-foreground uppercase tracking-wider">Uptime</span>
             </div>
-            <div className="text-lg font-bold text-white">{server.uptime.replace("up ", "")}</div>
+            <div className="text-lg font-bold text-foreground">{server.uptime.replace("up ", "")}</div>
           </div>
 
-          <div className="rounded-[10px] border border-zinc-800 bg-[#0F0F12] p-4">
+          <div className="rounded-[10px] border border-border bg-card p-4">
             <div className="flex items-center gap-2 mb-2">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0EA5E9" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
               </svg>
-              <span className="text-[11px] text-zinc-500 uppercase tracking-wider">Proyectos</span>
+              <span className="text-[11px] text-muted-foreground uppercase tracking-wider">Proyectos</span>
             </div>
-            <div className="text-lg font-bold text-white">{activeCount}<span className="text-[13px] text-zinc-500 font-normal"> / {projects.length} activos</span></div>
+            <div className="text-lg font-bold text-foreground">{activeCount}<span className="text-[13px] text-muted-foreground font-normal"> / {projects.length} activos</span></div>
           </div>
         </div>
       )}
@@ -524,12 +524,12 @@ export function ServerView() {
             return (
               <div
                 key={project.id}
-                className={`rounded-[10px] border border-zinc-800 bg-[#0F0F12] p-5 hover:border-zinc-700 transition-all duration-150 ${paused ? "opacity-60" : ""}`}
+                className={`rounded-[10px] border border-border bg-card p-5 hover:bg-secondary/40 transition-all duration-150 ${paused ? "opacity-60" : ""}`}
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-1 flex-wrap">
-                      <span className="text-[15px] font-semibold text-white">{project.name}</span>
+                      <span className="text-[15px] font-semibold text-foreground">{project.name}</span>
                       <TypeBadge type={project.type} />
                       <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium ${badge.bg} ${badge.text}`}>
                         {badge.label}
@@ -544,22 +544,22 @@ export function ServerView() {
                         </span>
                       )}
                     </div>
-                    <p className="text-[13px] text-zinc-500 mb-2">{project.description}</p>
-                    <div className="flex items-center gap-4 text-[12px] text-zinc-600 mb-2">
+                    <p className="text-[13px] text-muted-foreground mb-2">{project.description}</p>
+                    <div className="flex items-center gap-4 text-[12px] text-muted-foreground/60 mb-2">
                       {(() => {
                         const linkedClientId = serverLinks[project.id];
                         const linkedClient = linkedClientId ? clients.find(c => c.id === linkedClientId) : null;
                         if (linkedClient) {
                           const initials = linkedClient.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
                           return (
-                            <span className="inline-flex items-center gap-1.5 bg-zinc-800/50 rounded-full pl-1 pr-2 py-0.5 text-[11px] text-zinc-300">
+                            <span className="inline-flex items-center gap-1.5 bg-secondary/40 rounded-full pl-1 pr-2 py-0.5 text-[11px] text-foreground">
                               <span className="flex items-center justify-center w-5 h-5 rounded-full bg-[#0EA5E9]/20 text-[#0EA5E9] text-[9px] font-bold flex-shrink-0">
                                 {initials}
                               </span>
                               {linkedClient.name}
                               <button
                                 onClick={() => unlinkProject(project.id)}
-                                className="ml-0.5 text-zinc-500 hover:text-zinc-300 transition-colors"
+                                className="ml-0.5 text-muted-foreground hover:text-foreground transition-colors"
                               >
                                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                   <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -572,14 +572,14 @@ export function ServerView() {
                           <div className="relative" ref={linkDropdown === project.id ? dropdownRef : undefined}>
                             <button
                               onClick={() => setLinkDropdown(linkDropdown === project.id ? null : project.id)}
-                              className="text-[11px] text-zinc-600 hover:text-zinc-400 transition-colors cursor-pointer"
+                              className="text-[11px] text-muted-foreground/60 hover:text-muted-foreground transition-colors cursor-pointer"
                             >
                               + Vincular cliente
                             </button>
                             {linkDropdown === project.id && (
-                              <div className="absolute top-full left-0 mt-1 z-40 bg-[#0F0F12] border border-zinc-800 rounded-lg shadow-lg p-2 w-[200px] max-h-[200px] overflow-y-auto">
+                              <div className="absolute top-full left-0 mt-1 z-40 bg-popover border border-border rounded-lg shadow-lg p-2 w-[200px] max-h-[200px] overflow-y-auto">
                                 {clients.length === 0 ? (
-                                  <p className="text-[11px] text-zinc-500 px-2 py-1">Sin clientes registrados</p>
+                                  <p className="text-[11px] text-muted-foreground px-2 py-1">Sin clientes registrados</p>
                                 ) : (
                                   clients.map(client => {
                                     const initials = client.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
@@ -587,7 +587,7 @@ export function ServerView() {
                                       <button
                                         key={client.id}
                                         onClick={() => { linkProjectToClient(project.id, client.id); setLinkDropdown(null); }}
-                                        className="flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-[12px] text-zinc-300 hover:bg-zinc-800 transition-colors text-left"
+                                        className="flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-[12px] text-foreground hover:bg-secondary/60 transition-colors text-left"
                                       >
                                         <span className="flex items-center justify-center w-5 h-5 rounded-full bg-[#0EA5E9]/20 text-[#0EA5E9] text-[9px] font-bold flex-shrink-0">
                                           {initials}
@@ -603,7 +603,7 @@ export function ServerView() {
                         );
                       })()}
                     </div>
-                    <div className="flex items-center gap-4 text-[12px] text-zinc-600">
+                    <div className="flex items-center gap-4 text-[12px] text-muted-foreground/60">
                       <span className="font-mono text-[11px]">{project.path}</span>
                       <span>{project.size}</span>
                       {project.domain && (
@@ -624,7 +624,7 @@ export function ServerView() {
                     {!manual && hasLogs(project) && (
                       <button
                         onClick={() => fetchLogs(project.id, project.name, 10, "")}
-                        className="flex items-center gap-1.5 rounded-lg border border-zinc-700 px-3 py-1.5 text-[12px] text-zinc-300 hover:bg-zinc-800 hover:text-white transition-all duration-150"
+                        className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-[12px] text-foreground hover:bg-secondary/60 transition-all duration-150"
                       >
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>
@@ -660,7 +660,7 @@ export function ServerView() {
                       <button
                         onClick={() => handleAction(project.id, "restart")}
                         disabled={!!isActioning}
-                        className="flex items-center gap-1.5 rounded-lg border border-zinc-700 px-3 py-1.5 text-[12px] text-zinc-300 hover:bg-zinc-800 hover:text-white transition-all duration-150 disabled:opacity-50"
+                        className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-[12px] text-foreground hover:bg-secondary/60 transition-all duration-150 disabled:opacity-50"
                       >
                         {isActioning === "restart" ? <Spinner size="sm" /> : (
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -696,7 +696,7 @@ export function ServerView() {
                     <button
                       onClick={() => handleDelete(project)}
                       disabled={!!isActioning}
-                      className="flex items-center justify-center rounded-lg border border-zinc-800 p-1.5 text-zinc-600 hover:text-red-400 hover:border-red-800/50 transition-all duration-150 disabled:opacity-50"
+                      className="flex items-center justify-center rounded-lg border border-border p-1.5 text-muted-foreground/60 hover:text-red-400 hover:border-red-800/50 transition-all duration-150 disabled:opacity-50"
                       title="Eliminar del monitoreo"
                     >
                       {isActioning === "delete" ? <Spinner size="sm" /> : (
@@ -720,14 +720,14 @@ export function ServerView() {
           onClick={() => setLogsModal(prev => ({ ...prev, open: false }))}
         >
           <div
-            className="bg-[#0F0F12] border border-zinc-800 rounded-[14px] p-5 w-full max-w-[700px] max-h-[80vh] overflow-y-auto"
+            className="bg-card border border-border rounded-[14px] p-5 w-full max-w-[700px] max-h-[80vh] overflow-y-auto"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex justify-between items-center mb-4">
-              <span className="text-sm font-semibold text-white">Logs — {logsModal.projectName}</span>
+              <span className="text-sm font-semibold text-foreground">Logs — {logsModal.projectName}</span>
               <button
                 onClick={() => setLogsModal(prev => ({ ...prev, open: false }))}
-                className="text-zinc-500 hover:text-zinc-300 transition-colors"
+                className="text-muted-foreground hover:text-foreground transition-colors"
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -738,7 +738,7 @@ export function ServerView() {
             {/* Logs controls */}
             <div className="flex items-center gap-3 mb-3 flex-wrap">
               <div className="flex items-center gap-1">
-                <span className="text-[11px] text-zinc-500 mr-1">Líneas:</span>
+                <span className="text-[11px] text-muted-foreground mr-1">Líneas:</span>
                 {[10, 25, 50, 100].map(n => (
                   <button
                     key={n}
@@ -749,7 +749,7 @@ export function ServerView() {
                     className={`px-2 py-0.5 rounded text-[11px] transition-colors ${
                       logsModal.lines === n
                         ? "bg-[#0EA5E9]/20 text-[#0EA5E9] font-medium"
-                        : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
+                        : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
                     }`}
                   >
                     {n}
@@ -762,12 +762,12 @@ export function ServerView() {
                 onChange={e => setLogsModal(prev => ({ ...prev, filter: e.target.value }))}
                 onKeyDown={e => { if (e.key === "Enter") refreshLogs(); }}
                 placeholder="Filtrar por keyword..."
-                className="flex-1 min-w-[150px] rounded-lg border border-zinc-800 bg-[#09090B] px-3 py-1.5 text-[12px] text-zinc-300 placeholder:text-zinc-600 outline-none focus:border-zinc-700"
+                className="flex-1 min-w-[150px] rounded-lg border border-border bg-card px-3 py-1.5 text-[12px] text-foreground placeholder:text-muted-foreground/60 outline-none"
               />
               <button
                 onClick={refreshLogs}
                 disabled={logsModal.loading}
-                className="flex items-center gap-1.5 rounded-lg border border-zinc-700 px-3 py-1.5 text-[12px] text-zinc-300 hover:bg-zinc-800 hover:text-white transition-all duration-150 disabled:opacity-50"
+                className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-[12px] text-foreground hover:bg-secondary/60 transition-all duration-150 disabled:opacity-50"
               >
                 {logsModal.loading ? <Spinner size="sm" /> : (
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -794,7 +794,7 @@ export function ServerView() {
             <div className="flex justify-end mt-4">
               <button
                 onClick={() => setLogsModal(prev => ({ ...prev, open: false }))}
-                className="rounded-lg border border-zinc-700 px-3 py-1.5 text-[12px] text-zinc-300 hover:bg-zinc-800 hover:text-white transition-all duration-150"
+                className="rounded-lg border border-border px-3 py-1.5 text-[12px] text-foreground hover:bg-secondary/60 transition-all duration-150"
               >
                 Cerrar
               </button>
@@ -810,14 +810,14 @@ export function ServerView() {
           onClick={() => setAddModal(false)}
         >
           <div
-            className="bg-[#0F0F12] border border-zinc-800 rounded-[14px] p-5 w-full max-w-[500px] max-h-[80vh] overflow-y-auto"
+            className="bg-card border border-border rounded-[14px] p-5 w-full max-w-[500px] max-h-[80vh] overflow-y-auto"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex justify-between items-center mb-4">
-              <span className="text-sm font-semibold text-white">Agregar proyecto</span>
+              <span className="text-sm font-semibold text-foreground">Agregar proyecto</span>
               <button
                 onClick={() => setAddModal(false)}
-                className="text-zinc-500 hover:text-zinc-300 transition-colors"
+                className="text-muted-foreground hover:text-foreground transition-colors"
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -827,21 +827,21 @@ export function ServerView() {
 
             <div className="space-y-3">
               <div>
-                <label className="block text-[11px] text-zinc-500 mb-1">Nombre *</label>
+                <label className="block text-[11px] text-muted-foreground mb-1">Nombre *</label>
                 <input
                   type="text"
                   value={addForm.name}
                   onChange={e => setAddForm(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-full rounded-lg border border-zinc-800 bg-[#09090B] px-3 py-2 text-[13px] text-zinc-300 outline-none focus:border-zinc-700"
+                  className="w-full rounded-lg border border-border bg-card px-3 py-2 text-[13px] text-foreground outline-none"
                   placeholder="Mi Proyecto"
                 />
               </div>
               <div>
-                <label className="block text-[11px] text-zinc-500 mb-1">Tipo *</label>
+                <label className="block text-[11px] text-muted-foreground mb-1">Tipo *</label>
                 <select
                   value={addForm.type}
                   onChange={e => setAddForm(prev => ({ ...prev, type: e.target.value }))}
-                  className="w-full rounded-lg border border-zinc-800 bg-[#09090B] px-3 py-2 text-[13px] text-zinc-300 outline-none focus:border-zinc-700"
+                  className="w-full rounded-lg border border-border bg-card px-3 py-2 text-[13px] text-foreground outline-none"
                 >
                   <option value="pm2">PM2</option>
                   <option value="docker">Docker</option>
@@ -850,63 +850,63 @@ export function ServerView() {
                 </select>
               </div>
               <div>
-                <label className="block text-[11px] text-zinc-500 mb-1">Ruta en servidor</label>
+                <label className="block text-[11px] text-muted-foreground mb-1">Ruta en servidor</label>
                 <input
                   type="text"
                   value={addForm.path}
                   onChange={e => setAddForm(prev => ({ ...prev, path: e.target.value }))}
-                  className="w-full rounded-lg border border-zinc-800 bg-[#09090B] px-3 py-2 text-[13px] text-zinc-300 outline-none focus:border-zinc-700"
+                  className="w-full rounded-lg border border-border bg-card px-3 py-2 text-[13px] text-foreground outline-none"
                   placeholder="/home/ubuntu/mi-proyecto"
                 />
               </div>
               <div>
-                <label className="block text-[11px] text-zinc-500 mb-1">Dominio</label>
+                <label className="block text-[11px] text-muted-foreground mb-1">Dominio</label>
                 <input
                   type="text"
                   value={addForm.domain}
                   onChange={e => setAddForm(prev => ({ ...prev, domain: e.target.value }))}
-                  className="w-full rounded-lg border border-zinc-800 bg-[#09090B] px-3 py-2 text-[13px] text-zinc-300 outline-none focus:border-zinc-700"
+                  className="w-full rounded-lg border border-border bg-card px-3 py-2 text-[13px] text-foreground outline-none"
                   placeholder="midominio.com"
                 />
               </div>
               <div>
-                <label className="block text-[11px] text-zinc-500 mb-1">Descripción</label>
+                <label className="block text-[11px] text-muted-foreground mb-1">Descripción</label>
                 <input
                   type="text"
                   value={addForm.desc}
                   onChange={e => setAddForm(prev => ({ ...prev, desc: e.target.value }))}
-                  className="w-full rounded-lg border border-zinc-800 bg-[#09090B] px-3 py-2 text-[13px] text-zinc-300 outline-none focus:border-zinc-700"
+                  className="w-full rounded-lg border border-border bg-card px-3 py-2 text-[13px] text-foreground outline-none"
                 />
               </div>
               {addForm.type === "pm2" && (
                 <div>
-                  <label className="block text-[11px] text-zinc-500 mb-1">Nombre PM2</label>
+                  <label className="block text-[11px] text-muted-foreground mb-1">Nombre PM2</label>
                   <input
                     type="text"
                     value={addForm.pm2Name}
                     onChange={e => setAddForm(prev => ({ ...prev, pm2Name: e.target.value }))}
-                    className="w-full rounded-lg border border-zinc-800 bg-[#09090B] px-3 py-2 text-[13px] text-zinc-300 outline-none focus:border-zinc-700"
+                    className="w-full rounded-lg border border-border bg-card px-3 py-2 text-[13px] text-foreground outline-none"
                     placeholder="nombre en pm2"
                   />
                 </div>
               )}
               {(addForm.type === "docker" || addForm.type === "docker-compose") && (
                 <div>
-                  <label className="block text-[11px] text-zinc-500 mb-1">Nombre Container</label>
+                  <label className="block text-[11px] text-muted-foreground mb-1">Nombre Container</label>
                   <input
                     type="text"
                     value={addForm.containerName}
                     onChange={e => setAddForm(prev => ({ ...prev, containerName: e.target.value }))}
-                    className="w-full rounded-lg border border-zinc-800 bg-[#09090B] px-3 py-2 text-[13px] text-zinc-300 outline-none focus:border-zinc-700"
+                    className="w-full rounded-lg border border-border bg-card px-3 py-2 text-[13px] text-foreground outline-none"
                   />
                 </div>
               )}
               <div>
-                <label className="block text-[11px] text-zinc-500 mb-1">Deploy command <span className="text-zinc-700">(se auto-genera si se deja vacío)</span></label>
+                <label className="block text-[11px] text-muted-foreground mb-1">Deploy command <span className="text-muted-foreground/60">(se auto-genera si se deja vacío)</span></label>
                 <textarea
                   value={addForm.deployCmd}
                   onChange={e => setAddForm(prev => ({ ...prev, deployCmd: e.target.value }))}
-                  className="w-full rounded-lg border border-zinc-800 bg-[#09090B] px-3 py-2 text-[13px] text-zinc-300 outline-none focus:border-zinc-700 resize-none h-[60px]"
+                  className="w-full rounded-lg border border-border bg-card px-3 py-2 text-[13px] text-foreground outline-none resize-none h-[60px]"
                   placeholder="se auto-genera si se deja vacío"
                 />
               </div>
@@ -915,7 +915,7 @@ export function ServerView() {
             <div className="flex justify-end gap-2 mt-5">
               <button
                 onClick={() => setAddModal(false)}
-                className="rounded-lg border border-zinc-700 px-3 py-1.5 text-[12px] text-zinc-300 hover:bg-zinc-800 hover:text-white transition-all duration-150"
+                className="rounded-lg border border-border px-3 py-1.5 text-[12px] text-foreground hover:bg-secondary/60 transition-all duration-150"
               >
                 Cancelar
               </button>

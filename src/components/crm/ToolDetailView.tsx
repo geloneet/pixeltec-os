@@ -72,13 +72,13 @@ export function ToolDetailView({
         {/* ── Back ── */}
         <button
           onClick={onBack}
-          className="text-[13px] text-zinc-500 transition-colors hover:text-zinc-300"
+          className="text-[13px] text-muted-foreground transition-colors hover:text-foreground"
         >
           ← {getNavLabel("/accesos")}
         </button>
 
         {/* ── Header ── */}
-        <div className="rounded-xl border border-white/[0.06] bg-zinc-900/20 p-4">
+        <div className="rounded-xl border border-border bg-card p-4">
           <div className="flex items-start gap-3">
             {/* Avatar */}
             <span
@@ -90,7 +90,7 @@ export function ToolDetailView({
 
             {/* Nombre + acciones */}
             <div className="min-w-0 flex-1">
-              <h2 className="text-[18px] font-semibold text-zinc-100 leading-snug">
+              <h2 className="text-[18px] font-semibold text-foreground leading-snug">
                 {tool.name}
               </h2>
               {topTags.length > 0 && (
@@ -98,7 +98,7 @@ export function ToolDetailView({
                   {topTags.map((tag) => (
                     <span
                       key={tag}
-                      className="rounded-full bg-zinc-800/80 px-2 py-0.5 text-[10px] text-zinc-500"
+                      className="rounded-full bg-secondary/40 px-2 py-0.5 text-[10px] text-muted-foreground"
                     >
                       {tag}
                     </span>
@@ -116,7 +116,7 @@ export function ToolDetailView({
                   "rounded-lg p-1.5 transition-colors",
                   isFav
                     ? "text-yellow-400"
-                    : "text-zinc-700 hover:text-zinc-400"
+                    : "text-muted-foreground/60 hover:text-muted-foreground"
                 )}
                 aria-label={isFav ? "Quitar de favoritos" : "Agregar a favoritos"}
               >
@@ -126,13 +126,13 @@ export function ToolDetailView({
               </button>
               <button
                 onClick={onEditTool}
-                className="rounded-lg border border-white/[0.06] bg-zinc-900/40 px-2.5 py-1 text-[12px] text-zinc-400 transition-colors hover:text-zinc-200"
+                className="rounded-lg border border-border bg-card px-2.5 py-1 text-[12px] text-muted-foreground transition-colors hover:text-foreground"
               >
                 Editar
               </button>
               <button
                 onClick={onDeleteTool}
-                className="rounded-lg border border-white/[0.06] bg-zinc-900/40 px-2.5 py-1 text-[12px] text-zinc-400 transition-colors hover:text-red-400"
+                className="rounded-lg border border-border bg-card px-2.5 py-1 text-[12px] text-muted-foreground transition-colors hover:text-red-400"
               >
                 Eliminar
               </button>
@@ -140,14 +140,14 @@ export function ToolDetailView({
           </div>
 
           {/* KPIs del recurso */}
-          <div className="mt-4 grid grid-cols-3 gap-3 border-t border-white/[0.04] pt-4">
+          <div className="mt-4 grid grid-cols-3 gap-3 border-t border-border pt-4">
             <div className="flex items-center gap-2">
               <Lightbulb className="h-3.5 w-3.5 text-amber-400 flex-shrink-0" />
               <div>
-                <p className="text-[15px] font-semibold leading-none text-zinc-100">
+                <p className="text-[15px] font-semibold leading-none text-foreground">
                   {tool.tips.length}
                 </p>
-                <p className="mt-0.5 text-[10px] text-zinc-600">
+                <p className="mt-0.5 text-[10px] text-muted-foreground/60">
                   {tool.tips.length === 1 ? "tip" : "tips"}
                 </p>
               </div>
@@ -155,10 +155,10 @@ export function ToolDetailView({
             <div className="flex items-center gap-2">
               <Tag className="h-3.5 w-3.5 text-violet-400 flex-shrink-0" />
               <div>
-                <p className="text-[15px] font-semibold leading-none text-zinc-100">
+                <p className="text-[15px] font-semibold leading-none text-foreground">
                   {uniqueTags}
                 </p>
-                <p className="mt-0.5 text-[10px] text-zinc-600">
+                <p className="mt-0.5 text-[10px] text-muted-foreground/60">
                   {uniqueTags === 1 ? "categoría" : "categorías"}
                 </p>
               </div>
@@ -167,7 +167,7 @@ export function ToolDetailView({
               <div>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <p className="cursor-default text-[12px] font-medium text-zinc-400">
+                    <p className="cursor-default text-[12px] font-medium text-muted-foreground">
                       editado {lastModRel}
                     </p>
                   </TooltipTrigger>
@@ -175,7 +175,7 @@ export function ToolDetailView({
                     <p>{lastModExact}</p>
                   </TooltipContent>
                 </Tooltip>
-                <p className="mt-0.5 text-[10px] text-zinc-600">
+                <p className="mt-0.5 text-[10px] text-muted-foreground/60">
                   última modificación
                 </p>
               </div>
@@ -189,7 +189,7 @@ export function ToolDetailView({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar tips..."
-            className="flex-1 rounded-xl border border-white/[0.06] bg-zinc-900/20 px-3 py-2 text-[13px] text-zinc-200 placeholder:text-zinc-600 transition-colors focus:border-cyan-500/30 focus:outline-none focus:bg-zinc-900/40"
+            className="flex-1 rounded-xl border border-border bg-card px-3 py-2 text-[13px] text-foreground placeholder:text-muted-foreground/60 transition-colors focus:border-cyan-500/30 focus:outline-none focus:bg-secondary/40"
           />
           <button
             onClick={onAddTip}
@@ -202,13 +202,13 @@ export function ToolDetailView({
         {/* ── Lista de tips ── */}
         {tool.tips.length === 0 ? (
           <div className="py-12 text-center">
-            <p className="text-sm text-zinc-500">
+            <p className="text-sm text-muted-foreground">
               Sin tips aún. Agrega tu primer hack.
             </p>
           </div>
         ) : filtered.length === 0 ? (
           <div className="py-12 text-center">
-            <p className="text-sm text-zinc-600">
+            <p className="text-sm text-muted-foreground/60">
               Sin resultados para &quot;{search}&quot;
             </p>
           </div>
@@ -230,10 +230,10 @@ export function ToolDetailView({
                 <div
                   key={tip.id}
                   className={cn(
-                    "rounded-xl border bg-zinc-900/20 transition-colors",
+                    "rounded-xl border bg-card transition-colors",
                     isOpen
-                      ? "border-white/[0.10]"
-                      : "cursor-pointer border-white/[0.06] hover:border-white/[0.10]"
+                      ? "border-border"
+                      : "cursor-pointer border-border hover:bg-secondary/40"
                   )}
                   onClick={() =>
                     !isOpen && setExpandedTip(tip.id)
@@ -253,12 +253,12 @@ export function ToolDetailView({
                   >
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
-                        <p className="text-[13px] font-medium text-zinc-100">
+                        <p className="text-[13px] font-medium text-foreground">
                           {tip.title}
                         </p>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <span className="flex-shrink-0 cursor-default text-[11px] text-zinc-600">
+                            <span className="flex-shrink-0 cursor-default text-[11px] text-muted-foreground/60">
                               {tipRelTime}
                             </span>
                           </TooltipTrigger>
@@ -268,7 +268,7 @@ export function ToolDetailView({
                         </Tooltip>
                       </div>
                       {!isOpen && tip.summary && (
-                        <p className="mt-0.5 truncate text-[12px] text-zinc-500">
+                        <p className="mt-0.5 truncate text-[12px] text-muted-foreground">
                           {tip.summary}
                         </p>
                       )}
@@ -288,7 +288,7 @@ export function ToolDetailView({
                     {/* Indicador de expand/collapse */}
                     <span
                       className={cn(
-                        "flex-shrink-0 text-[10px] text-zinc-600 transition-transform mt-0.5",
+                        "flex-shrink-0 text-[10px] text-muted-foreground/60 transition-transform mt-0.5",
                         isOpen && "rotate-180"
                       )}
                     >
@@ -299,12 +299,12 @@ export function ToolDetailView({
                   {/* ── Contenido expandido ── */}
                   {isOpen && (
                     <div
-                      className="border-t border-white/[0.04] px-3 pb-3 pt-3"
+                      className="border-t border-border px-3 pb-3 pt-3"
                       onClick={(e) => e.stopPropagation()}
                     >
                       {/* Resumen + tags */}
                       {tip.summary && (
-                        <p className="mb-2 text-[12px] italic text-zinc-500">
+                        <p className="mb-2 text-[12px] italic text-muted-foreground">
                           {tip.summary}
                         </p>
                       )}
@@ -326,17 +326,17 @@ export function ToolDetailView({
 
                       {/* Acciones */}
                       <div
-                        className="mt-3 flex items-center justify-end gap-1 border-t border-white/[0.04] pt-3"
+                        className="mt-3 flex items-center justify-end gap-1 border-t border-border pt-3"
                       >
                         <button
                           onClick={() => onEditTip(tip)}
-                          className="rounded-lg border border-white/[0.06] bg-zinc-900/40 px-2.5 py-1 text-[12px] text-zinc-500 transition-colors hover:text-zinc-200"
+                          className="rounded-lg border border-border bg-card px-2.5 py-1 text-[12px] text-muted-foreground transition-colors hover:text-foreground"
                         >
                           Editar
                         </button>
                         <button
                           onClick={() => onDeleteTip(tip.id)}
-                          className="rounded-lg border border-white/[0.06] bg-zinc-900/40 px-2.5 py-1 text-[12px] text-zinc-500 transition-colors hover:text-red-400"
+                          className="rounded-lg border border-border bg-card px-2.5 py-1 text-[12px] text-muted-foreground transition-colors hover:text-red-400"
                         >
                           Eliminar
                         </button>

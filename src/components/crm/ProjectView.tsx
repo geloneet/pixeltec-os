@@ -99,7 +99,7 @@ function KanbanCard({ task, clientId, projectId, sessions, updateTask, deleteTas
   return (
     <div
       className={cn(
-        "rounded-lg border border-white/[0.06] bg-zinc-900/30 p-3 space-y-2.5 transition-colors hover:border-white/[0.10]",
+        "rounded-lg border border-border bg-card p-3 space-y-2.5 transition-colors hover:bg-secondary/40",
         isCompleted && "opacity-40"
       )}
     >
@@ -108,11 +108,11 @@ function KanbanCard({ task, clientId, projectId, sessions, updateTask, deleteTas
           className="mt-1 h-1.5 w-1.5 flex-shrink-0 rounded-full"
           style={{ backgroundColor: PRIORITIES[task.prio].color }}
         />
-        <p className={cn("flex-1 text-xs font-medium text-zinc-200 leading-snug", isCompleted && "line-through")}>
+        <p className={cn("flex-1 text-xs font-medium text-foreground leading-snug", isCompleted && "line-through")}>
           {task.name}
         </p>
       </div>
-      {task.desc && <p className="truncate pl-3.5 text-[10px] text-zinc-500">{task.desc}</p>}
+      {task.desc && <p className="truncate pl-3.5 text-[10px] text-muted-foreground">{task.desc}</p>}
 
       <div className="pl-3.5">
         <TaskContextCapsule task={task} sessions={sessions} />
@@ -207,7 +207,7 @@ export function ProjectView({
     { key: "en_progreso", label: "En progreso", hd: "text-amber-400",  tasks: sortedTasks.filter(t => t.status === "en_progreso") },
     { key: "en_revision", label: "En revisión", hd: "text-blue-400",   tasks: sortedTasks.filter(t => t.status === "en_revision") },
     { key: "completado",  label: "Completado",  hd: "text-green-400",  tasks: sortedTasks.filter(t => t.status === "completado") },
-    { key: "pausado",     label: "Pausada",     hd: "text-zinc-400",   tasks: sortedTasks.filter(t => t.status === "pausado") },
+    { key: "pausado",     label: "Pausada",     hd: "text-muted-foreground",   tasks: sortedTasks.filter(t => t.status === "pausado") },
     { key: "bloqueado",   label: "Bloqueada",   hd: "text-red-400",    tasks: sortedTasks.filter(t => t.status === "bloqueado") },
   ], [sortedTasks]);
 
@@ -230,16 +230,16 @@ export function ProjectView({
 
       {/* Delete dialog */}
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <AlertDialogContent className="border-zinc-800 bg-[#0F0F12] text-white">
+        <AlertDialogContent className="border-border bg-background text-foreground">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-white">¿Eliminar proyecto?</AlertDialogTitle>
-            <AlertDialogDescription className="text-zinc-400">
-              Se eliminará <span className="font-medium text-zinc-200">{project.name}</span> y todas
+            <AlertDialogTitle className="text-foreground">¿Eliminar proyecto?</AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground">
+              Se eliminará <span className="font-medium text-foreground">{project.name}</span> y todas
               sus tareas. Esta acción no se puede deshacer.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="border-zinc-700 bg-zinc-800/50 text-zinc-300 hover:bg-zinc-800">
+            <AlertDialogCancel className="border-border bg-secondary/50 text-foreground hover:bg-secondary">
               Cancelar
             </AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteConfirmed} className="bg-red-700 text-white hover:bg-red-600">
@@ -252,7 +252,7 @@ export function ProjectView({
       {/* ── Breadcrumb ────────────────────────────────────────────────────── */}
       <button
         onClick={() => setView("client")}
-        className="mb-5 flex items-center gap-1.5 text-sm text-zinc-500 transition-colors hover:text-zinc-300"
+        className="mb-5 flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
       >
         <ArrowLeft className="h-3.5 w-3.5" />
         {client.name}
@@ -262,13 +262,13 @@ export function ProjectView({
       <div className="mb-5 flex items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-xl font-bold text-zinc-100">{project.name}</h2>
+            <h2 className="text-xl font-bold text-foreground">{project.name}</h2>
             <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold", badge.colorClass)}>
               {badge.label}
             </span>
           </div>
           {(project.domain || client.name) && (
-            <p className="mt-0.5 text-sm text-zinc-500">
+            <p className="mt-0.5 text-sm text-muted-foreground">
               {[project.domain, client.name].filter(Boolean).join(" · ")}
             </p>
           )}
@@ -279,13 +279,13 @@ export function ProjectView({
               type: "editProject",
               data: { id: project.id, name: project.name, domain: project.domain, budget: project.budget.toString(), annual: project.annual.toString(), budgetIva: project.budgetIva, annualIva: project.annualIva, tech: project.tech, accounts: project.accounts, guides: project.guides },
             })}
-            className="rounded-lg border border-white/[0.06] bg-zinc-900/40 px-3 py-1.5 text-xs font-medium text-zinc-400 transition-all hover:border-white/[0.10] hover:text-zinc-200"
+            className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground transition-all hover:bg-secondary/60 hover:text-foreground"
           >
             Editar
           </button>
           <button
             onClick={() => setDeleteOpen(true)}
-            className="rounded-lg border border-white/[0.06] bg-zinc-900/40 px-3 py-1.5 text-xs font-medium text-zinc-400 transition-all hover:border-red-500/20 hover:bg-red-500/[0.04] hover:text-red-400"
+            className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground transition-all hover:border-red-500/20 hover:bg-red-500/[0.04] hover:text-red-400"
           >
             Eliminar
           </button>
@@ -301,8 +301,8 @@ export function ProjectView({
             className={cn(
               "rounded-md px-4 py-2 text-sm font-medium transition-colors duration-150",
               projectTab === tab.key
-                ? "bg-zinc-800 text-cyan-400"
-                : "text-zinc-500 hover:bg-zinc-900/60 hover:text-zinc-300"
+                ? "bg-secondary text-cyan-400"
+                : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
             )}
           >
             {tab.label}
@@ -315,37 +315,37 @@ export function ProjectView({
         <div>
           {/* KPIs */}
           <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <div className="rounded-xl border border-white/[0.06] bg-zinc-900/20 p-4">
+            <div className="rounded-xl border border-border bg-card p-4">
               <ListTodo className="mb-2 h-4 w-4 text-cyan-400" strokeWidth={1.75} />
-              <p className="tabular-nums text-2xl font-bold text-zinc-100">{projectStats.openTasks}</p>
-              <p className="mt-0.5 text-[11px] text-zinc-500">Tareas abiertas</p>
+              <p className="tabular-nums text-2xl font-bold text-foreground">{projectStats.openTasks}</p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">Tareas abiertas</p>
             </div>
-            <div className="rounded-xl border border-white/[0.06] bg-zinc-900/20 p-4">
+            <div className="rounded-xl border border-border bg-card p-4">
               <CheckCircle2 className="mb-2 h-4 w-4 text-cyan-400" strokeWidth={1.75} />
-              <p className="tabular-nums text-2xl font-bold text-zinc-100">{projectStats.completed}</p>
-              <p className="mt-0.5 text-[11px] text-zinc-500">Completadas</p>
+              <p className="tabular-nums text-2xl font-bold text-foreground">{projectStats.completed}</p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">Completadas</p>
             </div>
-            <div className={cn("rounded-xl border p-4 transition-colors", projectStats.stopped > 0 ? "border-red-500/20 bg-red-500/[0.04]" : "border-white/[0.06] bg-zinc-900/20")}>
+            <div className={cn("rounded-xl border p-4 transition-colors", projectStats.stopped > 0 ? "border-red-500/20 bg-red-500/[0.04]" : "border-border bg-card")}>
               <PauseCircle className={cn("mb-2 h-4 w-4", projectStats.stopped > 0 ? "text-red-400" : "text-cyan-400")} strokeWidth={1.75} />
-              <p className={cn("tabular-nums text-2xl font-bold", projectStats.stopped > 0 ? "text-red-300" : "text-zinc-100")}>{projectStats.stopped}</p>
-              <p className={cn("mt-0.5 text-[11px]", projectStats.stopped > 0 ? "text-red-400/70" : "text-zinc-500")}>Detenidas</p>
+              <p className={cn("tabular-nums text-2xl font-bold", projectStats.stopped > 0 ? "text-red-700 dark:text-red-300" : "text-foreground")}>{projectStats.stopped}</p>
+              <p className={cn("mt-0.5 text-[11px]", projectStats.stopped > 0 ? "text-red-400/70" : "text-muted-foreground")}>Detenidas</p>
             </div>
-            <div className="rounded-xl border border-white/[0.06] bg-zinc-900/20 p-4">
+            <div className="rounded-xl border border-border bg-card p-4">
               <TrendingUp className="mb-2 h-4 w-4 text-cyan-400" strokeWidth={1.75} />
-              <p className="tabular-nums text-2xl font-bold text-zinc-100">{projectStats.pct}%</p>
-              <div className="mt-2 h-[3px] w-full overflow-hidden rounded-full bg-white/[0.06]">
+              <p className="tabular-nums text-2xl font-bold text-foreground">{projectStats.pct}%</p>
+              <div className="mt-2 h-[3px] w-full overflow-hidden rounded-full bg-muted">
                 <div
                   className={cn("h-full rounded-full", projectStats.pct >= 100 ? "bg-green-500" : "bg-cyan-500")}
                   style={{ width: `${projectStats.pct}%` }}
                 />
               </div>
-              <p className="mt-1 text-[11px] text-zinc-500">Progreso</p>
+              <p className="mt-1 text-[11px] text-muted-foreground">Progreso</p>
             </div>
           </div>
 
           {/* Siguiente acción */}
           <div className="mb-5">
-            <h3 className="mb-2 text-sm font-semibold text-zinc-300">Siguiente acción</h3>
+            <h3 className="mb-2 text-sm font-semibold text-foreground">Siguiente acción</h3>
             {nextTask ? (
               <div
                 role="button"
@@ -356,13 +356,13 @@ export function ProjectView({
               >
                 <span className="mt-1 h-2.5 w-2.5 flex-shrink-0 rounded-full" style={{ backgroundColor: PRIORITIES[nextTask.prio].color }} />
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium leading-snug text-zinc-100">{nextTask.name}</p>
-                  {nextTask.desc && <p className="mt-0.5 truncate text-xs text-zinc-500">{nextTask.desc}</p>}
+                  <p className="text-sm font-medium leading-snug text-foreground">{nextTask.name}</p>
+                  {nextTask.desc && <p className="mt-0.5 truncate text-xs text-muted-foreground">{nextTask.desc}</p>}
                   <div className="mt-2 flex items-center gap-2">
                     <span className="text-[10px] font-medium" style={{ color: PRIORITIES[nextTask.prio].color }}>
                       {PRIORITIES[nextTask.prio].label}
                     </span>
-                    <span className="text-zinc-700">·</span>
+                    <span className="text-muted-foreground/60">·</span>
                     <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium", (STATUS_CONFIG[nextTask.status] ?? STATUS_CONFIG["pendiente"]).bg, (STATUS_CONFIG[nextTask.status] ?? STATUS_CONFIG["pendiente"]).text)}>
                       {(STATUS_CONFIG[nextTask.status] ?? STATUS_CONFIG["pendiente"]).label}
                     </span>
@@ -376,10 +376,10 @@ export function ProjectView({
                 </button>
               </div>
             ) : (
-              <div className="rounded-xl border border-white/[0.06] bg-zinc-900/20 p-5 text-center">
+              <div className="rounded-xl border border-border bg-card p-5 text-center">
                 <CheckCircle2 className="mx-auto mb-2 h-5 w-5 text-green-400" />
-                <p className="text-sm font-medium text-zinc-300">Todo al día</p>
-                <p className="text-xs text-zinc-500">No hay tareas pendientes ni en proceso</p>
+                <p className="text-sm font-medium text-foreground">Todo al día</p>
+                <p className="text-xs text-muted-foreground">No hay tareas pendientes ni en proceso</p>
               </div>
             )}
           </div>
@@ -394,33 +394,33 @@ export function ProjectView({
           {/* Actividad reciente */}
           {feed.length > 0 && (
             <div className="mb-5">
-              <h3 className="mb-2 text-sm font-semibold text-zinc-300">Actividad reciente</h3>
-              <div className="divide-y divide-white/[0.04] rounded-xl border border-white/[0.06] bg-zinc-900/20">
+              <h3 className="mb-2 text-sm font-semibold text-foreground">Actividad reciente</h3>
+              <div className="divide-y divide-border rounded-xl border border-border bg-card">
                 {feed.map((event, i) => (
                   <div key={i} className="flex items-start gap-3 px-4 py-3">
                     <div className="mt-0.5 flex-shrink-0">
                       {event.type === "project" && <FolderKanban className="h-3.5 w-3.5 text-violet-400" strokeWidth={1.75} />}
-                      {event.type === "task"    && <FileText className="h-3.5 w-3.5 text-zinc-400" strokeWidth={1.75} />}
+                      {event.type === "task"    && <FileText className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.75} />}
                       {event.type === "client"  && <CircleDot className="h-3.5 w-3.5 text-cyan-400" strokeWidth={2} />}
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="text-xs">
-                        <span className="text-zinc-500">
+                        <span className="text-muted-foreground">
                           {event.type === "project" && "Proyecto creado · "}
                           {event.type === "task"    && "Tarea creada · "}
                           {event.type === "client"  && "Cliente creado · "}
                         </span>
-                        <span className="font-medium text-zinc-300">{event.label}</span>
+                        <span className="font-medium text-foreground">{event.label}</span>
                       </p>
                     </div>
                     <TooltipProvider delayDuration={300}>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <span className="flex-shrink-0 cursor-default tabular-nums text-[10px] text-zinc-600">
+                          <span className="flex-shrink-0 cursor-default tabular-nums text-[10px] text-muted-foreground/60">
                             {relativeTime(event.at)}
                           </span>
                         </TooltipTrigger>
-                        <TooltipContent side="left" className="border-zinc-800 bg-zinc-900 text-xs text-zinc-300">
+                        <TooltipContent side="left" className="text-xs">
                           {exactDate(event.at)}
                         </TooltipContent>
                       </Tooltip>
@@ -441,7 +441,7 @@ export function ProjectView({
             <div className="mb-4 animate-pulse rounded-xl border border-cyan-500/30 bg-cyan-500/10 p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-zinc-200">
+                  <p className="text-sm font-medium text-foreground">
                     {project.tasks.find(t => t.id === pomoTaskRef!.tid)?.name || "Pomodoro"}
                   </p>
                   <p className={cn("text-[11px]", pomoMode === "work" ? "text-cyan-400" : "text-green-400")}>
@@ -449,9 +449,9 @@ export function ProjectView({
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="font-mono text-2xl font-bold text-zinc-200">{formatTime(pomoSeconds)}</span>
-                  <button onClick={stopPomo} className="rounded-lg border border-white/[0.06] bg-zinc-900/40 px-2 py-1 text-[11px] text-zinc-400 hover:text-red-400 transition-all">⏹</button>
-                  <button onClick={resetPomo} className="rounded-lg border border-white/[0.06] bg-zinc-900/40 px-2 py-1 text-[11px] text-zinc-400 hover:text-zinc-200 transition-all">↺</button>
+                  <span className="font-mono text-2xl font-bold text-foreground">{formatTime(pomoSeconds)}</span>
+                  <button onClick={stopPomo} className="rounded-lg border border-border bg-card px-2 py-1 text-[11px] text-muted-foreground hover:text-red-400 transition-all">⏹</button>
+                  <button onClick={resetPomo} className="rounded-lg border border-border bg-card px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground transition-all">↺</button>
                 </div>
               </div>
             </div>
@@ -460,18 +460,18 @@ export function ProjectView({
           {/* Actions bar */}
           <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="text-xs text-zinc-500">{project.tasks.length} tareas</span>
-              <div className="flex items-center gap-0.5 rounded-lg border border-white/[0.06] p-0.5">
+              <span className="text-xs text-muted-foreground">{project.tasks.length} tareas</span>
+              <div className="flex items-center gap-0.5 rounded-lg border border-border p-0.5">
                 <button
                   onClick={() => setTaskView("lista")}
-                  className={cn("flex h-6 w-6 items-center justify-center rounded-md transition-all", taskView === "lista" ? "bg-zinc-800 text-cyan-400" : "text-zinc-500 hover:text-zinc-300")}
+                  className={cn("flex h-6 w-6 items-center justify-center rounded-md transition-all", taskView === "lista" ? "bg-secondary text-cyan-400" : "text-muted-foreground hover:text-foreground")}
                   aria-label="Vista lista"
                 >
                   <AlignLeft className="h-3 w-3" />
                 </button>
                 <button
                   onClick={() => setTaskView("kanban")}
-                  className={cn("flex h-6 w-6 items-center justify-center rounded-md transition-all", taskView === "kanban" ? "bg-zinc-800 text-cyan-400" : "text-zinc-500 hover:text-zinc-300")}
+                  className={cn("flex h-6 w-6 items-center justify-center rounded-md transition-all", taskView === "kanban" ? "bg-secondary text-cyan-400" : "text-muted-foreground hover:text-foreground")}
                   aria-label="Vista kanban"
                 >
                   <LayoutGrid className="h-3 w-3" />
@@ -490,7 +490,7 @@ export function ProjectView({
           {taskView === "lista" && (
             <div className="space-y-2">
               {sortedTasks.length === 0 && (
-                <p className="py-10 text-center text-sm text-zinc-500">No hay tareas</p>
+                <p className="py-10 text-center text-sm text-muted-foreground">No hay tareas</p>
               )}
               {sortedTasks.map((task) => (
                 <ProjectTaskCard
@@ -526,9 +526,9 @@ export function ProjectView({
               <div className="grid min-w-[960px] grid-cols-6 gap-3">
                 {kanbanColumns.map(col => (
                   <div key={col.key} className="flex flex-col gap-2">
-                    <div className="flex items-center justify-between rounded-lg border border-white/[0.06] bg-zinc-900/30 px-3 py-2">
+                    <div className="flex items-center justify-between rounded-lg border border-border bg-card px-3 py-2">
                       <span className={cn("text-xs font-semibold", col.hd)}>{col.label}</span>
-                      <span className="tabular-nums text-[10px] text-zinc-600">{col.tasks.length}</span>
+                      <span className="tabular-nums text-[10px] text-muted-foreground/60">{col.tasks.length}</span>
                     </div>
                     <div className="space-y-2">
                       {col.tasks.map(task => (
@@ -545,8 +545,8 @@ export function ProjectView({
                         />
                       ))}
                       {col.tasks.length === 0 && (
-                        <div className="rounded-lg border border-dashed border-white/[0.06] p-3 text-center">
-                          <p className="text-[10px] text-zinc-700">Sin tareas</p>
+                        <div className="rounded-lg border border-dashed border-border p-3 text-center">
+                          <p className="text-[10px] text-muted-foreground/60">Sin tareas</p>
                         </div>
                       )}
                     </div>
@@ -564,7 +564,7 @@ export function ProjectView({
           {/* Credenciales */}
           <div>
             <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-zinc-300">Credenciales</h3>
+              <h3 className="text-sm font-semibold text-foreground">Credenciales</h3>
               <button
                 onClick={() => setModal({ type: "addKey" })}
                 className="text-xs text-cyan-400 transition-colors hover:text-cyan-300"
@@ -573,16 +573,16 @@ export function ProjectView({
               </button>
             </div>
             {project.keys.length === 0 ? (
-              <div className="rounded-xl border border-white/[0.06] bg-zinc-900/20 p-4 text-center">
-                <p className="text-sm text-zinc-500">Sin credenciales</p>
+              <div className="rounded-xl border border-border bg-card p-4 text-center">
+                <p className="text-sm text-muted-foreground">Sin credenciales</p>
               </div>
             ) : (
-              <div className="divide-y divide-white/[0.04] overflow-hidden rounded-xl border border-white/[0.06] bg-zinc-900/20">
+              <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
                 {project.keys.map(k => (
                   <div key={k.id} className="flex items-center gap-3 px-4 py-3">
-                    <span className="w-32 flex-shrink-0 text-xs text-zinc-400">{k.label}</span>
+                    <span className="w-32 flex-shrink-0 text-xs text-muted-foreground">{k.label}</span>
                     <span
-                      className={cn("flex-1 font-mono text-xs", revealedKeys.has(k.id) ? "text-zinc-200" : "select-none text-zinc-600")}
+                      className={cn("flex-1 font-mono text-xs", revealedKeys.has(k.id) ? "text-foreground" : "select-none text-muted-foreground/60")}
                       style={revealedKeys.has(k.id) ? {} : { filter: "blur(4px)" }}
                       onMouseEnter={() => setRevealedKeys(prev => new Set(prev).add(k.id))}
                       onMouseLeave={() => setRevealedKeys(prev => { const n = new Set(prev); n.delete(k.id); return n; })}
@@ -591,7 +591,7 @@ export function ProjectView({
                     </span>
                     <button
                       onClick={() => deleteKey(client.id, project.id, k.id)}
-                      className="text-[11px] text-zinc-600 transition-colors hover:text-red-400"
+                      className="text-[11px] text-muted-foreground/60 transition-colors hover:text-red-400"
                     >
                       ✕
                     </button>
@@ -604,7 +604,7 @@ export function ProjectView({
           {/* Documentación */}
           <div>
             <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-zinc-300">Documentación</h3>
+              <h3 className="text-sm font-semibold text-foreground">Documentación</h3>
               <button
                 onClick={() => setModal({ type: "editReadme", data: { content: project.readme } })}
                 className="text-xs text-cyan-400 transition-colors hover:text-cyan-300"
@@ -612,11 +612,11 @@ export function ProjectView({
                 Editar
               </button>
             </div>
-            <div className="rounded-xl border border-white/[0.06] bg-zinc-900/20 p-4">
+            <div className="rounded-xl border border-border bg-card p-4">
               {project.readme ? (
-                <pre className="whitespace-pre-wrap font-mono text-xs text-zinc-300">{project.readme}</pre>
+                <pre className="whitespace-pre-wrap font-mono text-xs text-foreground">{project.readme}</pre>
               ) : (
-                <p className="text-sm italic text-zinc-600">Sin contenido. Edita para agregar documentación.</p>
+                <p className="text-sm italic text-muted-foreground/60">Sin contenido. Edita para agregar documentación.</p>
               )}
             </div>
           </div>
@@ -624,11 +624,11 @@ export function ProjectView({
           {/* Prompt IA */}
           <div>
             <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-zinc-300">Prompt IA</h3>
+              <h3 className="text-sm font-semibold text-foreground">Prompt IA</h3>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => navigator.clipboard.writeText(project.prompt)}
-                  className="rounded-lg border border-white/[0.06] bg-zinc-900/40 px-2.5 py-1 text-xs text-zinc-400 transition-all hover:text-zinc-200"
+                  className="rounded-lg border border-border bg-card px-2.5 py-1 text-xs text-muted-foreground transition-all hover:text-foreground"
                 >
                   Copiar
                 </button>
@@ -640,11 +640,11 @@ export function ProjectView({
                 </button>
               </div>
             </div>
-            <div className="rounded-xl border border-white/[0.06] bg-zinc-900/20 p-4">
+            <div className="rounded-xl border border-border bg-card p-4">
               {project.prompt ? (
-                <pre className="whitespace-pre-wrap font-mono text-xs text-zinc-300">{project.prompt}</pre>
+                <pre className="whitespace-pre-wrap font-mono text-xs text-foreground">{project.prompt}</pre>
               ) : (
-                <p className="text-sm italic text-zinc-600">Sin prompt configurado. Edita para agregar contexto IA.</p>
+                <p className="text-sm italic text-muted-foreground/60">Sin prompt configurado. Edita para agregar contexto IA.</p>
               )}
             </div>
           </div>
@@ -662,7 +662,7 @@ export function ProjectView({
           {/* Info económica */}
           <div>
             <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-zinc-300">Info económica</h3>
+              <h3 className="text-sm font-semibold text-foreground">Info económica</h3>
               <button
                 onClick={() => setModal({
                   type: "editProject",
@@ -674,13 +674,13 @@ export function ProjectView({
               </button>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-xl border border-white/[0.06] bg-zinc-900/20 p-4">
-                <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Presupuesto</p>
-                <p className="text-sm text-zinc-200">{project.budget ? `${formatCurrency(project.budget)}${project.budgetIva === "plus" ? " + IVA" : project.budgetIva === "included" ? " IVA incl." : ""}` : "—"}</p>
+              <div className="rounded-xl border border-border bg-card p-4">
+                <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Presupuesto</p>
+                <p className="text-sm text-foreground">{project.budget ? `${formatCurrency(project.budget)}${project.budgetIva === "plus" ? " + IVA" : project.budgetIva === "included" ? " IVA incl." : ""}` : "—"}</p>
               </div>
-              <div className="rounded-xl border border-white/[0.06] bg-zinc-900/20 p-4">
-                <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Costos anuales</p>
-                <p className="text-sm text-zinc-200">{project.annual ? `${formatCurrency(project.annual)}${project.annualIva === "plus" ? " + IVA" : project.annualIva === "included" ? " IVA incl." : ""}` : "—"}</p>
+              <div className="rounded-xl border border-border bg-card p-4">
+                <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Costos anuales</p>
+                <p className="text-sm text-foreground">{project.annual ? `${formatCurrency(project.annual)}${project.annualIva === "plus" ? " + IVA" : project.annualIva === "included" ? " IVA incl." : ""}` : "—"}</p>
               </div>
             </div>
           </div>
@@ -688,7 +688,7 @@ export function ProjectView({
           {/* Cobros recurrentes */}
           <div>
             <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-zinc-300">Cobros recurrentes</h3>
+              <h3 className="text-sm font-semibold text-foreground">Cobros recurrentes</h3>
               <button
                 onClick={() => setModal({ type: "addCharge", data: { clientEmail: client.email || "" } })}
                 className="text-xs text-cyan-400 transition-colors hover:text-cyan-300"
@@ -697,53 +697,53 @@ export function ProjectView({
               </button>
             </div>
             {(project.charges || []).length === 0 ? (
-              <div className="rounded-xl border border-white/[0.06] bg-zinc-900/20 py-10 text-center">
-                <p className="text-sm text-zinc-500">Sin cobros configurados</p>
+              <div className="rounded-xl border border-border bg-card py-10 text-center">
+                <p className="text-sm text-muted-foreground">Sin cobros configurados</p>
               </div>
             ) : (
               <div className="space-y-2">
                 {(project.charges || []).map(charge => {
                   const nextDate = getNextChargeDate(charge.startDate, charge.frequency);
                   const daysUntil = Math.ceil((nextDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-                  let dateColor = "text-zinc-400";
+                  let dateColor = "text-muted-foreground";
                   let dateLabel = `Próximo cobro: ${formatDateES(nextDate)}`;
                   if (daysUntil <= 0) { dateColor = "text-red-400"; dateLabel = `Vencido: ${formatDateES(nextDate)}`; }
                   else if (daysUntil <= 30) { dateColor = "text-amber-400"; }
                   return (
                     <div
                       key={charge.id}
-                      className={cn("rounded-xl border border-white/[0.06] bg-zinc-900/20 px-4 py-3 transition-all hover:border-white/[0.10]", !charge.active && "opacity-40")}
+                      className={cn("rounded-xl border border-border bg-card px-4 py-3 transition-all hover:bg-secondary/40", !charge.active && "opacity-40")}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0 flex-1">
                           <div className="mb-1 flex items-center gap-2">
-                            <span className="text-sm font-semibold text-zinc-200">{charge.concept}</span>
+                            <span className="text-sm font-semibold text-foreground">{charge.concept}</span>
                             <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium", charge.frequency === "monthly" ? "bg-amber-500/10 text-amber-400" : "bg-cyan-500/10 text-cyan-400")}>
                               {charge.frequency === "monthly" ? "Mensual" : "Anual"}
                             </span>
                           </div>
                           <div className="flex items-center gap-3 text-xs">
-                            <span className="font-medium text-zinc-300">${Number(charge.amount).toLocaleString("es-MX")} MXN</span>
-                            <span className="text-zinc-600">Inicio: {formatDateES(new Date(charge.startDate))}</span>
+                            <span className="font-medium text-foreground">${Number(charge.amount).toLocaleString("es-MX")} MXN</span>
+                            <span className="text-muted-foreground/60">Inicio: {formatDateES(new Date(charge.startDate))}</span>
                           </div>
                           <p className={cn("mt-1 text-[11px]", dateColor)}>{dateLabel}</p>
                         </div>
                         <div className="flex flex-shrink-0 items-center gap-1.5">
                           <button
                             onClick={() => updateCharge(client.id, project.id, charge.id, { active: !charge.active })}
-                            className={cn("rounded-lg px-2 py-1 text-[11px] transition-all", charge.active ? "bg-green-500/10 text-green-400" : "border border-white/[0.06] bg-zinc-900/40 text-zinc-500")}
+                            className={cn("rounded-lg px-2 py-1 text-[11px] transition-all", charge.active ? "bg-green-500/10 text-green-400" : "border border-border bg-muted text-muted-foreground")}
                           >
                             {charge.active ? "Activo" : "Inactivo"}
                           </button>
                           <button
                             onClick={() => setModal({ type: "editCharge", data: { id: charge.id, concept: charge.concept, amount: charge.amount, frequency: charge.frequency, startDate: charge.startDate, clientEmail: charge.clientEmail } })}
-                            className="rounded-lg border border-white/[0.06] bg-zinc-900/40 px-2 py-1 text-[11px] text-zinc-400 transition-all hover:text-zinc-200"
+                            className="rounded-lg border border-border bg-card px-2 py-1 text-[11px] text-muted-foreground transition-all hover:text-foreground"
                           >
                             Editar
                           </button>
                           <button
                             onClick={() => deleteCharge(client.id, project.id, charge.id)}
-                            className="text-[11px] text-zinc-600 transition-colors hover:text-red-400"
+                            className="text-[11px] text-muted-foreground/60 transition-colors hover:text-red-400"
                           >
                             ✕
                           </button>
