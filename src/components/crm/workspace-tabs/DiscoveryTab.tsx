@@ -151,7 +151,7 @@ export function DiscoveryTab({ clientId, clientName }: Props) {
                 className={
                   industry === ind
                     ? "rounded-lg border border-cyan-500 bg-cyan-500/10 px-3 py-2 text-xs font-medium text-cyan-400 transition-all"
-                    : "rounded-lg border border-white/[0.06] bg-card/30 px-3 py-2 text-xs font-medium text-muted-foreground transition-all hover:border-white/[0.10] hover:text-foreground"
+                    : "rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-muted-foreground transition-all hover:bg-secondary/40 hover:text-foreground"
                 }
               >
                 {ind}
@@ -210,7 +210,7 @@ export function DiscoveryTab({ clientId, clientName }: Props) {
               {category}
             </p>
             {questions.map((q) => (
-              <div key={q.id} className="rounded-xl border border-white/[0.06] bg-card/20 p-4 space-y-2">
+              <div key={q.id} className="rounded-xl border border-border bg-card p-4 space-y-2">
                 <label className="block text-xs font-medium text-foreground">
                   {q.text}
                   {q.required && <span className="ml-1 text-cyan-500">*</span>}
@@ -223,7 +223,7 @@ export function DiscoveryTab({ clientId, clientName }: Props) {
                     onChange={(e) =>
                       setAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))
                     }
-                    className="w-full rounded-lg border border-white/[0.06] bg-card/40 px-3 py-2 text-sm text-foreground placeholder-muted-foreground focus:border-cyan-500/40 focus:outline-none focus:ring-1 focus:ring-cyan-500/20 resize-none"
+                    className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground placeholder-muted-foreground focus:border-cyan-500/40 focus:outline-none focus:ring-1 focus:ring-cyan-500/20 resize-none"
                   />
                 )}
 
@@ -325,7 +325,7 @@ export function DiscoveryTab({ clientId, clientName }: Props) {
               setIndustry("");
               setAnswers({});
             }}
-            className="rounded-lg border border-white/[0.06] bg-card/30 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-all hover:border-white/[0.10] hover:text-foreground"
+            className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground transition-all hover:bg-secondary/40 hover:text-foreground"
           >
             Nueva sesión
           </button>
@@ -338,7 +338,7 @@ export function DiscoveryTab({ clientId, clientName }: Props) {
               {category}
             </p>
             {questions.map((q) => (
-              <div key={q.id} className="rounded-xl border border-white/[0.06] bg-card/20 p-4 space-y-1.5">
+              <div key={q.id} className="rounded-xl border border-border bg-card p-4 space-y-1.5">
                 <p className="text-xs font-medium text-muted-foreground">{q.text}</p>
                 <p className="text-sm text-foreground whitespace-pre-wrap">
                   {session.answers[q.id]

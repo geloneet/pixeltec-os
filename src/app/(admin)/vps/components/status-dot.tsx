@@ -5,7 +5,7 @@ const STYLES: Record<ProjectStatus, string> = {
   up: "bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.6)] animate-pulse",
   paused: "bg-amber-400 shadow-[0_0_12px_rgba(251,191,36,0.6)]",
   down: "bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.6)]",
-  unknown: "bg-zinc-500",
+  unknown: "bg-muted-foreground",
 };
 
 const LABELS: Record<ProjectStatus, string> = {

@@ -8,10 +8,10 @@ import { StatusDot } from "./status-dot";
 import { ProjectActions } from "./project-actions";
 
 const TYPE_BADGE: Record<ProjectType, string> = {
-  docker: "bg-blue-500/10 text-blue-300 border-blue-500/30",
-  "docker-compose": "bg-indigo-500/10 text-indigo-300 border-indigo-500/30",
-  pm2: "bg-emerald-500/10 text-emerald-300 border-emerald-500/30",
-  manual: "bg-zinc-500/10 text-zinc-300 border-zinc-500/30",
+  docker: "bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/30",
+  "docker-compose": "bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-500/30",
+  pm2: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30",
+  manual: "bg-muted text-muted-foreground border-border",
 };
 
 export function ProjectCard({
@@ -29,7 +29,7 @@ export function ProjectCard({
     <article
       className={cn(
         "group relative flex min-h-[240px] flex-col gap-4 overflow-hidden rounded-2xl border border-border/50 bg-card/40 p-5 backdrop-blur-xl transition-all duration-300",
-        "before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-zinc-600/50 before:to-transparent",
+        "before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-border before:to-transparent",
         "after:pointer-events-none after:absolute after:inset-0 after:bg-gradient-to-br after:from-white/[0.03] after:to-transparent after:opacity-0 after:transition-opacity after:duration-300 group-hover:after:opacity-100",
         "hover:border-border hover:bg-card/60"
       )}

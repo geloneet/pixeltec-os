@@ -61,7 +61,7 @@ function PanelShell({
     <div
       className={cn(
         "relative overflow-hidden rounded-2xl border border-border/50 bg-card/40 p-5 backdrop-blur-xl",
-        "before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-zinc-600/50 before:to-transparent"
+        "before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-border before:to-transparent"
       )}
     >
       <div className="relative mb-4 flex items-center justify-between gap-3">

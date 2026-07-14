@@ -51,7 +51,7 @@ function ProjectCard({ project: p, stats, clientId, navigateToProject, setModal 
   const status = projectStatus(stats);
 
   return (
-    <div className="flex flex-col rounded-xl border border-white/[0.06] bg-card/20 p-4 transition-all duration-150 hover:border-white/[0.10] hover:bg-white/[0.03]">
+    <div className="flex flex-col rounded-xl border border-border bg-card p-4 transition-all duration-150 hover:bg-secondary/40">
       <div className="mb-3 flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold text-foreground">{p.name}</p>
@@ -68,7 +68,7 @@ function ProjectCard({ project: p, stats, clientId, navigateToProject, setModal 
             <span className="text-muted-foreground">{stats.pct}% completado</span>
             <span className="text-muted-foreground">{stats.completed}/{stats.totalTasks} tareas</span>
           </div>
-          <div className="h-[3px] w-full overflow-hidden rounded-full bg-white/[0.06]">
+          <div className="h-[3px] w-full overflow-hidden rounded-full bg-secondary">
             <div
               className={cn("h-full rounded-full transition-all", stats.pct >= 100 ? "bg-green-500" : "bg-cyan-500")}
               style={{ width: `${stats.pct}%` }}
@@ -100,7 +100,7 @@ function ProjectCard({ project: p, stats, clientId, navigateToProject, setModal 
         <div className="flex items-center gap-1.5">
           <button
             onClick={() => navigateToProject(clientId, p.id)}
-            className="rounded-md px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground"
+            className="rounded-md px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary/60 hover:text-foreground"
           >
             Abrir
           </button>
@@ -120,7 +120,7 @@ function ProjectCard({ project: p, stats, clientId, navigateToProject, setModal 
                 guides: p.guides,
               },
             })}
-            className="rounded-md px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground"
+            className="rounded-md px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary/60 hover:text-foreground"
           >
             Editar
           </button>
@@ -155,7 +155,7 @@ export function ProyectosTab({ client, navigateToProject, setModal }: Props) {
           </Link>
           <button
             onClick={() => setModal({ type: "addProject", data: { clientId: client.id } })}
-            className="flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-white/[0.08] hover:text-foreground"
+            className="flex items-center gap-1.5 rounded-lg border border-border bg-secondary/40 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary/70 hover:text-foreground"
           >
             <Plus className="h-3.5 w-3.5" />
             Proyecto nuevo con avance
