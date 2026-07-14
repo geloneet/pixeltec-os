@@ -317,9 +317,9 @@ export function CRMShellProvider({ children }: { children: ReactNode }) {
         formRefs.current[key] = el;
       };
     const inputClass =
-      "w-full bg-[#18181B] border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-[#0EA5E9] transition-colors duration-150";
-    const labelClass = "block text-xs text-zinc-500 mb-1";
-    const sectionLabel = "text-[10px] font-semibold uppercase tracking-widest text-zinc-600 pt-2 pb-0.5";
+      "w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-[#0EA5E9] transition-colors duration-150";
+    const labelClass = "block text-xs text-muted-foreground mb-1";
+    const sectionLabel = "text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70 pt-2 pb-0.5";
 
     let title = "";
     let subtitle: string | undefined;
@@ -338,9 +338,9 @@ export function CRMShellProvider({ children }: { children: ReactNode }) {
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-semibold text-zinc-200 mb-1">Empresa / Razón social *</label>
+                <label className="block text-sm font-semibold text-foreground mb-1">Empresa / Razón social *</label>
                 {modal.type === "addClient" && (
-                  <p className="text-[10px] text-zinc-600 mb-1.5">Ej: Villa Nogal, Smile More</p>
+                  <p className="text-[10px] text-muted-foreground/70 mb-1.5">Ej: Villa Nogal, Smile More</p>
                 )}
                 <input
                   ref={ref("name")}
@@ -390,7 +390,7 @@ export function CRMShellProvider({ children }: { children: ReactNode }) {
             </div>
             <div>
               <label className={labelClass}>
-                Notas internas <span className="text-zinc-600">(opcional)</span>
+                Notas internas <span className="text-muted-foreground/70">(opcional)</span>
               </label>
               <textarea
                 ref={ref("notes")}
@@ -449,7 +449,7 @@ export function CRMShellProvider({ children }: { children: ReactNode }) {
                   />
                   <select
                     ref={ref("budgetIva")}
-                    className="w-32 bg-[#18181B] border border-zinc-800 rounded-lg px-2 py-2 text-sm text-zinc-200 focus:outline-none focus:border-[#0EA5E9] transition-colors duration-150"
+                    className="w-32 bg-secondary border border-border rounded-lg px-2 py-2 text-sm text-foreground focus:outline-none focus:border-[#0EA5E9] transition-colors duration-150"
                     defaultValue={modal.data?.budgetIva || "none"}
                   >
                     <option value="none">Sin IVA</option>
@@ -475,7 +475,7 @@ export function CRMShellProvider({ children }: { children: ReactNode }) {
                   />
                   <select
                     ref={ref("annualIva")}
-                    className="w-32 bg-[#18181B] border border-zinc-800 rounded-lg px-2 py-2 text-sm text-zinc-200 focus:outline-none focus:border-[#0EA5E9] transition-colors duration-150"
+                    className="w-32 bg-secondary border border-border rounded-lg px-2 py-2 text-sm text-foreground focus:outline-none focus:border-[#0EA5E9] transition-colors duration-150"
                     defaultValue={modal.data?.annualIva || "none"}
                   >
                     <option value="none">Sin IVA</option>
@@ -503,7 +503,7 @@ export function CRMShellProvider({ children }: { children: ReactNode }) {
                     .map((t) => (
                       <span
                         key={t}
-                        className="px-2 py-0.5 text-[11px] text-zinc-300 bg-zinc-800 rounded-full border border-zinc-700"
+                        className="px-2 py-0.5 text-[11px] text-muted-foreground bg-muted rounded-full border border-border"
                       >
                         {t}
                       </span>
@@ -541,15 +541,15 @@ export function CRMShellProvider({ children }: { children: ReactNode }) {
         content = (
           <div className="space-y-3">
             {modal.data?.clientName && (
-              <div className="flex items-center gap-2 rounded-lg bg-zinc-900/60 px-3 py-2 text-xs text-zinc-500">
+              <div className="flex items-center gap-2 rounded-lg bg-secondary/40 px-3 py-2 text-xs text-muted-foreground">
                 <span>
                   Cliente:{" "}
-                  <span className="font-medium text-zinc-300">{modal.data.clientName}</span>
+                  <span className="font-medium text-foreground">{modal.data.clientName}</span>
                 </span>
-                <span className="text-zinc-700">·</span>
+                <span className="text-muted-foreground/60">·</span>
                 <span>
                   Proyecto:{" "}
-                  <span className="font-medium text-zinc-300">{modal.data.projectName}</span>
+                  <span className="font-medium text-foreground">{modal.data.projectName}</span>
                 </span>
               </div>
             )}
@@ -604,14 +604,14 @@ export function CRMShellProvider({ children }: { children: ReactNode }) {
                       ) as HTMLElement | null;
                       if (target) target.style.outline = "2px solid rgba(14,165,233,0.7)";
                     }}
-                    className="flex flex-col items-center gap-0.5 px-1 py-2 rounded-lg text-xs text-zinc-300 bg-zinc-800/60 hover:bg-zinc-700/60 transition-all"
+                    className="flex flex-col items-center gap-0.5 px-1 py-2 rounded-lg text-xs text-secondary-foreground bg-secondary hover:bg-secondary/80 transition-all"
                     style={{
                       outline: value === "important" ? "2px solid rgba(14,165,233,0.7)" : "none",
                       outlineOffset: "2px",
                     }}
                   >
                     <span className="text-base">{emoji}</span>
-                    <span className="text-[10px] text-zinc-400">{label}</span>
+                    <span className="text-[10px] text-muted-foreground">{label}</span>
                   </button>
                 ))}
               </div>
@@ -679,14 +679,14 @@ export function CRMShellProvider({ children }: { children: ReactNode }) {
                       ) as HTMLElement | null;
                       if (target) target.style.outline = "2px solid rgba(14,165,233,0.7)";
                     }}
-                    className="flex flex-col items-center gap-0.5 px-1 py-2 rounded-lg text-xs text-zinc-300 bg-zinc-800/60 hover:bg-zinc-700/60 transition-all"
+                    className="flex flex-col items-center gap-0.5 px-1 py-2 rounded-lg text-xs text-secondary-foreground bg-secondary hover:bg-secondary/80 transition-all"
                     style={{
                       outline: value === editTaskDefaultPrio ? "2px solid rgba(14,165,233,0.7)" : "none",
                       outlineOffset: "2px",
                     }}
                   >
                     <span className="text-base">{emoji}</span>
-                    <span className="text-[10px] text-zinc-400">{label}</span>
+                    <span className="text-[10px] text-muted-foreground">{label}</span>
                   </button>
                 ))}
               </div>
@@ -700,7 +700,7 @@ export function CRMShellProvider({ children }: { children: ReactNode }) {
         submitLabel = "Guardar credencial";
         content = (
           <div className="space-y-3">
-            <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-[11px] text-zinc-500 leading-relaxed">
+            <div className="rounded-lg border border-border bg-secondary/40 px-3 py-2 text-[11px] text-muted-foreground leading-relaxed">
               Guarda tokens, API keys, contraseñas o datos técnicos relevantes para este proyecto.
             </div>
             <div>
@@ -720,7 +720,7 @@ export function CRMShellProvider({ children }: { children: ReactNode }) {
                       const el = formRefs.current["label"] as HTMLInputElement | null;
                       if (el) { el.value = s; el.focus(); }
                     }}
-                    className="px-2 py-0.5 text-[10px] text-zinc-500 bg-zinc-800/60 hover:bg-zinc-700 rounded-md transition-colors whitespace-nowrap"
+                    className="px-2 py-0.5 text-[10px] text-muted-foreground bg-secondary hover:bg-secondary/80 rounded-md transition-colors whitespace-nowrap"
                   >
                     {s}
                   </button>
@@ -729,7 +729,7 @@ export function CRMShellProvider({ children }: { children: ReactNode }) {
             </div>
             <div>
               <label className={labelClass}>
-                Valor <span className="text-zinc-600">(dato sensible)</span>
+                Valor <span className="text-muted-foreground/70">(dato sensible)</span>
               </label>
               <div className="relative">
                 <input
@@ -744,7 +744,7 @@ export function CRMShellProvider({ children }: { children: ReactNode }) {
                     const el = formRefs.current["value"] as HTMLInputElement | null;
                     if (el) el.type = el.type === "password" ? "text" : "password";
                   }}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors text-sm"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors text-sm"
                   title="Mostrar / ocultar"
                 >
                   👁
@@ -767,8 +767,8 @@ export function CRMShellProvider({ children }: { children: ReactNode }) {
               defaultValue={modal.data?.content || readmeTemplate}
               autoFocus
             />
-            <div className="rounded-lg border border-white/[0.04] bg-zinc-900/40 px-3 py-2 text-[11px] text-zinc-600">
-              <p className="mb-1 font-medium text-zinc-500">Soporta Markdown</p>
+            <div className="rounded-lg border border-border bg-secondary/40 px-3 py-2 text-[11px] text-muted-foreground/70">
+              <p className="mb-1 font-medium text-muted-foreground">Soporta Markdown</p>
               <pre className="font-mono leading-relaxed whitespace-pre-wrap">{`# Títulos  ## Secciones  - Listas\n\`\`\`bash\nnpm install\n\`\`\``}</pre>
             </div>
           </div>
@@ -900,7 +900,7 @@ export function CRMShellProvider({ children }: { children: ReactNode }) {
                       const el = formRefs.current["concept"] as HTMLInputElement | null;
                       if (el) { el.value = s; el.focus(); }
                     }}
-                    className="px-2 py-1 text-[11px] text-zinc-400 bg-zinc-800/60 hover:bg-zinc-700 rounded-md transition-colors"
+                    className="px-2 py-1 text-[11px] text-muted-foreground bg-secondary hover:bg-secondary/80 rounded-md transition-colors"
                   >
                     {s}
                   </button>
@@ -910,7 +910,7 @@ export function CRMShellProvider({ children }: { children: ReactNode }) {
             <div>
               <label className={labelClass}>Monto (MXN) *</label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-zinc-500 pointer-events-none">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground pointer-events-none">
                   $
                 </span>
                 <input
@@ -946,15 +946,15 @@ export function CRMShellProvider({ children }: { children: ReactNode }) {
                 />
               </div>
             </div>
-            <div className="rounded-lg bg-zinc-900/60 px-3 py-2 text-xs text-zinc-500">
+            <div className="rounded-lg bg-secondary/40 px-3 py-2 text-xs text-muted-foreground">
               Próximo cobro estimado:{" "}
-              <span id="charge-next-date" className="font-medium text-zinc-300">
+              <span id="charge-next-date" className="font-medium text-foreground">
                 —
               </span>
             </div>
             <div>
               <label className={labelClass}>
-                Email del cliente <span className="text-zinc-600">(opcional)</span>
+                Email del cliente <span className="text-muted-foreground/70">(opcional)</span>
               </label>
               <input
                 ref={ref("clientEmail")}
@@ -1000,8 +1000,8 @@ export function CRMShellProvider({ children }: { children: ReactNode }) {
                 placeholder="Detalle completo del tip, comandos, explicación..."
                 defaultValue={modal.data?.content || ""}
               />
-              <div className="mt-1.5 rounded-lg border border-white/[0.04] bg-zinc-900/40 px-3 py-2 text-[11px] text-zinc-600">
-                <p className="mb-1 font-medium text-zinc-500">Soporta Markdown y bloques de código</p>
+              <div className="mt-1.5 rounded-lg border border-border bg-secondary/40 px-3 py-2 text-[11px] text-muted-foreground/70">
+                <p className="mb-1 font-medium text-muted-foreground">Soporta Markdown y bloques de código</p>
                 <pre className="font-mono leading-relaxed">{`# Título\n- Lista\n\`\`\`bash\nnpm install\n\`\`\``}</pre>
               </div>
             </div>
@@ -1026,7 +1026,7 @@ export function CRMShellProvider({ children }: { children: ReactNode }) {
         <div className="mt-4 flex justify-end gap-2">
           <button
             onClick={() => setModal(null)}
-            className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-200 transition-colors duration-150"
+            className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors duration-150"
           >
             Cancelar
           </button>

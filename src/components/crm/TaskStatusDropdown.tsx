@@ -46,7 +46,7 @@ export function TaskStatusDropdown({ status, onChange, disabled }: TaskStatusDro
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="start"
-        className="w-40 border-zinc-800 bg-zinc-900 p-1 text-xs"
+        className="w-40 border-border bg-popover p-1 text-xs"
       >
         {STATUS_ORDER.map((s) => {
           const c = STATUS_CONFIG[s];
@@ -58,7 +58,7 @@ export function TaskStatusDropdown({ status, onChange, disabled }: TaskStatusDro
                 "flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-[11px] transition-colors",
                 s === status
                   ? cn(c.bg, c.text, "font-medium")
-                  : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+                  : "text-muted-foreground hover:bg-secondary hover:text-foreground"
               )}
             >
               <span className={cn("h-1.5 w-1.5 flex-shrink-0 rounded-full", c.dot)} />

@@ -107,7 +107,7 @@ const components: Components = {
   code({ className, children }) {
     if (!className) {
       return (
-        <code className="rounded bg-zinc-800/80 px-1 py-0.5 text-[12px] text-cyan-300">
+        <code className="rounded bg-secondary px-1 py-0.5 text-[12px] text-cyan-300">
           {children}
         </code>
       );
@@ -118,11 +118,11 @@ const components: Components = {
     return <CodeBlock>{children}</CodeBlock>;
   },
   hr() {
-    return <hr className="my-3 border-white/[0.08]" />;
+    return <hr className="my-3 border-border" />;
   },
   table({ children }) {
     return (
-      <div className="my-2 overflow-x-auto rounded-lg border border-white/[0.08]">
+      <div className="my-2 overflow-x-auto rounded-lg border border-border">
         <table className="w-full border-collapse text-xs">{children}</table>
       </div>
     );
@@ -132,13 +132,13 @@ const components: Components = {
   },
   th({ children }) {
     return (
-      <th className="border-b border-white/[0.08] px-2.5 py-1.5 text-left font-semibold text-foreground">
+      <th className="border-b border-border px-2.5 py-1.5 text-left font-semibold text-foreground">
         {children}
       </th>
     );
   },
   td({ children }) {
-    return <td className="border-t border-white/[0.06] px-2.5 py-1.5 align-top text-muted-foreground">{children}</td>;
+    return <td className="border-t border-border px-2.5 py-1.5 align-top text-muted-foreground">{children}</td>;
   },
 };
 

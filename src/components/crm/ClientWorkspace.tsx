@@ -63,7 +63,7 @@ export function ClientWorkspace({ client, onBack, navigateToProject, setModal, d
   return (
     <div className="flex flex-col h-full">
       {/* Tab bar */}
-      <div className="flex-shrink-0 border-b border-white/[0.06] bg-background/40">
+      <div className="flex-shrink-0 border-b border-border bg-background/40">
         <div className="flex items-center gap-0.5 px-4 overflow-x-auto scrollbar-none">
           {WORKSPACE_TABS.map((tab) => (
             <button

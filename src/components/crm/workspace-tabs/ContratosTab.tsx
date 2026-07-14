@@ -27,7 +27,7 @@ function formatDate(iso: string) {
 // ── Status config ──────────────────────────────────────────────────────────────
 
 const STATUS_CONFIG: Record<Contract["status"], { label: string; classes: string; Icon: React.ComponentType<{ className?: string }> }> = {
-  borrador:    { label: "Borrador",    classes: "bg-zinc-500/15 text-zinc-400 border-zinc-500/20",  Icon: FileText },
+  borrador:    { label: "Borrador",    classes: "bg-muted text-muted-foreground border-border",  Icon: FileText },
   en_revision: { label: "En revisión", classes: "bg-blue-500/15 text-blue-300 border-blue-500/20",  Icon: Clock },
   firmado:     { label: "Firmado",     classes: "bg-green-500/15 text-green-300 border-green-500/20", Icon: CheckCircle2 },
   vencido:     { label: "Vencido",     classes: "bg-amber-500/15 text-amber-400 border-amber-500/20", Icon: AlertCircle },
@@ -236,7 +236,7 @@ export function ContratosTab({ clientId, clientName, initialProposalId, onConsum
             <button
               key={contract.id}
               onClick={() => { setSelectedContract(contract); setSignError(null); setView("detail"); }}
-              className="w-full text-left rounded-xl border border-white/[0.06] bg-card/20 p-4 hover:border-white/[0.10] transition-all"
+              className="w-full text-left rounded-xl border border-border bg-card p-4 hover:bg-secondary/40 transition-all"
             >
               <div className="flex items-center justify-between gap-2 mb-1.5">
                 <span className="text-sm font-medium text-foreground truncate">{contract.title}</span>
@@ -303,14 +303,14 @@ export function ContratosTab({ clientId, clientName, initialProposalId, onConsum
       </button>
 
       {/* Header */}
-      <div className="rounded-xl border border-white/[0.06] bg-card/20 p-4">
+      <div className="rounded-xl border border-border bg-card p-4">
         {editingTitle ? (
           <div className="flex gap-2 mb-2">
             <input
               value={titleDraft}
               onChange={e => setTitleDraft(e.target.value)}
               autoFocus
-              className="flex-1 rounded-lg border border-cyan-500/40 bg-card/60 px-3 py-1.5 text-sm text-foreground focus:outline-none"
+              className="flex-1 rounded-lg border border-cyan-500/40 bg-secondary px-3 py-1.5 text-sm text-foreground focus:outline-none"
             />
             <button
               onClick={async () => {
@@ -407,7 +407,7 @@ export function ContratosTab({ clientId, clientName, initialProposalId, onConsum
               className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-all disabled:opacity-40 ${
                 selectedContract.status === s
                   ? STATUS_CONFIG[s].classes
-                  : "border-white/[0.06] bg-card/40 text-muted-foreground hover:text-foreground"
+                  : "border-border bg-secondary/40 text-muted-foreground hover:text-foreground"
               }`}
             >
               {s === "firmado" && signing ? "Firmando…" : STATUS_CONFIG[s].label}
@@ -428,7 +428,7 @@ export function ContratosTab({ clientId, clientName, initialProposalId, onConsum
             await loadContracts();
             setView("list");
           }}
-          className="rounded-lg border border-white/[0.06] bg-card/40 px-3 py-1.5 text-xs text-muted-foreground transition-all hover:text-foreground"
+          className="rounded-lg border border-border bg-secondary/40 px-3 py-1.5 text-xs text-muted-foreground transition-all hover:bg-secondary/70 hover:text-foreground"
         >
           Nueva versión
         </button>
@@ -437,7 +437,7 @@ export function ContratosTab({ clientId, clientName, initialProposalId, onConsum
           href={`/api/documents/contract-pdf?contractId=${selectedContract.id}`}
           target="_blank"
           rel="noreferrer"
-          className="flex items-center gap-1.5 rounded-lg border border-white/[0.06] bg-card/40 px-3 py-1.5 text-xs text-muted-foreground transition-all hover:text-foreground"
+          className="flex items-center gap-1.5 rounded-lg border border-border bg-secondary/40 px-3 py-1.5 text-xs text-muted-foreground transition-all hover:bg-secondary/70 hover:text-foreground"
         >
           <Download className="h-3 w-3" />
           Descargar PDF
@@ -445,7 +445,7 @@ export function ContratosTab({ clientId, clientName, initialProposalId, onConsum
       </div>
 
       {/* Signers */}
-      <div className="rounded-xl border border-white/[0.06] bg-card/20 p-4">
+      <div className="rounded-xl border border-border bg-card p-4">
         <div className="flex items-center justify-between mb-3">
           <p className="text-xs font-semibold text-muted-foreground">Firmantes</p>
           {!showAddSigner && (
@@ -460,16 +460,16 @@ export function ContratosTab({ clientId, clientName, initialProposalId, onConsum
         </div>
 
         {showAddSigner && (
-          <div className="mb-3 space-y-2 rounded-lg border border-white/[0.06] bg-card/40 p-3">
+          <div className="mb-3 space-y-2 rounded-lg border border-border bg-secondary/40 p-3">
             <input
               autoFocus value={signerName} onChange={e => setSignerName(e.target.value)}
               placeholder="Nombre completo *"
-              className="w-full bg-transparent text-xs text-foreground placeholder:text-muted-foreground focus:outline-none border-b border-white/[0.06] pb-1.5"
+              className="w-full bg-transparent text-xs text-foreground placeholder:text-muted-foreground focus:outline-none border-b border-border pb-1.5"
             />
             <input
               value={signerEmail} onChange={e => setSignerEmail(e.target.value)}
               placeholder="correo@empresa.com"
-              className="w-full bg-transparent text-xs text-foreground placeholder:text-muted-foreground focus:outline-none border-b border-white/[0.06] pb-1.5"
+              className="w-full bg-transparent text-xs text-foreground placeholder:text-muted-foreground focus:outline-none border-b border-border pb-1.5"
             />
             <input
               value={signerRole} onChange={e => setSignerRole(e.target.value)}
@@ -496,7 +496,7 @@ export function ContratosTab({ clientId, clientName, initialProposalId, onConsum
         ) : (
           <div className="space-y-2">
             {selectedContract.signers.map((signer, i) => (
-              <div key={i} className="flex items-center gap-2 rounded-lg border border-white/[0.04] bg-card/40 px-3 py-2">
+              <div key={i} className="flex items-center gap-2 rounded-lg border border-border bg-secondary/40 px-3 py-2">
                 <div className={`h-2 w-2 rounded-full flex-shrink-0 ${signer.signedAt ? "bg-green-400" : "bg-muted-foreground/30"}`} />
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-medium text-foreground truncate">{signer.name}</p>
@@ -538,7 +538,7 @@ export function ContratosTab({ clientId, clientName, initialProposalId, onConsum
       {selectedContract.content && (
         <div>
           <p className="mb-1.5 text-xs font-medium text-muted-foreground">Contenido del contrato</p>
-          <div className="max-h-72 overflow-y-auto rounded-xl border border-white/[0.06] bg-card/20 p-4">
+          <div className="max-h-72 overflow-y-auto rounded-xl border border-border bg-card p-4">
             <p className="whitespace-pre-wrap text-xs leading-relaxed text-muted-foreground">
               {selectedContract.content}
             </p>
@@ -548,7 +548,7 @@ export function ContratosTab({ clientId, clientName, initialProposalId, onConsum
 
       {/* Notes */}
       {selectedContract.notes && (
-        <div className="rounded-xl border border-white/[0.06] bg-card/20 p-4">
+        <div className="rounded-xl border border-border bg-card p-4">
           <p className="mb-1.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Notas internas</p>
           <p className="text-xs text-muted-foreground whitespace-pre-wrap">{selectedContract.notes}</p>
         </div>

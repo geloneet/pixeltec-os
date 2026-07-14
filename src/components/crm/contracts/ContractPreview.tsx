@@ -37,13 +37,13 @@ function SectionRow({
   const body = overrideBody ?? section.body;
 
   return (
-    <div className="border-b border-white/[0.06] py-4 last:border-b-0">
+    <div className="border-b border-border py-4 last:border-b-0">
       <div className="mb-1.5 flex items-center justify-between gap-2">
-        <h4 className="text-xs font-semibold uppercase tracking-wide text-zinc-400">{section.title}</h4>
+        <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{section.title}</h4>
         <button
           type="button"
           onClick={() => setEditing((v) => !v)}
-          className="flex items-center gap-1 text-[10px] text-zinc-600 transition-colors hover:text-cyan-300"
+          className="flex items-center gap-1 text-[10px] text-muted-foreground/70 transition-colors hover:text-cyan-300"
         >
           <Pencil className="h-2.5 w-2.5" />
           {editing ? "Listo" : "Editar"}
@@ -54,10 +54,10 @@ function SectionRow({
           value={body}
           onChange={(e) => onChange(e.target.value)}
           rows={4}
-          className="w-full rounded-lg border border-cyan-500/30 bg-zinc-900/60 px-3 py-2 text-sm leading-relaxed text-zinc-200 focus:border-cyan-500/50 focus:outline-none"
+          className="w-full rounded-lg border border-cyan-500/30 bg-secondary px-3 py-2 text-sm leading-relaxed text-foreground focus:border-cyan-500/50 focus:outline-none"
         />
       ) : (
-        <p className="whitespace-pre-wrap text-sm leading-relaxed text-zinc-400">{body}</p>
+        <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">{body}</p>
       )}
     </div>
   );
@@ -83,19 +83,19 @@ export function ContractPreview({
   return (
     <div className="space-y-4">
       <div>
-        <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-zinc-500">Preview del contrato</p>
-        <h3 className="text-sm font-semibold text-zinc-200">Revisa antes de confirmar</h3>
+        <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Preview del contrato</p>
+        <h3 className="text-sm font-semibold text-foreground">Revisa antes de confirmar</h3>
       </div>
 
       {/* Documento */}
-      <div className="rounded-xl border border-white/[0.08] bg-zinc-950/60 p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.02)]">
-        <div className="mb-4 border-b border-white/[0.06] pb-4">
-          <p className="text-base font-semibold text-zinc-100">{title}</p>
-          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-500">
-            <span>Cliente: <span className="text-zinc-300">{clientName}</span></span>
-            {proposalReference && <span>Propuesta: <span className="text-zinc-300">{proposalReference}</span></span>}
-            <span>Inicio: <span className="text-zinc-300">{startDate}</span></span>
-            <span>Vigencia: <span className="text-zinc-300">{endDate ?? "Indefinida"}</span></span>
+      <div className="rounded-xl border border-border bg-card p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.02)]">
+        <div className="mb-4 border-b border-border pb-4">
+          <p className="text-base font-semibold text-foreground">{title}</p>
+          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+            <span>Cliente: <span className="text-foreground">{clientName}</span></span>
+            {proposalReference && <span>Propuesta: <span className="text-foreground">{proposalReference}</span></span>}
+            <span>Inicio: <span className="text-foreground">{startDate}</span></span>
+            <span>Vigencia: <span className="text-foreground">{endDate ?? "Indefinida"}</span></span>
           </div>
         </div>
 
@@ -110,20 +110,20 @@ export function ContractPreview({
       </div>
 
       {/* Conceptos de cobro detectados */}
-      <div className="rounded-xl border border-white/[0.06] bg-zinc-900/20 p-4">
-        <p className="mb-3 text-xs font-semibold text-zinc-400">Conceptos de cobro detectados</p>
+      <div className="rounded-xl border border-border bg-card p-4">
+        <p className="mb-3 text-xs font-semibold text-muted-foreground">Conceptos de cobro detectados</p>
         {billingItems.length === 0 ? (
-          <p className="text-xs text-zinc-600">Sin conceptos de cobro.</p>
+          <p className="text-xs text-muted-foreground/70">Sin conceptos de cobro.</p>
         ) : (
           <div className="space-y-2">
             {billingItems.map((item, i) => (
-              <div key={i} className="flex items-center justify-between gap-2 rounded-lg border border-white/[0.04] bg-zinc-900/40 px-3 py-2">
-                <span className="text-xs text-zinc-300">{item.concept || "(sin nombre)"}</span>
+              <div key={i} className="flex items-center justify-between gap-2 rounded-lg border border-border bg-secondary/40 px-3 py-2">
+                <span className="text-xs text-foreground">{item.concept || "(sin nombre)"}</span>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <span className="rounded-full border border-cyan-500/20 bg-cyan-500/10 px-2 py-0.5 text-[10px] text-cyan-300">
                     {BILLING_FREQUENCY_LABELS[item.frequency]}
                   </span>
-                  <span className="text-xs font-medium tabular-nums text-zinc-200">{formatCurrency(item.amount)}</span>
+                  <span className="text-xs font-medium tabular-nums text-foreground">{formatCurrency(item.amount)}</span>
                 </div>
               </div>
             ))}
@@ -163,7 +163,7 @@ export function ContractPreview({
           type="button"
           onClick={onEditData}
           disabled={confirming}
-          className="rounded-lg border border-white/[0.06] px-4 py-2.5 text-sm text-zinc-400 transition-all hover:text-zinc-200"
+          className="rounded-lg border border-border px-4 py-2.5 text-sm text-muted-foreground transition-all hover:text-foreground"
         >
           Editar datos
         </button>
@@ -171,7 +171,7 @@ export function ContractPreview({
           type="button"
           onClick={onCancel}
           disabled={confirming}
-          className="rounded-lg border border-white/[0.06] px-4 py-2.5 text-sm text-zinc-500 transition-all hover:text-zinc-300"
+          className="rounded-lg border border-border px-4 py-2.5 text-sm text-muted-foreground transition-all hover:text-foreground"
         >
           Cancelar
         </button>

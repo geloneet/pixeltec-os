@@ -27,7 +27,7 @@ function CircularProgress({ pct }: { pct: number }) {
   const offset = circ - (pct / 100) * circ;
   return (
     <svg width="72" height="72" viewBox="0 0 72 72" className="flex-shrink-0">
-      <circle cx="36" cy="36" r={r} fill="none" stroke="#27272A" strokeWidth="5" />
+      <circle cx="36" cy="36" r={r} fill="none" strokeWidth="5" className="stroke-border" />
       <circle
         cx="36" cy="36" r={r}
         fill="none" stroke="#0EA5E9" strokeWidth="5"
@@ -37,7 +37,7 @@ function CircularProgress({ pct }: { pct: number }) {
         transform="rotate(-90 36 36)"
         className="transition-all duration-500"
       />
-      <text x="36" y="36" textAnchor="middle" dominantBaseline="central" className="fill-zinc-200 text-[14px] font-bold">
+      <text x="36" y="36" textAnchor="middle" dominantBaseline="central" className="fill-foreground text-[14px] font-bold">
         {pct}%
       </text>
     </svg>
@@ -66,8 +66,8 @@ function WeeklyActivity({ clients }: { clients: CRMClient[] }) {
   const startDow = (todayDow - 6 + 7) % 7;
 
   return (
-    <div className="bg-[#0F0F12] border border-zinc-800 rounded-[10px] p-4 mb-6">
-      <p className="text-xs text-zinc-500 mb-3">Actividad esta semana</p>
+    <div className="bg-card border border-border rounded-[10px] p-4 mb-6">
+      <p className="text-xs text-muted-foreground mb-3">Actividad esta semana</p>
       <div className="flex items-end gap-2 h-16">
         {days.map((count, i) => {
           const h = Math.max(4, (count / max) * 100);
@@ -81,7 +81,7 @@ function WeeklyActivity({ clients }: { clients: CRMClient[] }) {
                   style={{ height: `${h}%`, backgroundColor: `rgba(14,165,233,${opacity})` }}
                 />
               </div>
-              <span className="text-[10px] text-zinc-600">{dayLabels[labelIdx]}</span>
+              <span className="text-[10px] text-muted-foreground/70">{dayLabels[labelIdx]}</span>
             </div>
           );
         })}
@@ -91,7 +91,7 @@ function WeeklyActivity({ clients }: { clients: CRMClient[] }) {
 }
 
 function StatIcon({ type }: { type: string }) {
-  const cls = "absolute top-3 right-3 text-zinc-200 opacity-[0.06]";
+  const cls = "absolute top-3 right-3 text-foreground opacity-[0.06]";
   switch (type) {
     case "clients":
       return (
@@ -155,21 +155,21 @@ export function TodayView({ clients, navigateToClient, navigateToProject, setMod
 
   return (
     <div>
-      <h2 className="text-[20px] font-semibold text-zinc-200 mb-6">Hoy</h2>
+      <h2 className="text-[20px] font-semibold text-foreground mb-6">Hoy</h2>
 
       {/* Stats */}
       <div className="grid grid-cols-4 gap-3 mb-6">
         {stats.map(s => (
-          <div key={s.label} className="relative bg-[#0F0F12] border border-zinc-800 rounded-[10px] p-4 hover:border-zinc-700 transition-all duration-200">
+          <div key={s.label} className="relative bg-card border border-border rounded-[10px] p-4 hover:bg-secondary/40 transition-all duration-200">
             <StatIcon type={s.icon} />
-            <p className="text-[11px] text-zinc-500 uppercase tracking-wider">{s.label}</p>
+            <p className="text-[11px] text-muted-foreground uppercase tracking-wider">{s.label}</p>
             <p className={`text-3xl font-bold mt-1 ${s.color}`}>{s.value}</p>
           </div>
         ))}
         {/* Progress card with circular indicator */}
-        <div className="relative bg-[#0F0F12] border border-zinc-800 rounded-[10px] p-4 hover:border-zinc-700 transition-all duration-200 flex items-center gap-3">
+        <div className="relative bg-card border border-border rounded-[10px] p-4 hover:bg-secondary/40 transition-all duration-200 flex items-center gap-3">
           <div className="flex-1">
-            <p className="text-[11px] text-zinc-500 uppercase tracking-wider">Progreso</p>
+            <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Progreso</p>
             <p className="text-3xl font-bold mt-1 text-amber-400">{progress}%</p>
           </div>
           <CircularProgress pct={progress} />
@@ -201,16 +201,16 @@ export function TodayView({ clients, navigateToClient, navigateToProject, setMod
             <p className="text-sm font-medium text-amber-400 mb-3">Cobros proximos (30 dias)</p>
             <div className="space-y-2">
               {shown.map(item => (
-                <div key={item.charge.id} className="flex items-center justify-between gap-3 bg-[#0F0F12] border border-zinc-800 rounded-lg px-3 py-2">
+                <div key={item.charge.id} className="flex items-center justify-between gap-3 bg-card border border-border rounded-lg px-3 py-2">
                   <div className="flex-1 min-w-0">
-                    <p className="text-[13px] text-zinc-200 truncate">{item.charge.concept}</p>
-                    <p className="text-[11px] text-zinc-500 truncate">{item.projectName} — {item.clientName}</p>
+                    <p className="text-[13px] text-foreground truncate">{item.charge.concept}</p>
+                    <p className="text-[11px] text-muted-foreground truncate">{item.projectName} — {item.clientName}</p>
                   </div>
-                  <span className="text-[12px] text-zinc-300 font-medium flex-shrink-0">${Number(item.charge.amount).toLocaleString("es-MX")}</span>
+                  <span className="text-[12px] text-foreground font-medium flex-shrink-0">${Number(item.charge.amount).toLocaleString("es-MX")}</span>
                   <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium flex-shrink-0 ${item.charge.frequency === "monthly" ? "bg-amber-500/10 text-amber-400" : "bg-[#0EA5E9]/10 text-[#0EA5E9]"}`}>
                     {item.charge.frequency === "monthly" ? "Mensual" : "Anual"}
                   </span>
-                  <span className={`text-[11px] flex-shrink-0 ${item.daysUntil <= 0 ? "text-red-400" : item.daysUntil <= 7 ? "text-amber-400" : "text-zinc-500"}`}>
+                  <span className={`text-[11px] flex-shrink-0 ${item.daysUntil <= 0 ? "text-red-400" : item.daysUntil <= 7 ? "text-amber-400" : "text-muted-foreground"}`}>
                     {item.daysUntil <= 0 ? "Vencido" : `${item.daysUntil}d`}
                   </span>
                 </div>
@@ -237,7 +237,7 @@ export function TodayView({ clients, navigateToClient, navigateToProject, setMod
       {/* Tasks grouped by priority */}
       {grouped.length > 0 ? (
         <div>
-          <h3 className="text-[13px] font-medium text-zinc-400 mb-3">Tareas pendientes</h3>
+          <h3 className="text-[13px] font-medium text-muted-foreground mb-3">Tareas pendientes</h3>
           <div className="space-y-4">
             {Object.entries(prioGroups).map(([prio, items]) => (
               <div key={prio} className="flex gap-3">
@@ -247,13 +247,13 @@ export function TodayView({ clients, navigateToClient, navigateToProject, setMod
                   {items.map(({ task, clientName, projectName, cid, pid }) => {
                     const st = STATUS_CONFIG[task.status];
                     return (
-                      <div key={task.id} className="flex items-center gap-3 bg-[#0F0F12] border border-zinc-800 rounded-[10px] px-4 py-3 hover:border-zinc-700 transition-all duration-200">
+                      <div key={task.id} className="flex items-center gap-3 bg-card border border-border rounded-[10px] px-4 py-3 hover:bg-secondary/40 transition-all duration-200">
                         <div className="flex-1 min-w-0">
-                          <p className="text-[13px] text-zinc-200 truncate">{task.name}</p>
-                          <p className="text-[11px] text-zinc-500 truncate">
-                            <span className="cursor-pointer hover:text-zinc-300" onClick={() => navigateToProject(cid, pid)}>{projectName}</span>
+                          <p className="text-[13px] text-foreground truncate">{task.name}</p>
+                          <p className="text-[11px] text-muted-foreground truncate">
+                            <span className="cursor-pointer hover:text-foreground" onClick={() => navigateToProject(cid, pid)}>{projectName}</span>
                             {" · "}
-                            <span className="cursor-pointer hover:text-zinc-300" onClick={() => navigateToClient(cid)}>{clientName}</span>
+                            <span className="cursor-pointer hover:text-foreground" onClick={() => navigateToClient(cid)}>{clientName}</span>
                           </p>
                         </div>
                         <button
@@ -265,7 +265,7 @@ export function TodayView({ clients, navigateToClient, navigateToProject, setMod
                         </button>
                         <button
                           onClick={() => startPomo(cid, pid, task.id)}
-                          className="rounded-lg bg-[#18181B] px-2 py-1 text-[11px] text-zinc-400 hover:bg-[#0EA5E9]/20 hover:text-[#38BDF8] transition-all duration-150"
+                          className="rounded-lg bg-secondary px-2 py-1 text-[11px] text-muted-foreground hover:bg-[#0EA5E9]/20 hover:text-[#38BDF8] transition-all duration-150"
                         >
                           ▶
                         </button>
@@ -279,7 +279,7 @@ export function TodayView({ clients, navigateToClient, navigateToProject, setMod
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center py-20 text-center">
-          <p className="text-zinc-500 text-sm mb-4">No hay tareas pendientes</p>
+          <p className="text-muted-foreground text-sm mb-4">No hay tareas pendientes</p>
           <button
             onClick={() => setModal({ type: "addClient" })}
             className="rounded-lg bg-[#0EA5E9] px-4 py-2 text-sm text-white hover:bg-[#0284C7] transition-all duration-150"

@@ -138,7 +138,7 @@ export function ContractWizard({ clientId, clientName, initialProposalId, onDone
 
   return (
     <div className="space-y-4">
-      <button onClick={onCancel} className="flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-300 transition-colors">
+      <button onClick={onCancel} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
         <ArrowLeft className="h-3.5 w-3.5" /> Volver
       </button>
 
@@ -152,14 +152,14 @@ export function ContractWizard({ clientId, clientName, initialProposalId, onDone
                   step === n
                     ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/30"
                     : step > n
-                      ? "bg-zinc-800 text-zinc-400 border border-white/[0.06]"
-                      : "bg-zinc-900 text-zinc-600 border border-white/[0.06]"
+                      ? "bg-secondary text-muted-foreground border border-border"
+                      : "bg-muted text-muted-foreground/60 border border-border"
                 }`}
               >
                 {n}
               </div>
-              <span className={`text-xs ${step === n ? "text-zinc-200" : "text-zinc-600"}`}>{label}</span>
-              {n < 3 && <div className="h-px flex-1 bg-white/[0.06]" />}
+              <span className={`text-xs ${step === n ? "text-foreground" : "text-muted-foreground/60"}`}>{label}</span>
+              {n < 3 && <div className="h-px flex-1 bg-border" />}
             </div>
           );
         })}
@@ -168,32 +168,32 @@ export function ContractWizard({ clientId, clientName, initialProposalId, onDone
       {step === 1 && (
         <div className="space-y-4">
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-zinc-400">Título del contrato</label>
+            <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Título del contrato</label>
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder={effectiveTitle}
-              className="w-full rounded-lg border border-white/[0.06] bg-zinc-900/60 px-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-600 focus:border-cyan-500/40 focus:outline-none"
+              className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/70 focus:border-cyan-500/40 focus:outline-none"
             />
           </div>
 
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-zinc-400">Tipo de contrato</label>
+            <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Tipo de contrato</label>
             <select
               value={contractType}
               onChange={(e) => setContractType(e.target.value)}
-              className="w-full rounded-lg border border-white/[0.06] bg-zinc-900/60 px-3 py-2 text-sm text-zinc-200 focus:border-cyan-500/40 focus:outline-none"
+              className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm text-foreground focus:border-cyan-500/40 focus:outline-none"
             >
               {CONTRACT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
           </div>
 
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-zinc-400">Propuesta relacionada (opcional)</label>
+            <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Propuesta relacionada (opcional)</label>
             <select
               value={proposalId}
               onChange={(e) => setProposalId(e.target.value)}
-              className="w-full rounded-lg border border-white/[0.06] bg-zinc-900/60 px-3 py-2 text-sm text-zinc-200 focus:border-cyan-500/40 focus:outline-none"
+              className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm text-foreground focus:border-cyan-500/40 focus:outline-none"
             >
               <option value="">Sin propuesta relacionada</option>
               {proposals.map((p) => (
@@ -206,21 +206,21 @@ export function ContractWizard({ clientId, clientName, initialProposalId, onDone
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-zinc-400">Fecha de inicio</label>
+              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Fecha de inicio</label>
               <input
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-full rounded-lg border border-white/[0.06] bg-zinc-900/60 px-3 py-2 text-sm text-zinc-200 focus:border-cyan-500/40 focus:outline-none"
+                className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm text-foreground focus:border-cyan-500/40 focus:outline-none"
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-zinc-400">Vigencia hasta (opcional)</label>
+              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Vigencia hasta (opcional)</label>
               <input
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="w-full rounded-lg border border-white/[0.06] bg-zinc-900/60 px-3 py-2 text-sm text-zinc-200 focus:border-cyan-500/40 focus:outline-none"
+                className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm text-foreground focus:border-cyan-500/40 focus:outline-none"
               />
             </div>
           </div>
@@ -237,24 +237,24 @@ export function ContractWizard({ clientId, clientName, initialProposalId, onDone
 
       {step === 2 && (
         <div className="space-y-4">
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-muted-foreground">
             Agrega los conceptos de cobro del contrato. Cada uno generará su propio cobro en Finanzas al confirmar.
           </p>
 
           <div className="space-y-3">
             {lines.map((line) => (
-              <div key={line.key} className="rounded-xl border border-white/[0.06] bg-zinc-900/20 p-3 space-y-2">
+              <div key={line.key} className="rounded-xl border border-border bg-card p-3 space-y-2">
                 <div className="flex items-center gap-2">
                   <input
                     value={line.concept}
                     onChange={(e) => updateLine(line.key, { concept: e.target.value })}
                     placeholder="Concepto (ej. Hosting anual)"
-                    className="flex-1 rounded-lg border border-white/[0.06] bg-zinc-900/60 px-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-600 focus:border-cyan-500/40 focus:outline-none"
+                    className="flex-1 rounded-lg border border-border bg-secondary px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/70 focus:border-cyan-500/40 focus:outline-none"
                   />
                   <button
                     onClick={() => removeLine(line.key)}
                     title="Eliminar"
-                    className="flex-shrink-0 text-zinc-600 hover:text-red-400 transition-colors"
+                    className="flex-shrink-0 text-muted-foreground/70 hover:text-red-400 transition-colors"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -267,12 +267,12 @@ export function ContractWizard({ clientId, clientName, initialProposalId, onDone
                     value={line.amount || ""}
                     onChange={(e) => updateLine(line.key, { amount: Number(e.target.value) })}
                     placeholder="Monto"
-                    className="rounded-lg border border-white/[0.06] bg-zinc-900/60 px-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-600 focus:border-cyan-500/40 focus:outline-none"
+                    className="rounded-lg border border-border bg-secondary px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/70 focus:border-cyan-500/40 focus:outline-none"
                   />
                   <select
                     value={line.frequency}
                     onChange={(e) => updateLine(line.key, { frequency: e.target.value as BillingFrequency })}
-                    className="rounded-lg border border-white/[0.06] bg-zinc-900/60 px-3 py-2 text-sm text-zinc-200 focus:border-cyan-500/40 focus:outline-none"
+                    className="rounded-lg border border-border bg-secondary px-3 py-2 text-sm text-foreground focus:border-cyan-500/40 focus:outline-none"
                   >
                     {FREQUENCIES.map((f) => (
                       <option key={f} value={f}>{BILLING_FREQUENCY_LABELS[f]}</option>
@@ -282,7 +282,7 @@ export function ContractWizard({ clientId, clientName, initialProposalId, onDone
                     type="date"
                     value={line.dueDate}
                     onChange={(e) => updateLine(line.key, { dueDate: e.target.value })}
-                    className="rounded-lg border border-white/[0.06] bg-zinc-900/60 px-3 py-2 text-sm text-zinc-200 focus:border-cyan-500/40 focus:outline-none"
+                    className="rounded-lg border border-border bg-secondary px-3 py-2 text-sm text-foreground focus:border-cyan-500/40 focus:outline-none"
                   />
                 </div>
               </div>
@@ -290,7 +290,7 @@ export function ContractWizard({ clientId, clientName, initialProposalId, onDone
 
             <button
               onClick={addLine}
-              className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-white/[0.10] py-2.5 text-xs text-zinc-500 transition-all hover:border-cyan-500/30 hover:text-cyan-300"
+              className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border py-2.5 text-xs text-muted-foreground transition-all hover:border-cyan-500/30 hover:text-cyan-300"
             >
               <Plus className="h-3.5 w-3.5" /> Agregar concepto de cobro
             </button>
@@ -305,7 +305,7 @@ export function ContractWizard({ clientId, clientName, initialProposalId, onDone
             </button>
             <button
               onClick={() => setStep(1)}
-              className="rounded-lg border border-white/[0.06] px-4 py-2.5 text-sm text-zinc-500 transition-all hover:text-zinc-300"
+              className="rounded-lg border border-border px-4 py-2.5 text-sm text-muted-foreground transition-all hover:text-foreground"
             >
               Atrás
             </button>

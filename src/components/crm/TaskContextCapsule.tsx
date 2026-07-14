@@ -52,7 +52,7 @@ export function TaskContextCapsule({ task, sessions, className }: Props) {
 
   if (task.status === "completado") {
     return (
-      <span className={cn("text-[11px] text-zinc-500", className)}>
+      <span className={cn("text-[11px] text-muted-foreground", className)}>
         {totalSeconds >= 60 ? `Finalizada · ${fmtDuration(totalSeconds)} invertidas` : "Finalizada"}
       </span>
     );
@@ -76,7 +76,7 @@ export function TaskContextCapsule({ task, sessions, className }: Props) {
 
   if (task.status === "pausado") {
     return (
-      <span className={cn("text-[11px] text-zinc-500", className)}>
+      <span className={cn("text-[11px] text-muted-foreground", className)}>
         {lastSession
           ? `Pausada · última sesión ${relativeTime(lastSession.endedAt ?? lastSession.startedAt)}`
           : "Pausada"}
@@ -94,7 +94,7 @@ export function TaskContextCapsule({ task, sessions, className }: Props) {
   }
 
   return (
-    <span className={cn("text-[11px] text-zinc-600", className)}>
+    <span className={cn("text-[11px] text-muted-foreground/70", className)}>
       Sin iniciar
     </span>
   );

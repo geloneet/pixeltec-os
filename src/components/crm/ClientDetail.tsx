@@ -88,7 +88,7 @@ function clientDetailBadge(stopped: number, totalTasks: number): ClientBadge {
     return { label: "Atención requerida", colorClass: "bg-red-500/15 text-red-400 border border-red-500/20" };
   }
   if (totalTasks === 0) {
-    return { label: "Sin tareas", colorClass: "bg-zinc-500/15 text-zinc-400 border border-zinc-500/20" };
+    return { label: "Sin tareas", colorClass: "bg-muted text-muted-foreground border border-border" };
   }
   return { label: "Activo", colorClass: "bg-green-500/15 text-green-400 border border-green-500/20" };
 }
@@ -107,7 +107,7 @@ function ProjectCard({ project: p, stats, clientId, navigateToProject, setModal 
   const status = projectStatus(stats);
 
   return (
-    <div className="flex flex-col rounded-xl border border-white/[0.06] bg-card/20 p-4 transition-all duration-150 hover:border-white/[0.10] hover:bg-white/[0.03]">
+    <div className="flex flex-col rounded-xl border border-border bg-card p-4 transition-all duration-150 hover:bg-secondary/40">
       {/* Card header */}
       <div className="mb-3 flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
@@ -128,7 +128,7 @@ function ProjectCard({ project: p, stats, clientId, navigateToProject, setModal 
             <span className="text-muted-foreground">{stats.pct}% completado</span>
             <span className="text-muted-foreground">{stats.completed}/{stats.totalTasks} tareas</span>
           </div>
-          <div className="h-[3px] w-full overflow-hidden rounded-full bg-white/[0.06]">
+          <div className="h-[3px] w-full overflow-hidden rounded-full bg-secondary">
             <div
               className={cn("h-full rounded-full transition-all", stats.pct >= 100 ? "bg-green-500" : "bg-cyan-500")}
               style={{ width: `${stats.pct}%` }}
@@ -161,7 +161,7 @@ function ProjectCard({ project: p, stats, clientId, navigateToProject, setModal 
         <div className="flex items-center gap-1.5">
           <button
             onClick={() => navigateToProject(clientId, p.id)}
-            className="rounded-md px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground"
+            className="rounded-md px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary/60 hover:text-foreground"
           >
             Ver
           </button>
@@ -183,7 +183,7 @@ function ProjectCard({ project: p, stats, clientId, navigateToProject, setModal 
                 },
               })
             }
-            className="rounded-md px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground"
+            className="rounded-md px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary/60 hover:text-foreground"
           >
             Editar
           </button>
@@ -236,7 +236,7 @@ export function ClientDetail({ client, setView, navigateToProject, setModal, del
       </button>
 
       {/* ── SECCIÓN 1: HEADER ────────────────────────────────────────────── */}
-      <div className="mb-5 flex items-center gap-4 rounded-xl border border-white/[0.06] bg-card/20 p-5">
+      <div className="mb-5 flex items-center gap-4 rounded-xl border border-border bg-card p-5">
         <span
           className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full text-base font-bold text-white"
           style={{ backgroundColor: color }}
@@ -275,7 +275,7 @@ export function ClientDetail({ client, setView, navigateToProject, setModal, del
                 },
               })
             }
-            className="rounded-lg border border-white/[0.06] bg-card/40 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-all hover:border-white/[0.10] hover:text-foreground"
+            className="rounded-lg border border-border bg-secondary/40 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-all hover:bg-secondary/70 hover:text-foreground"
           >
             Editar
           </button>
@@ -288,17 +288,17 @@ export function ClientDetail({ client, setView, navigateToProject, setModal, del
           </Link>
           <button
             onClick={() => setModal({ type: "addProject" })}
-            className="rounded-lg border border-white/[0.06] bg-card/40 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-all hover:border-white/[0.10] hover:text-foreground"
+            className="rounded-lg border border-border bg-secondary/40 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-all hover:bg-secondary/70 hover:text-foreground"
           >
             + Proyecto con avance
           </button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/[0.06] bg-card/40 text-muted-foreground transition-all hover:border-white/[0.10] hover:text-foreground focus-visible:outline-none">
+              <button className="flex h-7 w-7 items-center justify-center rounded-lg border border-border bg-secondary/40 text-muted-foreground transition-all hover:bg-secondary/70 hover:text-foreground focus-visible:outline-none">
                 <MoreHorizontal className="h-3.5 w-3.5" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-40 border-border/60 bg-card/95 backdrop-blur-xl">
+            <DropdownMenuContent align="end" className="w-40 border-border bg-popover/95 backdrop-blur-xl">
               <DropdownMenuItem
                 className="cursor-pointer text-sm text-red-400 focus:bg-red-500/10 focus:text-red-300"
                 onSelect={() => setDeleteOpen(true)}
@@ -313,25 +313,25 @@ export function ClientDetail({ client, setView, navigateToProject, setModal, del
       {/* ── SECCIÓN 2: SNAPSHOT ──────────────────────────────────────────── */}
       <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {/* Proyectos */}
-        <div className="rounded-xl border border-white/[0.06] bg-card/20 p-4">
+        <div className="rounded-xl border border-border bg-card p-4">
           <FolderKanban className="mb-2 h-4 w-4 text-cyan-400" strokeWidth={1.75} />
           <p className="tabular-nums text-2xl font-bold text-foreground">{clientStats.projectsCount}</p>
           <p className="mt-0.5 text-[11px] text-muted-foreground">Proyectos</p>
         </div>
         {/* Tareas abiertas */}
-        <div className="rounded-xl border border-white/[0.06] bg-card/20 p-4">
+        <div className="rounded-xl border border-border bg-card p-4">
           <ListTodo className="mb-2 h-4 w-4 text-cyan-400" strokeWidth={1.75} />
           <p className="tabular-nums text-2xl font-bold text-foreground">{clientStats.openTasks}</p>
           <p className="mt-0.5 text-[11px] text-muted-foreground">Tareas abiertas</p>
         </div>
         {/* Completadas */}
-        <div className="rounded-xl border border-white/[0.06] bg-card/20 p-4">
+        <div className="rounded-xl border border-border bg-card p-4">
           <CheckCircle2 className="mb-2 h-4 w-4 text-cyan-400" strokeWidth={1.75} />
           <p className="tabular-nums text-2xl font-bold text-foreground">{clientStats.completed}</p>
           <p className="mt-0.5 text-[11px] text-muted-foreground">Completadas</p>
         </div>
         {/* Detenidas */}
-        <div className={cn("rounded-xl border p-4 transition-colors", clientStats.stopped > 0 ? "border-red-500/20 bg-red-500/[0.04]" : "border-white/[0.06] bg-card/20")}>
+        <div className={cn("rounded-xl border p-4 transition-colors", clientStats.stopped > 0 ? "border-red-500/20 bg-red-500/[0.04]" : "border-border bg-card")}>
           <PauseCircle className={cn("mb-2 h-4 w-4", clientStats.stopped > 0 ? "text-red-400" : "text-cyan-400")} strokeWidth={1.75} />
           <p className={cn("tabular-nums text-2xl font-bold", clientStats.stopped > 0 ? "text-red-300" : "text-foreground")}>{clientStats.stopped}</p>
           <p className={cn("mt-0.5 text-[11px]", clientStats.stopped > 0 ? "text-red-400/70" : "text-muted-foreground")}>Detenidas</p>
@@ -346,7 +346,7 @@ export function ClientDetail({ client, setView, navigateToProject, setModal, del
         </div>
 
         {client.projects.length === 0 ? (
-          <div className="rounded-xl border border-white/[0.06] bg-card/20 py-10 text-center">
+          <div className="rounded-xl border border-border bg-card py-10 text-center">
             <p className="text-sm text-muted-foreground">No hay proyectos</p>
             <button
               onClick={() => setModal({ type: "addProject" })}
@@ -375,7 +375,7 @@ export function ClientDetail({ client, setView, navigateToProject, setModal, del
       {feed.length > 0 && (
         <div className="mb-5">
           <h3 className="mb-3 text-sm font-semibold text-foreground">Actividad reciente</h3>
-          <div className="rounded-xl border border-white/[0.06] bg-card/20 divide-y divide-white/[0.04]">
+          <div className="rounded-xl border border-border bg-card divide-y divide-border">
             {feed.map((event, i) => (
               <div key={i} className="flex items-start gap-3 px-4 py-3">
                 <div className="mt-0.5 flex-shrink-0">
@@ -422,7 +422,7 @@ export function ClientDetail({ client, setView, navigateToProject, setModal, del
 
       {/* ── SECCIÓN 5: NOTAS ─────────────────────────────────────────────── */}
       {client.notes && (
-        <div className="rounded-xl border border-white/[0.06] bg-card/20 p-4">
+        <div className="rounded-xl border border-border bg-card p-4">
           <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Notas</p>
           <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap">{client.notes}</p>
         </div>

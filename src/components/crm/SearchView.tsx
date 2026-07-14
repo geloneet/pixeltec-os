@@ -76,17 +76,17 @@ export function SearchView({ clients, tools, navigateToClient, navigateToProject
 
   return (
     <div>
-      <h2 className="text-[20px] font-semibold text-zinc-200 mb-4">Buscar</h2>
+      <h2 className="text-[20px] font-semibold text-foreground mb-4">Buscar</h2>
       <input
         ref={inputRef}
         value={query}
         onChange={e => setQuery(e.target.value)}
         placeholder="Buscar clientes, proyectos, tareas, llaves..."
-        className="w-full bg-[#18181B] border border-zinc-800 rounded-lg px-4 py-3 text-sm text-zinc-200 focus:outline-none focus:border-[#0EA5E9] mb-4 transition-colors duration-150"
+        className="w-full bg-card border border-border rounded-lg px-4 py-3 text-sm text-foreground focus:outline-none focus:border-[#0EA5E9] mb-4 transition-colors duration-150"
       />
 
       {q && results.length === 0 && (
-        <p className="text-sm text-zinc-500 text-center py-10">Sin resultados para &quot;{query}&quot;</p>
+        <p className="text-sm text-muted-foreground text-center py-10">Sin resultados para &quot;{query}&quot;</p>
       )}
 
       <div className="space-y-2">
@@ -94,12 +94,12 @@ export function SearchView({ clients, tools, navigateToClient, navigateToProject
           <button
             key={`${r.type}-${r.cid}-${r.pid || ""}-${i}`}
             onClick={() => handleClick(r)}
-            className="flex w-full items-center gap-3 bg-[#0F0F12] border border-zinc-800 rounded-[10px] px-4 py-3 text-left hover:border-zinc-700 transition-all duration-200"
+            className="flex w-full items-center gap-3 bg-card border border-border rounded-[10px] px-4 py-3 text-left hover:bg-secondary/40 transition-all duration-200"
           >
-            <span className="text-[11px] text-zinc-600 uppercase w-16 flex-shrink-0">{r.type}</span>
+            <span className="text-[11px] text-muted-foreground/70 uppercase w-16 flex-shrink-0">{r.type}</span>
             <div className="min-w-0 flex-1">
-              <p className="text-[13px] text-zinc-200 truncate">{r.label}</p>
-              <p className="text-[11px] text-zinc-500 truncate">{r.sub}</p>
+              <p className="text-[13px] text-foreground truncate">{r.label}</p>
+              <p className="text-[11px] text-muted-foreground truncate">{r.sub}</p>
             </div>
           </button>
         ))}

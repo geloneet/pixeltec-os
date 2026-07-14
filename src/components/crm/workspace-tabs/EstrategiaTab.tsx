@@ -12,7 +12,7 @@ interface Props {
 }
 
 const OBJ_STATUS = {
-  pendiente:   { label: "Pendiente",   classes: "bg-zinc-500/15 text-zinc-400 border-zinc-500/20" },
+  pendiente:   { label: "Pendiente",   classes: "bg-muted text-muted-foreground border-border" },
   en_progreso: { label: "En progreso", classes: "bg-blue-500/15 text-blue-300 border-blue-500/20" },
   completado:  { label: "Completado",  classes: "bg-green-500/15 text-green-300 border-green-500/20" },
 } satisfies Record<StrategyObjective["status"], { label: string; classes: string }>;
@@ -20,7 +20,7 @@ const OBJ_STATUS = {
 const PRIORITY_CONFIG = {
   alta:  { label: "Alta",  classes: "bg-red-500/15 text-red-400 border-red-500/20" },
   media: { label: "Media", classes: "bg-amber-500/15 text-amber-400 border-amber-500/20" },
-  baja:  { label: "Baja",  classes: "bg-zinc-500/15 text-zinc-400 border-zinc-500/20" },
+  baja:  { label: "Baja",  classes: "bg-muted text-muted-foreground border-border" },
 } satisfies Record<RoadmapItem["priority"], { label: string; classes: string }>;
 
 const CHANNELS = ["Web", "Social Media", "Email", "WhatsApp", "Google Ads", "SEO"] as const;
@@ -326,26 +326,26 @@ export function EstrategiaTab({ clientId }: Props) {
                         value={objDraft.title ?? obj.title}
                         onChange={e => setObjDraft(d => ({ ...d, title: e.target.value }))}
                         placeholder="Título del objetivo"
-                        className="w-full rounded-md bg-card/60 border border-border px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                        className="w-full rounded-md bg-secondary border border-border px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
                       />
                       <input
                         type="text"
                         value={objDraft.description ?? obj.description}
                         onChange={e => setObjDraft(d => ({ ...d, description: e.target.value }))}
                         placeholder="Descripción"
-                        className="w-full rounded-md bg-card/60 border border-border px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                        className="w-full rounded-md bg-secondary border border-border px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
                       />
                       <div className="flex gap-2">
                         <input
                           type="date"
                           value={objDraft.dueDate ?? obj.dueDate ?? ""}
                           onChange={e => setObjDraft(d => ({ ...d, dueDate: e.target.value || undefined }))}
-                          className="flex-1 rounded-md bg-card/60 border border-border px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                          className="flex-1 rounded-md bg-secondary border border-border px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
                         />
                         <select
                           value={objDraft.status ?? obj.status}
                           onChange={e => setObjDraft(d => ({ ...d, status: e.target.value as StrategyObjective["status"] }))}
-                          className="flex-1 rounded-md bg-card/60 border border-border px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                          className="flex-1 rounded-md bg-secondary border border-border px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
                         >
                           <option value="pendiente">Pendiente</option>
                           <option value="en_progreso">En progreso</option>
@@ -424,20 +424,20 @@ export function EstrategiaTab({ clientId }: Props) {
                     onChange={e => setObjDraft(d => ({ ...d, title: e.target.value }))}
                     placeholder="Título del objetivo"
                     autoFocus
-                    className="w-full rounded-md bg-card/60 border border-border px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                    className="w-full rounded-md bg-secondary border border-border px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
                   />
                   <input
                     type="text"
                     value={objDraft.description ?? ""}
                     onChange={e => setObjDraft(d => ({ ...d, description: e.target.value }))}
                     placeholder="Descripción"
-                    className="w-full rounded-md bg-card/60 border border-border px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                    className="w-full rounded-md bg-secondary border border-border px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
                   />
                   <input
                     type="date"
                     value={objDraft.dueDate ?? ""}
                     onChange={e => setObjDraft(d => ({ ...d, dueDate: e.target.value || undefined }))}
-                    className="w-full rounded-md bg-card/60 border border-border px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                    className="w-full rounded-md bg-secondary border border-border px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
                   />
                   <div className="flex gap-2 justify-end">
                     <button
@@ -500,28 +500,28 @@ export function EstrategiaTab({ clientId }: Props) {
                           value={kpiDraft.name ?? kpi.name}
                           onChange={e => setKpiDraft(d => ({ ...d, name: e.target.value }))}
                           placeholder="Nombre"
-                          className="rounded-md bg-card/60 border border-border px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                          className="rounded-md bg-secondary border border-border px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
                         />
                         <input
                           type="text"
                           value={kpiDraft.unit ?? kpi.unit}
                           onChange={e => setKpiDraft(d => ({ ...d, unit: e.target.value }))}
                           placeholder="Unidad (%, MXN, …)"
-                          className="rounded-md bg-card/60 border border-border px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                          className="rounded-md bg-secondary border border-border px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
                         />
                         <input
                           type="text"
                           value={kpiDraft.target ?? kpi.target}
                           onChange={e => setKpiDraft(d => ({ ...d, target: e.target.value }))}
                           placeholder="Objetivo"
-                          className="rounded-md bg-card/60 border border-border px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                          className="rounded-md bg-secondary border border-border px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
                         />
                         <input
                           type="text"
                           value={kpiDraft.current ?? kpi.current}
                           onChange={e => setKpiDraft(d => ({ ...d, current: e.target.value }))}
                           placeholder="Actual"
-                          className="rounded-md bg-card/60 border border-border px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                          className="rounded-md bg-secondary border border-border px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
                         />
                       </div>
                       <div className="flex gap-2 justify-end">
@@ -589,28 +589,28 @@ export function EstrategiaTab({ clientId }: Props) {
                       onChange={e => setKpiDraft(d => ({ ...d, name: e.target.value }))}
                       placeholder="Nombre del KPI"
                       autoFocus
-                      className="rounded-md bg-card/60 border border-border px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                      className="rounded-md bg-secondary border border-border px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
                     />
                     <input
                       type="text"
                       value={kpiDraft.unit ?? ""}
                       onChange={e => setKpiDraft(d => ({ ...d, unit: e.target.value }))}
                       placeholder="Unidad (%, MXN, …)"
-                      className="rounded-md bg-card/60 border border-border px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                      className="rounded-md bg-secondary border border-border px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
                     />
                     <input
                       type="text"
                       value={kpiDraft.target ?? ""}
                       onChange={e => setKpiDraft(d => ({ ...d, target: e.target.value }))}
                       placeholder="Valor objetivo"
-                      className="rounded-md bg-card/60 border border-border px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                      className="rounded-md bg-secondary border border-border px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
                     />
                     <input
                       type="text"
                       value={kpiDraft.current ?? ""}
                       onChange={e => setKpiDraft(d => ({ ...d, current: e.target.value }))}
                       placeholder="Valor actual"
-                      className="rounded-md bg-card/60 border border-border px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                      className="rounded-md bg-secondary border border-border px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
                     />
                   </div>
                   <div className="flex gap-2 justify-end">
@@ -663,7 +663,7 @@ export function EstrategiaTab({ clientId }: Props) {
                         value={roadmapDraft.title ?? item.title}
                         onChange={e => setRoadmapDraft(d => ({ ...d, title: e.target.value }))}
                         placeholder="Título"
-                        className="w-full rounded-md bg-card/60 border border-border px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                        className="w-full rounded-md bg-secondary border border-border px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
                       />
                       <div className="flex gap-2">
                         <input
@@ -671,12 +671,12 @@ export function EstrategiaTab({ clientId }: Props) {
                           value={roadmapDraft.sprint ?? item.sprint}
                           onChange={e => setRoadmapDraft(d => ({ ...d, sprint: e.target.value }))}
                           placeholder="Sprint 1"
-                          className="flex-1 rounded-md bg-card/60 border border-border px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                          className="flex-1 rounded-md bg-secondary border border-border px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
                         />
                         <select
                           value={roadmapDraft.priority ?? item.priority}
                           onChange={e => setRoadmapDraft(d => ({ ...d, priority: e.target.value as RoadmapItem["priority"] }))}
-                          className="flex-1 rounded-md bg-card/60 border border-border px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                          className="flex-1 rounded-md bg-secondary border border-border px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
                         >
                           <option value="alta">Alta</option>
                           <option value="media">Media</option>
@@ -685,7 +685,7 @@ export function EstrategiaTab({ clientId }: Props) {
                         <select
                           value={roadmapDraft.status ?? item.status}
                           onChange={e => setRoadmapDraft(d => ({ ...d, status: e.target.value as RoadmapItem["status"] }))}
-                          className="flex-1 rounded-md bg-card/60 border border-border px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                          className="flex-1 rounded-md bg-secondary border border-border px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
                         >
                           <option value="pendiente">Pendiente</option>
                           <option value="en_progreso">En progreso</option>
@@ -786,7 +786,7 @@ export function EstrategiaTab({ clientId }: Props) {
                     onChange={e => setRoadmapDraft(d => ({ ...d, title: e.target.value }))}
                     placeholder="Título"
                     autoFocus
-                    className="w-full rounded-md bg-card/60 border border-border px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                    className="w-full rounded-md bg-secondary border border-border px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
                   />
                   <div className="flex gap-2">
                     <input
@@ -794,12 +794,12 @@ export function EstrategiaTab({ clientId }: Props) {
                       value={roadmapDraft.sprint ?? ""}
                       onChange={e => setRoadmapDraft(d => ({ ...d, sprint: e.target.value }))}
                       placeholder="Sprint 1"
-                      className="flex-1 rounded-md bg-card/60 border border-border px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                      className="flex-1 rounded-md bg-secondary border border-border px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
                     />
                     <select
                       value={roadmapDraft.priority ?? "media"}
                       onChange={e => setRoadmapDraft(d => ({ ...d, priority: e.target.value as RoadmapItem["priority"] }))}
-                      className="flex-1 rounded-md bg-card/60 border border-border px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                      className="flex-1 rounded-md bg-secondary border border-border px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
                     >
                       <option value="alta">Alta</option>
                       <option value="media">Media</option>
@@ -891,7 +891,7 @@ export function EstrategiaTab({ clientId }: Props) {
                   onChange={e => setNewPriority(e.target.value)}
                   onKeyDown={e => { if (e.key === "Enter") handleAddPriority(); }}
                   placeholder="Nueva prioridad…"
-                  className="flex-1 rounded-md bg-card/60 border border-border px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                  className="flex-1 rounded-md bg-secondary border border-border px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
                 />
                 <button
                   type="button"
@@ -977,7 +977,7 @@ export function EstrategiaTab({ clientId }: Props) {
                 onChange={e => setCustomChannel(e.target.value)}
                 onKeyDown={e => { if (e.key === "Enter") handleAddCustomChannel(); }}
                 placeholder="Canal personalizado…"
-                className="flex-1 rounded-md bg-card/60 border border-border px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                className="flex-1 rounded-md bg-secondary border border-border px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
               />
               <button
                 type="button"
@@ -998,7 +998,7 @@ export function EstrategiaTab({ clientId }: Props) {
                 onChange={e => setAutomationsText(e.target.value)}
                 rows={5}
                 placeholder="Describe las automatizaciones activas o planificadas…"
-                className="w-full rounded-md bg-card/60 border border-border px-3 py-2 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50 resize-y"
+                className="w-full rounded-md bg-secondary border border-border px-3 py-2 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50 resize-y"
               />
               <div className="flex justify-end mt-2">
                 <button
