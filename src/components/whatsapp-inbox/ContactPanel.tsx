@@ -35,9 +35,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { ModeToggle } from "./ModeToggle";
 
 const MODE_META: Record<string, { label: string; className: string }> = {
-  BOT: { label: "Bot", className: "text-cyan-300 bg-cyan-500/10 border-cyan-500/30" },
-  HUMAN: { label: "Tú", className: "text-emerald-300 bg-emerald-500/10 border-emerald-500/30" },
-  PAUSED: { label: "Pausa", className: "text-amber-300 bg-amber-500/10 border-amber-500/30" },
+  BOT: { label: "Bot", className: "text-cyan-700 dark:text-cyan-300 bg-cyan-500/10 border-cyan-500/30" },
+  HUMAN: { label: "Tú", className: "text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 border-emerald-500/30" },
+  PAUSED: { label: "Pausa", className: "text-amber-700 dark:text-amber-300 bg-amber-500/10 border-amber-500/30" },
 };
 
 const NO_CLASSIFICATION = "none";
@@ -70,8 +70,8 @@ function formatHistoryDate(iso: string): string {
 
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-2 rounded-xl border border-zinc-800/60 p-3">
-      <p className="text-[11px] uppercase tracking-wider text-zinc-500">{title}</p>
+    <div className="space-y-2 rounded-xl border border-border p-3">
+      <p className="text-[11px] uppercase tracking-wider text-muted-foreground">{title}</p>
       {children}
     </div>
   );
@@ -323,12 +323,12 @@ export function ContactPanel({ phone, conv, contact, onClose, onModeChanged, ref
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex items-center justify-between border-b border-zinc-800/60 px-3 py-3">
-        <h3 className="text-sm font-semibold text-zinc-100">Ficha del contacto</h3>
+      <div className="flex items-center justify-between border-b border-border px-3 py-3">
+        <h3 className="text-sm font-semibold text-foreground">Ficha del contacto</h3>
         <button
           type="button"
           onClick={onClose}
-          className="rounded-md p-1 text-zinc-400 transition-colors hover:text-zinc-100"
+          className="rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground"
           aria-label="Cerrar panel"
         >
           <X className="h-4 w-4" />
@@ -344,20 +344,20 @@ export function ContactPanel({ phone, conv, contact, onClose, onModeChanged, ref
             onBlur={handleNameBlur}
             onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
             placeholder="Nombre del contacto"
-            className="h-8 border-zinc-800 bg-zinc-900/60 text-sm text-zinc-200"
+            className="h-8 border-border bg-secondary/40 text-sm text-foreground"
           />
-          <div className="flex items-center justify-between gap-2 text-xs text-zinc-400">
+          <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
             <span className="truncate font-mono">{phone}</span>
             <button
               type="button"
               onClick={handleCopyPhone}
-              className="flex-shrink-0 rounded-md border border-zinc-800 p-1 text-zinc-400 transition-colors hover:border-zinc-700 hover:text-zinc-100"
+              className="flex-shrink-0 rounded-md border border-border p-1 text-muted-foreground transition-colors hover:text-foreground"
               aria-label="Copiar teléfono"
             >
               <Copy className="h-3 w-3" />
             </button>
           </div>
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-muted-foreground">
             Última interacción: {formatRelative(conv?.lastMessageAt)}
           </p>
         </SectionCard>
@@ -365,15 +365,15 @@ export function ContactPanel({ phone, conv, contact, onClose, onModeChanged, ref
         {/* Clasificación */}
         <SectionCard title="Clasificación">
           <Select value={classificationValue} onValueChange={handleClassificationChange}>
-            <SelectTrigger className="h-8 border-zinc-800 bg-zinc-900/60 text-xs text-zinc-300 focus:ring-cyan-500/20">
+            <SelectTrigger className="h-8 border-border bg-secondary/40 text-xs text-foreground focus:ring-cyan-500/20">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent className="border-zinc-800/60 bg-zinc-900/95 backdrop-blur-xl">
-              <SelectItem value={NO_CLASSIFICATION} className="text-sm text-zinc-300 focus:bg-white/[0.06] focus:text-zinc-100">
+            <SelectContent className="border-border bg-popover/95 backdrop-blur-xl">
+              <SelectItem value={NO_CLASSIFICATION} className="text-sm text-popover-foreground focus:bg-secondary focus:text-foreground">
                 Sin clasificar
               </SelectItem>
               {Object.entries(CLASSIFICATION_META).map(([value, meta]) => (
-                <SelectItem key={value} value={value} className="text-sm text-zinc-300 focus:bg-white/[0.06] focus:text-zinc-100">
+                <SelectItem key={value} value={value} className="text-sm text-popover-foreground focus:bg-secondary focus:text-foreground">
                   {meta.label}
                 </SelectItem>
               ))}
@@ -383,13 +383,13 @@ export function ContactPanel({ phone, conv, contact, onClose, onModeChanged, ref
             <button
               type="button"
               onClick={handleUseSuggestion}
-              className="w-full rounded-md border border-violet-500/30 bg-violet-500/5 px-2 py-1.5 text-left text-[11px] text-violet-300 transition-colors hover:bg-violet-500/10"
+              className="w-full rounded-md border border-violet-500/30 bg-violet-500/5 px-2 py-1.5 text-left text-[11px] text-violet-700 dark:text-violet-300 transition-colors hover:bg-violet-500/10"
             >
               El bot sugiere: <strong>{CLASSIFICATION_META[conv.suggestedClassification].label}</strong> · usar
             </button>
           )}
           <div className="flex items-center justify-between">
-            <span className="text-xs text-zinc-400">Urgente</span>
+            <span className="text-xs text-muted-foreground">Urgente</span>
             <Switch checked={Boolean(contact?.urgent)} onCheckedChange={handleUrgentToggle} />
           </div>
         </SectionCard>
@@ -397,12 +397,12 @@ export function ContactPanel({ phone, conv, contact, onClose, onModeChanged, ref
         {/* Atención */}
         <SectionCard title="Atención">
           <Select value={statusValue} onValueChange={handleStatusChange}>
-            <SelectTrigger className="h-8 border-zinc-800 bg-zinc-900/60 text-xs text-zinc-300 focus:ring-cyan-500/20">
+            <SelectTrigger className="h-8 border-border bg-secondary/40 text-xs text-foreground focus:ring-cyan-500/20">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent className="border-zinc-800/60 bg-zinc-900/95 backdrop-blur-xl">
+            <SelectContent className="border-border bg-popover/95 backdrop-blur-xl">
               {Object.entries(STATUS_META).map(([value, meta]) => (
-                <SelectItem key={value} value={value} className="text-sm text-zinc-300 focus:bg-white/[0.06] focus:text-zinc-100">
+                <SelectItem key={value} value={value} className="text-sm text-popover-foreground focus:bg-secondary focus:text-foreground">
                   {meta.label}
                 </SelectItem>
               ))}
@@ -413,7 +413,7 @@ export function ContactPanel({ phone, conv, contact, onClose, onModeChanged, ref
             variant="outline"
             size="sm"
             onClick={handleAssignToggle}
-            className="h-8 w-full border-zinc-800 bg-zinc-900/60 text-xs text-zinc-300 hover:bg-zinc-800/60"
+            className="h-8 w-full border-border bg-secondary/40 text-xs text-muted-foreground hover:bg-secondary/60"
           >
             {isAssignedToMe ? "Quitarme como responsable" : "Asignarme"}
           </Button>
@@ -423,7 +423,7 @@ export function ContactPanel({ phone, conv, contact, onClose, onModeChanged, ref
             onBlur={handleOriginBlur}
             onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
             placeholder="Origen (ej. Anuncio IG)"
-            className="h-8 border-zinc-800 bg-zinc-900/60 text-sm text-zinc-200"
+            className="h-8 border-border bg-secondary/40 text-sm text-foreground"
           />
         </SectionCard>
 
@@ -434,27 +434,27 @@ export function ContactPanel({ phone, conv, contact, onClose, onModeChanged, ref
               <Badge
                 key={tag}
                 variant="outline"
-                className="gap-1 border-zinc-700 bg-zinc-800/60 text-[11px] font-normal text-zinc-300"
+                className="gap-1 border-border bg-secondary text-[11px] font-normal text-secondary-foreground"
               >
                 {tag}
                 <button
                   type="button"
                   onClick={() => handleRemoveTag(tag)}
                   aria-label={`Quitar etiqueta ${tag}`}
-                  className="text-zinc-500 hover:text-zinc-200"
+                  className="text-muted-foreground hover:text-foreground"
                 >
                   <X className="h-2.5 w-2.5" />
                 </button>
               </Badge>
             ))}
-            {!(contact?.tags ?? []).length && <span className="text-xs text-zinc-600">Sin etiquetas</span>}
+            {!(contact?.tags ?? []).length && <span className="text-xs text-muted-foreground/60">Sin etiquetas</span>}
           </div>
           <Input
             value={tagInput}
             onChange={(e) => setTagInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleAddTag()}
             placeholder="Nueva etiqueta ⏎"
-            className="h-8 border-zinc-800 bg-zinc-900/60 text-sm text-zinc-200"
+            className="h-8 border-border bg-secondary/40 text-sm text-foreground"
           />
         </SectionCard>
 
@@ -470,10 +470,10 @@ export function ContactPanel({ phone, conv, contact, onClose, onModeChanged, ref
               {MODE_META[mode]?.label ?? mode}
             </span>
             {mode === "PAUSED" && pausedExpired && (
-              <span className="text-[11px] text-amber-300">pausa expirada</span>
+              <span className="text-[11px] text-amber-700 dark:text-amber-300">pausa expirada</span>
             )}
             {mode === "PAUSED" && !pausedExpired && pausedUntilLabel && (
-              <span className="text-[11px] text-amber-300">hasta {pausedUntilLabel}</span>
+              <span className="text-[11px] text-amber-700 dark:text-amber-300">hasta {pausedUntilLabel}</span>
             )}
           </div>
           <ModeToggle phone={phone} mode={mode} onChanged={onModeChanged} />
@@ -495,7 +495,7 @@ export function ContactPanel({ phone, conv, contact, onClose, onModeChanged, ref
             )}
 
             {contact?.linkedClientId ? (
-              <p className="rounded-md border border-emerald-500/30 bg-emerald-500/5 px-2 py-1.5 text-[11px] text-emerald-300">
+              <p className="rounded-md border border-emerald-500/30 bg-emerald-500/5 px-2 py-1.5 text-[11px] text-emerald-700 dark:text-emerald-300">
                 Vinculado al CRM ✓
               </p>
             ) : (
@@ -505,7 +505,7 @@ export function ContactPanel({ phone, conv, contact, onClose, onModeChanged, ref
                 disabled={pendingAction !== null}
                 variant="outline"
                 size="sm"
-                className="h-8 w-full border-zinc-800 bg-zinc-900/60 text-xs text-zinc-300 hover:bg-zinc-800/60"
+                className="h-8 w-full border-border bg-secondary/40 text-xs text-muted-foreground hover:bg-secondary/60"
               >
                 {pendingAction === "convertToClient" && <Spinner size="sm" />}
                 Convertir en cliente
@@ -516,12 +516,12 @@ export function ContactPanel({ phone, conv, contact, onClose, onModeChanged, ref
               <div className="space-y-1.5">
                 {linkedClient!.projects.length > 1 && (
                   <Select value={followUpProjectId ?? undefined} onValueChange={setFollowUpProjectId}>
-                    <SelectTrigger className="h-8 border-zinc-800 bg-zinc-900/60 text-xs text-zinc-300 focus:ring-cyan-500/20">
+                    <SelectTrigger className="h-8 border-border bg-secondary/40 text-xs text-foreground focus:ring-cyan-500/20">
                       <SelectValue placeholder="Selecciona proyecto" />
                     </SelectTrigger>
-                    <SelectContent className="border-zinc-800/60 bg-zinc-900/95 backdrop-blur-xl">
+                    <SelectContent className="border-border bg-popover/95 backdrop-blur-xl">
                       {linkedClient!.projects.map((p) => (
-                        <SelectItem key={p.id} value={p.id} className="text-sm text-zinc-300 focus:bg-white/[0.06] focus:text-zinc-100">
+                        <SelectItem key={p.id} value={p.id} className="text-sm text-popover-foreground focus:bg-secondary focus:text-foreground">
                           {p.name}
                         </SelectItem>
                       ))}
@@ -534,14 +534,14 @@ export function ContactPanel({ phone, conv, contact, onClose, onModeChanged, ref
                   disabled={!followUpProject || pendingAction !== null}
                   variant="outline"
                   size="sm"
-                  className="h-8 w-full border-zinc-800 bg-zinc-900/60 text-xs text-zinc-300 hover:bg-zinc-800/60 disabled:opacity-40"
+                  className="h-8 w-full border-border bg-secondary/40 text-xs text-muted-foreground hover:bg-secondary/60 disabled:opacity-40"
                 >
                   {pendingAction === "createFollowUp" && <Spinner size="sm" />}
                   Crear seguimiento
                 </Button>
               </div>
             ) : (
-              <p className="text-[11px] text-zinc-600">
+              <p className="text-[11px] text-muted-foreground/60">
                 Vincula un cliente con proyecto para crear seguimientos
               </p>
             )}
@@ -552,19 +552,19 @@ export function ContactPanel({ phone, conv, contact, onClose, onModeChanged, ref
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="h-8 w-full border-zinc-800 bg-zinc-900/60 text-xs text-zinc-300 hover:bg-zinc-800/60"
+                  className="h-8 w-full border-border bg-secondary/40 text-xs text-muted-foreground hover:bg-secondary/60"
                 >
                   <Ticket className="h-3.5 w-3.5" />
                   Crear ticket de soporte
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-72 border-zinc-800 bg-zinc-900/95 p-3 backdrop-blur-xl">
-                <p className="mb-2 text-xs font-medium text-zinc-300">¿Cuál es el problema?</p>
+              <PopoverContent className="w-72 border-border bg-popover/95 p-3 backdrop-blur-xl">
+                <p className="mb-2 text-xs font-medium text-popover-foreground">¿Cuál es el problema?</p>
                 <Textarea
                   value={ticketProblem}
                   onChange={(e) => setTicketProblem(e.target.value)}
                   placeholder="Describe el problema..."
-                  className="mb-2 min-h-[70px] border-zinc-800 bg-zinc-900/60 text-sm text-zinc-200"
+                  className="mb-2 min-h-[70px] border-border bg-secondary/40 text-sm text-foreground"
                 />
                 <Button
                   type="button"
@@ -583,7 +583,7 @@ export function ContactPanel({ phone, conv, contact, onClose, onModeChanged, ref
               onClick={() => void saveField({ status: "resuelto" }, "Marcado como resuelto", "Marcado como resuelto")}
               variant="ghost"
               size="sm"
-              className="h-8 w-full text-xs text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-100"
+              className="h-8 w-full text-xs text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
             >
               <Check className="h-3.5 w-3.5" />
               Marcar como resuelto
@@ -593,7 +593,7 @@ export function ContactPanel({ phone, conv, contact, onClose, onModeChanged, ref
               onClick={() => void saveField({ status: "archivado" }, "Archivado", "Conversación archivada")}
               variant="ghost"
               size="sm"
-              className="h-8 w-full text-xs text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-100"
+              className="h-8 w-full text-xs text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
             >
               Archivar
             </Button>
@@ -603,9 +603,9 @@ export function ContactPanel({ phone, conv, contact, onClose, onModeChanged, ref
         {/* Notas */}
         <SectionCard title="Notas">
           <div className="space-y-1.5">
-            {recentNotes.length === 0 && <p className="text-xs text-zinc-600">Sin notas aún</p>}
+            {recentNotes.length === 0 && <p className="text-xs text-muted-foreground/60">Sin notas aún</p>}
             {recentNotes.map((note) => (
-              <p key={note.id} className="rounded-md border border-violet-500/20 bg-violet-500/5 px-2 py-1.5 text-xs text-violet-200">
+              <p key={note.id} className="rounded-md border border-violet-500/20 bg-violet-500/5 px-2 py-1.5 text-xs text-violet-700 dark:text-violet-200">
                 {note.text}
               </p>
             ))}
@@ -616,14 +616,14 @@ export function ContactPanel({ phone, conv, contact, onClose, onModeChanged, ref
               onChange={(e) => setNoteInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && void handleAddNote()}
               placeholder="Nota rápida..."
-              className="h-8 border-zinc-800 bg-zinc-900/60 text-sm text-zinc-200"
+              className="h-8 border-border bg-secondary/40 text-sm text-foreground"
             />
             <Button
               type="button"
               onClick={() => void handleAddNote()}
               variant="outline"
               size="icon"
-              className="h-8 w-8 flex-shrink-0 border-zinc-800 bg-zinc-900/60 text-zinc-300 hover:bg-zinc-800/60"
+              className="h-8 w-8 flex-shrink-0 border-border bg-secondary/40 text-secondary-foreground hover:bg-secondary/60"
               aria-label="Añadir nota"
             >
               <Plus className="h-3.5 w-3.5" />
@@ -634,9 +634,9 @@ export function ContactPanel({ phone, conv, contact, onClose, onModeChanged, ref
         {/* Historial */}
         <SectionCard title="Historial">
           <div className="space-y-1">
-            {recentHistory.length === 0 && <p className="text-xs text-zinc-600">Sin actividad registrada</p>}
+            {recentHistory.length === 0 && <p className="text-xs text-muted-foreground/60">Sin actividad registrada</p>}
             {recentHistory.map((entry, idx) => (
-              <p key={`${entry.at}-${idx}`} className="text-xs text-zinc-500">
+              <p key={`${entry.at}-${idx}`} className="text-xs text-muted-foreground">
                 {entry.action} · {formatHistoryDate(entry.at)}
               </p>
             ))}

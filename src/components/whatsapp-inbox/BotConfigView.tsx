@@ -38,8 +38,8 @@ const DELAY_MAX = 600;
 
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-3 rounded-xl border border-zinc-800/60 p-3">
-      <p className="text-[11px] uppercase tracking-wider text-zinc-500">{title}</p>
+    <div className="space-y-3 rounded-xl border border-border p-3">
+      <p className="text-[11px] uppercase tracking-wider text-muted-foreground">{title}</p>
       {children}
     </div>
   );
@@ -48,10 +48,10 @@ function SectionCard({ title, children }: { title: string; children: React.React
 type ListAccent = "default" | "emerald" | "red" | "amber";
 
 const ACCENT_CLASSES: Record<ListAccent, string> = {
-  default: "border-zinc-700 bg-zinc-800/60 text-zinc-300",
-  emerald: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
-  red: "border-red-500/30 bg-red-500/10 text-red-300",
-  amber: "border-amber-500/30 bg-amber-500/10 text-amber-300",
+  default: "border-border bg-muted text-muted-foreground",
+  emerald: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+  red: "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-300",
+  amber: "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300",
 };
 
 interface ListEditorProps {
@@ -90,10 +90,10 @@ function ListEditor({ label, hint, items, onChange, accent = "default" }: ListEd
 
   return (
     <div className="space-y-2">
-      {label && <p className="text-xs font-medium text-zinc-300">{label}</p>}
-      {hint && <p className="text-[11px] text-zinc-500">{hint}</p>}
+      {label && <p className="text-xs font-medium text-muted-foreground">{label}</p>}
+      {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
       <div className="flex flex-wrap gap-1.5">
-        {items.length === 0 && <span className="text-xs text-zinc-600">Sin elementos</span>}
+        {items.length === 0 && <span className="text-xs text-muted-foreground/60">Sin elementos</span>}
         {items.map((item, idx) => (
           <Badge
             key={`${idx}-${item}`}
@@ -105,7 +105,7 @@ function ListEditor({ label, hint, items, onChange, accent = "default" }: ListEd
               type="button"
               onClick={() => handleRemove(idx)}
               aria-label={`Quitar "${item}"`}
-              className="rounded-sm opacity-70 transition-opacity hover:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-400"
+              className="rounded-sm opacity-70 transition-opacity hover:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
               <X className="h-2.5 w-2.5" />
             </button>
@@ -124,9 +124,9 @@ function ListEditor({ label, hint, items, onChange, accent = "default" }: ListEd
           }}
           placeholder="Escribe y presiona Enter…"
           maxLength={MAX_ITEM_LEN}
-          className="h-8 border-zinc-800 bg-zinc-900/60 text-sm text-zinc-200"
+          className="h-8 border-border bg-secondary/40 text-sm text-foreground"
         />
-        <span className="flex-shrink-0 text-[11px] text-zinc-600">
+        <span className="flex-shrink-0 text-[11px] text-muted-foreground/60">
           {items.length}/{MAX_ITEMS}
         </span>
       </div>
@@ -260,7 +260,7 @@ export function BotConfigView() {
   if (loading) {
     return (
       <div className="flex h-full min-h-0 flex-1 items-center justify-center">
-        <Spinner size="md" className="text-zinc-500" />
+        <Spinner size="md" className="text-muted-foreground" />
       </div>
     );
   }
@@ -268,14 +268,14 @@ export function BotConfigView() {
   if (error || !config) {
     return (
       <div className="flex h-full min-h-0 flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
-        <p className="text-sm text-zinc-400">No se pudo cargar la configuración del bot.</p>
-        {error && <p className="max-w-md text-xs text-zinc-600">{error}</p>}
+        <p className="text-sm text-muted-foreground">No se pudo cargar la configuración del bot.</p>
+        {error && <p className="max-w-md text-xs text-muted-foreground/60">{error}</p>}
         <Button
           type="button"
           variant="outline"
           size="sm"
           onClick={() => void loadConfig()}
-          className="border-zinc-800 bg-zinc-900/60 text-xs text-zinc-300 hover:bg-zinc-800/60"
+          className="border-border bg-secondary/40 text-xs text-muted-foreground hover:bg-secondary/60"
         >
           Reintentar
         </Button>
@@ -290,37 +290,37 @@ export function BotConfigView() {
           {/* Identidad */}
           <SectionCard title="Identidad">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-zinc-300">Nombre del bot</label>
+              <label className="text-xs font-medium text-muted-foreground">Nombre del bot</label>
               <Input
                 value={config.bot_name}
                 onChange={(e) => update("bot_name", e.target.value)}
                 maxLength={BOT_NAME_MAX}
                 placeholder="PixelBot"
-                className="h-8 border-zinc-800 bg-zinc-900/60 text-sm text-zinc-200"
+                className="h-8 border-border bg-secondary/40 text-sm text-foreground"
               />
-              <p className="text-[11px] text-zinc-600">
+              <p className="text-[11px] text-muted-foreground/60">
                 {config.bot_name.length}/{BOT_NAME_MAX}
               </p>
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-zinc-300">Tono</label>
+              <label className="text-xs font-medium text-muted-foreground">Tono</label>
               <Select value={config.tone} onValueChange={(v) => update("tone", v as BotTone)}>
-                <SelectTrigger className="h-8 border-zinc-800 bg-zinc-900/60 text-xs text-zinc-300 focus:ring-cyan-500/20">
+                <SelectTrigger className="h-8 border-border bg-secondary/40 text-xs text-foreground focus:ring-cyan-500/20">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="border-zinc-800/60 bg-zinc-900/95 backdrop-blur-xl">
+                <SelectContent className="border-border bg-popover/95 backdrop-blur-xl">
                   {TONE_OPTIONS.map((opt) => (
                     <SelectItem
                       key={opt.value}
                       value={opt.value}
-                      className="text-sm text-zinc-300 focus:bg-white/[0.06] focus:text-zinc-100"
+                      className="text-sm text-popover-foreground focus:bg-secondary focus:text-foreground"
                     >
                       {opt.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-[11px] text-zinc-500">
+              <p className="text-[11px] text-muted-foreground">
                 {TONE_OPTIONS.find((o) => o.value === config.tone)?.desc}
               </p>
             </div>
@@ -329,22 +329,22 @@ export function BotConfigView() {
           {/* Tiempos y horario */}
           <SectionCard title="Tiempos y horario">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-zinc-300">Delay de respuesta (segundos)</label>
+              <label className="text-xs font-medium text-muted-foreground">Delay de respuesta (segundos)</label>
               <Input
                 type="number"
                 min={DELAY_MIN}
                 max={DELAY_MAX}
                 value={config.response_delay_seconds}
                 onChange={(e) => update("response_delay_seconds", Number(e.target.value))}
-                className="h-8 w-28 border-zinc-800 bg-zinc-900/60 text-sm text-zinc-200"
+                className="h-8 w-28 border-border bg-secondary/40 text-sm text-foreground"
               />
-              <p className="text-[11px] text-zinc-500">
+              <p className="text-[11px] text-muted-foreground">
                 por defecto 30 — pausa humanizada antes de responder
               </p>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-zinc-300">Días de atención</label>
+              <label className="text-xs font-medium text-muted-foreground">Días de atención</label>
               <div className="flex gap-1.5">
                 {DAY_LABELS.map((label, idx) => {
                   const active = config.schedule.days.includes(idx);
@@ -359,8 +359,8 @@ export function BotConfigView() {
                       className={cn(
                         "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md border text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40",
                         active
-                          ? "border-cyan-500/40 bg-cyan-500/15 text-cyan-300"
-                          : "border-zinc-800 bg-zinc-900/60 text-zinc-500 hover:text-zinc-300"
+                          ? "border-cyan-500/40 bg-cyan-500/15 text-cyan-700 dark:text-cyan-300"
+                          : "border-border bg-secondary/40 text-muted-foreground hover:text-foreground"
                       )}
                     >
                       {label}
@@ -369,7 +369,7 @@ export function BotConfigView() {
                 })}
               </div>
               {config.schedule.days.length === 0 && (
-                <p className="text-[11px] text-amber-300/80">
+                <p className="text-[11px] text-amber-700 dark:text-amber-300/80">
                   Sin días marcados = siempre abierto
                 </p>
               )}
@@ -377,54 +377,54 @@ export function BotConfigView() {
 
             <div className="flex gap-3">
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-zinc-300">Inicio</label>
+                <label className="text-xs font-medium text-muted-foreground">Inicio</label>
                 <input
                   type="time"
                   value={config.schedule.start}
                   onChange={(e) => updateSchedule({ start: e.target.value })}
-                  className="h-8 rounded-md border border-zinc-800 bg-zinc-900/60 px-2 text-sm text-zinc-200 [color-scheme:dark] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40"
+                  className="h-8 rounded-md border border-border bg-secondary/40 px-2 text-sm text-foreground dark:[color-scheme:dark] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40"
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-zinc-300">Fin</label>
+                <label className="text-xs font-medium text-muted-foreground">Fin</label>
                 <input
                   type="time"
                   value={config.schedule.end}
                   onChange={(e) => updateSchedule({ end: e.target.value })}
-                  className="h-8 rounded-md border border-zinc-800 bg-zinc-900/60 px-2 text-sm text-zinc-200 [color-scheme:dark] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40"
+                  className="h-8 rounded-md border border-border bg-secondary/40 px-2 text-sm text-foreground dark:[color-scheme:dark] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40"
                 />
               </div>
             </div>
-            <p className="text-[11px] text-zinc-500">Hora de Vallarta</p>
+            <p className="text-[11px] text-muted-foreground">Hora de Vallarta</p>
           </SectionCard>
 
           {/* Mensajes */}
           <SectionCard title="Mensajes">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-zinc-300">Mensaje fuera de horario</label>
+              <label className="text-xs font-medium text-muted-foreground">Mensaje fuera de horario</label>
               <Textarea
                 value={config.out_of_hours_message}
                 onChange={(e) => update("out_of_hours_message", e.target.value)}
                 maxLength={MESSAGE_MAX}
-                className="min-h-[70px] border-zinc-800 bg-zinc-900/60 text-sm text-zinc-200"
+                className="min-h-[70px] border-border bg-secondary/40 text-sm text-foreground"
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-zinc-300">Mensaje inicial</label>
+              <label className="text-xs font-medium text-muted-foreground">Mensaje inicial</label>
               <Textarea
                 value={config.initial_message}
                 onChange={(e) => update("initial_message", e.target.value)}
                 maxLength={MESSAGE_MAX}
-                className="min-h-[70px] border-zinc-800 bg-zinc-900/60 text-sm text-zinc-200"
+                className="min-h-[70px] border-border bg-secondary/40 text-sm text-foreground"
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-zinc-300">Mensaje al escalar a humano</label>
+              <label className="text-xs font-medium text-muted-foreground">Mensaje al escalar a humano</label>
               <Textarea
                 value={config.escalation_message}
                 onChange={(e) => update("escalation_message", e.target.value)}
                 maxLength={MESSAGE_MAX}
-                className="min-h-[70px] border-zinc-800 bg-zinc-900/60 text-sm text-zinc-200"
+                className="min-h-[70px] border-border bg-secondary/40 text-sm text-foreground"
               />
             </div>
           </SectionCard>
@@ -466,7 +466,7 @@ export function BotConfigView() {
           </SectionCard>
         </div>
 
-        <div className="mt-4 space-y-1 rounded-xl border border-zinc-800/60 p-3 text-[11px] text-zinc-500">
+        <div className="mt-4 space-y-1 rounded-xl border border-border p-3 text-[11px] text-muted-foreground">
           <p>
             Los cambios aplican al siguiente mensaje que reciba el bot (cache ~60s). El prompt base
             de identidad PIXELTEC no se edita desde aquí.
@@ -481,14 +481,14 @@ export function BotConfigView() {
       </div>
 
       {/* Barra sticky */}
-      <div className="flex flex-shrink-0 items-center justify-end gap-2 border-t border-zinc-800/60 bg-zinc-950/80 px-4 py-3 backdrop-blur-xl">
+      <div className="flex flex-shrink-0 items-center justify-end gap-2 border-t border-border bg-card px-4 py-3">
         <Button
           type="button"
           variant="ghost"
           size="sm"
           onClick={handleDiscard}
           disabled={!dirty || saving}
-          className="h-8 text-xs text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-100"
+          className="h-8 text-xs text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
         >
           Descartar
         </Button>

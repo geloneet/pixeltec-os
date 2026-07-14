@@ -188,11 +188,11 @@ export function ChatThread({
     if (dateKey !== prevDateKey) {
       nodes.push(
         <div key={`sep-${dateKey}`} className="flex items-center gap-3 py-2">
-          <div className="h-px flex-1 bg-zinc-800" />
-          <span className="rounded-full border border-zinc-800 bg-zinc-900 px-2.5 py-0.5 text-[11px] text-zinc-500">
+          <div className="h-px flex-1 bg-border" />
+          <span className="rounded-full border border-border bg-card px-2.5 py-0.5 text-[11px] text-muted-foreground">
             {dateSeparatorLabel(item.time)}
           </span>
-          <div className="h-px flex-1 bg-zinc-800" />
+          <div className="h-px flex-1 bg-border" />
         </div>
       );
       prevDateKey = dateKey;
@@ -202,7 +202,7 @@ export function ChatThread({
       const note = item.data;
       nodes.push(
         <div key={`note-${note.id}`} className="flex justify-center">
-          <div className="w-full max-w-[85%] rounded-lg border border-violet-500/25 bg-violet-500/5 px-3 py-2 text-sm text-violet-200">
+          <div className="w-full max-w-[85%] rounded-lg border border-violet-500/25 bg-violet-500/5 px-3 py-2 text-sm text-violet-700 dark:text-violet-200">
             <p className="mb-0.5 text-[10px] font-medium uppercase tracking-wide opacity-70">
               📝 Nota interna · {formatNoteTime(note)}
             </p>
@@ -223,9 +223,9 @@ export function ChatThread({
             "max-w-[75%] rounded-2xl px-3.5 py-2 text-sm",
             isOutbound
               ? isManual
-                ? "rounded-br-sm bg-emerald-600/25 text-emerald-50"
-                : "rounded-br-sm bg-cyan-600/25 text-cyan-50"
-              : "rounded-bl-sm bg-zinc-800 text-zinc-100"
+                ? "rounded-br-sm bg-emerald-600 text-white"
+                : "rounded-br-sm bg-cyan-600 text-white"
+              : "rounded-bl-sm bg-secondary text-foreground"
           )}
         >
           {isOutbound && (
@@ -243,31 +243,31 @@ export function ChatThread({
   return (
     <div className="flex h-full min-h-0 flex-col">
       {/* Header del hilo */}
-      <div className="flex flex-wrap items-center gap-3 border-b border-zinc-800/60 px-4 py-3">
+      <div className="flex flex-wrap items-center gap-3 border-b border-border px-4 py-3">
         <button
           type="button"
           onClick={onBack}
-          className="rounded-md p-1 text-zinc-400 hover:text-zinc-100 md:hidden"
+          className="rounded-md p-1 text-muted-foreground hover:text-foreground md:hidden"
           aria-label="Volver a la lista"
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
         <div className="min-w-0 flex-1">
-          <h2 className="truncate font-semibold text-zinc-100">{contact?.name || phone}</h2>
-          <p className="text-xs text-zinc-500">
+          <h2 className="truncate font-semibold text-foreground">{contact?.name || phone}</h2>
+          <p className="text-xs text-muted-foreground">
             {windowOpen ? "Ventana de 24h abierta" : "Ventana de 24h cerrada"}
           </p>
         </div>
         <Select value={statusValue} onValueChange={(v) => handleStatusChange(v as ConversationStatus)}>
-          <SelectTrigger className="h-8 w-40 border-zinc-800 bg-zinc-900/60 text-xs text-zinc-300 focus:ring-cyan-500/20">
+          <SelectTrigger className="h-8 w-40 border-border bg-secondary/40 text-xs text-foreground focus:ring-cyan-500/20">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent className="border-zinc-800/60 bg-zinc-900/95 backdrop-blur-xl">
+          <SelectContent className="border-border bg-popover/95 backdrop-blur-xl">
             {Object.entries(STATUS_META).map(([value, meta]) => (
               <SelectItem
                 key={value}
                 value={value}
-                className="text-sm text-zinc-300 focus:bg-white/[0.06] focus:text-zinc-100"
+                className="text-sm text-popover-foreground focus:bg-secondary focus:text-foreground"
               >
                 {meta.label}
               </SelectItem>
@@ -277,7 +277,7 @@ export function ChatThread({
         <button
           type="button"
           onClick={onOpenPanel}
-          className="rounded-md border border-zinc-800 p-1.5 text-zinc-400 transition-colors hover:border-zinc-700 hover:text-zinc-100"
+          className="rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:text-foreground"
           aria-label="Abrir panel de contacto"
         >
           <PanelRight className="h-4 w-4" />
@@ -287,7 +287,7 @@ export function ChatThread({
 
       {/* Banners de estado del bot + sugerencia */}
       {mode === "PAUSED" && (
-        <div className="border-b border-zinc-800/60 bg-amber-500/5 px-4 py-2 text-xs text-amber-300">
+        <div className="border-b border-border bg-amber-500/5 px-4 py-2 text-xs text-amber-700 dark:text-amber-300">
           {pausedExpired
             ? "⏸ Pausa expirada — el bot ya debería reanudarse, actualizando…"
             : <>⏸ Bot en pausa{pausedUntilLabel ? ` hasta las ${pausedUntilLabel}` : " hasta que lo reactives"} — nadie
@@ -295,19 +295,19 @@ export function ChatThread({
         </div>
       )}
       {mode === "HUMAN" && (
-        <div className="border-b border-zinc-800/60 bg-emerald-500/5 px-4 py-2 text-xs text-emerald-300">
+        <div className="border-b border-border bg-emerald-500/5 px-4 py-2 text-xs text-emerald-700 dark:text-emerald-300">
           🖐 Control humano activo — el bot no responde en esta conversación
         </div>
       )}
       {showSuggestionChip && suggestedClassification && (
-        <div className="flex items-center justify-between gap-3 border-b border-zinc-800/60 bg-violet-500/5 px-4 py-2 text-xs text-violet-300">
+        <div className="flex items-center justify-between gap-3 border-b border-border bg-violet-500/5 px-4 py-2 text-xs text-violet-700 dark:text-violet-300">
           <span>
             El bot sugiere: <strong>{CLASSIFICATION_META[suggestedClassification].label}</strong>
           </span>
           <button
             type="button"
             onClick={() => void handleConfirmSuggestion()}
-            className="flex-shrink-0 rounded-md border border-violet-500/40 bg-violet-500/10 px-2.5 py-1 text-[11px] font-medium text-violet-200 transition-colors hover:bg-violet-500/20"
+            className="flex-shrink-0 rounded-md border border-violet-500/40 bg-violet-500/10 px-2.5 py-1 text-[11px] font-medium text-violet-700 dark:text-violet-200 transition-colors hover:bg-violet-500/20"
           >
             Confirmar
           </button>
@@ -319,7 +319,7 @@ export function ChatThread({
         <div className="scrollbar-soft h-full space-y-2 overflow-y-auto p-4">
           {loading && (
             <div className="flex justify-center py-8">
-              <Spinner size="md" className="text-zinc-500" />
+              <Spinner size="md" className="text-muted-foreground" />
             </div>
           )}
           {nodes}
@@ -327,11 +327,11 @@ export function ChatThread({
         </div>
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-0 h-5 bg-gradient-to-b from-[#030303]/80 to-transparent"
+          className="pointer-events-none absolute inset-x-0 top-0 h-5 bg-gradient-to-b from-background/80 to-transparent"
         />
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-x-0 bottom-0 h-5 bg-gradient-to-t from-[#030303]/80 to-transparent"
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-5 bg-gradient-to-t from-background/80 to-transparent"
         />
       </div>
 
