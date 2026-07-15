@@ -30,6 +30,8 @@ export function DraftEditor({ data }: Props) {
   // "Guardar borrador" (saveDraft, abajo).
   useEffect(() => {
     if (!valid) return;
+    const unchanged = title.trim() === data.title.trim() && brainDump.trim() === data.brainDump.trim();
+    if (unchanged) return;
     const timer = setTimeout(() => {
       updateDraftAction({
         definitionId: data.id,

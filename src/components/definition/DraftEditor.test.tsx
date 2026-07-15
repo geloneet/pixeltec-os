@@ -76,4 +76,14 @@ describe("DraftEditor — autoguardado server-side", () => {
 
     expect(updateDraftActionMock).not.toHaveBeenCalled();
   });
+
+  it("no dispara autoguardado si el usuario no hizo cambios", () => {
+    vi.useFakeTimers();
+    render(<DraftEditor data={buildViewModel()} />);
+
+    // No cambios: solo avanzo el timer
+    vi.advanceTimersByTime(1600);
+
+    expect(updateDraftActionMock).not.toHaveBeenCalled();
+  });
 });
