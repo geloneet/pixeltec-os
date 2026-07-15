@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Plus, Sparkles } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
@@ -18,6 +18,10 @@ import {
   type ProjectStats,
 } from "@/lib/crm/client-stats";
 import { cn } from "@/lib/utils";
+import { listClientDefinitionsAction } from "@/app/(admin)/proyectos/definicion/actions";
+import type { DefinitionListItem } from "@/lib/db/repos/definitions";
+import { pickContinuableDefinition } from "@/lib/definition/continuable";
+import { DefinitionStatusBadge } from "@/components/definition/DefinitionStatusBadge";
 
 type ModalPayload = { type: string; data?: Record<string, string> } | null;
 
@@ -130,29 +134,91 @@ function ProjectCard({ project: p, stats, clientId, navigateToProject, setModal 
   );
 }
 
+// ── Definiciones ──────────────────────────────────────────────────────────────
+
+function DefinitionsSection({ definitions }: { definitions: DefinitionListItem[] }) {
+  if (definitions.length === 0) return null;
+
+  return (
+    <div className="mb-6">
+      <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        Definiciones
+      </h4>
+      <div className="grid gap-2">
+        {definitions.map((d) => (
+          <Link
+            key={d.id}
+            href={`/proyectos/definicion/${d.id}`}
+            className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card px-3.5 py-2.5 transition-colors hover:border-cyan-400/30 hover:bg-secondary/40"
+          >
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium text-foreground">{d.title}</p>
+              <p className="text-[11px] text-muted-foreground">
+                {relativeTime(d.updatedAt.toString())}
+              </p>
+            </div>
+            <DefinitionStatusBadge status={d.status} currentStation={d.currentStation} />
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── ProyectosTab ──────────────────────────────────────────────────────────────
 
 export function ProyectosTab({ client, navigateToProject, setModal }: Props) {
+  const [definitions, setDefinitions] = useState<DefinitionListItem[]>([]);
+
+  const loadDefinitions = useCallback(async () => {
+    const r = await listClientDefinitionsAction(client.id);
+    if (r.success && r.data) setDefinitions(r.data.definitions);
+  }, [client.id]);
+
+  useEffect(() => { loadDefinitions(); }, [loadDefinitions]);
+
   const projectsWithStats = useMemo(
     () => client.projects.map(p => ({ project: p, stats: deriveProjectStats(p) })),
     [client.projects],
   );
 
+  const continuable = useMemo(() => pickContinuableDefinition(definitions), [definitions]);
+
   return (
     <div className="mx-auto w-full max-w-4xl px-4 py-6">
+      <DefinitionsSection definitions={definitions} />
+
       <div className="mb-5 flex items-center justify-between">
         <div>
           <h3 className="text-sm font-semibold text-foreground">Proyectos</h3>
           <p className="text-xs text-muted-foreground mt-0.5">{client.projects.length} proyecto{client.projects.length !== 1 ? "s" : ""}</p>
         </div>
         <div className="flex items-center gap-2">
-          <Link
-            href={`/proyectos/definicion/nueva?client=${encodeURIComponent(client.id)}&name=${encodeURIComponent(client.name)}`}
-            className="flex items-center gap-1.5 rounded-lg border border-cyan-500/20 bg-cyan-500/10 px-3 py-1.5 text-xs font-medium text-cyan-300 transition-colors hover:bg-cyan-500/20"
-          >
-            <Sparkles className="h-3.5 w-3.5" />
-            Nuevo Proyecto
-          </Link>
+          {continuable ? (
+            <>
+              <Link
+                href={`/proyectos/definicion/${continuable.id}`}
+                className="flex items-center gap-1.5 rounded-lg border border-cyan-500/20 bg-cyan-500/10 px-3 py-1.5 text-xs font-medium text-cyan-300 transition-colors hover:bg-cyan-500/20"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                Continuar {continuable.title}
+              </Link>
+              <Link
+                href={`/proyectos/definicion/nueva?client=${encodeURIComponent(client.id)}&name=${encodeURIComponent(client.name)}`}
+                className="text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+              >
+                Nuevo Proyecto
+              </Link>
+            </>
+          ) : (
+            <Link
+              href={`/proyectos/definicion/nueva?client=${encodeURIComponent(client.id)}&name=${encodeURIComponent(client.name)}`}
+              className="flex items-center gap-1.5 rounded-lg border border-cyan-500/20 bg-cyan-500/10 px-3 py-1.5 text-xs font-medium text-cyan-300 transition-colors hover:bg-cyan-500/20"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              Nuevo Proyecto
+            </Link>
+          )}
           <button
             onClick={() => setModal({ type: "addProject", data: { clientId: client.id } })}
             className="flex items-center gap-1.5 rounded-lg border border-border bg-secondary/40 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary/70 hover:text-foreground"
