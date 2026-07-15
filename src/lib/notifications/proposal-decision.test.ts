@@ -6,8 +6,8 @@ const base = {
   title: "Calculadora v2",
   clientName: "VillaNogal",
   billingItemDrafts: [
-    { concept: "APP", amount: 5999, frequency: "unico" as const },
-    { concept: "Mantenimiento", amount: 500, frequency: "trimestral" as const },
+    { concept: "APP", amount: 5999, frequency: "unico" as const, dueDate: "2026-07-15" },
+    { concept: "Mantenimiento", amount: 500, frequency: "trimestral" as const, dueDate: "2026-07-15" },
   ],
 };
 
@@ -22,8 +22,8 @@ describe("investmentSummary", () => {
   });
 
   it("ignora conceptos sin nombre o sin monto", () => {
-    expect(investmentSummary([{ concept: "", amount: 100, frequency: "unico" }])).toBe("");
-    expect(investmentSummary([{ concept: "X", amount: 0, frequency: "unico" }])).toBe("");
+    expect(investmentSummary([{ concept: "", amount: 100, frequency: "unico", dueDate: "2026-07-15" }])).toBe("");
+    expect(investmentSummary([{ concept: "X", amount: 0, frequency: "unico", dueDate: "2026-07-15" }])).toBe("");
   });
 });
 
@@ -56,8 +56,8 @@ describe("buildProposalDecisionNotification", () => {
     const m = buildProposalDecisionNotification({
       ...base,
       billingItemDrafts: [
-        { concept: "Dominio", amount: 1999, frequency: "anual" as const },
-        { concept: "Mantenimiento", amount: 500, frequency: "trimestral" as const },
+        { concept: "Dominio", amount: 1999, frequency: "anual" as const, dueDate: "2026-07-15" },
+        { concept: "Mantenimiento", amount: 500, frequency: "trimestral" as const, dueDate: "2026-07-15" },
       ],
     });
     expect(m.whatsappText).toContain("— 2 conceptos recurrentes");
