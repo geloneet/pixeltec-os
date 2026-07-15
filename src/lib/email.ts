@@ -21,6 +21,7 @@ import { renderDiagnosticNotificationEmail, type DiagnosticNotificationEmailProp
 import { renderPasswordResetEmail, type PasswordResetEmailProps } from '@/emails/PasswordResetEmail';
 import { renderNewsletterWelcomeEmail, type NewsletterWelcomeEmailProps } from '@/emails/NewsletterWelcomeEmail';
 import { renderProposalEmail, type ProposalEmailProps } from '@/emails/ProposalEmail';
+import { renderProposalDecisionEmail, type ProposalDecisionEmailProps } from '@/emails/ProposalDecisionEmail';
 
 // ── Resend client ──────────────────────────────────────────────────────────────
 
@@ -161,6 +162,15 @@ export async function sendDiagnosticNotification(
 ): Promise<EmailResult> {
   const html = renderDiagnosticNotificationEmail(props);
   const subject = `🧭 Nuevo Diagnóstico — ${props.name}${props.empresa ? ` (${props.empresa})` : ''} — ${props.score}%`;
+  return sendEmail(TEAM_EMAIL, subject, html);
+}
+
+/** Aviso interno cuando un cliente decide una propuesta en /p/[token]. */
+export async function sendProposalDecisionEmail(
+  props: ProposalDecisionEmailProps & { subject: string }
+): Promise<EmailResult> {
+  const { subject, ...templateProps } = props;
+  const html = renderProposalDecisionEmail(templateProps);
   return sendEmail(TEAM_EMAIL, subject, html);
 }
 
