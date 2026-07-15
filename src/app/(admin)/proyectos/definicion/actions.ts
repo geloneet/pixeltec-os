@@ -20,7 +20,9 @@ import {
   sealStation,
   reopenStation,
   attachProposal,
+  listDefinitionsByClient,
   type Actor,
+  type DefinitionListItem,
 } from "@/lib/db/repos/definitions";
 import { createProposal } from "@/lib/documents/proposals";
 import {
@@ -45,6 +47,32 @@ async function requireAuth(): Promise<Auth> {
   return { ownerId, actor: { id: ownerId, name } };
 }
 
+/**
+ * Resuelve el id interno de Postgres (`clients.id`) a partir del id que manda
+ * el workspace CRM (`firestoreId ?? pgId`, ver getFullCrmData). `clients.id` es
+ * uuid: si `clientCrmId` no tiene forma de uuid, comparar contra esa columna en
+ * la misma query revienta el bind del parámetro antes de evaluar el OR (mismo
+ * caso que getPostById) — por eso el chequeo `isUuid` antes de armar el OR.
+ */
+async function resolveClientByCrmId(ownerId: string, clientCrmId: string) {
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+    clientCrmId
+  );
+  return db
+    .select({ id: clients.id, firestoreId: clients.firestoreId })
+    .from(clients)
+    .where(
+      and(
+        eq(clients.ownerId, ownerId),
+        isUuid
+          ? or(eq(clients.firestoreId, clientCrmId), eq(clients.id, clientCrmId))
+          : eq(clients.firestoreId, clientCrmId)
+      )
+    )
+    .limit(1)
+    .then((rows) => rows[0] ?? null);
+}
+
 export async function createDefinitionAction(input: {
   clientCrmId: string;
   title: string;
@@ -59,27 +87,7 @@ export async function createDefinitionAction(input: {
     }
     const { clientCrmId, title, brainDump, start } = parsed.data;
 
-    // El id que manda el workspace es `firestoreId ?? pgId` (ver getFullCrmData).
-    // `clients.id` es uuid en Postgres: si clientCrmId es un id viejo de Firestore
-    // (no-uuid), comparar contra esa columna en la misma query revienta el bind
-    // del parámetro antes de evaluar el OR (mismo caso que getPostById).
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-      clientCrmId
-    );
-    const client = await db
-      .select({ id: clients.id, firestoreId: clients.firestoreId })
-      .from(clients)
-      .where(
-        and(
-          eq(clients.ownerId, ownerId),
-          isUuid
-            ? or(eq(clients.firestoreId, clientCrmId), eq(clients.id, clientCrmId))
-            : eq(clients.firestoreId, clientCrmId)
-        )
-      )
-      .limit(1)
-      .then((rows) => rows[0] ?? null);
-
+    const client = await resolveClientByCrmId(ownerId, clientCrmId);
     if (!client) return { success: false, error: "Cliente no encontrado" };
 
     const id = await createDefinition({
@@ -251,5 +259,22 @@ export async function createProposalFromDefinitionAction(input: {
   } catch (err) {
     console.error("[createProposalFromDefinitionAction]", err);
     return { success: false, error: "No se pudo generar la propuesta" };
+  }
+}
+
+/** Definiciones de un cliente para la sección "Definiciones" en ProyectosTab. */
+export async function listClientDefinitionsAction(
+  clientCrmId: string
+): Promise<PortalActionResult<{ definitions: DefinitionListItem[] }>> {
+  try {
+    const { ownerId } = await requireAuth();
+    const client = await resolveClientByCrmId(ownerId, clientCrmId);
+    if (!client) return { success: false, error: "Cliente no encontrado" };
+
+    const definitions = await listDefinitionsByClient(client.id, ownerId);
+    return { success: true, data: { definitions } };
+  } catch (err) {
+    console.error("[listClientDefinitionsAction]", err);
+    return { success: false, error: "No se pudieron cargar las definiciones" };
   }
 }
