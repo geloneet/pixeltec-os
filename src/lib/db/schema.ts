@@ -1352,32 +1352,6 @@ export const infraAuditLog = pgTable("infra_audit_log", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-/** Silencios del bot de infra de Telegram — antes `infraSilences` en Firestore. */
-export const infraSilences = pgTable(
-  "infra_silences",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    silencedBy: text("silenced_by").notNull(),
-    reason: text("reason"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
-  },
-  (t) => [index("infra_silences_expires_idx").on(t.expiresAt)]
-);
-
-/** Log de comandos del bot de infra — antes `infraCommandLog` en Firestore. */
-export const infraCommandLog = pgTable("infra_command_log", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  command: text("command").notNull(),
-  args: text("args"),
-  chatId: text("chat_id").notNull(),
-  username: text("username"),
-  executedAt: timestamp("executed_at", { withTimezone: true }).notNull().defaultNow(),
-  result: text("result").notNull(),
-  durationMs: integer("duration_ms"),
-  errorMessage: text("error_message"),
-});
-
 export const cspViolations = pgTable("csp_violations", {
   id: uuid("id").primaryKey().defaultRandom(),
   blockedUri: text("blocked_uri"),
