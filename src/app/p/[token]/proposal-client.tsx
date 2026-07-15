@@ -158,7 +158,6 @@ export function ProposalClient({ proposal, token }: Props) {
   const hasDecision = alreadyAccepted || alreadyRejected || action === "done-accept" || action === "done-reject";
   const isAccepted = alreadyAccepted || action === "done-accept";
 
-  const deliverableItems = proposal.deliverables ? parseBullets(proposal.deliverables) : [];
   const benefitItems = proposal.benefits ? parseBullets(proposal.benefits) : [];
   const benefitParagraph = proposal.benefits && benefitItems.length === 0 ? proposal.benefits : null;
   // Conceptos de inversión — mismo filtro defensivo que el PDF.
@@ -167,7 +166,9 @@ export function ProposalClient({ proposal, token }: Props) {
   // Numeración secuencial de secciones — igual criterio que el PDF: solo se
   // numeran las que realmente están presentes, sin huecos.
   const hasSolution = Boolean(proposal.solution);
-  const hasDeliverablesSection = deliverableItems.length > 0;
+  // Mismo criterio que el PDF (hasDeliverables en render-proposal.mjs) para
+  // que la numeración de secciones no difiera entre página pública y PDF.
+  const hasDeliverablesSection = Boolean(proposal.deliverables && proposal.deliverables.trim());
   const hasInvestment = investItems.length > 0;
   const hasBenefitsSection = benefitItems.length > 0 || Boolean(benefitParagraph);
   const presentSections: SectionKey[] = [
@@ -286,14 +287,7 @@ export function ProposalClient({ proposal, token }: Props) {
 
         {hasDeliverablesSection && (
           <NumberedSection eyebrow="LO QUE INCLUYE, EN CONCRETO" number={numberOf("entregables")} title="Especificaciones del proyecto">
-            <ul className="space-y-2">
-              {deliverableItems.map((item, i) => (
-                <li key={i} className="flex items-start gap-2.5 text-sm text-slate-700">
-                  <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[#2196F3]" />
-                  {item}
-                </li>
-              ))}
-            </ul>
+            <ProposalMarkdown content={proposal.deliverables!} />
           </NumberedSection>
         )}
 
