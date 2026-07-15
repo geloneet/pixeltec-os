@@ -7,8 +7,8 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import { db, type DB } from "@/lib/db";
 import { billingItems, paymentRecords, clients, contracts } from "@/lib/db/schema";
 import type { BillingItem, BillingItemDraft, PaymentMethod, PaymentRecord } from "@/types/documents";
-import { computeNextDueDate, isOverdue } from "@/lib/billing/next-due";
-import { computePaymentTransition } from "@/lib/billing/payment-transition";
+import { computeNextDueDate, isOverdue, type BillingFrequency } from "@/lib/billing/next-due";
+import { computePaymentTransition, type BillingStatus } from "@/lib/billing/payment-transition";
 import { requireOwner, resolveClientPgId } from "./pg";
 
 type BillingItemRow = typeof billingItems.$inferSelect;
@@ -158,16 +158,31 @@ export interface RecordPaymentInput {
   note?: string;
 }
 
+export interface RecordPaymentResult {
+  /** Qué le pasó al item — para que la UI pueda decirlo con palabras. */
+  fullyPaid: boolean;
+  frequency: BillingFrequency;
+  /** Vencimiento del período al que se aplicó este pago. */
+  coveredPeriodDue: string;
+  /** Estado y vencimiento del item DESPUÉS del pago (un recurrente pagado
+   * completo regresa a "pendiente" con dueDate del siguiente período — sin
+   * este dato la UI parece que "no registró nada"). */
+  newStatus: BillingStatus;
+  newDueDate: string;
+  /** Solo para pagos parciales: lo que resta del período. */
+  remaining: number;
+}
+
 /**
  * Registra un pago sobre un billing item y aplica la transición de estado
  * (ver src/lib/billing/payment-transition.ts): pago único -> pagado sin
  * próximo cobro; recurrente completo -> avanza al siguiente período;
  * parcial -> status "parcial" conservando el período actual.
  */
-export async function recordPayment(billingItemId: string, input: RecordPaymentInput): Promise<void> {
+export async function recordPayment(billingItemId: string, input: RecordPaymentInput): Promise<RecordPaymentResult> {
   const { ownerId } = await requireOwner();
 
-  await db.transaction(async (tx) => {
+  return db.transaction(async (tx) => {
     const [row] = await tx
       .select()
       .from(billingItems)
@@ -209,5 +224,14 @@ export async function recordPayment(billingItemId: string, input: RecordPaymentI
         updatedAt: new Date(),
       })
       .where(eq(billingItems.id, row.id));
+
+    return {
+      fullyPaid: transition.fullyPaid,
+      frequency: row.frequency,
+      coveredPeriodDue: row.dueDate,
+      newStatus: transition.status,
+      newDueDate: transition.dueDate,
+      remaining: transition.fullyPaid ? 0 : Number(row.amount) - amountPaidSoFar - input.amount,
+    };
   });
 }

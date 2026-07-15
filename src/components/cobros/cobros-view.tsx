@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { toast } from "sonner";
 import { Spinner } from "@/components/ui/spinner";
 import { getBillingItems } from "@/lib/documents/billing";
 import { formatCurrency } from "@/lib/utils";
@@ -303,7 +304,25 @@ export function CobrosView() {
         <RecordPaymentDialog
           item={paymentItem}
           onClose={() => setPaymentItem(null)}
-          onRecorded={() => { setPaymentItem(null); load(); }}
+          onRecorded={(result) => {
+            setPaymentItem(null);
+            // Decir con palabras qué pasó: un recurrente pagado completo
+            // regresa a "pendiente" (del SIGUIENTE período), lo que sin
+            // aviso parece que el pago no se registró — y el segundo
+            // intento paga el período siguiente por accidente.
+            if (!result.fullyPaid) {
+              toast.success("Pago parcial registrado", {
+                description: `Restan ${formatCurrency(result.remaining)} del período que vence el ${result.coveredPeriodDue}.`,
+              });
+            } else if (result.frequency === "unico") {
+              toast.success("Pago registrado — cobro liquidado");
+            } else {
+              toast.success(`Pago registrado — período del ${result.coveredPeriodDue} cubierto`, {
+                description: `El cobro avanzó al siguiente período: vence el ${result.newDueDate}.`,
+              });
+            }
+            load();
+          }}
         />
       )}
     </div>

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { X } from "lucide-react";
-import { recordPayment } from "@/lib/documents/billing";
+import { recordPayment, type RecordPaymentResult } from "@/lib/documents/billing";
 import { formatCurrency } from "@/lib/utils";
 import { PAYMENT_METHOD_LABELS, type BillingItem, type PaymentMethod } from "@/types/documents";
 
@@ -15,7 +15,7 @@ function today(): string {
 interface Props {
   item: BillingItem;
   onClose: () => void;
-  onRecorded: () => void;
+  onRecorded: (result: RecordPaymentResult) => void;
 }
 
 export function RecordPaymentDialog({ item, onClose, onRecorded }: Props) {
@@ -32,14 +32,14 @@ export function RecordPaymentDialog({ item, onClose, onRecorded }: Props) {
     setSaving(true);
     setError(null);
     try {
-      await recordPayment(item.id, {
+      const result = await recordPayment(item.id, {
         amount,
         method,
         paidAt,
         reference: reference.trim() || undefined,
         note: note.trim() || undefined,
       });
-      onRecorded();
+      onRecorded(result);
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo registrar el pago");
     } finally {
@@ -60,8 +60,13 @@ export function RecordPaymentDialog({ item, onClose, onRecorded }: Props) {
           </button>
         </div>
 
+        {/* El vencimiento identifica QUÉ período se está pagando — un
+            recurrente ya pagado avanza de período y regresa a "pendiente",
+            así que sin esta fecha dos registros seguidos parecen el mismo
+            cobro y el segundo paga el siguiente período sin que se note. */}
         <p className="mb-4 text-xs text-muted-foreground">
           {item.concept} · adeudo del período: <span className="text-foreground">{formatCurrency(item.amount)}</span>
+          {" · "}vence el <span className="text-foreground">{item.dueDate}</span>
         </p>
 
         <div className="space-y-3">
