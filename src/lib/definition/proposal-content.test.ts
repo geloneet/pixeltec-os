@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { stripCongeladora } from "./proposal-content";
+import { stripCongeladora, stripPmQuestions } from "./proposal-content";
 
 describe("stripCongeladora", () => {
   it("corta todo desde '# Congeladora' en adelante, sin espacio colgante", () => {
@@ -41,5 +41,47 @@ describe("stripCongeladora", () => {
 
   it("maneja string vacío sin lanzar", () => {
     expect(stripCongeladora("")).toBe("");
+  });
+});
+
+describe("stripPmQuestions", () => {
+  it("corta todo desde '## Preguntas del PM' en adelante, sin espacio colgante", () => {
+    const raw = [
+      "# Origen Note",
+      "## Problema",
+      "El usuario no puede reservar en línea.",
+      "",
+      "## Preguntas del PM",
+      "1. ¿Confirmamos el rango de precios?",
+      "2. ¿La villa acepta mascotas?",
+    ].join("\n");
+
+    const result = stripPmQuestions(raw);
+
+    expect(result).toBe(
+      ["# Origen Note", "## Problema", "El usuario no puede reservar en línea."].join("\n")
+    );
+    expect(result).not.toContain("Preguntas del PM");
+  });
+
+  it("devuelve el texto intacto si no hay sección Preguntas del PM", () => {
+    const raw = "# Origen Note\n## Problema\nSin dudas pendientes.";
+    expect(stripPmQuestions(raw)).toBe(raw);
+  });
+
+  it("detecta '## Preguntas del PM' sin importar mayúsculas/minúsculas", () => {
+    const raw = "# Flujo de Usuario\n## Camino principal\nPaso 1\n\n## preguntas del pm\n1. ¿Y si falla el pago?";
+    expect(stripPmQuestions(raw)).toBe("# Flujo de Usuario\n## Camino principal\nPaso 1");
+  });
+
+  it("funciona en cualquier estación, no solo mvp", () => {
+    const flujo = "# Flujo de Usuario\n## Camino principal\nPaso 1\n\n## Preguntas del PM\n1. Duda X";
+    const boceto = "# Origen Note\n## Problema\nTexto\n\n## Preguntas del PM\n1. Duda Y";
+    expect(stripPmQuestions(flujo)).not.toContain("Preguntas del PM");
+    expect(stripPmQuestions(boceto)).not.toContain("Preguntas del PM");
+  });
+
+  it("maneja string vacío sin lanzar", () => {
+    expect(stripPmQuestions("")).toBe("");
   });
 });

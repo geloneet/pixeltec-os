@@ -29,7 +29,7 @@ import {
   reopenSchema,
 } from "@/lib/definition/schemas";
 import type { DefinitionStation } from "@/lib/definition/types";
-import { stripCongeladora } from "@/lib/definition/proposal-content";
+import { stripCongeladora, stripPmQuestions } from "@/lib/definition/proposal-content";
 import type { PortalActionResult } from "@/lib/action-types";
 
 interface Auth {
@@ -231,12 +231,15 @@ export async function createProposalFromDefinitionAction(input: {
       client?.name ?? "Cliente",
       {
         title: full.definition.title,
-        scope: sealedFor("boceto"),
-        // El sellado de "mvp" trae "# MVP 1.0" + "# Congeladora" en el mismo
-        // bloque (uso interno del PM) — la propuesta al cliente solo debe
-        // mostrar lo aceptado. Ver src/lib/definition/proposal-content.ts.
-        solution: stripCongeladora(sealedFor("mvp")),
-        deliverables: sealedFor("flujo"),
+        // Cualquier estación puede cerrar con "## Preguntas del PM" (retos
+        // internos para iterar, ver PM_PERSONA en stations.ts) — se recorta
+        // en los tres campos, no solo en "mvp". El sellado de "mvp" además
+        // trae "# MVP 1.0" + "# Congeladora" en el mismo bloque (uso interno
+        // del PM); la propuesta al cliente solo debe mostrar lo aceptado.
+        // Ver src/lib/definition/proposal-content.ts.
+        scope: stripPmQuestions(sealedFor("boceto")),
+        solution: stripPmQuestions(stripCongeladora(sealedFor("mvp"))),
+        deliverables: stripPmQuestions(sealedFor("flujo")),
         status: "borrador",
       }
     );

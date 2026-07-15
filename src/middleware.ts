@@ -13,7 +13,14 @@ const THIRD_PARTY_SCRIPT_SRC = [
   'https://static.cloudflareinsights.com',
 ].join(' ');
 
-function buildCsp(nonce: string): string {
+// Rutas que se embeben a propósito en un <iframe> oculto del mismo origen
+// (técnica de "Imprimir": iframe + win.print()). `frame-ancestors 'none'`
+// bloquea CUALQUIER framing, incluso del mismo origen, así que rompía ese
+// botón en silencio al pasar la CSP de Report-Only a enforcing. Se relaja
+// puntualmente a 'self' solo aquí — el resto del sitio se mantiene en 'none'.
+const SELF_FRAMEABLE_PATHS = ['/api/documents/proposal-pdf'];
+
+function buildCsp(nonce: string, allowSelfFraming: boolean): string {
   const scriptSrc = process.env.NODE_ENV === 'development'
     ? `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'unsafe-eval' ${THIRD_PARTY_SCRIPT_SRC}`
     : `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' ${THIRD_PARTY_SCRIPT_SRC}`;
@@ -25,7 +32,7 @@ function buildCsp(nonce: string): string {
     "img-src 'self' data: blob: https:",
     "font-src 'self' data:",
     "frame-src 'none'",
-    "frame-ancestors 'none'",
+    allowSelfFraming ? "frame-ancestors 'self'" : "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",
     "object-src 'none'",
@@ -34,11 +41,12 @@ function buildCsp(nonce: string): string {
   ].join('; ');
 }
 
-function withSecurityHeaders(res: NextResponse, nonce: string): NextResponse {
+function withSecurityHeaders(res: NextResponse, nonce: string, pathname: string): NextResponse {
   // Enforcing (antes Report-Only): esta es ahora la ÚNICA CSP del sitio — la
   // política estática con 'unsafe-inline'/'unsafe-eval' de next.config.ts se
   // quitó para no tener dos CSP compitiendo (ver next.config.ts).
-  res.headers.set('Content-Security-Policy', buildCsp(nonce));
+  const allowSelfFraming = SELF_FRAMEABLE_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+  res.headers.set('Content-Security-Policy', buildCsp(nonce, allowSelfFraming));
   res.headers.set('Reporting-Endpoints', 'csp-endpoint="/api/csp-report"');
   res.headers.set('x-nonce', nonce);
   return res;
@@ -71,12 +79,12 @@ export default auth(async (request) => {
     if (!request.auth) {
       const loginUrl = new URL('/login', request.url);
       loginUrl.searchParams.set('redirect', pathname);
-      return withSecurityHeaders(NextResponse.redirect(loginUrl), nonce);
+      return withSecurityHeaders(NextResponse.redirect(loginUrl), nonce, pathname);
     }
-    return withSecurityHeaders(NextResponse.next(), nonce);
+    return withSecurityHeaders(NextResponse.next(), nonce, pathname);
   }
 
-  return withSecurityHeaders(NextResponse.next(), nonce);
+  return withSecurityHeaders(NextResponse.next(), nonce, pathname);
 });
 
 export const config = {
