@@ -172,7 +172,11 @@ export function ProyectosTab({ client, navigateToProject, setModal }: Props) {
 
   const loadDefinitions = useCallback(async () => {
     const r = await listClientDefinitionsAction(client.id);
-    if (r.success && r.data) setDefinitions(r.data.definitions);
+    if (r.success && r.data) {
+      setDefinitions(r.data.definitions);
+    } else {
+      console.error("[listClientDefinitionsAction]", r.error);
+    }
   }, [client.id]);
 
   useEffect(() => { loadDefinitions(); }, [loadDefinitions]);

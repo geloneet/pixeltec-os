@@ -100,4 +100,17 @@ describe("ProyectosTab — sección Definiciones", () => {
     const primaryLink = screen.getByRole("link", { name: "Nuevo Proyecto" });
     expect(primaryLink).toHaveAttribute("href", expect.stringContaining("/proyectos/definicion/nueva"));
   });
+
+  it("registra error en console cuando falla listClientDefinitionsAction", async () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    listClientDefinitionsActionMock.mockResolvedValue({ success: false, error: "Database error" });
+
+    render(<ProyectosTab client={buildClient()} navigateToProject={vi.fn()} setModal={vi.fn()} />);
+
+    await waitFor(() => expect(listClientDefinitionsActionMock).toHaveBeenCalledWith("client-1"));
+    expect(consoleErrorSpy).toHaveBeenCalledWith("[listClientDefinitionsAction]", "Database error");
+    expect(screen.getByText("Nuevo Proyecto")).toBeInTheDocument();
+
+    consoleErrorSpy.mockRestore();
+  });
 });
