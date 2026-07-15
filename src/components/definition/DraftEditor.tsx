@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Brain, FileText, Loader2, Save, Sparkles } from "lucide-react";
@@ -24,6 +24,22 @@ export function DraftEditor({ data }: Props) {
   const [busy, setBusy] = useState<"save" | "start" | null>(null);
 
   const valid = title.trim().length > 0 && brainDump.trim().length >= MIN_BRAIN_DUMP;
+
+  // Autoguardado silencioso: espera 1.5s de inactividad y guarda en
+  // background, sin toast — el toast explícito queda solo para el clic en
+  // "Guardar borrador" (saveDraft, abajo).
+  useEffect(() => {
+    if (!valid) return;
+    const timer = setTimeout(() => {
+      updateDraftAction({
+        definitionId: data.id,
+        title: title.trim(),
+        brainDump: brainDump.trim(),
+      });
+    }, 1500);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [title, brainDump]);
 
   const saveDraft = async () => {
     if (!valid || busy) return;
