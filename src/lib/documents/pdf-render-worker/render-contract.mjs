@@ -30,6 +30,7 @@ import {
   StyleSheet,
   renderToBuffer,
 } from "@react-pdf/renderer";
+import { createRichText } from "./richtext.mjs";
 
 const h = React.createElement;
 
@@ -42,6 +43,10 @@ Font.register({
   family: "Poppins",
   fonts: [
     { src: path.join(FONTS_DIR, "Poppins-Regular.ttf"), fontWeight: 400 },
+    // Itálica real: sin esta variante, un `*texto*` en markdown (fontStyle:italic)
+    // no resuelve fuente y @react-pdf tira "Could not resolve font" → 500 en todo
+    // el contrato. Mismo tropiezo ya documentado en render-proposal.mjs.
+    { src: path.join(FONTS_DIR, "Poppins-Italic.ttf"), fontWeight: 400, fontStyle: "italic" },
     { src: path.join(FONTS_DIR, "Poppins-SemiBold.ttf"), fontWeight: 600 },
     { src: path.join(FONTS_DIR, "Poppins-Bold.ttf"), fontWeight: 700 },
     { src: path.join(FONTS_DIR, "Poppins-ExtraBold.ttf"), fontWeight: 800 },
@@ -72,27 +77,11 @@ const MONTHS_ES = [
   "septiembre", "octubre", "noviembre", "diciembre",
 ];
 
-/** Mismo criterio que parseBullets en render-proposal.mjs: separa líneas que
- * empiezan con -/•/* como lista; si no hay ninguna, se deja como párrafo. */
-function parseBullets(raw) {
-  const lines = raw.split("\n").map((l) => l.trim()).filter(Boolean);
-  const bulletLines = lines.filter((l) => /^[-•*]\s+/.test(l));
-  if (bulletLines.length === 0) return [];
-  return lines.map((l) => l.replace(/^[-•*]\s*/, "").trim()).filter(Boolean);
-}
-
-function ClauseBody({ body }) {
-  const bullets = parseBullets(body);
-  if (bullets.length === 0) {
-    return h(Text, { style: styles.clauseBody }, body);
-  }
-  return h(View, { style: styles.bulletList },
-    bullets.map((item, i) =>
-      h(View, { style: styles.bulletRow, key: i }, [
-        h(Text, { style: styles.bulletDash, key: "dash" }, "–"),
-        h(Text, { style: styles.bulletText, key: "text" }, item),
-      ])));
-}
+// El cuerpo de una cláusula puede traer markdown completo (las cláusulas de
+// Alcance/Entregables se copian de los docs generados por IA: encabezados,
+// listas numeradas, tablas GFM, **negritas**) — se renderiza con el módulo
+// compartido richtext.mjs (mismo que las propuestas), con estilos legales
+// propios de este documento.
 
 function ContractDocument({ contract }) {
   const date = new Date(contract.createdAt);
@@ -134,14 +123,18 @@ function ContractDocument({ contract }) {
         `En la ciudad de Puerto Vallarta, Jalisco, a los ${day} días del mes de ${month} de ${year}, celebran el presente contrato: Por una parte, PixelTEC (en adelante "EL DESARROLLADOR"). Y por la otra, ${contract.clientName} (en adelante "EL CLIENTE"). Ambas partes se reconocen la capacidad legal para contratar y convienen sujetarse a las siguientes cláusulas:`,
       ]),
 
+      // Sin wrap:false: una cláusula más alta que la página (Alcance y
+      // Entregables llegan a varios miles de caracteres) debe PAGINAR —
+      // con wrap:false @react-pdf la desborda encimándola sobre el resto.
+      // minPresenceAhead evita que el título quede huérfano al pie de página.
       ...contract.sections.map((section, i) =>
-        h(View, { style: styles.clause, key: section.key ?? i, wrap: false }, [
-          h(Text, { style: styles.clauseTitle, key: "title" }, [
+        h(View, { style: styles.clause, key: section.key ?? i }, [
+          h(Text, { style: styles.clauseTitle, key: "title", minPresenceAhead: 30 }, [
             `${ordinalFor(i)}. `,
             h(Text, { style: styles.clauseTitleCaps, key: "caps" }, section.title.toUpperCase()),
             ".",
           ]),
-          h(ClauseBody, { body: section.body, key: "body" }),
+          ...renderRichText(section.body),
         ])),
 
       h(Text, { style: styles.closing, key: "closing" },
@@ -202,12 +195,30 @@ const styles = StyleSheet.create({
   clause: { marginBottom: 12 },
   clauseTitle: { fontSize: 10.5, fontWeight: 700, color: COLOR.ink, marginBottom: 4 },
   clauseTitleCaps: { fontWeight: 700 },
-  clauseBody: { fontSize: 10.5, lineHeight: 1.55, color: COLOR.body, textAlign: "justify" },
 
-  bulletList: { display: "flex", flexDirection: "column", gap: 3, marginTop: 2 },
-  bulletRow: { flexDirection: "row", gap: 6 },
-  bulletDash: { fontSize: 10.5, color: COLOR.body },
-  bulletText: { fontSize: 10.5, lineHeight: 1.5, color: COLOR.body, flex: 1 },
+  // Estilos que consume richtext.mjs (ver contrato de claves en ese módulo) —
+  // misma tipografía del cuerpo legal, sin el azul de las propuestas.
+  paragraph: { fontSize: 10.5, lineHeight: 1.55, color: COLOR.body, textAlign: "justify", marginBottom: 6 },
+  blockHeadingLg: { fontSize: 11, fontWeight: 700, color: COLOR.ink, marginTop: 8, marginBottom: 4 },
+  blockHeading: { fontSize: 10.5, fontWeight: 600, color: COLOR.ink, marginTop: 6, marginBottom: 3 },
+  listItem: { flexDirection: "row", alignItems: "flex-start", gap: 6, marginBottom: 3 },
+  listDotWrap: { fontSize: 10.5, lineHeight: 1.5, color: COLOR.body, width: 10 },
+  listNum: { fontSize: 10.5, lineHeight: 1.5, color: COLOR.body, fontWeight: 600, width: 16 },
+  listText: { fontSize: 10.5, lineHeight: 1.5, color: COLOR.body, flex: 1 },
+  bold: { fontWeight: 700, color: COLOR.ink },
+  italic: { fontStyle: "italic" },
+  code: { fontWeight: 600, color: COLOR.muted },
+  hr: { height: 0.75, backgroundColor: COLOR.border, marginVertical: 8 },
+  table: {
+    display: "flex", flexDirection: "column", marginBottom: 8,
+    borderWidth: 0.75, borderColor: COLOR.border,
+  },
+  tableHeaderRow: { flexDirection: "row", backgroundColor: "#F3F4F6" },
+  tableRow: { flexDirection: "row", borderTopWidth: 0.75, borderTopColor: COLOR.border },
+  tableCellHead: { flex: 1, padding: 5, borderRightWidth: 0.75, borderRightColor: COLOR.border },
+  tableCell: { flex: 1, padding: 5, borderRightWidth: 0.75, borderRightColor: COLOR.border },
+  tableCellHeadText: { fontSize: 8.5, fontWeight: 700, color: COLOR.ink },
+  tableCellText: { fontSize: 8.5, lineHeight: 1.4, color: COLOR.body },
 
   closing: { fontSize: 10.5, lineHeight: 1.6, color: COLOR.body, marginTop: 8, marginBottom: 48 },
 
@@ -223,6 +234,8 @@ const styles = StyleSheet.create({
     textAlign: "center", fontSize: 8, color: COLOR.faint,
   },
 });
+
+const { renderRichText } = createRichText(styles);
 
 async function main() {
   const [, , inputJsonPath, outputPdfPath] = process.argv;
