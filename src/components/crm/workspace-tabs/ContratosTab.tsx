@@ -179,6 +179,15 @@ export function ContratosTab({ clientId, clientName, initialProposalId, onConsum
           return;
         }
 
+        // CRÍTICO: esperar a que el sync del CRM termine ANTES de llamar
+        // attachProjectToContract. Las server actions se ejecutan en serie
+        // por cliente: si attach corre primero, el sync que inserta el
+        // proyecto queda formado DETRÁS de él en la cola y el polling del
+        // servidor se agota siempre — era la causa de que la primera firma
+        // fallara con "el proyecto todavía se está guardando" y solo el
+        // reintento manual funcionara.
+        await crm.flushSave();
+
         const attached = await attachProjectToContract(selectedContract.id, clientProjectId);
         projectPgId = attached.projectId;
       }

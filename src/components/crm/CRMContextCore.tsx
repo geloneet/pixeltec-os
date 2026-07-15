@@ -43,6 +43,8 @@ interface CRMContextValue {
   updateClient: (id: string, data: Partial<CRMClient>) => void;
   deleteClient: (id: string) => void;
   addProject: (clientId: string, data: Omit<CRMProject, "id" | "keys" | "tasks" | "charges" | "createdAt" | "guides" | "accounts" | "readme" | "prompt" | "quickNotes">) => string | null;
+  /** Guarda YA lo pendiente del debounce y espera a que termine (propaga error). */
+  flushSave: () => Promise<void>;
   updateProject: (clientId: string, projectId: string, data: Partial<CRMProject>) => void;
   deleteProject: (clientId: string, projectId: string) => void;
   addTask: (clientId: string, projectId: string, data: Pick<CRMTask, "name" | "desc" | "prio"> & Partial<Pick<CRMTask, "sessionId">>) => void;
@@ -175,18 +177,33 @@ export function CRMProvider({ children }: { children: ReactNode }) {
   // last-write-wins. A true merge there would need to diff into
   // clients→projects→tasks/charges, which is too deep/costly to do safely
   // as part of this fix.
+  // Las claves pendientes se ACUMULAN entre llamadas (union), no se
+  // reemplazan: dos persist() distintos dentro de la misma ventana de
+  // debounce (ej. "clients" y luego "tools") guardan ambas secciones en un
+  // solo save — antes el segundo clearTimeout descartaba las claves del
+  // primero y esa sección quedaba sin guardar hasta el siguiente cambio.
+  const pendingKeys = useRef<Set<PersistedKey>>(new Set());
+
+  const doSave = useCallback(async () => {
+    const changedKeys = Array.from(pendingKeys.current);
+    pendingKeys.current.clear();
+    if (changedKeys.length === 0) return;
+    const payload: CrmSyncPayload = {};
+    if (changedKeys.includes("clients")) payload.clients = dataRef.current.clients;
+    if (changedKeys.includes("tools")) payload.tools = dataRef.current.tools;
+    if (changedKeys.includes("streak")) payload.streak = dataRef.current.streak;
+    if (changedKeys.includes("serverLinks")) payload.serverLinks = dataRef.current.serverLinks;
+    if (changedKeys.includes("sessions")) payload.sessions = dataRef.current.sessions;
+    const result = await syncCrmDataAction(payload);
+    if (!result.ok) throw new Error(result.error);
+  }, []);
+
   const persist = useCallback((changedKeys: PersistedKey[]) => {
+    changedKeys.forEach((k) => pendingKeys.current.add(k));
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(async () => {
       try {
-        const payload: CrmSyncPayload = {};
-        if (changedKeys.includes("clients")) payload.clients = dataRef.current.clients;
-        if (changedKeys.includes("tools")) payload.tools = dataRef.current.tools;
-        if (changedKeys.includes("streak")) payload.streak = dataRef.current.streak;
-        if (changedKeys.includes("serverLinks")) payload.serverLinks = dataRef.current.serverLinks;
-        if (changedKeys.includes("sessions")) payload.sessions = dataRef.current.sessions;
-        const result = await syncCrmDataAction(payload);
-        if (!result.ok) throw new Error(result.error);
+        await doSave();
       } catch (error) {
         console.error('Error saving CRM data:', error);
         toast.error('Error al guardar cambios', {
@@ -194,7 +211,22 @@ export function CRMProvider({ children }: { children: ReactNode }) {
         });
       }
     }, 500);
-  }, []);
+  }, [doSave]);
+
+  // Guardado inmediato, sin debounce, que PROPAGA el error al caller.
+  // Para flujos que necesitan que el estado del CRM ya esté en Postgres
+  // antes de su siguiente server action (ej. firmar contrato → vincular
+  // proyecto): las server actions de Next se ejecutan EN SERIE por cliente,
+  // así que un action que "espere" al sync debounced se bloquea a sí mismo —
+  // el sync queda formado en la cola detrás de él y nunca llega. La única
+  // forma correcta es completar el sync ANTES de disparar el siguiente action.
+  const flushSave = useCallback(async () => {
+    if (saveTimer.current) {
+      clearTimeout(saveTimer.current);
+      saveTimer.current = null;
+    }
+    await doSave();
+  }, [doSave]);
 
   const update = useCallback((newClients: CRMClient[], newStreak?: number) => {
     setClients(newClients);
@@ -691,7 +723,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     <CRMCtx.Provider value={{
       clients, tools, streak, loading, userEmail,
       addClient, updateClient, deleteClient,
-      addProject, updateProject, deleteProject,
+      addProject, updateProject, deleteProject, flushSave,
       addTask, updateTask, deleteTask, cycleTaskStatus,
       addKey, deleteKey,
       saveQuickNote, incrementStreak,
