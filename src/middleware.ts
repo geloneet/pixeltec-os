@@ -4,8 +4,7 @@ import { PROTECTED_PATHS } from '@/lib/routes/admin-routes';
 
 export const runtime = 'nodejs';
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const crypto = require('crypto') as typeof import('crypto');
+import crypto from 'node:crypto';
 
 // Dominios de terceros con script-src propio (fuera del nonce): Cloudflare Web
 // Analytics, inyectado a nivel de edge/proxy.
