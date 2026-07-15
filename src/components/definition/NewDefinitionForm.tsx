@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Brain, FileText, Loader2, Save, Sparkles } from "lucide-react";
@@ -20,6 +20,37 @@ export function NewDefinitionForm({ clientCrmId, clientName }: Props) {
   const [brainDump, setBrainDump] = useState("");
   const [busy, setBusy] = useState<"draft" | "start" | null>(null);
 
+  const draftKey = `definicion-draft-${clientCrmId}`;
+
+  // Restaura un borrador sin guardar de una sesión anterior (localStorage es
+  // client-only: se hace en un efecto, no en el useState inicial, para no
+  // romper el render de servidor).
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(draftKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as { title?: string; brainDump?: string };
+      if (parsed.title) setTitle(parsed.title);
+      if (parsed.brainDump) setBrainDump(parsed.brainDump);
+    } catch {
+      // localStorage no disponible (modo privado) o entrada corrupta: ignorar.
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Autoguardado silencioso mientras se escribe, debounce corto.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!title.trim() && !brainDump.trim()) return;
+      try {
+        window.localStorage.setItem(draftKey, JSON.stringify({ title, brainDump }));
+      } catch {
+        // cuota excedida o modo privado: no bloquea el formulario.
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [title, brainDump, draftKey]);
+
   const valid = title.trim().length > 0 && brainDump.trim().length >= MIN_BRAIN_DUMP;
 
   const submit = async (start: boolean) => {
@@ -35,6 +66,11 @@ export function NewDefinitionForm({ clientCrmId, clientName }: Props) {
       toast.error(r.error ?? "No se pudo crear la definición");
       setBusy(null);
       return;
+    }
+    try {
+      window.localStorage.removeItem(draftKey);
+    } catch {
+      // no bloquea la navegación si falla.
     }
     if (start) {
       router.push(`/proyectos/definicion/${r.data.id}`);
