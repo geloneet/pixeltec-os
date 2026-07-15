@@ -136,6 +136,34 @@ export function listDefinitionsByOwner(
     .orderBy(desc(projectDefinitions.updatedAt));
 }
 
+/** Lista de definiciones de UN cliente, escopada por owner. Orden por updatedAt desc. */
+export function listDefinitionsByClient(
+  clientId: string,
+  ownerId: string
+): Promise<DefinitionListItem[]> {
+  return db
+    .select({
+      id: projectDefinitions.id,
+      title: projectDefinitions.title,
+      clientId: projectDefinitions.clientId,
+      clientName: clients.name,
+      currentStation: projectDefinitions.currentStation,
+      status: projectDefinitions.status,
+      proposalId: projectDefinitions.proposalId,
+      updatedAt: projectDefinitions.updatedAt,
+      createdAt: projectDefinitions.createdAt,
+    })
+    .from(projectDefinitions)
+    .leftJoin(clients, eq(projectDefinitions.clientId, clients.id))
+    .where(
+      and(
+        eq(projectDefinitions.clientId, clientId),
+        eq(projectDefinitions.ownerId, ownerId)
+      )
+    )
+    .orderBy(desc(projectDefinitions.updatedAt));
+}
+
 /** Mensajes de una estación en orden cronológico (para armar el prompt). */
 export function getStationMessages(
   definitionId: string,
