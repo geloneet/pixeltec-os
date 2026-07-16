@@ -53,8 +53,12 @@ export const ARTIFACT_KINDS = [
 
 export type PixelforgeArtifactKind = (typeof ARTIFACT_KINDS)[number];
 
-/** Kinds operativos — crece por fase. F4 suma `visual_dna`. */
-export type OperativeArtifactKind = "context_brief" | "landing_dna" | "visual_dna";
+/** Kinds operativos — crece por fase. F4 suma `visual_dna`. F5 suma `direction_decision`. */
+export type OperativeArtifactKind =
+  | "context_brief"
+  | "landing_dna"
+  | "visual_dna"
+  | "direction_decision";
 
 /**
  * Mapeo estación → artifact que sella. Las estaciones de producción, QA y
@@ -76,7 +80,9 @@ export const STATION_ARTIFACT: Record<PixelforgeStation, PixelforgeArtifactKind 
  * Tipos de evento del historial de una estación. Crece por fase: F1 cubre
  * creación e ingesta de fuentes; F2 añade el ciclo sellar/reabrir/invalidar y
  * el arranque/cierre de corridas IA (repo, `src/lib/db/repos/pixelforge.ts`);
- * F4 añade agregar/quitar referencias visuales de la estación `visual`.
+ * F4 añade agregar/quitar referencias visuales de la estación `visual`; F5
+ * añade generar/regenerar/elegir direcciones creativas de la estación
+ * `direcciones`.
  */
 export type PixelforgeEventType =
   | "created"
@@ -87,7 +93,10 @@ export type PixelforgeEventType =
   | "run_started"
   | "run_finished"
   | "reference_added"
-  | "reference_removed";
+  | "reference_removed"
+  | "directions_generated"
+  | "direction_regenerated"
+  | "direction_chosen";
 
 export type PixelforgeArtifactStatus = "pending" | "in_progress" | "sealed" | "invalidated";
 

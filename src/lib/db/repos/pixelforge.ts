@@ -11,7 +11,7 @@
  * Ver src/lib/pixelforge/types.ts para el orden canónico de estaciones y de
  * artifacts.
  */
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, ne } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { deleteObject } from "@/lib/r2/upload";
 import {
@@ -23,6 +23,7 @@ import {
   pixelforgeAiRuns,
   pixelforgeAssets,
   pixelforgeVisualReferences,
+  pixelforgeCreativeDirections,
   type PixelforgeProject,
   type PixelforgeContextSource,
   type PixelforgeArtifact,
@@ -30,6 +31,7 @@ import {
   type PixelforgeAiRun,
   type PixelforgeAsset,
   type PixelforgeVisualReference,
+  type PixelforgeCreativeDirection,
 } from "@/lib/db/schema";
 import {
   ARTIFACT_KINDS,
@@ -41,6 +43,13 @@ import {
   type PixelforgeSourceType,
 } from "@/lib/pixelforge/types";
 import type { PixelforgeAIOperation } from "@/lib/pixelforge/schemas";
+import { computeScoreTotal } from "@/lib/pixelforge/scores";
+import { directionDecisionSchema } from "@/lib/pixelforge/schemas/direction-decision";
+// Import de SOLO TIPO — no cruza zod/v4 al repo (restricción global: zod/v4
+// vive solo en `src/lib/pixelforge/schemas/`). `Direccion` es la forma que
+// Structured Outputs garantiza para una dirección creativa (una entrada del
+// array `direcciones` de `creativeDirectionsSchema`).
+import type { Direccion } from "@/lib/pixelforge/schemas/generate-directions";
 
 export interface Actor {
   id: string;
@@ -228,9 +237,11 @@ export interface PixelforgeProjectFull {
    * necesita más metadata del asset.
    */
   assets: PixelforgeAsset[];
+  /** Direcciones creativas (F5) — orden asc por `slot`. */
+  directions: PixelforgeCreativeDirection[];
 }
 
-/** Proyecto + artifacts + fuentes + eventos + referencias visuales + assets, escopado por owner. Null si no existe. */
+/** Proyecto + artifacts + fuentes + eventos + referencias visuales + assets + direcciones, escopado por owner. Null si no existe. */
 export async function getPixelforgeProjectFull(
   projectId: string,
   ownerId: string
@@ -238,7 +249,7 @@ export async function getPixelforgeProjectFull(
   const project = await getPixelforgeProject(projectId, ownerId);
   if (!project) return null;
 
-  const [artifacts, sources, events, visualReferences, assets] = await Promise.all([
+  const [artifacts, sources, events, visualReferences, assets, directions] = await Promise.all([
     db
       .select()
       .from(pixelforgeArtifacts)
@@ -259,6 +270,11 @@ export async function getPixelforgeProjectFull(
       .where(eq(pixelforgeVisualReferences.projectId, projectId))
       .orderBy(asc(pixelforgeVisualReferences.createdAt)),
     db.select().from(pixelforgeAssets).where(eq(pixelforgeAssets.projectId, projectId)),
+    db
+      .select()
+      .from(pixelforgeCreativeDirections)
+      .where(eq(pixelforgeCreativeDirections.projectId, projectId))
+      .orderBy(asc(pixelforgeCreativeDirections.slot)),
   ]);
 
   // Orden estable de artifacts según la secuencia canónica de kinds.
@@ -266,7 +282,7 @@ export async function getPixelforgeProjectFull(
     (a, b) => ARTIFACT_KINDS.indexOf(a.kind) - ARTIFACT_KINDS.indexOf(b.kind)
   );
 
-  return { project, artifacts, sources, events, visualReferences, assets };
+  return { project, artifacts, sources, events, visualReferences, assets, directions };
 }
 
 export interface PixelforgeProjectListItem {
@@ -1002,6 +1018,329 @@ export async function getVisualReferenceForOwner(
     .where(and(eq(pixelforgeVisualReferences.id, referenceId), eq(pixelforgeProjects.ownerId, ownerId)))
     .limit(1);
   return row ?? null;
+}
+
+// ─── Direcciones creativas (F5) ─────────────────────────────────────────────
+// La IA nunca decide `scoreTotal` (se calcula server-side, `computeScoreTotal`)
+// ni el status final (`candidate`/`chosen`/`discarded`, decidido acá según la
+// operación). `scores` (jsonb) guarda el "paquete de scoring" completo — los 5
+// criterios 0-100 de la IA + `scoresRazones` (el porqué de cada criterio) +
+// `risks` (riesgos que la IA identificó de esa dirección) — porque la tabla
+// (F5-T1) no tiene columnas propias para razones/riesgos y este es el único
+// jsonb "sobrante" para no perder esa data entre generaciones.
+
+/** Forma de UNA dirección del output de `generate_directions` (schema T2, `direccionSchema`) — lo que persiste el repo. */
+export type DirectionInput = Direccion;
+
+/** Campos de contenido comunes a insertar/actualizar una fila de dirección — todo excepto `projectId`/`slot`/`status`/`generationRunId`, que dependen de si es alta o update. */
+function directionContentFields(direction: DirectionInput) {
+  return {
+    title: direction.title,
+    concept: direction.concept,
+    designTokens: direction.designTokens,
+    motionDna: direction.motionDna,
+    signatureMotif: direction.signatureMotif,
+    signatureComponent: direction.signatureComponent,
+    scores: {
+      ...direction.scores,
+      scoresRazones: direction.scoresRazones,
+      risks: direction.risks,
+    },
+    scoreTotal: computeScoreTotal(direction.scores),
+  };
+}
+
+/**
+ * Generación completa: reemplaza las 3 direcciones del proyecto (delete +
+ * insert, decisión de diseño F5 #2 — la auditoría de qué había antes vive en
+ * `pixelforge_events`, no en filas muertas). Ownership del proyecto. El
+ * DELETE dispara `ON DELETE SET NULL` de `chosenDirectionId` a nivel SQL,
+ * pero también se pone explícito en la misma transacción para no depender
+ * del orden de ejecución. NO toca el artifact `direction_decision` — si
+ * tenía un draft (una elección previa), se queda tal cual: la UI detecta que
+ * `draft.chosenDirectionId` ya no está entre las direcciones vigentes y
+ * muestra la elección como obsoleta (decisión F5 #6). Evento
+ * `directions_generated` con snapshot `[{slot,title,scoreTotal}]`.
+ */
+export function replaceCreativeDirections(
+  projectId: string,
+  ownerId: string,
+  directions: DirectionInput[],
+  runId: string,
+  actor: Actor
+): Promise<void> {
+  return db.transaction(async (tx) => {
+    const [project] = await tx
+      .select({ id: pixelforgeProjects.id })
+      .from(pixelforgeProjects)
+      .where(and(eq(pixelforgeProjects.id, projectId), eq(pixelforgeProjects.ownerId, ownerId)))
+      .limit(1);
+    if (!project) throw new Error("Proyecto no encontrado");
+
+    await tx
+      .delete(pixelforgeCreativeDirections)
+      .where(eq(pixelforgeCreativeDirections.projectId, projectId));
+
+    await tx
+      .update(pixelforgeProjects)
+      .set({ chosenDirectionId: null })
+      .where(eq(pixelforgeProjects.id, projectId));
+
+    const rows = directions.map((direction) => ({
+      projectId,
+      slot: direction.slot,
+      ...directionContentFields(direction),
+      status: "candidate" as const,
+      generationRunId: runId,
+    }));
+
+    if (rows.length > 0) {
+      await tx.insert(pixelforgeCreativeDirections).values(rows);
+    }
+
+    await tx.insert(pixelforgeEvents).values({
+      projectId,
+      station: "direcciones",
+      type: "directions_generated",
+      actorId: actor.id,
+      actorName: actor.name,
+      reason: `${rows.length} direcciones`,
+      snapshot: [...rows]
+        .sort((a, b) => a.slot - b.slot)
+        .map((row) => ({ slot: row.slot, title: row.title, scoreTotal: row.scoreTotal })),
+    });
+
+    await touchProject(tx, projectId);
+  });
+}
+
+/**
+ * Regeneración individual: UPDATE in place del contenido del slot indicado
+ * (decisión F5 #2 — regenerar una dirección no crea una fila nueva). Ownership
+ * del proyecto; lanza si el slot no existe. Si la dirección regenerada estaba
+ * `chosen`, las otras 2 vuelven de `discarded` a `candidate` y
+ * `projects.chosenDirectionId` se limpia (la elección quedó obsoleta — la UI
+ * lo detecta y pide re-elegir, decisión F5 #6); la propia fila regenerada
+ * siempre queda `candidate`. Evento `direction_regenerated` (reason
+ * `slot:N`, snapshot = contenido COMPLETO anterior de la fila).
+ */
+export function replaceCreativeDirection(
+  projectId: string,
+  ownerId: string,
+  slot: number,
+  direction: DirectionInput,
+  runId: string,
+  actor: Actor
+): Promise<void> {
+  return db.transaction(async (tx) => {
+    const [project] = await tx
+      .select({ id: pixelforgeProjects.id })
+      .from(pixelforgeProjects)
+      .where(and(eq(pixelforgeProjects.id, projectId), eq(pixelforgeProjects.ownerId, ownerId)))
+      .limit(1);
+    if (!project) throw new Error("Proyecto no encontrado");
+
+    const [existing] = await tx
+      .select()
+      .from(pixelforgeCreativeDirections)
+      .where(
+        and(
+          eq(pixelforgeCreativeDirections.projectId, projectId),
+          eq(pixelforgeCreativeDirections.slot, slot)
+        )
+      )
+      .limit(1);
+    if (!existing) throw new Error(`No existe una dirección en el slot ${slot}`);
+
+    const wasChosen = existing.status === "chosen";
+
+    await tx
+      .update(pixelforgeCreativeDirections)
+      .set({
+        ...directionContentFields(direction),
+        status: "candidate",
+        generationRunId: runId,
+        updatedAt: new Date(),
+      })
+      .where(eq(pixelforgeCreativeDirections.id, existing.id));
+
+    if (wasChosen) {
+      await tx
+        .update(pixelforgeCreativeDirections)
+        .set({ status: "candidate", updatedAt: new Date() })
+        .where(
+          and(
+            eq(pixelforgeCreativeDirections.projectId, projectId),
+            ne(pixelforgeCreativeDirections.id, existing.id)
+          )
+        );
+
+      await tx
+        .update(pixelforgeProjects)
+        .set({ chosenDirectionId: null })
+        .where(eq(pixelforgeProjects.id, projectId));
+    }
+
+    await tx.insert(pixelforgeEvents).values({
+      projectId,
+      station: "direcciones",
+      type: "direction_regenerated",
+      actorId: actor.id,
+      actorName: actor.name,
+      reason: `slot:${slot}`,
+      snapshot: {
+        slot: existing.slot,
+        title: existing.title,
+        concept: existing.concept,
+        designTokens: existing.designTokens,
+        motionDna: existing.motionDna,
+        signatureMotif: existing.signatureMotif,
+        signatureComponent: existing.signatureComponent,
+        scores: existing.scores,
+        scoreTotal: existing.scoreTotal,
+        status: existing.status,
+      },
+    });
+
+    await touchProject(tx, projectId);
+  });
+}
+
+/** Direcciones creativas de un proyecto, ownership-checked. Orden asc por `slot`. */
+export async function listCreativeDirections(
+  projectId: string,
+  ownerId: string
+): Promise<PixelforgeCreativeDirection[]> {
+  const project = await getPixelforgeProject(projectId, ownerId);
+  if (!project) throw new Error("Proyecto no encontrado");
+
+  return db
+    .select()
+    .from(pixelforgeCreativeDirections)
+    .where(eq(pixelforgeCreativeDirections.projectId, projectId))
+    .orderBy(asc(pixelforgeCreativeDirections.slot));
+}
+
+export interface ChooseDirectionInput {
+  directionId: string;
+  rationale: string;
+  acceptedRisks: string[];
+  combinedFromDirectionIds: string[];
+}
+
+/**
+ * Elección auditada de una dirección (decisión F5 #5: la ÚNICA escritura
+ * legítima del draft de `direction_decision` — `updateArtifactDraftAction`
+ * la rechaza explícitamente). Ownership del proyecto; la dirección debe
+ * pertenecer al proyecto (lanza si no); lanza si el artifact
+ * `direction_decision` está `sealed` (hay que reabrirlo primero — decisión
+ * F5 #6). Marca la elegida `chosen` y el resto `discarded`,
+ * `projects.chosenDirectionId = directionId`, escribe `currentDraft` del
+ * artifact validado contra `directionDecisionSchema` (mismo avance de status
+ * pending/invalidated→in_progress que `updateArtifactDraft`). Evento
+ * `direction_chosen` (reason = rationale, snapshot con directionId, slot,
+ * title, scoreTotal, acceptedRisks, combinedFromDirectionIds). Transacción.
+ */
+export function chooseDirection(
+  projectId: string,
+  ownerId: string,
+  input: ChooseDirectionInput,
+  actor: Actor
+): Promise<void> {
+  return db.transaction(async (tx) => {
+    const [project] = await tx
+      .select({ id: pixelforgeProjects.id })
+      .from(pixelforgeProjects)
+      .where(and(eq(pixelforgeProjects.id, projectId), eq(pixelforgeProjects.ownerId, ownerId)))
+      .limit(1);
+    if (!project) throw new Error("Proyecto no encontrado");
+
+    const directions = await tx
+      .select()
+      .from(pixelforgeCreativeDirections)
+      .where(eq(pixelforgeCreativeDirections.projectId, projectId));
+
+    const chosen = directions.find((d) => d.id === input.directionId);
+    if (!chosen) throw new Error("La dirección no pertenece a este proyecto");
+
+    const [artifact] = await tx
+      .select()
+      .from(pixelforgeArtifacts)
+      .where(
+        and(
+          eq(pixelforgeArtifacts.projectId, projectId),
+          eq(pixelforgeArtifacts.kind, "direction_decision")
+        )
+      )
+      .limit(1);
+    if (!artifact) throw new Error("Artifact no encontrado");
+    if (artifact.status === "sealed") {
+      throw new Error("Reabre el artefacto antes de elegir otra dirección");
+    }
+
+    const now = new Date();
+
+    await tx
+      .update(pixelforgeCreativeDirections)
+      .set({ status: "chosen", updatedAt: now })
+      .where(eq(pixelforgeCreativeDirections.id, chosen.id));
+
+    const hasOthers = directions.some((d) => d.id !== chosen.id);
+    if (hasOthers) {
+      await tx
+        .update(pixelforgeCreativeDirections)
+        .set({ status: "discarded", updatedAt: now })
+        .where(
+          and(
+            eq(pixelforgeCreativeDirections.projectId, projectId),
+            ne(pixelforgeCreativeDirections.id, chosen.id)
+          )
+        );
+    }
+
+    await tx
+      .update(pixelforgeProjects)
+      .set({ chosenDirectionId: chosen.id })
+      .where(eq(pixelforgeProjects.id, projectId));
+
+    const draft = directionDecisionSchema.parse({
+      chosenDirectionId: input.directionId,
+      rationale: input.rationale,
+      acceptedRisks: input.acceptedRisks,
+      combinedFromDirectionIds: input.combinedFromDirectionIds,
+    });
+
+    await tx
+      .update(pixelforgeArtifacts)
+      .set({
+        currentDraft: draft,
+        status:
+          artifact.status === "pending" || artifact.status === "invalidated"
+            ? "in_progress"
+            : artifact.status,
+        updatedAt: now,
+      })
+      .where(eq(pixelforgeArtifacts.id, artifact.id));
+
+    await tx.insert(pixelforgeEvents).values({
+      projectId,
+      station: "direcciones",
+      type: "direction_chosen",
+      actorId: actor.id,
+      actorName: actor.name,
+      reason: input.rationale,
+      snapshot: {
+        directionId: chosen.id,
+        slot: chosen.slot,
+        title: chosen.title,
+        scoreTotal: chosen.scoreTotal,
+        acceptedRisks: input.acceptedRisks,
+        combinedFromDirectionIds: input.combinedFromDirectionIds,
+      },
+    });
+
+    await touchProject(tx, projectId);
+  });
 }
 
 // ─── Helpers privados ──────────────────────────────────────────────────────
