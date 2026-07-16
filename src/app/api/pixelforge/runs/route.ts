@@ -69,6 +69,8 @@ import {
   updateArtifactDraft,
   getVisualReferenceForOwner,
   updateReferenceAnalysis,
+  replaceCreativeDirections,
+  replaceCreativeDirection,
   type Actor,
   type PixelforgeProjectFull,
   type VisualReferenceForAnalysis,
@@ -94,12 +96,29 @@ import {
   SYNTHESIZE_VISUAL_DNA_PROMPT_VERSION,
 } from "@/lib/pixelforge/ai/prompts/synthesize-visual-dna.v1";
 import { referenceAnalysisSchema } from "@/lib/pixelforge/schemas/analyze-reference";
+import { visualDnaSchema } from "@/lib/pixelforge/schemas/synthesize-visual-dna";
+import {
+  buildGenerateDirectionsRequest,
+  GENERATE_DIRECTIONS_PROMPT_VERSION,
+  type GenerateDirectionsMode,
+} from "@/lib/pixelforge/ai/prompts/generate-directions.v1";
+import {
+  buildCreativeDirectionsDomainSchema,
+  creativeDirectionsSchema,
+  type Direccion,
+} from "@/lib/pixelforge/schemas/generate-directions";
+import { getCapabilitiesForPrompt, CAPABILITY_IDS } from "@/lib/pixelforge/registry/capabilities";
 
 /** Contexto compartido de una corrida — común a todas las operaciones del mapa. */
 interface OperationRunCtx {
   referenceId?: string;
   ownerId: string;
+  /** Solo `generate_directions`: si viene, regenera ESE slot; si no, genera las 3 direcciones completas. */
+  slot?: number;
 }
+
+/** Tipo real de `domainSchema` en `executeOperation` (`z.ZodTypeAny | undefined`, `zod/v4`) — se deriva de la firma en vez de importar `zod/v4` acá (reservado a `src/lib/pixelforge/schemas/`, ver ese docstring). */
+type DomainSchemaOf = Parameters<typeof executeOperation>[0]["domainSchema"];
 
 /**
  * `extra`: dato operación-específico resuelto UNA vez (`loadExtra`) y pasado
@@ -125,8 +144,28 @@ interface OperationConfig {
     output: unknown,
     ctx: OperationRunCtx & { projectId: string; actor: Actor; runId: string }
   ) => Promise<void>;
-  domainSchema: Parameters<typeof executeOperation>[0]["domainSchema"];
+  /**
+   * Refines de dominio a aplicar DESPUÉS del parseo de Structured Outputs —
+   * valor fijo (las 4 operaciones previas a F5) o función de `(ctx, extra)`
+   * (decisión de diseño F5 #3: `generate_directions` necesita un refine
+   * distinto según si la request es generación completa o regeneración de un
+   * slot, y eso solo se sabe en runtime, no al declarar `ENABLED_OPERATIONS`).
+   * El POST resuelve cuál de las dos formas aplica vía `resolveDomainSchema`
+   * ANTES de llamar `executeOperation` — ese motor sigue recibiendo siempre
+   * un `z.ZodTypeAny | undefined` ya resuelto, sin saber que existe esta
+   * bifurcación.
+   */
+  domainSchema: DomainSchemaOf | ((ctx: OperationRunCtx, extra: unknown) => DomainSchemaOf);
   promptVersion: string;
+}
+
+/** Exportado para test — la única línea que resuelve la bifurcación valor/función de `OperationConfig.domainSchema` (ver su docstring) antes de pasarla a `executeOperation`. */
+export function resolveDomainSchema(
+  domainSchema: OperationConfig["domainSchema"],
+  ctx: OperationRunCtx,
+  extra: unknown
+): DomainSchemaOf {
+  return typeof domainSchema === "function" ? domainSchema(ctx, extra) : domainSchema;
 }
 
 /**
@@ -305,6 +344,81 @@ const ENABLED_OPERATIONS = {
     domainSchema: undefined,
     promptVersion: SYNTHESIZE_VISUAL_DNA_PROMPT_VERSION,
   },
+  generate_directions: {
+    loadExtra: undefined,
+    // Guard: 1) el ADN Visual debe estar sellado (fuente de las direcciones); 2) la decisión no puede
+    // estar sellada (si lo está, hay que reabrirla primero — decisión F5 #6); 3) regenerar un slot exige
+    // que las 3 direcciones completas ya existan (no tiene sentido regenerar sin generación previa).
+    guard: (full, ctx) => {
+      const visualDna = full.artifacts.find((a) => a.kind === "visual_dna");
+      if (visualDna?.status !== "sealed") {
+        return "Sella el ADN Visual antes de generar direcciones";
+      }
+      const decision = full.artifacts.find((a) => a.kind === "direction_decision");
+      if (decision?.status === "sealed") {
+        return "Reabre la decisión antes de regenerar";
+      }
+      if (ctx.slot && full.directions.length !== 3) {
+        return "Genera las direcciones completas antes de regenerar un slot";
+      }
+      return null;
+    },
+    buildRequest: (full, ctx) => {
+      // El guard ya garantizó que visual_dna/landing_dna están sellados — sealedContent existe.
+      const visualDnaArtifact = full.artifacts.find((a) => a.kind === "visual_dna");
+      const sealedVisualDna = visualDnaSchema.parse(visualDnaArtifact?.sealedContent);
+      const landingDnaArtifact = full.artifacts.find((a) => a.kind === "landing_dna");
+      const sealedLandingDna = landingDnaSchema.parse(landingDnaArtifact?.sealedContent);
+
+      const mode: GenerateDirectionsMode = ctx.slot
+        ? {
+            kind: "slot",
+            slot: ctx.slot,
+            currentDirections: full.directions
+              .filter((d) => d.slot !== ctx.slot)
+              .map((d) => ({
+                slot: d.slot,
+                title: d.title,
+                concept: d.concept,
+                // `signatureMotif` es jsonb (`unknown` en Drizzle) — el shape lo garantiza el propio
+                // `persistResult` de esta operación (mismo criterio que el cast a `PackedDirectionScores`
+                // del repo, T3), así que basta castear en vez de re-validar la forma completa acá.
+                motifNombre: (d.signatureMotif as Direccion["signatureMotif"]).nombre,
+              })),
+          }
+        : { kind: "full" };
+
+      return buildGenerateDirectionsRequest({
+        title: full.project.title,
+        landingDna: sealedLandingDna,
+        visualDna: sealedVisualDna,
+        capabilitiesCatalog: getCapabilitiesForPrompt(),
+        mode,
+      });
+    },
+    inputSummary: (full, ctx) => ({
+      mode: ctx.slot ? "slot" : "full",
+      slot: ctx.slot,
+      capabilitiesCount: CAPABILITY_IDS.length,
+      directionsCount: full.directions.length,
+    }),
+    resultRef: () => "directions:project",
+    // El domain ya garantizó (vía `domainSchema` de esta misma entrada) que `output` trae exactamente
+    // la cantidad de direcciones esperada por modo — acá solo se re-valida la FORMA (mismo criterio de
+    // `landingDnaSchema.parse`/`contextBriefSchema.parse` arriba) antes de pasarla al repo.
+    persistResult: (output, ctx) => {
+      const { direcciones } = creativeDirectionsSchema.parse(output);
+      if (ctx.slot) {
+        return replaceCreativeDirection(ctx.projectId, ctx.ownerId, ctx.slot, direcciones[0], ctx.runId, ctx.actor);
+      }
+      return replaceCreativeDirections(ctx.projectId, ctx.ownerId, direcciones, ctx.runId, ctx.actor);
+    },
+    // Función, no valor fijo (decisión F5 #3): el refine correcto depende del modo de la request, resuelto
+    // acá mismo a partir de `ctx.slot` — `resolveDomainSchema` la invoca en el POST antes de `executeOperation`.
+    domainSchema: (ctx) =>
+      buildCreativeDirectionsDomainSchema(ctx.slot ? { mode: "slot", slot: ctx.slot } : { mode: "full" }),
+    promptVersion: GENERATE_DIRECTIONS_PROMPT_VERSION,
+  },
 } satisfies Record<string, OperationConfig>;
 
 export const runtime = "nodejs";
@@ -316,16 +430,22 @@ export const runtime = "nodejs";
 // self-hosted Node, donde no aplica.
 export const maxDuration = 60;
 
-/** Exportado para test — ver `route.test.ts` (analyze_reference exige `referenceId`, el resto no). */
+/** Exportado para test — ver `route.test.ts` (analyze_reference exige `referenceId`; `slot` solo con `generate_directions`). */
 export const createRunSchema = z
   .object({
     projectId: z.string().uuid("Proyecto inválido"),
-    operation: z.enum(["analyze_context", "generate_strategy", "analyze_reference", "synthesize_visual_dna"], {
-      errorMap: () => ({ message: "Operación no disponible en esta fase" }),
-    }),
+    operation: z.enum(
+      ["analyze_context", "generate_strategy", "analyze_reference", "synthesize_visual_dna", "generate_directions"],
+      {
+        errorMap: () => ({ message: "Operación no disponible en esta fase" }),
+      }
+    ),
     // Solo `analyze_reference` es POR-REFERENCIA — ver el `superRefine` debajo. El resto de operaciones
     // ignora este campo aunque venga en el body.
     referenceId: z.string().uuid("Referencia inválida").optional(),
+    // Solo `generate_directions` lo usa — si viene, regenera ESE slot; si no, genera las 3 direcciones
+    // completas. Ver el `superRefine` debajo (solo válido junto a `generate_directions`).
+    slot: z.number().int().min(1).max(3).optional(),
   })
   .superRefine((data, ctx) => {
     if (data.operation === "analyze_reference" && !data.referenceId) {
@@ -333,6 +453,13 @@ export const createRunSchema = z
         code: z.ZodIssueCode.custom,
         path: ["referenceId"],
         message: "Falta referenceId para analizar una referencia",
+      });
+    }
+    if (data.slot !== undefined && data.operation !== "generate_directions") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["slot"],
+        message: "slot solo aplica a generate_directions",
       });
     }
   });
@@ -372,9 +499,9 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) {
       return fail(parsed.error.errors[0]?.message ?? "Petición inválida", 400);
     }
-    const { projectId, operation, referenceId } = parsed.data;
+    const { projectId, operation, referenceId, slot } = parsed.data;
     const opConfig = ENABLED_OPERATIONS[operation];
-    const opCtx: OperationRunCtx = { referenceId, ownerId };
+    const opCtx: OperationRunCtx = { referenceId, ownerId, slot };
 
     // I3: validar ANTES de crear la corrida — si no hay API key configurada, `getPixelforgeAnthropic()`
     // (llamado más abajo, ya en background) lanzaría igual, pero para entonces ya habríamos creado
@@ -443,7 +570,7 @@ export async function POST(req: NextRequest) {
           operation,
           system,
           messages,
-          domainSchema: opConfig.domainSchema,
+          domainSchema: resolveDomainSchema(opConfig.domainSchema, opCtx, extra),
           callbacks: {
             onProgress: (progress, currentStep) => updateRunProgress(claimedRunId, progress, currentStep),
             persistResult: (output) =>
