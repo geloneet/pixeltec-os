@@ -63,10 +63,13 @@ async function resolveClientByCrmId(ownerId: string, clientCrmId: string) {
 }
 
 const createPixelforgeProjectSchema = z.object({
-  clientCrmId: z.string().min(1),
-  title: z.string().trim().min(1),
-  brainDump: z.string().trim().min(20),
-  definitionId: z.string().uuid().optional(),
+  clientCrmId: z.string().min(1, "Falta el cliente"),
+  title: z.string().trim().min(1, "Falta el título"),
+  brainDump: z
+    .string()
+    .trim()
+    .min(20, "Describe el proyecto con al menos 20 caracteres"),
+  definitionId: z.string().uuid("Definición inválida").optional(),
 });
 
 /**
@@ -138,11 +141,13 @@ export async function createPixelforgeProjectAction(input: {
 }
 
 const addContextSourceSchema = z.object({
-  projectId: z.string().uuid(),
-  type: z.enum(["note", "document", "url"]),
-  title: z.string().trim().min(1),
-  content: z.string().trim().min(1),
-  url: z.string().url().optional(),
+  projectId: z.string().uuid("Proyecto inválido"),
+  type: z.enum(["note", "document", "url"], {
+    errorMap: () => ({ message: "Tipo de fuente inválido" }),
+  }),
+  title: z.string().trim().min(1, "Falta el título"),
+  content: z.string().trim().min(1, "Falta el contenido"),
+  url: z.string().url("URL inválida").optional(),
 });
 
 /**
@@ -153,7 +158,7 @@ const addContextSourceSchema = z.object({
  */
 export async function addContextSourceAction(input: {
   projectId: string;
-  type: PixelforgeSourceType;
+  type: Exclude<PixelforgeSourceType, "definition_import">;
   title: string;
   content: string;
   url?: string;
