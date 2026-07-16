@@ -1769,8 +1769,10 @@ export type NewDefinitionEvent = typeof definitionEvents.$inferInsert;
 // cuelga de un `clients` (no se decide al final) y puede opcionalmente venir
 // de una Definición de Proyecto ya sellada (definitionId). Los pares
 // `*ById`/`*ByName` (addedBy, actor, sealedBy, uploadedBy) son autoría
-// desnormalizada SIN FK — decisión de diseño F1 para no acoplar el historial
-// a la existencia continua del usuario.
+// desnormalizada: el id es NULLABLE con FK a `users.id` (`onDelete: "set
+// null"`) y el nombre es NOT NULL — mismo patrón que
+// `definitionEvents.actorId`/`actorName` (L1649-1650), para que la
+// auditoría sobreviva al borrado del usuario sin dejar una FK colgante.
 // ════════════════════════════════════════════════════════════════════════
 
 export const pixelforgeStationEnum = pgEnum("pixelforge_station", [
@@ -1860,8 +1862,10 @@ export const pixelforgeContextSources = pgTable(
     title: text("title").notNull(),
     content: text("content").notNull(),
     url: text("url"),
-    // Autoría desnormalizada, sin FK (ver nota de cabecera de sección).
-    addedById: uuid("added_by_id").notNull(),
+    // Autoría desnormalizada — nullable + FK a users con set null, igual que
+    // definition_events.actorId (L1649): el nombre notNull sobrevive al
+    // borrado del usuario, el id se limpia.
+    addedById: uuid("added_by_id").references(() => users.id, { onDelete: "set null" }),
     addedByName: text("added_by_name").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -1882,8 +1886,9 @@ export const pixelforgeArtifacts = pgTable(
     currentDraft: jsonb("current_draft"),
     sealedContent: jsonb("sealed_content"),
     sealedAt: timestamp("sealed_at", { withTimezone: true }),
-    // Autoría desnormalizada, sin FK (ver nota de cabecera de sección).
-    sealedById: uuid("sealed_by_id"),
+    // Autoría desnormalizada — nullable + FK a users con set null, igual que
+    // definition_events.actorId (L1649).
+    sealedById: uuid("sealed_by_id").references(() => users.id, { onDelete: "set null" }),
     sealedByName: text("sealed_by_name"),
     reopenCount: integer("reopen_count").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -1905,8 +1910,9 @@ export const pixelforgeEvents = pgTable(
     // NO enum — decisión de diseño: los tipos de evento crecen por fase;
     // validación de valores en capa TS (src/lib/pixelforge/types.ts).
     type: text("type").notNull(),
-    // Autoría desnormalizada, sin FK (ver nota de cabecera de sección).
-    actorId: uuid("actor_id").notNull(),
+    // Autoría desnormalizada — nullable + FK a users con set null, igual que
+    // definition_events.actorId (L1649).
+    actorId: uuid("actor_id").references(() => users.id, { onDelete: "set null" }),
     actorName: text("actor_name").notNull(),
     reason: text("reason"),
     snapshot: jsonb("snapshot"),
@@ -1927,8 +1933,9 @@ export const pixelforgeAssets = pgTable(
     r2Key: text("r2_key").notNull(),
     contentType: text("content_type").notNull(),
     sizeBytes: integer("size_bytes").notNull(),
-    // Autoría desnormalizada, sin FK (ver nota de cabecera de sección).
-    uploadedById: uuid("uploaded_by_id").notNull(),
+    // Autoría desnormalizada — nullable + FK a users con set null, igual que
+    // definition_events.actorId (L1649).
+    uploadedById: uuid("uploaded_by_id").references(() => users.id, { onDelete: "set null" }),
     uploadedByName: text("uploaded_by_name").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
