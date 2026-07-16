@@ -1,10 +1,17 @@
 /**
  * POST /api/pixelforge/runs — arranca una corrida IA de PixelForge.
  *
- * F2 solo soporta `analyze_context` (las otras 10 operaciones llegan en
- * fases posteriores — de ahí el zod `literal`). El POST arranca la operación
- * y responde de INMEDIATO con `{ runId, status: "running" }` en cuanto
- * `claimRun` confirma que la corrida quedó reservada; `executeOperation`
+ * F3-T1 abre esto a un mapa de operaciones HABILITADAS (`ENABLED_OPERATIONS`,
+ * NO un framework genérico): hoy `analyze_context` (F2) y `generate_strategy`
+ * (F3) — las 9 operaciones restantes llegan en fases posteriores, de ahí el
+ * zod `enum` acotado. Cada entrada del mapa define el artifact que la
+ * operación llena (`targetKind`), la compuerta de negocio (`guard`), cómo
+ * arma el request al modelo (`buildRequest`) y qué refines de dominio validan
+ * el resultado (`domainSchema`) — el resto del flujo (createRun/claimRun/
+ * fire-and-forget/persistResult) es COMPARTIDO entre operaciones, sin
+ * bifurcaciones por operación fuera de este mapa. El POST arranca la
+ * operación y responde de INMEDIATO con `{ runId, status: "running" }` en
+ * cuanto `claimRun` confirma que la corrida quedó reservada; `executeOperation`
  * sigue corriendo en background (fire-and-forget, sin `await` en el handler)
  * y reporta progreso vía `updateRunProgress` mientras tanto, así que el
  * cliente pollea `GET /api/pixelforge/runs/:runId` (hook `usePixelforgeRun`,
@@ -27,6 +34,7 @@
  *
  * Mismo patrón de auth/errores que `src/app/api/definition/generate/route.ts`.
  */
+import type { Anthropic } from "@anthropic-ai/sdk";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth/config";
@@ -39,6 +47,7 @@ import {
   finishRunRecord,
   updateArtifactDraft,
   type Actor,
+  type PixelforgeProjectFull,
 } from "@/lib/db/repos/pixelforge";
 import { executeOperation } from "@/lib/pixelforge/ai/run";
 import { getPixelforgeAnthropic, resolvePixelForgeModel } from "@/lib/pixelforge/ai/client";
@@ -46,7 +55,87 @@ import {
   buildAnalyzeContextRequest,
   ANALYZE_CONTEXT_PROMPT_VERSION,
 } from "@/lib/pixelforge/ai/prompts/analyze-context.v1";
-import { contextBriefDomainSchema } from "@/lib/pixelforge/schemas/analyze-context";
+import { contextBriefDomainSchema, contextBriefSchema } from "@/lib/pixelforge/schemas/analyze-context";
+import {
+  buildGenerateStrategyRequest,
+  GENERATE_STRATEGY_PROMPT_VERSION,
+} from "@/lib/pixelforge/ai/prompts/generate-strategy.v1";
+import { landingDnaDomainSchema } from "@/lib/pixelforge/schemas/generate-strategy";
+import type { PixelforgeArtifactKind } from "@/lib/pixelforge/types";
+
+interface OperationConfig {
+  targetKind: PixelforgeArtifactKind;
+  /** Compuerta de negocio — string de error (→ 409) si la operación no puede arrancar, null si puede. */
+  guard: (full: PixelforgeProjectFull) => string | null;
+  buildRequest: (full: PixelforgeProjectFull) => { system: string; messages: Anthropic.MessageParam[] };
+  domainSchema: Parameters<typeof executeOperation>[0]["domainSchema"];
+  promptVersion: string;
+}
+
+/**
+ * Operaciones IA habilitadas en esta fase. Extender esto (F4+) es agregar una
+ * entrada nueva — el resto del handler no cambia.
+ */
+const ENABLED_OPERATIONS = {
+  analyze_context: {
+    targetKind: "context_brief",
+    // Compuerta actual: no re-analizar un Context Brief ya sellado — comportamiento IDÉNTICO al de F2.
+    guard: (full) => {
+      const contextBrief = full.artifacts.find((a) => a.kind === "context_brief");
+      if (contextBrief?.status === "sealed") {
+        return "El Context Brief está sellado; reábrelo para re-analizar";
+      }
+      return null;
+    },
+    buildRequest: (full) =>
+      buildAnalyzeContextRequest({
+        title: full.project.title,
+        brainDump: full.project.brainDump,
+        sources: full.sources.map((s) => ({
+          id: s.id,
+          tipo: s.type,
+          titulo: s.title,
+          contenido: s.content,
+        })),
+      }),
+    domainSchema: contextBriefDomainSchema,
+    promptVersion: ANALYZE_CONTEXT_PROMPT_VERSION,
+  },
+  generate_strategy: {
+    targetKind: "landing_dna",
+    guard: (full) => {
+      const landingDna = full.artifacts.find((a) => a.kind === "landing_dna");
+      if (landingDna?.status === "sealed") {
+        return "El Landing DNA está sellado; reábrelo para re-generar";
+      }
+      const contextBrief = full.artifacts.find((a) => a.kind === "context_brief");
+      if (contextBrief?.status !== "sealed") {
+        return "Sella el Contexto antes de generar la estrategia";
+      }
+      return null;
+    },
+    buildRequest: (full) => {
+      // El guard ya garantizó que context_brief está sellado — sealedContent existe. Se re-valida la
+      // FORMA acá (jsonb infiere `unknown` en el schema de Drizzle, ver comentario en db/schema.ts) en
+      // vez de castear a ciegas.
+      const contextBriefArtifact = full.artifacts.find((a) => a.kind === "context_brief");
+      const sealedContent = contextBriefSchema.parse(contextBriefArtifact?.sealedContent);
+      return buildGenerateStrategyRequest({
+        title: full.project.title,
+        brainDump: full.project.brainDump,
+        sources: full.sources.map((s) => ({
+          id: s.id,
+          tipo: s.type,
+          titulo: s.title,
+          contenido: s.content,
+        })),
+        contextBrief: sealedContent,
+      });
+    },
+    domainSchema: landingDnaDomainSchema,
+    promptVersion: GENERATE_STRATEGY_PROMPT_VERSION,
+  },
+} satisfies Record<string, OperationConfig>;
 
 export const runtime = "nodejs";
 // Ya no acota la duración real de este handler (responde apenas `claimRun` confirma, ver
@@ -59,7 +148,7 @@ export const maxDuration = 60;
 
 const createRunSchema = z.object({
   projectId: z.string().uuid("Proyecto inválido"),
-  operation: z.literal("analyze_context", {
+  operation: z.enum(["analyze_context", "generate_strategy"], {
     errorMap: () => ({ message: "Operación no disponible en esta fase" }),
   }),
 });
@@ -100,6 +189,7 @@ export async function POST(req: NextRequest) {
       return fail(parsed.error.errors[0]?.message ?? "Petición inválida", 400);
     }
     const { projectId, operation } = parsed.data;
+    const opConfig = ENABLED_OPERATIONS[operation];
 
     // I3: validar ANTES de crear la corrida — si no hay API key configurada, `getPixelforgeAnthropic()`
     // (llamado más abajo, ya en background) lanzaría igual, pero para entonces ya habríamos creado
@@ -114,18 +204,16 @@ export async function POST(req: NextRequest) {
     const full = await getPixelforgeProjectFull(projectId, ownerId);
     if (!full) return fail("Proyecto no encontrado", 404);
 
-    // ── Compuerta: no re-analizar un Context Brief ya sellado ──────────────
-    const contextBrief = full.artifacts.find((a) => a.kind === "context_brief");
-    if (contextBrief?.status === "sealed") {
-      return fail("El Context Brief está sellado; reábrelo para re-analizar", 409);
-    }
+    // ── Compuerta de negocio: específica de cada operación (ver ENABLED_OPERATIONS) ──
+    const guardError = opConfig.guard(full);
+    if (guardError) return fail(guardError, 409);
 
     runId = await createRun({
       projectId,
       ownerId,
       operation,
       model: resolvePixelForgeModel(operation),
-      promptVersion: ANALYZE_CONTEXT_PROMPT_VERSION,
+      promptVersion: opConfig.promptVersion,
       // Metadatos únicamente — JAMÁS el texto del usuario (brainDump/fuentes)
       // en un campo que se loguea/inspecciona fuera del flujo de la IA.
       inputSummary: {
@@ -134,23 +222,14 @@ export async function POST(req: NextRequest) {
         sourceCount: full.sources.length,
         sourceIds: full.sources.map((s) => s.id),
       },
-      resultRef: "artifact:context_brief",
+      resultRef: `artifact:${opConfig.targetKind}`,
       actor,
     });
 
     const claimed = await claimRun(runId);
     if (!claimed) return fail("La corrida no pudo iniciarse (ya estaba en curso)", 409);
 
-    const { system, messages } = buildAnalyzeContextRequest({
-      title: full.project.title,
-      brainDump: full.project.brainDump,
-      sources: full.sources.map((s) => ({
-        id: s.id,
-        tipo: s.type,
-        titulo: s.title,
-        contenido: s.content,
-      })),
-    });
+    const { system, messages } = opConfig.buildRequest(full);
 
     // Nota transaccional: `persistResult` (guarda el draft del artifact) y
     // `finishRun` (cierra la corrida) corren SECUENCIALES dentro del motor
@@ -180,11 +259,11 @@ export async function POST(req: NextRequest) {
           operation,
           system,
           messages,
-          domainSchema: contextBriefDomainSchema,
+          domainSchema: opConfig.domainSchema,
           callbacks: {
             onProgress: (progress, currentStep) => updateRunProgress(claimedRunId, progress, currentStep),
             persistResult: (output) =>
-              updateArtifactDraft(projectId, ownerId, "context_brief", output, actor, { lastRunId: claimedRunId }),
+              updateArtifactDraft(projectId, ownerId, opConfig.targetKind, output, actor, { lastRunId: claimedRunId }),
             finishRun: (r) => finishRunRecord(claimedRunId, r),
           },
         });

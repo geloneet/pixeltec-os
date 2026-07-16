@@ -40,3 +40,51 @@ export const landingDnaSchema = z.object({
     .describe("Evidencias que sustentan el ADN de landing en general — toda afirmación debe rastrearse a una fuente."),
 });
 export type LandingDna = z.infer<typeof landingDnaSchema>;
+
+/**
+ * Refines de DOMINIO — NO se registran en `OPERATION_SPECS` (esa entrada usa
+ * `landingDnaSchema` a secas). Se aplican en un segundo paso, después de que
+ * Structured Outputs ya garantizó la forma (mismo patrón que
+ * `contextBriefDomainSchema` en `analyze-context.ts`):
+ * - `mensajesClave`: cada ítem requiere ≥1 evidencia (la gramática NO
+ *   garantiza `.min()` de un array anidado — igual que `confirmados`/
+ *   `inferidos`/`contradicciones` del Context Brief).
+ * - `evidencias` (las globales): re-chequeado a mano por la misma razón,
+ *   aunque el schema base ya declara `.min(1)` — el `minItems` de la
+ *   gramática puede degradarse (ver docstring de `ai/run.ts`, hallazgo C1).
+ * - `llamadosAccion`: sin textos duplicados (case-insensitive, trim) — dos
+ *   CTAs "iguales" no aportan nada distinto a la landing.
+ */
+export const landingDnaDomainSchema = landingDnaSchema.superRefine((dna, ctx) => {
+  dna.mensajesClave.forEach((item, i) => {
+    if (item.evidencias.length === 0) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["mensajesClave", i, "evidencias"],
+        message: `El mensaje clave "${item.mensaje}" no tiene evidencias.`,
+      });
+    }
+  });
+
+  if (dna.evidencias.length === 0) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["evidencias"],
+      message: "El Landing DNA no tiene evidencias globales que lo sustenten.",
+    });
+  }
+
+  const seenCtas = new Set<string>();
+  dna.llamadosAccion.forEach((cta, i) => {
+    const key = cta.texto.trim().toLowerCase();
+    if (seenCtas.has(key)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["llamadosAccion", i, "texto"],
+        message: `El llamado a la acción "${cta.texto}" está duplicado.`,
+      });
+    } else {
+      seenCtas.add(key);
+    }
+  });
+});

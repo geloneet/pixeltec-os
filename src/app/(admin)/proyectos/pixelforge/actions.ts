@@ -24,12 +24,13 @@ import {
   type Actor,
 } from "@/lib/db/repos/pixelforge";
 import { getDefinitionFull } from "@/lib/db/repos/definitions";
-import type { PixelforgeSourceType } from "@/lib/pixelforge/types";
+import { stationForKind, type PixelforgeSourceType } from "@/lib/pixelforge/types";
 import type { PortalActionResult } from "@/lib/action-types";
-// OJO: este schema usa `zod/v4` (ver docstring del archivo) — el resto de
-// este módulo sigue con `zod` v3 clásico a propósito, no lo migres.
+// OJO: estos schemas usan `zod/v4` (ver docstring de sus archivos) — el resto
+// de este módulo sigue con `zod` v3 clásico a propósito, no lo migres.
 // `safeParse` funciona igual desde cualquiera de las dos versiones.
 import { contextBriefSchema } from "@/lib/pixelforge/schemas/analyze-context";
+import { landingDnaSchema } from "@/lib/pixelforge/schemas/generate-strategy";
 
 interface Auth {
   ownerId: string;
@@ -212,48 +213,60 @@ export async function addContextSourceAction(input: {
   }
 }
 
-// ─── Context Brief (F2) ─────────────────────────────────────────────────────
-// Solo `context_brief` está operativo en F2 — las fases futuras generalizan
-// estas acciones a los demás kinds de artifact.
+// ─── Artifacts por kind (F3) ────────────────────────────────────────────────
+// Generaliza las 3 acciones de edición/sellado/reapertura a cualquier kind
+// OPERATIVO (los que ya tienen operación IA + UI habilitadas) — no a los 5
+// kinds completos de `ARTIFACT_KINDS`, ese universo crece por fase. F2 solo
+// tenía `context_brief`; F3 suma `landing_dna`.
 
-const projectIdOnlySchema = z.object({
+const OPERATIVE_ARTIFACT_KIND = z.enum(["context_brief", "landing_dna"], {
+  errorMap: () => ({ message: "Tipo de artefacto inválido" }),
+});
+type OperativeArtifactKind = z.infer<typeof OPERATIVE_ARTIFACT_KIND>;
+
+/** Mapa kind → schema de FORMA (zod v4, ver imports arriba) para validar el draft antes de persistir. */
+const KIND_SCHEMAS = {
+  context_brief: contextBriefSchema,
+  landing_dna: landingDnaSchema,
+} as const;
+
+const artifactDraftSchema = z.object({
   projectId: z.string().uuid("Proyecto inválido"),
+  kind: OPERATIVE_ARTIFACT_KIND,
 });
 
 /**
- * Guarda el borrador editado del Context Brief. Valida la FORMA con
- * `contextBriefSchema` (zod v4, ver import arriba) antes de persistir — el
- * caller (ContextBriefPanel) siempre manda el brief COMPLETO (clonado y
- * modificado), nunca un parche parcial.
+ * Guarda el borrador editado de un artifact operativo. Valida la FORMA con
+ * el schema del `kind` (mapa `KIND_SCHEMAS`) antes de persistir — el caller
+ * siempre manda el artifact COMPLETO (clonado y modificado), nunca un parche
+ * parcial (mismo contrato que la vieja `updateContextBriefDraftAction`).
  */
-export async function updateContextBriefDraftAction(input: {
+export async function updateArtifactDraftAction(input: {
   projectId: string;
+  kind: OperativeArtifactKind;
   draft: unknown;
 }): Promise<PortalActionResult> {
   try {
     const { ownerId, actor } = await requireAuth();
-    const projectIdParsed = projectIdOnlySchema.safeParse({ projectId: input.projectId });
-    if (!projectIdParsed.success) {
-      return { success: false, error: projectIdParsed.error.errors[0]?.message };
+    const headerParsed = artifactDraftSchema.safeParse({ projectId: input.projectId, kind: input.kind });
+    if (!headerParsed.success) {
+      return { success: false, error: headerParsed.error.errors[0]?.message };
     }
-    const parsed = contextBriefSchema.safeParse(input.draft);
-    if (!parsed.success) {
-      return { success: false, error: "El borrador no tiene la forma de un Context Brief válido" };
+    const { projectId, kind } = headerParsed.data;
+
+    const draftParsed = KIND_SCHEMAS[kind].safeParse(input.draft);
+    if (!draftParsed.success) {
+      return { success: false, error: `El borrador no tiene la forma válida para ${kind}` };
     }
 
-    await updateArtifactDraft(
-      projectIdParsed.data.projectId,
-      ownerId,
-      "context_brief",
-      parsed.data,
-      actor
-    );
+    await updateArtifactDraft(projectId, ownerId, kind, draftParsed.data, actor);
 
-    revalidatePath(`/proyectos/pixelforge/${projectIdParsed.data.projectId}`);
-    revalidatePath(`/proyectos/pixelforge/${projectIdParsed.data.projectId}/contexto`);
+    const station = stationForKind(kind);
+    revalidatePath(`/proyectos/pixelforge/${projectId}`);
+    revalidatePath(`/proyectos/pixelforge/${projectId}/${station}`);
     return { success: true };
   } catch (err) {
-    console.error("[updateContextBriefDraftAction]", err);
+    console.error("[updateArtifactDraftAction]", err);
     return {
       success: false,
       error: err instanceof Error ? err.message : "No se pudo guardar el borrador",
@@ -261,66 +274,98 @@ export async function updateContextBriefDraftAction(input: {
   }
 }
 
-/** Sella el Context Brief: congela el borrador actual, avanza la estación si corresponde. */
-export async function sealContextBriefAction(input: {
+const sealByKindSchema = z.object({
+  projectId: z.string().uuid("Proyecto inválido"),
+  kind: OPERATIVE_ARTIFACT_KIND,
+});
+
+/** Sella el artifact operativo: congela el borrador actual, avanza la estación si corresponde. */
+export async function sealArtifactByKindAction(input: {
   projectId: string;
+  kind: OperativeArtifactKind;
 }): Promise<PortalActionResult> {
   try {
     const { ownerId, actor } = await requireAuth();
-    const parsed = projectIdOnlySchema.safeParse(input);
+    const parsed = sealByKindSchema.safeParse(input);
     if (!parsed.success) {
       return { success: false, error: parsed.error.errors[0]?.message };
     }
+    const { projectId, kind } = parsed.data;
 
-    await sealArtifact(parsed.data.projectId, ownerId, "context_brief", actor);
+    await sealArtifact(projectId, ownerId, kind, actor);
 
-    revalidatePath(`/proyectos/pixelforge/${parsed.data.projectId}`);
-    revalidatePath(`/proyectos/pixelforge/${parsed.data.projectId}/contexto`);
+    const station = stationForKind(kind);
+    revalidatePath(`/proyectos/pixelforge/${projectId}`);
+    revalidatePath(`/proyectos/pixelforge/${projectId}/${station}`);
     return { success: true };
   } catch (err) {
-    console.error("[sealContextBriefAction]", err);
+    console.error("[sealArtifactByKindAction]", err);
     return {
       success: false,
-      error: err instanceof Error ? err.message : "No se pudo sellar el Context Brief",
+      error: err instanceof Error ? err.message : "No se pudo sellar el artefacto",
     };
   }
 }
 
-const reopenContextBriefSchema = z.object({
+const reopenByKindSchema = z.object({
   projectId: z.string().uuid("Proyecto inválido"),
+  kind: OPERATIVE_ARTIFACT_KIND,
   reason: z.string().trim().min(5, "Explica por qué reabres"),
 });
 
-/** Reabre el Context Brief sellado — invalida los sellos downstream (repo se encarga). */
-export async function reopenContextBriefAction(input: {
+/** Reabre un artifact operativo sellado — invalida los sellos downstream (repo se encarga). */
+export async function reopenArtifactByKindAction(input: {
   projectId: string;
+  kind: OperativeArtifactKind;
   reason: string;
 }): Promise<PortalActionResult> {
   try {
     const { ownerId, actor } = await requireAuth();
-    const parsed = reopenContextBriefSchema.safeParse(input);
+    const parsed = reopenByKindSchema.safeParse(input);
     if (!parsed.success) {
       return { success: false, error: parsed.error.errors[0]?.message };
     }
+    const { projectId, kind, reason } = parsed.data;
 
-    await reopenArtifact(
-      parsed.data.projectId,
-      ownerId,
-      "context_brief",
-      parsed.data.reason,
-      actor
-    );
+    await reopenArtifact(projectId, ownerId, kind, reason, actor);
 
-    revalidatePath(`/proyectos/pixelforge/${parsed.data.projectId}`);
-    revalidatePath(`/proyectos/pixelforge/${parsed.data.projectId}/contexto`);
+    const station = stationForKind(kind);
+    revalidatePath(`/proyectos/pixelforge/${projectId}`);
+    revalidatePath(`/proyectos/pixelforge/${projectId}/${station}`);
     return { success: true };
   } catch (err) {
-    console.error("[reopenContextBriefAction]", err);
+    console.error("[reopenArtifactByKindAction]", err);
     return {
       success: false,
-      error: err instanceof Error ? err.message : "No se pudo reabrir el Context Brief",
+      error: err instanceof Error ? err.message : "No se pudo reabrir el artefacto",
     };
   }
+}
+
+// ─── Context Brief (F2) ─────────────────────────────────────────────────────
+// Delegan en las genéricas de arriba — se conservan como wrappers finos para
+// no tocar los call sites de ContextBriefPanel/SealBar (la UI real de F3 es
+// F3-T2; acá solo se generaliza el backend de las actions).
+
+/** @deprecated usa `updateArtifactDraftAction({ kind: "context_brief", ... })` — se mantiene por compat con ContextBriefPanel. */
+export async function updateContextBriefDraftAction(input: {
+  projectId: string;
+  draft: unknown;
+}): Promise<PortalActionResult> {
+  return updateArtifactDraftAction({ projectId: input.projectId, kind: "context_brief", draft: input.draft });
+}
+
+/** @deprecated usa `sealArtifactByKindAction({ kind: "context_brief", ... })` — se mantiene por compat con SealBar. */
+export async function sealContextBriefAction(input: { projectId: string }): Promise<PortalActionResult> {
+  return sealArtifactByKindAction({ projectId: input.projectId, kind: "context_brief" });
+}
+
+/** @deprecated usa `reopenArtifactByKindAction({ kind: "context_brief", ... })` — se mantiene por compat con SealBar. */
+export async function reopenContextBriefAction(input: {
+  projectId: string;
+  reason: string;
+}): Promise<PortalActionResult> {
+  return reopenArtifactByKindAction({ projectId: input.projectId, kind: "context_brief", reason: input.reason });
 }
 
 const setRunDecisionSchema = z.object({
