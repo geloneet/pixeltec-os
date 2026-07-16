@@ -32,21 +32,23 @@ describe("OPERATION_SPECS (registro central de las 11 operaciones IA)", () => {
 function direccionFixture(slot: 1 | 2 | 3) {
   return {
     slot,
-    nombre: `Dirección ${slot}`,
-    concepto: "Concepto editorial minimalista con acentos de color de marca.",
+    title: `Dirección ${slot}`,
+    concept: "Concepto editorial minimalista con acentos de color de marca.",
     designTokens: {
-      colorPrimario: "#0F172A",
-      colorFondo: "#FFFFFF",
-      colorAcento: "#F59E0B",
-      fuenteTitulos: "Fraunces",
-      fuenteCuerpo: "Inter",
+      paleta: [
+        { token: "color-primario", valor: "#0F172A", uso: "Fondos oscuros y texto principal." },
+        { token: "color-fondo", valor: "#FFFFFF", uso: "Fondo general de la landing." },
+        { token: "color-acento", valor: "#F59E0B", uso: "CTAs y elementos destacados." },
+      ],
+      tipografia: { display: "Fraunces", body: "Inter", escala: "Modular 1.25, base 16px" },
       radios: "suaves",
-      densidad: "media",
+      espaciado: "equilibrado",
     },
     motionDna: {
-      intencion: "Transmitir confianza sin ser aburrido.",
-      energia: "moderada",
-      firma: "Entradas escalonadas por distancia al cursor.",
+      personalidad: "Transmitir confianza sin ser aburrido.",
+      ritmo: "moderado",
+      intensidadGlobal: 2,
+      firmas: ["Entradas escalonadas por distancia al cursor."],
     },
     signatureMotif: {
       nombre: "Trazo de cobertura",
@@ -60,17 +62,21 @@ function direccionFixture(slot: 1 | 2 | 3) {
       requiredData: ["polígonos de zonas", "colonias atendidas"],
       estimatedComplexity: "medium" as const,
     },
-    riesgos: ["Puede verse genérico si no se cuida la tipografía."],
     scores: {
       originalidadConceptual: 70,
-      especificidadMotif: 65,
-      utilidadSignature: 60,
+      independenciaDeReferencias: 65,
+      especificidadDelMotif: 65,
+      utilidadDelSignature: 60,
       riesgoGenericidadIA: 30,
     },
+    scoresRazones: {
+      porCriterio: "Originalidad alta por el motif propio; riesgo de genericidad bajo por evitar patrones IA comunes.",
+    },
+    risks: ["Puede verse genérico si no se cuida la tipografía."],
   };
 }
 
-describe("generate_directions exige exactamente 3 direcciones", () => {
+describe("generate_directions: la FORMA acepta 1 a 3 direcciones (la exactitud por modo es un refine de dominio, no de forma)", () => {
   it("acepta exactamente 3", () => {
     const { outputSchema } = OPERATION_SPECS.generate_directions;
     const result = outputSchema.safeParse({
@@ -79,10 +85,24 @@ describe("generate_directions exige exactamente 3 direcciones", () => {
     expect(result.success).toBe(true);
   });
 
-  it("rechaza 2", () => {
+  it("acepta 1 (forma usada también para regenerar un solo slot)", () => {
     const { outputSchema } = OPERATION_SPECS.generate_directions;
     const result = outputSchema.safeParse({
-      direcciones: [direccionFixture(1), direccionFixture(2)],
+      direcciones: [direccionFixture(1)],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rechaza 0", () => {
+    const { outputSchema } = OPERATION_SPECS.generate_directions;
+    const result = outputSchema.safeParse({ direcciones: [] });
+    expect(result.success).toBe(false);
+  });
+
+  it("rechaza 4", () => {
+    const { outputSchema } = OPERATION_SPECS.generate_directions;
+    const result = outputSchema.safeParse({
+      direcciones: [direccionFixture(1), direccionFixture(2), direccionFixture(3), direccionFixture(1)],
     });
     expect(result.success).toBe(false);
   });
