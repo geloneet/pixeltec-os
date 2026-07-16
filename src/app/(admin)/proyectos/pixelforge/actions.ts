@@ -25,6 +25,7 @@ import {
   addVisualReference,
   createReferenceAsset,
   removeVisualReference,
+  chooseDirection,
   type Actor,
 } from "@/lib/db/repos/pixelforge";
 import { getDefinitionFull } from "@/lib/db/repos/definitions";
@@ -43,6 +44,7 @@ import type { PortalActionResult } from "@/lib/action-types";
 import { contextBriefSchema } from "@/lib/pixelforge/schemas/analyze-context";
 import { landingDnaSchema } from "@/lib/pixelforge/schemas/generate-strategy";
 import { visualDnaSchema } from "@/lib/pixelforge/schemas/synthesize-visual-dna";
+import { directionDecisionSchema } from "@/lib/pixelforge/schemas/direction-decision";
 
 interface Auth {
   ownerId: string;
@@ -236,16 +238,21 @@ export async function addContextSourceAction(input: {
 
 // El runtime (zod) se queda acotado a mano acá — el tipo compartido
 // (`OperativeArtifactKind`, `@/lib/pixelforge/types`) es solo para el tipado
-// estático, no reemplaza esta validación en tiempo de ejecución.
-const OPERATIVE_ARTIFACT_KIND = z.enum(["context_brief", "landing_dna", "visual_dna"], {
-  errorMap: () => ({ message: "Tipo de artefacto inválido" }),
-}) satisfies z.ZodType<OperativeArtifactKind>;
+// estático, no reemplaza esta validación en tiempo de ejecución. F5 suma
+// `direction_decision` — a diferencia de los otros 3 kinds, su draft NUNCA se
+// escribe por `updateArtifactDraftAction` (ver el rechazo explícito debajo);
+// se incluye igual acá porque comparte sellado/reapertura genéricos por kind.
+const OPERATIVE_ARTIFACT_KIND = z.enum(
+  ["context_brief", "landing_dna", "visual_dna", "direction_decision"],
+  { errorMap: () => ({ message: "Tipo de artefacto inválido" }) }
+) satisfies z.ZodType<OperativeArtifactKind>;
 
 /** Mapa kind → schema de FORMA (zod v4, ver imports arriba) para validar el draft antes de persistir. */
 const KIND_SCHEMAS = {
   context_brief: contextBriefSchema,
   landing_dna: landingDnaSchema,
   visual_dna: visualDnaSchema,
+  direction_decision: directionDecisionSchema,
 } as const;
 
 const artifactDraftSchema = z.object({
@@ -271,6 +278,16 @@ export async function updateArtifactDraftAction(input: {
       return { success: false, error: headerParsed.error.errors[0]?.message };
     }
     const { projectId, kind } = headerParsed.data;
+
+    // La decisión de dirección NO se edita como un draft libre — la única
+    // escritura legítima es `chooseDirectionAction` (elección auditada,
+    // repo `chooseDirection`). Rechazo explícito ANTES de validar la forma.
+    if (kind === "direction_decision") {
+      return {
+        success: false,
+        error: "La decisión de dirección se registra eligiendo una dirección",
+      };
+    }
 
     const draftParsed = KIND_SCHEMAS[kind].safeParse(input.draft);
     if (!draftParsed.success) {
@@ -386,6 +403,55 @@ export async function setRunDecisionAction(input: {
     return {
       success: false,
       error: err instanceof Error ? err.message : "No se pudo registrar tu respuesta",
+    };
+  }
+}
+
+const chooseDirectionSchema = z.object({
+  projectId: z.string().uuid("Proyecto inválido"),
+  directionId: z.string().uuid("Dirección inválida"),
+  rationale: z.string().trim().min(10, "Explica en al menos 10 caracteres por qué elegiste esta dirección"),
+  acceptedRisks: z.array(z.string()),
+  combinedFromDirectionIds: z.array(z.string().uuid("Dirección inválida")),
+});
+
+/**
+ * Elección auditada de una dirección creativa (estación Direcciones, F5) — la
+ * ÚNICA escritura legítima del draft de `direction_decision` (`updateArtifactDraftAction`
+ * la rechaza explícitamente arriba). El repo (`chooseDirection`) valida que
+ * `directionId`/`combinedFromDirectionIds` pertenezcan al proyecto (ownership +
+ * IDOR) y que el artifact no esté sellado.
+ */
+export async function chooseDirectionAction(input: {
+  projectId: string;
+  directionId: string;
+  rationale: string;
+  acceptedRisks: string[];
+  combinedFromDirectionIds: string[];
+}): Promise<PortalActionResult> {
+  try {
+    const { ownerId, actor } = await requireAuth();
+    const parsed = chooseDirectionSchema.safeParse(input);
+    if (!parsed.success) {
+      return { success: false, error: parsed.error.errors[0]?.message };
+    }
+    const { projectId, directionId, rationale, acceptedRisks, combinedFromDirectionIds } = parsed.data;
+
+    await chooseDirection(
+      projectId,
+      ownerId,
+      { directionId, rationale, acceptedRisks, combinedFromDirectionIds },
+      actor
+    );
+
+    revalidatePath(`/proyectos/pixelforge/${projectId}`);
+    revalidatePath(`/proyectos/pixelforge/${projectId}/direcciones`);
+    return { success: true };
+  } catch (err) {
+    console.error("[chooseDirectionAction]", err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "No se pudo registrar la elección",
     };
   }
 }
