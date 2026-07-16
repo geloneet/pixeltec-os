@@ -53,6 +53,9 @@ export const ARTIFACT_KINDS = [
 
 export type PixelforgeArtifactKind = (typeof ARTIFACT_KINDS)[number];
 
+/** Kinds operativos — crece por fase. */
+export type OperativeArtifactKind = "context_brief" | "landing_dna";
+
 /**
  * Mapeo estación → artifact que sella. Las estaciones de producción, QA y
  * revisión (fases 7-9, aún no construidas) no sellan un artifact aquí: sus

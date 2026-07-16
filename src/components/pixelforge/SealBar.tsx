@@ -10,9 +10,7 @@ import {
   sealArtifactByKindAction,
   reopenArtifactByKindAction,
 } from "@/app/(admin)/proyectos/pixelforge/actions";
-import type { PixelforgeArtifactStatus } from "@/lib/pixelforge/types";
-
-type OperativeArtifactKind = "context_brief" | "landing_dna";
+import type { OperativeArtifactKind, PixelforgeArtifactStatus } from "@/lib/pixelforge/types";
 
 interface Props {
   projectId: string;

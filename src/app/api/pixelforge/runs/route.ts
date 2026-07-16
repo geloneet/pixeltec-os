@@ -32,6 +32,19 @@
  * ve succeeded/failed) — no hay watchdog todavía. Se documenta y se acepta
  * para esta fase; un mecanismo de detección de huérfanos es mejora futura.
  *
+ * Otro riesgo aceptado (TOCTOU del guard de negocio): `opConfig.guard(full)`
+ * valida contra el estado leído en `full` ANTES de que la corrida arranque,
+ * pero el trabajo real (`buildRequest`/`executeOperation`) corre después,
+ * fire-and-forget — si el Context Brief se reabre a media corrida de
+ * `generate_strategy` (entre la carga de `full` y el fire-and-forget que arma
+ * el request), el draft resultante de `landing_dna` se escribe a partir de un
+ * Context Brief que ya quedó obsoleto en DB. No hay lock entre el guard y la
+ * persistencia del resultado. Se acepta porque es autocorregible: el usuario
+ * ve un `landing_dna` desactualizado y, al notarlo, vuelve a correr
+ * `generate_strategy` — el guard ya exige que el Context Brief esté sellado
+ * de nuevo, así que la siguiente corrida reconstruye el request con el brief
+ * vigente.
+ *
  * Mismo patrón de auth/errores que `src/app/api/definition/generate/route.ts`.
  */
 import type { Anthropic } from "@anthropic-ai/sdk";

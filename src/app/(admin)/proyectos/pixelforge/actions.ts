@@ -24,7 +24,11 @@ import {
   type Actor,
 } from "@/lib/db/repos/pixelforge";
 import { getDefinitionFull } from "@/lib/db/repos/definitions";
-import { stationForKind, type PixelforgeSourceType } from "@/lib/pixelforge/types";
+import {
+  stationForKind,
+  type OperativeArtifactKind,
+  type PixelforgeSourceType,
+} from "@/lib/pixelforge/types";
 import type { PortalActionResult } from "@/lib/action-types";
 // OJO: estos schemas usan `zod/v4` (ver docstring de sus archivos) — el resto
 // de este módulo sigue con `zod` v3 clásico a propósito, no lo migres.
@@ -219,10 +223,12 @@ export async function addContextSourceAction(input: {
 // kinds completos de `ARTIFACT_KINDS`, ese universo crece por fase. F2 solo
 // tenía `context_brief`; F3 suma `landing_dna`.
 
+// El runtime (zod) se queda acotado a mano acá — el tipo compartido
+// (`OperativeArtifactKind`, `@/lib/pixelforge/types`) es solo para el tipado
+// estático, no reemplaza esta validación en tiempo de ejecución.
 const OPERATIVE_ARTIFACT_KIND = z.enum(["context_brief", "landing_dna"], {
   errorMap: () => ({ message: "Tipo de artefacto inválido" }),
-});
-type OperativeArtifactKind = z.infer<typeof OPERATIVE_ARTIFACT_KIND>;
+}) satisfies z.ZodType<OperativeArtifactKind>;
 
 /** Mapa kind → schema de FORMA (zod v4, ver imports arriba) para validar el draft antes de persistir. */
 const KIND_SCHEMAS = {
