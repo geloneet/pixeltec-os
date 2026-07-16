@@ -1,7 +1,12 @@
+import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/lib/auth/config";
 import { getPixelforgeProject } from "@/lib/db/repos/pixelforge";
 import { StationPlaceholder } from "@/components/pixelforge/StationPlaceholder";
+
+export const metadata: Metadata = {
+  title: "Producción — PixelForge — PixelTEC OS",
+};
 
 export default async function PixelforgeProduccionPage({
   params,

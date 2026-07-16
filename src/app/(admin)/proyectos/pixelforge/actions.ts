@@ -140,15 +140,29 @@ export async function createPixelforgeProjectAction(input: {
   }
 }
 
-const addContextSourceSchema = z.object({
-  projectId: z.string().uuid("Proyecto inválido"),
-  type: z.enum(["note", "document", "url"], {
-    errorMap: () => ({ message: "Tipo de fuente inválido" }),
-  }),
-  title: z.string().trim().min(1, "Falta el título"),
-  content: z.string().trim().min(1, "Falta el contenido"),
-  url: z.string().url("URL inválida").optional(),
-});
+const addContextSourceSchema = z
+  .object({
+    projectId: z.string().uuid("Proyecto inválido"),
+    type: z.enum(["note", "document", "url"], {
+      errorMap: () => ({ message: "Tipo de fuente inválido" }),
+    }),
+    title: z.string().trim().min(1, "Falta el título"),
+    content: z.string().trim().min(1, "Falta el contenido"),
+    url: z
+      .string()
+      .url("URL inválida")
+      .refine((u) => /^https?:\/\//i.test(u), "Solo URLs http(s)")
+      .optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.type === "url" && !data.url) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["url"],
+        message: "Falta la URL de la fuente",
+      });
+    }
+  });
 
 /**
  * Anexa una fuente de contexto a un proyecto ya existente. `definition_import`

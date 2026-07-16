@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { Brain, FileText, Import, Link2, StickyNote } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
@@ -6,6 +7,10 @@ import { auth } from "@/lib/auth/config";
 import { getPixelforgeProjectFull } from "@/lib/db/repos/pixelforge";
 import { AddContextSourceForm } from "@/components/pixelforge/AddContextSourceForm";
 import type { PixelforgeSourceType } from "@/lib/pixelforge/types";
+
+export const metadata: Metadata = {
+  title: "Contexto — PixelForge — PixelTEC OS",
+};
 
 const SOURCE_ICON: Record<PixelforgeSourceType, typeof StickyNote> = {
   note: StickyNote,
