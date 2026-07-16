@@ -576,6 +576,28 @@ export async function updateArtifactDraft(
 }
 
 /**
+ * Valida que un draft de `direction_decision` sigue vigente antes de
+ * sellarlo: su `chosenDirectionId` debe coincidir con el `chosenDirectionId`
+ * ACTUAL del proyecto (fuente de verdad — se limpia a `null` por
+ * `replaceCreativeDirections`/`replaceCreativeDirection` cuando una
+ * regeneración invalida la dirección elegida, decisión F5 #6). Función
+ * pura, testeable sin DB — la usa `sealArtifact` para no dejar sellar una
+ * elección obsoleta (antes solo lo evitaba `canSeal` en la UI, que no es una
+ * garantía real: nada impedía llamar la action/ruta directo).
+ */
+export function assertDirectionDecisionStillCurrent(
+  draftChosenDirectionId: string,
+  projectChosenDirectionId: string | null
+): void {
+  if (
+    projectChosenDirectionId === null ||
+    draftChosenDirectionId !== projectChosenDirectionId
+  ) {
+    throw new Error("La elección quedó obsoleta — vuelve a elegir");
+  }
+}
+
+/**
  * Sella el artifact activo: congela `currentDraft` en `sealedContent` con
  * fecha/autor, deja evento `sealed`, y si la estación activa del proyecto ES
  * la que sella este kind, avanza `currentStation` a la siguiente. Si
@@ -583,6 +605,12 @@ export async function updateArtifactDraft(
  * F2, que solo llegan hasta `blueprint` — cuyo `nextStation` es `produccion`,
  * no null) el status del proyecto NO cambia acá; producción/QA/revisión
  * (fases futuras) decidirán ahí cuándo completar el proyecto. Transacción.
+ *
+ * Caso especial `direction_decision` (review final F5): antes de sellar, se
+ * re-valida que la elección sigue vigente (`assertDirectionDecisionStillCurrent`)
+ * — una regeneración pudo haber invalidado el `chosenDirectionId` del draft
+ * entre que la UI cargó la página y este call llegó. `canSeal` en la UI es
+ * una ayuda de UX, NO la compuerta real.
  */
 export function sealArtifact(
   projectId: string,
@@ -608,6 +636,11 @@ export function sealArtifact(
       throw new Error("No hay borrador que sellar");
     }
     if (artifact.status === "sealed") throw new Error("Ya está sellado");
+
+    if (kind === "direction_decision") {
+      const draft = directionDecisionSchema.parse(artifact.currentDraft);
+      assertDirectionDecisionStillCurrent(draft.chosenDirectionId, project.chosenDirectionId);
+    }
 
     const now = new Date();
     await tx
@@ -1105,6 +1138,13 @@ export function assertCombinedFromDirectionIdsValid(
  * `draft.chosenDirectionId` ya no está entre las direcciones vigentes y
  * muestra la elección como obsoleta (decisión F5 #6). Evento
  * `directions_generated` con snapshot `[{slot,title,scoreTotal}]`.
+ *
+ * Re-chequea DENTRO de la transacción que `direction_decision` no esté
+ * `sealed` (review final F5 — TOCTOU): el guard de la ruta valida esto al
+ * arrancar la corrida, pero una corrida de IA tarda ~30s y el usuario pudo
+ * sellar la decisión mientras tanto; sin este re-chequeo, este persist
+ * borraría/pisaría filas que una decisión ya sellada referencia. Mismo
+ * mensaje que el guard de la ruta.
  */
 export function replaceCreativeDirections(
   projectId: string,
@@ -1120,6 +1160,20 @@ export function replaceCreativeDirections(
       .where(and(eq(pixelforgeProjects.id, projectId), eq(pixelforgeProjects.ownerId, ownerId)))
       .limit(1);
     if (!project) throw new Error("Proyecto no encontrado");
+
+    const [decisionArtifact] = await tx
+      .select({ status: pixelforgeArtifacts.status })
+      .from(pixelforgeArtifacts)
+      .where(
+        and(
+          eq(pixelforgeArtifacts.projectId, projectId),
+          eq(pixelforgeArtifacts.kind, "direction_decision")
+        )
+      )
+      .limit(1);
+    if (decisionArtifact?.status === "sealed") {
+      throw new Error("Reabre la decisión antes de regenerar");
+    }
 
     await tx
       .delete(pixelforgeCreativeDirections)
@@ -1167,6 +1221,12 @@ export function replaceCreativeDirections(
  * lo detecta y pide re-elegir, decisión F5 #6); la propia fila regenerada
  * siempre queda `candidate`. Evento `direction_regenerated` (reason
  * `slot:N`, snapshot = contenido COMPLETO anterior de la fila).
+ *
+ * Re-chequea DENTRO de la transacción que `direction_decision` no esté
+ * `sealed` (review final F5 — TOCTOU, mismo razonamiento que
+ * `replaceCreativeDirections`): el guard de la ruta ya lo valida al
+ * arrancar la corrida, pero la corrida tarda ~30s y pudo sellarse la
+ * decisión mientras corría.
  */
 export function replaceCreativeDirection(
   projectId: string,
@@ -1183,6 +1243,20 @@ export function replaceCreativeDirection(
       .where(and(eq(pixelforgeProjects.id, projectId), eq(pixelforgeProjects.ownerId, ownerId)))
       .limit(1);
     if (!project) throw new Error("Proyecto no encontrado");
+
+    const [decisionArtifact] = await tx
+      .select({ status: pixelforgeArtifacts.status })
+      .from(pixelforgeArtifacts)
+      .where(
+        and(
+          eq(pixelforgeArtifacts.projectId, projectId),
+          eq(pixelforgeArtifacts.kind, "direction_decision")
+        )
+      )
+      .limit(1);
+    if (decisionArtifact?.status === "sealed") {
+      throw new Error("Reabre la decisión antes de regenerar");
+    }
 
     const [existing] = await tx
       .select()

@@ -100,11 +100,19 @@ function formatVisualDna(dna: VisualDna): string {
   return neutralizeDelimiters(formatted);
 }
 
+/**
+ * `title`/`concept`/`motifNombre` vienen de output de IA previo persistido en
+ * DB (no de un humano que revisó/selló, a diferencia del Landing DNA/Visual
+ * DNA de `formatLandingDna`/`formatVisualDna`) — se neutralizan por el mismo
+ * criterio: contenido que atraviesa el límite de confianza sin ser
+ * necesariamente confiable se neutraliza antes de inyectarse en el prompt.
+ */
 function formatCurrentDirections(directions: CurrentDirectionSummary[]): string {
   if (directions.length === 0) return "(sin otras direcciones vigentes)";
-  return directions
+  const formatted = directions
     .map((d) => `- Slot ${d.slot} — "${d.title}": ${d.concept} (motif: ${d.motifNombre})`)
     .join("\n");
+  return neutralizeDelimiters(formatted);
 }
 
 export function buildGenerateDirectionsRequest(

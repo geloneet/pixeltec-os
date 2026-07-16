@@ -5,7 +5,10 @@
  * `@/lib/db` es lazy (no conecta al importar, solo al ejecutar una query).
  */
 import { describe, expect, it } from "vitest";
-import { assertCombinedFromDirectionIdsValid } from "./pixelforge";
+import {
+  assertCombinedFromDirectionIdsValid,
+  assertDirectionDecisionStillCurrent,
+} from "./pixelforge";
 
 describe("assertCombinedFromDirectionIdsValid", () => {
   const chosenId = "chosen-1";
@@ -45,5 +48,25 @@ describe("assertCombinedFromDirectionIdsValid", () => {
         projectDirectionIds
       )
     ).toThrow(/no pertenece a este proyecto: direccion-de-otro-proyecto/);
+  });
+});
+
+describe("assertDirectionDecisionStillCurrent", () => {
+  it("no lanza si el chosenDirectionId del draft coincide con el del proyecto", () => {
+    expect(() =>
+      assertDirectionDecisionStillCurrent("direction-1", "direction-1")
+    ).not.toThrow();
+  });
+
+  it("lanza si el proyecto ya no tiene ninguna dirección elegida (regeneración limpió chosenDirectionId)", () => {
+    expect(() =>
+      assertDirectionDecisionStillCurrent("direction-1", null)
+    ).toThrow(/La elección quedó obsoleta/);
+  });
+
+  it("lanza si el chosenDirectionId del proyecto apunta a otra dirección (se eligió otra en paralelo)", () => {
+    expect(() =>
+      assertDirectionDecisionStillCurrent("direction-1", "direction-2")
+    ).toThrow(/La elección quedó obsoleta/);
   });
 });
