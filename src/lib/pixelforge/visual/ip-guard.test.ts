@@ -40,6 +40,17 @@ describe("isForbiddenAddress", () => {
     ["::ffff:127.0.0.1", true, "IPv4-mapped loopback"],
     ["::ffff:169.254.169.254", true, "IPv4-mapped metadata cloud"],
     ["::ffff:8.8.8.8", false, "IPv4-mapped público"],
+    // IPv4-mapped en forma HEX-comprimida (no dotted) — esta es EXACTAMENTE
+    // la forma que produce `new URL("http://[::ffff:169.254.169.254]/").hostname`
+    // (normaliza a "[::ffff:a9fe:a9fe]"), así que la extracción numérica del
+    // IPv4 embebido (groups[6]/groups[7]) es obligatoria, no un regex de texto.
+    ["::ffff:a9fe:a9fe", true, "IPv4-mapped hex de metadata cloud 169.254.169.254"],
+    ["::ffff:7f00:1", true, "IPv4-mapped hex de loopback 127.0.0.1"],
+    ["::ffff:0a00:1", true, "IPv4-mapped hex de privado 10.0.0.1"],
+    // :: unspecified y otros prefijos /96 que embeben IPv4 numéricamente.
+    ["::", true, "unspecified :: (rutea a loopback en Linux)"],
+    ["::a9fe:a9fe", true, "IPv4-compatible ::/96 embebiendo 169.254.169.254"],
+    ["64:ff9b::a9fe:a9fe", true, "NAT64 64:ff9b::/96 embebiendo 169.254.169.254"],
     // IPv6 público normal
     ["2606:4700:4700::1111", false, "público (Cloudflare DNS IPv6)"],
     // No parseable → fail-closed

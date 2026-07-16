@@ -201,6 +201,20 @@ describe("safeFetch — SEGURIDAD (guard REAL, anti-SSRF)", () => {
     },
   );
 
+  it(
+    "bloquea el bracket-literal IPv6 [::ffff:169.254.169.254] — forma HEX que produce el " +
+      "parser de URL para IPv4-mapped en corchetes (regresión: el regex viejo de ip-guard.ts " +
+      "solo reconocía la forma dotted y dejaba pasar esta) — SIN conectar (guard real, pre-check síncrono)",
+    async () => {
+      const started = Date.now();
+      const result = await safeFetch("http://[::ffff:169.254.169.254]/");
+      const elapsedMs = Date.now() - started;
+
+      expect(result).toEqual({ ok: false, reason: "forbidden-address" });
+      expect(elapsedMs).toBeLessThan(500);
+    },
+  );
+
   it("bloquea variantes de localhost/loopback vía IP literal (127.0.0.1, 0.0.0.0)", async () => {
     const r1 = await safeFetch("http://127.0.0.1/");
     expect(r1).toEqual({ ok: false, reason: "forbidden-address" });

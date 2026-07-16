@@ -99,8 +99,26 @@ interface Ipv6Range {
 
 const FORBIDDEN_IPV6_RANGES: Ipv6Range[] = [
   { groups: [0, 0, 0, 0, 0, 0, 0, 1], bits: 128 }, // ::1 loopback
+  { groups: [0, 0, 0, 0, 0, 0, 0, 0], bits: 128 }, // :: unspecified (a menudo rutea a loopback)
   { groups: [0xfc00, 0, 0, 0, 0, 0, 0, 0], bits: 7 }, // fc00::/7 ULA
   { groups: [0xfe80, 0, 0, 0, 0, 0, 0, 0], bits: 10 }, // fe80::/10 link-local
+];
+
+/**
+ * Prefijos /96 cuyos últimos 32 bits (groups[6]/groups[7]) embeben una
+ * dirección IPv4 completa. Para CUALQUIER dirección que caiga en uno de
+ * estos prefijos, la IPv4 embebida se extrae NUMÉRICAMENTE (no por regex de
+ * texto) y se re-evalúa con las reglas IPv4 — así cubre por igual la forma
+ * hex-comprimida (`::ffff:a9fe:a9fe`), la dotted (`::ffff:169.254.169.254`,
+ * manejada aparte en `isForbiddenIpv6` porque `expandIpv6` no parsea
+ * octetos decimales) y cualquier otra normalización que produzca el mismo
+ * valor numérico (p.ej. la que hace el parser de `URL` de WHATWG, que
+ * normaliza IPv4-mapped a la forma hex).
+ */
+const IPV4_EMBEDDED_IPV6_PREFIXES: Ipv6Range[] = [
+  { groups: [0, 0, 0, 0, 0, 0xffff, 0, 0], bits: 96 }, // ::ffff:0:0/96 IPv4-mapped
+  { groups: [0, 0, 0, 0, 0, 0, 0, 0], bits: 96 }, // ::/96 IPv4-compatible (deprecado)
+  { groups: [0x64, 0xff9b, 0, 0, 0, 0, 0, 0], bits: 96 }, // 64:ff9b::/96 NAT64
 ];
 
 function ipv6InRange(groups: number[], range: Ipv6Range): boolean {
@@ -114,17 +132,34 @@ function ipv6InRange(groups: number[], range: Ipv6Range): boolean {
   return true;
 }
 
+/** Extrae los últimos 32 bits (groups[6]/groups[7]) como uint32 IPv4. */
+function extractEmbeddedIpv4(groups: number[]): number {
+  return ((groups[6]! << 16) | groups[7]!) >>> 0;
+}
+
+function isForbiddenIpv4Number(ip: number): boolean {
+  return FORBIDDEN_IPV4_RANGES.some((range) => ipv4InRange(ip, range));
+}
+
 function isForbiddenIpv6(ip: string): boolean {
   const lower = ip.toLowerCase();
 
-  // IPv4-mapped: ::ffff:a.b.c.d → aplica reglas IPv4 al embebido.
-  const mappedMatch = lower.match(/^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/);
-  if (mappedMatch) {
-    return isForbiddenIpv4(mappedMatch[1]!);
+  const groups = expandIpv6(lower);
+  if (!groups) {
+    // `expandIpv6` no parsea octetos decimales dentro de un grupo — cubre
+    // acá el caso legado de IPv4-mapped escrito en forma dotted al final,
+    // p.ej. "::ffff:169.254.169.254" (la forma hex-comprimida equivalente,
+    // "::ffff:a9fe:a9fe", SÍ la parsea `expandIpv6` y se resuelve más abajo
+    // vía `IPV4_EMBEDDED_IPV6_PREFIXES` — numéricamente, no por regex).
+    const mappedDotted = lower.match(/^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/);
+    if (mappedDotted) return isForbiddenIpv4(mappedDotted[1]!);
+    return true; // no parseable ⇒ fail-closed
   }
 
-  const groups = expandIpv6(lower);
-  if (!groups) return true; // no parseable ⇒ fail-closed
+  const embedded = IPV4_EMBEDDED_IPV6_PREFIXES.find((range) => ipv6InRange(groups, range));
+  if (embedded) {
+    return isForbiddenIpv4Number(extractEmbeddedIpv4(groups));
+  }
 
   return FORBIDDEN_IPV6_RANGES.some((range) => ipv6InRange(groups, range));
 }

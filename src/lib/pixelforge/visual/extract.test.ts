@@ -105,6 +105,22 @@ describe("extractSignals", () => {
     expect(JSON.stringify(signals)).not.toContain("secret");
   });
 
+  it("un <script> SIN cierre no filtra headings/título fabricados después de él", () => {
+    // Sin </script>: por semántica HTML todo lo que sigue es contenido de
+    // script hasta EOF. El regex no-greedy original no matcheaba (requiere
+    // cierre), así que el resto del documento sobrevivía sin sanear.
+    const html = `
+      <title>Título real</title>
+      <h1>Heading real</h1>
+      <script>var x = "sin cierre";
+      <h1>heading fabricado, NO debe aparecer</h1>
+      <title>título fabricado, NO debe aparecer</title>
+    `;
+    const signals = extractSignals(html, "https://ejemplo.com/");
+    expect(signals.title).toBe("Título real");
+    expect(signals.headings).toEqual(["Heading real"]);
+  });
+
   it("nunca retorna ni contiene el HTML crudo completo", () => {
     const html = `<html><head><title>T</title></head><body><h1>H</h1><p>parrafo no capturado</p></body></html>`;
     const signals = extractSignals(html, "https://ejemplo.com/");

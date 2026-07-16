@@ -137,9 +137,18 @@ export function extractSignals(html: string, _finalUrl: string): ExtractedSignal
   // El contenido de <script>/<noscript> nunca debe alimentar ninguna señal
   // (podría contener HTML fabricado vía document.write, JSON, etc. que
   // simule headings o metadatos). Se descarta ANTES de cualquier regex.
-  const sanitized = html
+  let sanitized = html
     .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "")
     .replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript>/gi, "");
+
+  // Un <script> (o <noscript>) SIN cierre no matchea el regex anterior (no
+  // greedy, requiere </script>) y sobrevive intacto — por semántica HTML,
+  // todo lo que sigue a un <script> abierto sin cerrar es contenido de
+  // script hasta el fin del documento, así que se trunca ahí (no solo se
+  // descarta el tag: nada después de un script sin cerrar es contenido real).
+  sanitized = sanitized
+    .replace(/<script\b[^>]*>[\s\S]*$/i, "")
+    .replace(/<noscript\b[^>]*>[\s\S]*$/i, "");
 
   const cssText = collectCssText(sanitized);
 
