@@ -42,6 +42,7 @@ import type { PortalActionResult } from "@/lib/action-types";
 // `safeParse` funciona igual desde cualquiera de las dos versiones.
 import { contextBriefSchema } from "@/lib/pixelforge/schemas/analyze-context";
 import { landingDnaSchema } from "@/lib/pixelforge/schemas/generate-strategy";
+import { visualDnaSchema } from "@/lib/pixelforge/schemas/synthesize-visual-dna";
 
 interface Auth {
   ownerId: string;
@@ -228,12 +229,15 @@ export async function addContextSourceAction(input: {
 // Generaliza las 3 acciones de edición/sellado/reapertura a cualquier kind
 // OPERATIVO (los que ya tienen operación IA + UI habilitadas) — no a los 5
 // kinds completos de `ARTIFACT_KINDS`, ese universo crece por fase. F2 solo
-// tenía `context_brief`; F3 suma `landing_dna`.
+// tenía `context_brief`; F3 suma `landing_dna`; F4 suma `visual_dna` (la
+// edición inline de `VisualDnaPanel` y `SealBar` con `kind="visual_dna"`
+// dependen de que esté acá — el route de `synthesize_visual_dna` ya persiste
+// directo vía el repo y no pasa por este mapa).
 
 // El runtime (zod) se queda acotado a mano acá — el tipo compartido
 // (`OperativeArtifactKind`, `@/lib/pixelforge/types`) es solo para el tipado
 // estático, no reemplaza esta validación en tiempo de ejecución.
-const OPERATIVE_ARTIFACT_KIND = z.enum(["context_brief", "landing_dna"], {
+const OPERATIVE_ARTIFACT_KIND = z.enum(["context_brief", "landing_dna", "visual_dna"], {
   errorMap: () => ({ message: "Tipo de artefacto inválido" }),
 }) satisfies z.ZodType<OperativeArtifactKind>;
 
@@ -241,6 +245,7 @@ const OPERATIVE_ARTIFACT_KIND = z.enum(["context_brief", "landing_dna"], {
 const KIND_SCHEMAS = {
   context_brief: contextBriefSchema,
   landing_dna: landingDnaSchema,
+  visual_dna: visualDnaSchema,
 } as const;
 
 const artifactDraftSchema = z.object({

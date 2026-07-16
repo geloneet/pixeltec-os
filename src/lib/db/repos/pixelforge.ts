@@ -28,6 +28,7 @@ import {
   type PixelforgeArtifact,
   type PixelforgeEvent,
   type PixelforgeAiRun,
+  type PixelforgeAsset,
   type PixelforgeVisualReference,
 } from "@/lib/db/schema";
 import {
@@ -219,9 +220,17 @@ export interface PixelforgeProjectFull {
   events: PixelforgeEvent[];
   /** Referencias visuales (F4) — orden asc por `createdAt`. */
   visualReferences: PixelforgeVisualReference[];
+  /**
+   * Assets del proyecto (F4: imágenes de referencia subidas a R2) — SIN
+   * resolver contra `visualReferences.assetId` acá; el caller (p.ej.
+   * `visual/page.tsx`) hace ese join en memoria para armar el `assetUrl` por
+   * referencia. Se trae completo (no solo las urls) por si una fase futura
+   * necesita más metadata del asset.
+   */
+  assets: PixelforgeAsset[];
 }
 
-/** Proyecto + artifacts + fuentes + eventos + referencias visuales, escopado por owner. Null si no existe. */
+/** Proyecto + artifacts + fuentes + eventos + referencias visuales + assets, escopado por owner. Null si no existe. */
 export async function getPixelforgeProjectFull(
   projectId: string,
   ownerId: string
@@ -229,7 +238,7 @@ export async function getPixelforgeProjectFull(
   const project = await getPixelforgeProject(projectId, ownerId);
   if (!project) return null;
 
-  const [artifacts, sources, events, visualReferences] = await Promise.all([
+  const [artifacts, sources, events, visualReferences, assets] = await Promise.all([
     db
       .select()
       .from(pixelforgeArtifacts)
@@ -249,6 +258,7 @@ export async function getPixelforgeProjectFull(
       .from(pixelforgeVisualReferences)
       .where(eq(pixelforgeVisualReferences.projectId, projectId))
       .orderBy(asc(pixelforgeVisualReferences.createdAt)),
+    db.select().from(pixelforgeAssets).where(eq(pixelforgeAssets.projectId, projectId)),
   ]);
 
   // Orden estable de artifacts según la secuencia canónica de kinds.
@@ -256,7 +266,7 @@ export async function getPixelforgeProjectFull(
     (a, b) => ARTIFACT_KINDS.indexOf(a.kind) - ARTIFACT_KINDS.indexOf(b.kind)
   );
 
-  return { project, artifacts, sources, events, visualReferences };
+  return { project, artifacts, sources, events, visualReferences, assets };
 }
 
 export interface PixelforgeProjectListItem {
