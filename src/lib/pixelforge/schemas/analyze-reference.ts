@@ -4,7 +4,7 @@
  * prompt injection en contenido de terceros (URLs/imágenes) es que este
  * schema no tiene ningún canal de salida de texto libre más allá de `notas`.
  */
-import { z } from "zod";
+import { z } from "zod/v4";
 
 export const referenceAnalysisSchema = z
   .object({

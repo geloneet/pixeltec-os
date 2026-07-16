@@ -6,7 +6,7 @@
  * El superRefine (nodeIds únicos) se aplica directamente sobre el schema
  * registrado, igual que build-narrative.
  */
-import { z } from "zod";
+import { z } from "zod/v4";
 
 const motionSequenceSchema = z.object({
   behaviorId: z.string().min(1).describe("Id de un comportamiento de motion REGISTRADO en el registry de behaviors seguros."),
@@ -51,7 +51,7 @@ export const pageTreeSchema = z
     tree.nodes.forEach((node, i) => {
       if (seen.has(node.nodeId)) {
         ctx.addIssue({
-          code: z.ZodIssueCode.custom,
+          code: "custom",
           path: ["nodes", i, "nodeId"],
           message: `nodeId "${node.nodeId}" duplicado — cada nodo del árbol debe tener un nodeId único.`,
         });

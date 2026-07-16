@@ -4,7 +4,7 @@
  * y se reexporta/extiende desde score-originality.ts y detect-ai-likeness.ts
  * para que las 3 operaciones evolucionen juntas.
  */
-import { z } from "zod";
+import { z } from "zod/v4";
 
 const criterioSchema = z.object({
   nombre: z.string().min(1),

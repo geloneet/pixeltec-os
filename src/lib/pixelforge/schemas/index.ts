@@ -8,8 +8,17 @@
  * FORMA, sin refines de dominio) — `contextBriefDomainSchema` (con los
  * refines) vive en `analyze-context.ts` y se aplica aparte, después del
  * parseo, en `ai/run.ts`.
+ *
+ * Nota sobre la versión de Zod: estos schemas usan `zod/v4` (NO el import
+ * clásico `"zod"`, que en este repo resuelve a la API v3) — es un requisito
+ * duro de `zodOutputFormat` (helper del SDK de Anthropic usado en `ai/run.ts`),
+ * que llama `z.toJSONSchema` internamente sobre `zod/v4` y necesita que el
+ * schema tenga el core interno `_zod` que solo exponen los schemas
+ * construidos con `zod/v4`. El resto del repo (definition, growth, F1 de
+ * pixelforge) sigue en `"zod"` (v3) — ambas versiones coexisten en el mismo
+ * paquete `zod@3.25.x` sin conflicto, vía sus subpaths `.`/`./v4`.
  */
-import type { z } from "zod";
+import type { z } from "zod/v4";
 import { contextBriefSchema } from "./analyze-context";
 import { landingDnaSchema } from "./generate-strategy";
 import { referenceAnalysisSchema } from "./analyze-reference";

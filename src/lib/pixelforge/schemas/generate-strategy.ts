@@ -4,7 +4,7 @@
  * ADN de landing en general deben rastrearse a una fuente real
  * (anti-invención, mismo patrón que el Context Brief).
  */
-import { z } from "zod";
+import { z } from "zod/v4";
 import { evidenciaSchema } from "./analyze-context";
 
 export const landingDnaSchema = z.object({

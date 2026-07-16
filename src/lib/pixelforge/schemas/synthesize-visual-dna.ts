@@ -1,7 +1,7 @@
 /**
  * Schema de salida de `synthesize_visual_dna` — v1 estructural (F4 la usa e2e).
  */
-import { z } from "zod";
+import { z } from "zod/v4";
 
 export const visualDnaSchema = z.object({
   direccionGeneral: z.string().min(1),

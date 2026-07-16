@@ -3,7 +3,7 @@
  * `before`/`after` se dejan como string libre (sin `.min(1)`): operaciones
  * como "add-after" no tienen `before` previo y "remove" no tiene `after`.
  */
-import { z } from "zod";
+import { z } from "zod/v4";
 
 export const proposedChangeSchema = z.object({
   resumen: z.string().min(1),

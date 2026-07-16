@@ -2,7 +2,7 @@
  * Schema de salida de `detect_ai_likeness` — v1 estructural (F8 la usa e2e).
  * Extiende `rubricSchema` (ver critique-design.ts) con `senalesDetectadas`.
  */
-import { z } from "zod";
+import { z } from "zod/v4";
 import { rubricSchema } from "./critique-design";
 
 export const aiLikenessSchema = rubricSchema

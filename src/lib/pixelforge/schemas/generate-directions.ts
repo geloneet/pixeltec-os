@@ -6,7 +6,7 @@
  * Capability Registry, o declara honestamente que requiere desarrollo
  * custom — PixelForge nunca finge originalidad con un contenedor vacío.
  */
-import { z } from "zod";
+import { z } from "zod/v4";
 
 const direccionSchema = z.object({
   slot: z.number().int().min(1).max(3),

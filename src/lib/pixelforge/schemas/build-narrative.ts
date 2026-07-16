@@ -5,7 +5,7 @@
  * dependa de separar forma/dominio): `actos[].orden` debe ser consecutivo
  * desde 1 y `cinematicMoments[].actoOrden` debe existir en `actos`.
  */
-import { z } from "zod";
+import { z } from "zod/v4";
 
 const actoSchema = z.object({
   orden: z.number().int(),
@@ -35,7 +35,7 @@ export const narrativeBlueprintSchema = z
     blueprint.actos.forEach((acto, i) => {
       if (acto.orden !== i + 1) {
         ctx.addIssue({
-          code: z.ZodIssueCode.custom,
+          code: "custom",
           path: ["actos", i, "orden"],
           message: `El acto en la posición ${i} debe tener orden=${i + 1} (consecutivo desde 1), recibido ${acto.orden}.`,
         });
@@ -45,7 +45,7 @@ export const narrativeBlueprintSchema = z
     blueprint.cinematicMoments.forEach((moment, i) => {
       if (!ordenesActos.has(moment.actoOrden)) {
         ctx.addIssue({
-          code: z.ZodIssueCode.custom,
+          code: "custom",
           path: ["cinematicMoments", i, "actoOrden"],
           message: `cinematicMoments[${i}].actoOrden=${moment.actoOrden} no corresponde a ningún acto existente.`,
         });

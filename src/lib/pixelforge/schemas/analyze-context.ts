@@ -9,7 +9,7 @@
  * Outputs no puede expresar — son los que disparan el retry semántico en
  * `ai/run.ts` (F2-T3), aplicados sobre el resultado YA parseado.
  */
-import { z } from "zod";
+import { z } from "zod/v4";
 
 /** Referencia a la fuente real que sustenta un ítem — anti-invención. */
 export const evidenciaSchema = z.object({
@@ -52,7 +52,7 @@ export const contextBriefDomainSchema = contextBriefSchema.superRefine((brief, c
   brief.confirmados.forEach((item, i) => {
     if (item.evidencias.length === 0) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         path: ["confirmados", i, "evidencias"],
         message: `El ítem confirmado "${item.titulo}" no tiene evidencias.`,
       });
@@ -61,7 +61,7 @@ export const contextBriefDomainSchema = contextBriefSchema.superRefine((brief, c
   brief.contradicciones.forEach((item, i) => {
     if (item.evidencias.length === 0) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         path: ["contradicciones", i, "evidencias"],
         message: `La contradicción "${item.titulo}" no tiene evidencias.`,
       });
@@ -70,7 +70,7 @@ export const contextBriefDomainSchema = contextBriefSchema.superRefine((brief, c
   brief.faltantes.forEach((item, i) => {
     if (item.evidencias.length > 0) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         path: ["faltantes", i, "evidencias"],
         message: `El ítem faltante "${item.titulo}" tiene evidencias: si hay evidencia, no está faltando.`,
       });
@@ -80,7 +80,7 @@ export const contextBriefDomainSchema = contextBriefSchema.superRefine((brief, c
     brief.confirmados.length + brief.inferidos.length + brief.faltantes.length + brief.contradicciones.length;
   if (total === 0) {
     ctx.addIssue({
-      code: z.ZodIssueCode.custom,
+      code: "custom",
       path: [],
       message: "El brief no tiene ningún ítem en confirmados/inferidos/faltantes/contradicciones.",
     });
