@@ -16,8 +16,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import type { BotConfig, BotSchedule, BotTone } from "@/types/whatsapp-inbox";
+import type {
+  BotConfig,
+  BotEmojiLevel,
+  BotEmojiUsage,
+  BotEscalation,
+  BotEscalationMessages,
+  BotFormality,
+  BotPersonality,
+  BotResponsePolicy,
+  BotSchedule,
+  BotTiming,
+  BotTone,
+} from "@/types/whatsapp-inbox";
 
 const TONE_OPTIONS: { value: BotTone; label: string; desc: string }[] = [
   { value: "formal", label: "Formal", desc: "Trato de usted, lenguaje cuidado y profesional." },
@@ -25,6 +38,25 @@ const TONE_OPTIONS: { value: BotTone; label: string; desc: string }[] = [
   { value: "tecnico", label: "Técnico", desc: "Directo, preciso, enfocado en detalles." },
   { value: "comercial", label: "Comercial", desc: "Orientado a venta, resalta beneficios." },
 ];
+
+const FORMALITY_OPTIONS: { value: BotFormality; label: string }[] = [
+  { value: "formal", label: "Formal" },
+  { value: "casual_profesional", label: "Casual profesional" },
+  { value: "tecnico", label: "Técnico" },
+];
+
+const EMOJI_LEVEL_OPTIONS: { value: BotEmojiLevel; label: string }[] = [
+  { value: "ninguno", label: "Ninguno" },
+  { value: "bajo", label: "Bajo" },
+  { value: "medio", label: "Medio" },
+];
+
+const IDENTITY_MAX = 80;
+const SHORT_STYLE_MAX = 300;
+const ESCALATION_MSG_MAX = 400;
+const EMOJI_MAX_COUNT = 3;
+const CLARIFY_ATTEMPTS_MAX = 10;
+const TIMING_DELAY_MAX = 120;
 
 const DAY_LABELS = ["D", "L", "M", "M", "J", "V", "S"];
 const DAY_NAMES = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
@@ -202,6 +234,38 @@ export function BotConfigView() {
     updateSchedule({ days: next });
   }
 
+  function updatePersonality(patch: Partial<BotPersonality>) {
+    setConfig((prev) => (prev?.personality ? { ...prev, personality: { ...prev.personality, ...patch } } : prev));
+  }
+
+  function updateEmojiUsage(patch: Partial<BotEmojiUsage>) {
+    setConfig((prev) =>
+      prev?.personality
+        ? { ...prev, personality: { ...prev.personality, emoji_usage: { ...prev.personality.emoji_usage, ...patch } } }
+        : prev
+    );
+  }
+
+  function updateResponsePolicy(patch: Partial<BotResponsePolicy>) {
+    setConfig((prev) => (prev?.response_policy ? { ...prev, response_policy: { ...prev.response_policy, ...patch } } : prev));
+  }
+
+  function updateEscalation(patch: Partial<BotEscalation>) {
+    setConfig((prev) => (prev?.escalation ? { ...prev, escalation: { ...prev.escalation, ...patch } } : prev));
+  }
+
+  function updateEscalationMessages(patch: Partial<BotEscalationMessages>) {
+    setConfig((prev) =>
+      prev?.escalation
+        ? { ...prev, escalation: { ...prev.escalation, messages: { ...prev.escalation.messages, ...patch } } }
+        : prev
+    );
+  }
+
+  function updateTiming(patch: Partial<BotTiming>) {
+    setConfig((prev) => (prev?.timing ? { ...prev, timing: { ...prev.timing, ...patch } } : prev));
+  }
+
   async function handleSave() {
     if (!config || saving) return;
 
@@ -230,6 +294,42 @@ export function BotConfigView() {
     ) {
       toast.error("La hora de inicio debe ser menor que la hora de fin (horarios overnight no están soportados)");
       return;
+    }
+    if (config.personality) {
+      const identity = config.personality.public_identity.trim();
+      if (!identity || identity.length > IDENTITY_MAX) {
+        toast.error(`La identidad pública debe tener entre 1 y ${IDENTITY_MAX} caracteres`);
+        return;
+      }
+      const maxCount = config.personality.emoji_usage.max_count;
+      if (!Number.isInteger(maxCount) || maxCount < 0 || maxCount > EMOJI_MAX_COUNT) {
+        toast.error(`El máximo de emojis debe ser un entero entre 0 y ${EMOJI_MAX_COUNT}`);
+        return;
+      }
+    }
+    if (config.escalation) {
+      const threshold = config.escalation.confidence_threshold;
+      if (typeof threshold !== "number" || Number.isNaN(threshold) || threshold < 0 || threshold > 1) {
+        toast.error("El umbral de confianza para escalar debe ser un número entre 0 y 1");
+        return;
+      }
+      const attempts = config.escalation.max_clarify_attempts;
+      if (!Number.isInteger(attempts) || attempts < 0 || attempts > CLARIFY_ATTEMPTS_MAX) {
+        toast.error(`Los intentos de aclaración deben ser un entero entre 0 y ${CLARIFY_ATTEMPTS_MAX}`);
+        return;
+      }
+    }
+    if (config.timing) {
+      const { min_delay_seconds: minD, max_delay_seconds: maxD } = config.timing;
+      const inRange = (n: number) => Number.isInteger(n) && n >= 0 && n <= TIMING_DELAY_MAX;
+      if (!inRange(minD) || !inRange(maxD)) {
+        toast.error(`Los tiempos de espera deben ser enteros entre 0 y ${TIMING_DELAY_MAX} segundos`);
+        return;
+      }
+      if (minD >= maxD) {
+        toast.error("El tiempo mínimo de espera debe ser menor que el máximo");
+        return;
+      }
     }
 
     setSaving(true);
@@ -464,6 +564,278 @@ export function BotConfigView() {
               onChange={(items) => update("quote_questions", items)}
             />
           </SectionCard>
+
+          {config.personality && (
+            <>
+              {/* Personalidad */}
+              <SectionCard title="Personalidad">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Identidad pública</label>
+                  <Input
+                    value={config.personality.public_identity}
+                    onChange={(e) => updatePersonality({ public_identity: e.target.value })}
+                    maxLength={IDENTITY_MAX}
+                    placeholder="Equipo PixelTEC"
+                    className="h-8 border-border bg-secondary/40 text-sm text-foreground"
+                  />
+                  <p className="text-[11px] text-muted-foreground/60">
+                    Nunca puede afirmar ser Miguel ni una persona real — debe ser una identidad de equipo.
+                  </p>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Formalidad</label>
+                  <Select
+                    value={config.personality.formality}
+                    onValueChange={(v) => updatePersonality({ formality: v as BotFormality })}
+                  >
+                    <SelectTrigger className="h-8 border-border bg-secondary/40 text-xs text-foreground focus:ring-cyan-500/20">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="border-border bg-popover/95 backdrop-blur-xl">
+                      {FORMALITY_OPTIONS.map((opt) => (
+                        <SelectItem
+                          key={opt.value}
+                          value={opt.value}
+                          className="text-sm text-popover-foreground focus:bg-secondary focus:text-foreground"
+                        >
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <ListEditor
+                  label="Rasgos"
+                  items={config.personality.traits}
+                  onChange={(items) => updatePersonality({ traits: items })}
+                />
+              </SectionCard>
+
+              {/* Estilo de conversación */}
+              <SectionCard title="Estilo de conversación">
+                <ListEditor
+                  label="Frases preferidas"
+                  items={config.personality.preferred_phrases}
+                  onChange={(items) => updatePersonality({ preferred_phrases: items })}
+                  accent="emerald"
+                />
+                <ListEditor
+                  label="Frases prohibidas"
+                  items={config.personality.forbidden_phrases}
+                  onChange={(items) => updatePersonality({ forbidden_phrases: items })}
+                  accent="red"
+                />
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Estilo de saludo</label>
+                  <Textarea
+                    value={config.personality.greeting_style}
+                    onChange={(e) => updatePersonality({ greeting_style: e.target.value })}
+                    maxLength={SHORT_STYLE_MAX}
+                    className="min-h-[50px] border-border bg-secondary/40 text-sm text-foreground"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Estilo de despedida</label>
+                  <Textarea
+                    value={config.personality.farewell_style}
+                    onChange={(e) => updatePersonality({ farewell_style: e.target.value })}
+                    maxLength={SHORT_STYLE_MAX}
+                    className="min-h-[50px] border-border bg-secondary/40 text-sm text-foreground"
+                  />
+                </div>
+              </SectionCard>
+
+              {/* Emojis */}
+              <SectionCard title="Uso de emojis">
+                <div className="flex gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-muted-foreground">Nivel</label>
+                    <Select
+                      value={config.personality.emoji_usage.level}
+                      onValueChange={(v) => updateEmojiUsage({ level: v as BotEmojiLevel })}
+                    >
+                      <SelectTrigger className="h-8 w-32 border-border bg-secondary/40 text-xs text-foreground focus:ring-cyan-500/20">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="border-border bg-popover/95 backdrop-blur-xl">
+                        {EMOJI_LEVEL_OPTIONS.map((opt) => (
+                          <SelectItem
+                            key={opt.value}
+                            value={opt.value}
+                            className="text-sm text-popover-foreground focus:bg-secondary focus:text-foreground"
+                          >
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-muted-foreground">Máximo por mensaje</label>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={EMOJI_MAX_COUNT}
+                      value={config.personality.emoji_usage.max_count}
+                      onChange={(e) => updateEmojiUsage({ max_count: Number(e.target.value) })}
+                      className="h-8 w-20 border-border bg-secondary/40 text-sm text-foreground"
+                    />
+                  </div>
+                </div>
+                <ListEditor
+                  label="Nunca usar emojis en"
+                  items={config.personality.emoji_usage.never_in}
+                  onChange={(items) => updateEmojiUsage({ never_in: items })}
+                  accent="amber"
+                />
+              </SectionCard>
+            </>
+          )}
+
+          {config.response_policy && (
+            <SectionCard title="Política de respuesta">
+              <div className="space-y-2">
+                {(
+                  [
+                    ["one_question_per_turn", "Una pregunta por turno"],
+                    ["no_repeat_greeting", "No repetir el saludo"],
+                    ["no_repeat_known_data", "No repetir datos ya conocidos"],
+                    ["acknowledge_uncertainty", "Reconocer incertidumbre"],
+                  ] as const
+                ).map(([key, label]) => (
+                  <div key={key} className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">{label}</span>
+                    <Switch
+                      checked={config.response_policy![key]}
+                      onCheckedChange={(checked) => updateResponsePolicy({ [key]: checked })}
+                    />
+                  </div>
+                ))}
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Preferencia de longitud</label>
+                <Textarea
+                  value={config.response_policy.length_preference}
+                  onChange={(e) => updateResponsePolicy({ length_preference: e.target.value })}
+                  maxLength={SHORT_STYLE_MAX}
+                  className="min-h-[50px] border-border bg-secondary/40 text-sm text-foreground"
+                />
+              </div>
+              <ListEditor
+                label="Nunca inventar"
+                items={config.response_policy.no_invent}
+                onChange={(items) => updateResponsePolicy({ no_invent: items })}
+                accent="red"
+              />
+            </SectionCard>
+          )}
+
+          {config.escalation && (
+            <SectionCard title="Escalamiento (avanzado)">
+              <div className="flex gap-3">
+                <div className="space-y-1.5">
+                  <label htmlFor="escalation-threshold" className="text-xs font-medium text-muted-foreground">
+                    Umbral de confianza para escalar
+                  </label>
+                  <Input
+                    id="escalation-threshold"
+                    aria-label="Umbral de confianza para escalar"
+                    type="number"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={config.escalation.confidence_threshold}
+                    onChange={(e) => updateEscalation({ confidence_threshold: Number(e.target.value) })}
+                    className="h-8 w-24 border-border bg-secondary/40 text-sm text-foreground"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label htmlFor="escalation-attempts" className="text-xs font-medium text-muted-foreground">
+                    Intentos de aclaración antes de escalar
+                  </label>
+                  <Input
+                    id="escalation-attempts"
+                    type="number"
+                    min={0}
+                    max={CLARIFY_ATTEMPTS_MAX}
+                    value={config.escalation.max_clarify_attempts}
+                    onChange={(e) => updateEscalation({ max_clarify_attempts: Number(e.target.value) })}
+                    className="h-8 w-20 border-border bg-secondary/40 text-sm text-foreground"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Mensaje — lead (interés comercial)</label>
+                <Textarea
+                  value={config.escalation.messages.lead}
+                  onChange={(e) => updateEscalationMessages({ lead: e.target.value })}
+                  maxLength={ESCALATION_MSG_MAX}
+                  className="min-h-[50px] border-border bg-secondary/40 text-sm text-foreground"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Mensaje — pide un asesor</label>
+                <Textarea
+                  value={config.escalation.messages.escalate}
+                  onChange={(e) => updateEscalationMessages({ escalate: e.target.value })}
+                  maxLength={ESCALATION_MSG_MAX}
+                  className="min-h-[50px] border-border bg-secondary/40 text-sm text-foreground"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Mensaje — duda no resuelta</label>
+                <Textarea
+                  value={config.escalation.messages.unknown}
+                  onChange={(e) => updateEscalationMessages({ unknown: e.target.value })}
+                  maxLength={ESCALATION_MSG_MAX}
+                  className="min-h-[50px] border-border bg-secondary/40 text-sm text-foreground"
+                />
+              </div>
+            </SectionCard>
+          )}
+
+          {config.timing && (
+            <SectionCard title="Tiempos de respuesta humanizados">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">Variar según longitud del mensaje</span>
+                <Switch
+                  checked={config.timing.vary_by_length}
+                  onCheckedChange={(checked) => updateTiming({ vary_by_length: checked })}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">Desactivado (sin pausa humanizada)</span>
+                <Switch
+                  checked={config.timing.disabled}
+                  onCheckedChange={(checked) => updateTiming({ disabled: checked })}
+                />
+              </div>
+              <div className="flex gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Mínimo (segundos)</label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={TIMING_DELAY_MAX}
+                    value={config.timing.min_delay_seconds}
+                    onChange={(e) => updateTiming({ min_delay_seconds: Number(e.target.value) })}
+                    className="h-8 w-20 border-border bg-secondary/40 text-sm text-foreground"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Máximo (segundos)</label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={TIMING_DELAY_MAX}
+                    value={config.timing.max_delay_seconds}
+                    onChange={(e) => updateTiming({ max_delay_seconds: Number(e.target.value) })}
+                    className="h-8 w-20 border-border bg-secondary/40 text-sm text-foreground"
+                  />
+                </div>
+              </div>
+            </SectionCard>
+          )}
         </div>
 
         <div className="mt-4 space-y-1 rounded-xl border border-border p-3 text-[11px] text-muted-foreground">

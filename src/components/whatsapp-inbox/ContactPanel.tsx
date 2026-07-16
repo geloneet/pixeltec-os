@@ -7,12 +7,14 @@ import { Spinner } from "@/components/ui/spinner";
 import { useUser } from "@/hooks/use-user";
 import { useCRM } from "@/components/crm/CRMContextCore";
 import { useInboxContactNotes } from "@/hooks/use-inbox-contact-notes";
+import { useInboxBotMemory } from "@/hooks/use-inbox-bot-memory";
 import type { ContactPatch } from "@/lib/db/repos/whatsapp-contacts";
 import { cn } from "@/lib/utils";
 import { addContactNote, createWhatsappTicket, upsertContact } from "@/lib/whatsapp-inbox/contacts-client";
 import { parseCanonical } from "@/lib/whatsapp-inbox/time";
 import {
   CLASSIFICATION_META,
+  MEMORY_KEY_LABELS,
   STATUS_META,
   type ConversationStatus,
   type ContactClassification,
@@ -104,6 +106,7 @@ export function ContactPanel({ phone, conv, contact, onClose, onModeChanged, ref
   useEffect(() => setOrigin(contact?.origin ?? ""), [contact?.origin]);
 
   const { notes, refetch: refetchNotes } = useInboxContactNotes(phone);
+  const { memory } = useInboxBotMemory(phone);
 
   const mode = conv?.mode ?? "BOT";
   const pausedUntilLabel = useMemo(() => {
@@ -597,6 +600,45 @@ export function ContactPanel({ phone, conv, contact, onClose, onModeChanged, ref
             >
               Archivar
             </Button>
+          </div>
+        </SectionCard>
+
+        {/* Memoria del bot */}
+        <SectionCard title="Memoria del bot">
+          <div className="space-y-1.5">
+            {memory.length === 0 && (
+              <p className="text-xs text-muted-foreground/60">
+                El bot aún no recuerda datos de este contacto.
+              </p>
+            )}
+            {memory.map((entry) => {
+              const expired = Boolean(entry.expires_at) && new Date(entry.expires_at!).getTime() < Date.now();
+              return (
+                <div
+                  key={entry.key}
+                  className={cn(
+                    "flex items-start justify-between gap-2 rounded-md border px-2 py-1.5",
+                    expired ? "border-border/50 opacity-50" : "border-border bg-secondary/20"
+                  )}
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[11px] text-muted-foreground">{MEMORY_KEY_LABELS[entry.key]}</p>
+                    <p className="truncate text-xs text-foreground">{entry.value}</p>
+                  </div>
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      "flex-shrink-0 font-normal",
+                      entry.source === "customer"
+                        ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                        : "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                    )}
+                  >
+                    {entry.source === "customer" ? "del cliente" : "inferido"}
+                  </Badge>
+                </div>
+              );
+            })}
           </div>
         </SectionCard>
 

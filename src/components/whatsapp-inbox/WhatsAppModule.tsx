@@ -3,13 +3,17 @@
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { BotConfigView } from "./BotConfigView";
+import { ConfigVersionsPanel } from "./ConfigVersionsPanel";
+import { ExamplesView } from "./ExamplesView";
 import { InboxShell } from "./InboxShell";
 
-type ModuleTab = "inbox" | "config";
+type ModuleTab = "inbox" | "config" | "examples" | "versions";
 
 const MODULE_TABS: { id: ModuleTab; label: string }[] = [
   { id: "inbox", label: "Inbox" },
   { id: "config", label: "Configuración del bot" },
+  { id: "examples", label: "Ejemplos" },
+  { id: "versions", label: "Versiones y playground" },
 ];
 
 interface WhatsAppModuleProps {
@@ -54,11 +58,10 @@ export function WhatsAppModule({ tenantId }: WhatsAppModuleProps) {
 
       {/* Tab content */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        {activeTab === "inbox" ? (
-          <InboxShell tenantId={tenantId} onOpenConfig={() => setActiveTab("config")} />
-        ) : (
-          <BotConfigView />
-        )}
+        {activeTab === "inbox" && <InboxShell tenantId={tenantId} onOpenConfig={() => setActiveTab("config")} />}
+        {activeTab === "config" && <BotConfigView />}
+        {activeTab === "examples" && <ExamplesView />}
+        {activeTab === "versions" && <ConfigVersionsPanel />}
       </div>
     </div>
   );
