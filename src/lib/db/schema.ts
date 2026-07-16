@@ -1827,6 +1827,21 @@ export const pixelforgeRunStatusEnum = pgEnum("pixelforge_run_status", [
   "failed",
 ]);
 
+// "static-visual-*" (no "visual-complete"): un screenshot NO demuestra
+// movimiento/responsive/interacción, así que el enum deja explícito que la
+// cobertura es solo la foto estática de la referencia.
+export const pixelforgeReferenceCoverageEnum = pgEnum("pixelforge_reference_coverage", [
+  "static-visual-fullpage",
+  "static-visual-partial",
+  "semantic-only",
+]);
+
+export const pixelforgeReferenceKindEnum = pgEnum("pixelforge_reference_kind", [
+  "url",
+  "image",
+  "note",
+]);
+
 export const pixelforgeProjects = pgTable(
   "pixelforge_projects",
   {
@@ -1997,6 +2012,36 @@ export const pixelforgeAiRuns = pgTable(
   ]
 );
 
+export const pixelforgeVisualReferences = pgTable(
+  "pixelforge_visual_references",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => pixelforgeProjects.id, { onDelete: "cascade" }),
+    kind: pixelforgeReferenceKindEnum("kind").notNull(),
+    label: text("label").notNull(), // nombre corto que pone el usuario
+    url: text("url"), // solo kind "url"
+    // Solo kind "image" — la imagen vive en R2 vía pixelforge_assets.
+    assetId: uuid("asset_id").references(() => pixelforgeAssets.id, { onDelete: "set null" }),
+    coverage: pixelforgeReferenceCoverageEnum("coverage").notNull(),
+    // Metadatos SANEADOS del fetch (title/description/headings truncados,
+    // declaraciones color/font de CSS inline) — el HTML crudo JAMÁS se persiste.
+    fetchedMeta: jsonb("fetched_meta"),
+    // Salida de analyze_reference — SOLO enums cerrados de atributos abstractos.
+    analysis: jsonb("analysis"),
+    weight: integer("weight").notNull().default(1), // peso relativo de la referencia (1-3)
+    note: text("note"), // kind "note", o notas del usuario sobre la referencia
+    // Autoría desnormalizada — nullable + FK a users con set null, igual que
+    // definition_events.actorId (L1649).
+    addedById: uuid("added_by_id").references(() => users.id, { onDelete: "set null" }),
+    addedByName: text("added_by_name").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("pixelforge_visual_references_project_idx").on(t.projectId)]
+);
+
 export const pixelforgeProjectsRelations = relations(
   pixelforgeProjects,
   ({ many, one }) => ({
@@ -2017,6 +2062,7 @@ export const pixelforgeProjectsRelations = relations(
     events: many(pixelforgeEvents),
     assets: many(pixelforgeAssets),
     aiRuns: many(pixelforgeAiRuns),
+    visualReferences: many(pixelforgeVisualReferences),
   })
 );
 
@@ -2074,6 +2120,20 @@ export const pixelforgeAiRunsRelations = relations(
   })
 );
 
+export const pixelforgeVisualReferencesRelations = relations(
+  pixelforgeVisualReferences,
+  ({ one }) => ({
+    project: one(pixelforgeProjects, {
+      fields: [pixelforgeVisualReferences.projectId],
+      references: [pixelforgeProjects.id],
+    }),
+    asset: one(pixelforgeAssets, {
+      fields: [pixelforgeVisualReferences.assetId],
+      references: [pixelforgeAssets.id],
+    }),
+  })
+);
+
 export type PixelforgeProject = typeof pixelforgeProjects.$inferSelect;
 export type NewPixelforgeProject = typeof pixelforgeProjects.$inferInsert;
 export type PixelforgeContextSource = typeof pixelforgeContextSources.$inferSelect;
@@ -2086,3 +2146,5 @@ export type PixelforgeAsset = typeof pixelforgeAssets.$inferSelect;
 export type NewPixelforgeAsset = typeof pixelforgeAssets.$inferInsert;
 export type PixelforgeAiRun = typeof pixelforgeAiRuns.$inferSelect;
 export type NewPixelforgeAiRun = typeof pixelforgeAiRuns.$inferInsert;
+export type PixelforgeVisualReference = typeof pixelforgeVisualReferences.$inferSelect;
+export type NewPixelforgeVisualReference = typeof pixelforgeVisualReferences.$inferInsert;
