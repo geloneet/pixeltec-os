@@ -486,7 +486,8 @@ export async function setRunUserDecision(
 /**
  * Guarda el borrador de un artifact. Ownership del proyecto + el artifact
  * debe existir; si está `sealed` lanza (hay que reabrirlo primero). Si
- * estaba `pending` pasa a `in_progress` (primera edición). Actualiza
+ * estaba `pending` o `invalidated` pasa a `in_progress` (primera edición, o
+ * retomar tras invalidación downstream). Actualiza
  * `lastRunId` si viene en `opts`. Toca `updatedAt` del artifact y del
  * proyecto. `actor` se recibe por simetría con el resto de escrituras del
  * repo — esta operación no deja evento propio (igual que
@@ -524,7 +525,10 @@ export async function updateArtifactDraft(
       .update(pixelforgeArtifacts)
       .set({
         currentDraft: draft,
-        status: artifact.status === "pending" ? "in_progress" : artifact.status,
+        status:
+          artifact.status === "pending" || artifact.status === "invalidated"
+            ? "in_progress"
+            : artifact.status,
         ...(opts?.lastRunId ? { lastRunId: opts.lastRunId } : {}),
         updatedAt: now,
       })

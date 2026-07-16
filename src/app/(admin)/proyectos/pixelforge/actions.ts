@@ -17,11 +17,19 @@ import { clients } from "@/lib/db/schema";
 import {
   createPixelforgeProject,
   addContextSource,
+  updateArtifactDraft,
+  sealArtifact,
+  reopenArtifact,
+  setRunUserDecision,
   type Actor,
 } from "@/lib/db/repos/pixelforge";
 import { getDefinitionFull } from "@/lib/db/repos/definitions";
 import type { PixelforgeSourceType } from "@/lib/pixelforge/types";
 import type { PortalActionResult } from "@/lib/action-types";
+// OJO: este schema usa `zod/v4` (ver docstring del archivo) — el resto de
+// este módulo sigue con `zod` v3 clásico a propósito, no lo migres.
+// `safeParse` funciona igual desde cualquiera de las dos versiones.
+import { contextBriefSchema } from "@/lib/pixelforge/schemas/analyze-context";
 
 interface Auth {
   ownerId: string;
@@ -200,6 +208,147 @@ export async function addContextSourceAction(input: {
     return {
       success: false,
       error: err instanceof Error ? err.message : "No se pudo anexar la fuente",
+    };
+  }
+}
+
+// ─── Context Brief (F2) ─────────────────────────────────────────────────────
+// Solo `context_brief` está operativo en F2 — las fases futuras generalizan
+// estas acciones a los demás kinds de artifact.
+
+const projectIdOnlySchema = z.object({
+  projectId: z.string().uuid("Proyecto inválido"),
+});
+
+/**
+ * Guarda el borrador editado del Context Brief. Valida la FORMA con
+ * `contextBriefSchema` (zod v4, ver import arriba) antes de persistir — el
+ * caller (ContextBriefPanel) siempre manda el brief COMPLETO (clonado y
+ * modificado), nunca un parche parcial.
+ */
+export async function updateContextBriefDraftAction(input: {
+  projectId: string;
+  draft: unknown;
+}): Promise<PortalActionResult> {
+  try {
+    const { ownerId, actor } = await requireAuth();
+    const projectIdParsed = projectIdOnlySchema.safeParse({ projectId: input.projectId });
+    if (!projectIdParsed.success) {
+      return { success: false, error: projectIdParsed.error.errors[0]?.message };
+    }
+    const parsed = contextBriefSchema.safeParse(input.draft);
+    if (!parsed.success) {
+      return { success: false, error: "El borrador no tiene la forma de un Context Brief válido" };
+    }
+
+    await updateArtifactDraft(
+      projectIdParsed.data.projectId,
+      ownerId,
+      "context_brief",
+      parsed.data,
+      actor
+    );
+
+    revalidatePath(`/proyectos/pixelforge/${projectIdParsed.data.projectId}`);
+    revalidatePath(`/proyectos/pixelforge/${projectIdParsed.data.projectId}/contexto`);
+    return { success: true };
+  } catch (err) {
+    console.error("[updateContextBriefDraftAction]", err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "No se pudo guardar el borrador",
+    };
+  }
+}
+
+/** Sella el Context Brief: congela el borrador actual, avanza la estación si corresponde. */
+export async function sealContextBriefAction(input: {
+  projectId: string;
+}): Promise<PortalActionResult> {
+  try {
+    const { ownerId, actor } = await requireAuth();
+    const parsed = projectIdOnlySchema.safeParse(input);
+    if (!parsed.success) {
+      return { success: false, error: parsed.error.errors[0]?.message };
+    }
+
+    await sealArtifact(parsed.data.projectId, ownerId, "context_brief", actor);
+
+    revalidatePath(`/proyectos/pixelforge/${parsed.data.projectId}`);
+    revalidatePath(`/proyectos/pixelforge/${parsed.data.projectId}/contexto`);
+    return { success: true };
+  } catch (err) {
+    console.error("[sealContextBriefAction]", err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "No se pudo sellar el Context Brief",
+    };
+  }
+}
+
+const reopenContextBriefSchema = z.object({
+  projectId: z.string().uuid("Proyecto inválido"),
+  reason: z.string().trim().min(5, "Explica por qué reabres"),
+});
+
+/** Reabre el Context Brief sellado — invalida los sellos downstream (repo se encarga). */
+export async function reopenContextBriefAction(input: {
+  projectId: string;
+  reason: string;
+}): Promise<PortalActionResult> {
+  try {
+    const { ownerId, actor } = await requireAuth();
+    const parsed = reopenContextBriefSchema.safeParse(input);
+    if (!parsed.success) {
+      return { success: false, error: parsed.error.errors[0]?.message };
+    }
+
+    await reopenArtifact(
+      parsed.data.projectId,
+      ownerId,
+      "context_brief",
+      parsed.data.reason,
+      actor
+    );
+
+    revalidatePath(`/proyectos/pixelforge/${parsed.data.projectId}`);
+    revalidatePath(`/proyectos/pixelforge/${parsed.data.projectId}/contexto`);
+    return { success: true };
+  } catch (err) {
+    console.error("[reopenContextBriefAction]", err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "No se pudo reabrir el Context Brief",
+    };
+  }
+}
+
+const setRunDecisionSchema = z.object({
+  runId: z.string().uuid("Corrida inválida"),
+  decision: z.enum(["accepted", "rejected"], {
+    errorMap: () => ({ message: "Decisión inválida" }),
+  }),
+});
+
+/** Registra si el usuario consideró útil o no el resultado de una corrida IA. */
+export async function setRunDecisionAction(input: {
+  runId: string;
+  decision: "accepted" | "rejected";
+}): Promise<PortalActionResult> {
+  try {
+    const { ownerId } = await requireAuth();
+    const parsed = setRunDecisionSchema.safeParse(input);
+    if (!parsed.success) {
+      return { success: false, error: parsed.error.errors[0]?.message };
+    }
+
+    await setRunUserDecision(parsed.data.runId, ownerId, parsed.data.decision);
+    return { success: true };
+  } catch (err) {
+    console.error("[setRunDecisionAction]", err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "No se pudo registrar tu respuesta",
     };
   }
 }
