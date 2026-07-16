@@ -2,7 +2,8 @@
  * Registro central de las 11 operaciones IA de PixelForge. Zod es la única
  * fuente de verdad de los outputs (Structured Outputs vía `zodOutputFormat`
  * en la capa `ai/` — F2-T3): cada `outputSchema` de aquí es lo que se envía
- * a `client.messages.parse({ output_config: { format: zodOutputFormat(...) } })`.
+ * a `client.messages.create({ output_config: { format: zodOutputFormat(...) } })`
+ * (parseo manual de la respuesta en `ai/run.ts`, ver su docstring — hallazgo C1).
  *
  * Nota sobre `analyze_context`: aquí se registra `contextBriefSchema` (la
  * FORMA, sin refines de dominio) — `contextBriefDomainSchema` (con los

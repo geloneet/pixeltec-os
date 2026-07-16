@@ -4,9 +4,9 @@ import { executeOperation, type RunCallbacks } from "./run";
 import { contextBriefDomainSchema, type ContextBrief } from "../schemas/analyze-context";
 import { resolvePixelForgeModel } from "./model";
 
-/** Cliente mockeado: solo necesitamos `messages.parse`, ver brief F2-T3. */
+/** Cliente mockeado: solo necesitamos `messages.create` (parseo manual, ver C1 en `./run.ts`). */
 function makeClient() {
-  return { messages: { parse: vi.fn() } };
+  return { messages: { create: vi.fn() } };
 }
 
 function makeCallbacks() {
@@ -18,6 +18,18 @@ function makeCallbacks() {
 }
 
 const BASE_MESSAGES: Anthropic.MessageParam[] = [{ role: "user", content: "Analiza este proyecto." }];
+
+/** Respuesta `messages.create` que envuelve un objeto como único bloque de texto — el shape real del SDK (0.91.1) que `run.ts` parsea a mano. */
+function textResponse(
+  obj: unknown,
+  opts: { stop_reason?: string | null; usage?: { input_tokens: number; output_tokens: number } } = {}
+) {
+  return {
+    stop_reason: opts.stop_reason ?? "end_turn",
+    content: [{ type: "text", text: JSON.stringify(obj) }],
+    usage: opts.usage ?? { input_tokens: 100, output_tokens: 200 },
+  };
+}
 
 function validBrief(): ContextBrief {
   return {
@@ -36,7 +48,7 @@ function validBrief(): ContextBrief {
   };
 }
 
-/** Viola el refine de dominio: un ítem de `confirmados` sin evidencias. */
+/** Viola el refine de dominio: un ítem de `confirmados` sin evidencias (pero respeta la FORMA — pasa `contextBriefSchema`). */
 function invalidBrief(): ContextBrief {
   return {
     confirmados: [
@@ -55,13 +67,9 @@ function invalidBrief(): ContextBrief {
 }
 
 describe("executeOperation", () => {
-  it("1. camino feliz: parse ok, end_turn, sin domainSchema — persistResult y finishRun(succeeded) 1 vez, tokens correctos", async () => {
+  it("1. camino feliz: create ok, end_turn, sin domainSchema — persistResult y finishRun(succeeded) 1 vez, tokens correctos", async () => {
     const client = makeClient();
-    client.messages.parse.mockResolvedValue({
-      stop_reason: "end_turn",
-      parsed_output: validBrief(),
-      usage: { input_tokens: 120, output_tokens: 340 },
-    });
+    client.messages.create.mockResolvedValue(textResponse(validBrief(), { usage: { input_tokens: 120, output_tokens: 340 } }));
     const callbacks = makeCallbacks();
 
     const result = await executeOperation({
@@ -72,8 +80,8 @@ describe("executeOperation", () => {
       callbacks,
     });
 
-    expect(client.messages.parse).toHaveBeenCalledTimes(1);
-    expect(client.messages.parse.mock.calls[0][0]).toMatchObject({
+    expect(client.messages.create).toHaveBeenCalledTimes(1);
+    expect(client.messages.create.mock.calls[0][0]).toMatchObject({
       model: resolvePixelForgeModel("analyze_context"),
       max_tokens: 8000,
       system: "system prompt",
@@ -94,9 +102,9 @@ describe("executeOperation", () => {
 
   it("2. refusal: failureKind refusal, persistResult NO llamado, finishRun(failed) 1 vez", async () => {
     const client = makeClient();
-    client.messages.parse.mockResolvedValue({
+    client.messages.create.mockResolvedValue({
       stop_reason: "refusal",
-      parsed_output: null,
+      content: [],
       usage: { input_tokens: 15, output_tokens: 0 },
     });
     const callbacks = makeCallbacks();
@@ -109,7 +117,7 @@ describe("executeOperation", () => {
       callbacks,
     });
 
-    expect(client.messages.parse).toHaveBeenCalledTimes(1);
+    expect(client.messages.create).toHaveBeenCalledTimes(1);
     expect(callbacks.persistResult).not.toHaveBeenCalled();
     expect(callbacks.finishRun).toHaveBeenCalledTimes(1);
     expect(callbacks.finishRun).toHaveBeenCalledWith(
@@ -118,11 +126,13 @@ describe("executeOperation", () => {
     expect(result).toEqual({ failure: "refusal", error: expect.any(String) });
   });
 
-  it("3. max_tokens: failureKind max_tokens, sin retry (parse llamado 1 vez)", async () => {
+  it("3. max_tokens: failureKind max_tokens, sin retry (create llamado 1 vez), gana aunque el texto truncado pareciera parseable", async () => {
     const client = makeClient();
-    client.messages.parse.mockResolvedValue({
+    client.messages.create.mockResolvedValue({
       stop_reason: "max_tokens",
-      parsed_output: null,
+      // Texto truncado a media generación — a propósito NO es JSON válido, para probar que
+      // stop_reason se clasifica ANTES de intentar leer/parsear el texto (el bug C1 real).
+      content: [{ type: "text", text: '{"confirmados": [{"titulo": "Rub' }],
       usage: { input_tokens: 50, output_tokens: 8000 },
     });
     const callbacks = makeCallbacks();
@@ -135,28 +145,20 @@ describe("executeOperation", () => {
       callbacks,
     });
 
-    expect(client.messages.parse).toHaveBeenCalledTimes(1);
+    expect(client.messages.create).toHaveBeenCalledTimes(1);
     expect(callbacks.persistResult).not.toHaveBeenCalled();
     expect(callbacks.finishRun).toHaveBeenCalledTimes(1);
     expect(callbacks.finishRun).toHaveBeenCalledWith(
-      expect.objectContaining({ status: "failed", failureKind: "max_tokens" })
+      expect.objectContaining({ status: "failed", failureKind: "max_tokens", tokensIn: 50, tokensOut: 8000 })
     );
     expect(result).toEqual({ failure: "max_tokens", error: expect.any(String) });
   });
 
-  it("4. domain_validation con retry exitoso: 1ra respuesta viola domainSchema, 2da válida — retryCount 1, succeeded, parse x2, tokens sumados", async () => {
+  it("4. domain_validation con retry exitoso: 1ra respuesta viola domainSchema, 2da válida — retryCount 1, succeeded, create x2, tokens sumados", async () => {
     const client = makeClient();
-    client.messages.parse
-      .mockResolvedValueOnce({
-        stop_reason: "end_turn",
-        parsed_output: invalidBrief(),
-        usage: { input_tokens: 100, output_tokens: 200 },
-      })
-      .mockResolvedValueOnce({
-        stop_reason: "end_turn",
-        parsed_output: validBrief(),
-        usage: { input_tokens: 130, output_tokens: 90 },
-      });
+    client.messages.create
+      .mockResolvedValueOnce(textResponse(invalidBrief(), { usage: { input_tokens: 100, output_tokens: 200 } }))
+      .mockResolvedValueOnce(textResponse(validBrief(), { usage: { input_tokens: 130, output_tokens: 90 } }));
     const callbacks = makeCallbacks();
 
     const result = await executeOperation({
@@ -168,9 +170,9 @@ describe("executeOperation", () => {
       callbacks,
     });
 
-    expect(client.messages.parse).toHaveBeenCalledTimes(2);
+    expect(client.messages.create).toHaveBeenCalledTimes(2);
     // La 2a llamada reenvía la conversación original + assistant(json) + user(correción).
-    const secondCallMessages = client.messages.parse.mock.calls[1][0].messages as Anthropic.MessageParam[];
+    const secondCallMessages = client.messages.create.mock.calls[1][0].messages as Anthropic.MessageParam[];
     expect(secondCallMessages.length).toBe(BASE_MESSAGES.length + 2);
     expect(secondCallMessages[secondCallMessages.length - 2].role).toBe("assistant");
     expect(secondCallMessages[secondCallMessages.length - 1].role).toBe("user");
@@ -190,19 +192,11 @@ describe("executeOperation", () => {
     expect(result).toEqual({ output: validBrief() });
   });
 
-  it("5. domain_validation doble: failed domain_validation, parse llamado exactamente 2 veces (no 3)", async () => {
+  it("5. domain_validation doble: failed domain_validation, create llamado exactamente 2 veces (no 3)", async () => {
     const client = makeClient();
-    client.messages.parse
-      .mockResolvedValueOnce({
-        stop_reason: "end_turn",
-        parsed_output: invalidBrief(),
-        usage: { input_tokens: 100, output_tokens: 200 },
-      })
-      .mockResolvedValueOnce({
-        stop_reason: "end_turn",
-        parsed_output: invalidBrief(),
-        usage: { input_tokens: 110, output_tokens: 210 },
-      });
+    client.messages.create
+      .mockResolvedValueOnce(textResponse(invalidBrief(), { usage: { input_tokens: 100, output_tokens: 200 } }))
+      .mockResolvedValueOnce(textResponse(invalidBrief(), { usage: { input_tokens: 110, output_tokens: 210 } }));
     const callbacks = makeCallbacks();
 
     const result = await executeOperation({
@@ -214,7 +208,7 @@ describe("executeOperation", () => {
       callbacks,
     });
 
-    expect(client.messages.parse).toHaveBeenCalledTimes(2);
+    expect(client.messages.create).toHaveBeenCalledTimes(2);
     expect(callbacks.persistResult).not.toHaveBeenCalled();
     expect(callbacks.finishRun).toHaveBeenCalledTimes(1);
     expect(callbacks.finishRun).toHaveBeenCalledWith(
@@ -234,7 +228,7 @@ describe("executeOperation", () => {
 
   it("6. APIError 500 → provider_error, sin retry", async () => {
     const client = makeClient();
-    client.messages.parse.mockRejectedValueOnce(
+    client.messages.create.mockRejectedValueOnce(
       new Anthropic.APIError(500, undefined, "Internal server error", undefined)
     );
     const callbacks = makeCallbacks();
@@ -247,7 +241,7 @@ describe("executeOperation", () => {
       callbacks,
     });
 
-    expect(client.messages.parse).toHaveBeenCalledTimes(1);
+    expect(client.messages.create).toHaveBeenCalledTimes(1);
     expect(callbacks.persistResult).not.toHaveBeenCalled();
     expect(callbacks.finishRun).toHaveBeenCalledTimes(1);
     expect(callbacks.finishRun).toHaveBeenCalledWith(
@@ -258,7 +252,7 @@ describe("executeOperation", () => {
 
   it("7. APIError 400 con mensaje de schema → schema_too_complex, sin retry", async () => {
     const client = makeClient();
-    client.messages.parse.mockRejectedValueOnce(
+    client.messages.create.mockRejectedValueOnce(
       new Anthropic.APIError(400, undefined, "Invalid output_config.format: schema too complex", undefined)
     );
     const callbacks = makeCallbacks();
@@ -271,7 +265,7 @@ describe("executeOperation", () => {
       callbacks,
     });
 
-    expect(client.messages.parse).toHaveBeenCalledTimes(1);
+    expect(client.messages.create).toHaveBeenCalledTimes(1);
     expect(callbacks.persistResult).not.toHaveBeenCalled();
     expect(callbacks.finishRun).toHaveBeenCalledTimes(1);
     expect(callbacks.finishRun).toHaveBeenCalledWith(
@@ -282,7 +276,7 @@ describe("executeOperation", () => {
 
   it("8. timeout (error con name AbortError, duck-typed) → timeout", async () => {
     const client = makeClient();
-    client.messages.parse.mockRejectedValueOnce({ name: "AbortError", message: "The operation was aborted." });
+    client.messages.create.mockRejectedValueOnce({ name: "AbortError", message: "The operation was aborted." });
     const callbacks = makeCallbacks();
 
     const result = await executeOperation({
@@ -293,12 +287,72 @@ describe("executeOperation", () => {
       callbacks,
     });
 
-    expect(client.messages.parse).toHaveBeenCalledTimes(1);
+    expect(client.messages.create).toHaveBeenCalledTimes(1);
     expect(callbacks.persistResult).not.toHaveBeenCalled();
     expect(callbacks.finishRun).toHaveBeenCalledTimes(1);
     expect(callbacks.finishRun).toHaveBeenCalledWith(
       expect.objectContaining({ status: "failed", failureKind: "timeout" })
     );
     expect(result).toEqual({ failure: "timeout", error: expect.any(String) });
+  });
+
+  it("9. JSON roto con stop_reason end_turn → provider_error, sin retry (la gramática debió garantizar JSON)", async () => {
+    const client = makeClient();
+    client.messages.create.mockResolvedValueOnce({
+      stop_reason: "end_turn",
+      content: [{ type: "text", text: "esto no es JSON" }],
+      usage: { input_tokens: 40, output_tokens: 30 },
+    });
+    const callbacks = makeCallbacks();
+
+    const result = await executeOperation({
+      client: client as unknown as Anthropic,
+      operation: "analyze_context",
+      system: "system prompt",
+      messages: BASE_MESSAGES,
+      callbacks,
+    });
+
+    expect(client.messages.create).toHaveBeenCalledTimes(1);
+    expect(callbacks.persistResult).not.toHaveBeenCalled();
+    expect(callbacks.finishRun).toHaveBeenCalledTimes(1);
+    expect(callbacks.finishRun).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "failed", failureKind: "provider_error", retryCount: 0 })
+    );
+    expect(result).toEqual({ failure: "provider_error", error: expect.any(String) });
+  });
+
+  it("10. forma inválida (viola minLength de outputSchema, sin domainSchema) entra al MISMO retry semántico y se recupera", async () => {
+    const client = makeClient();
+    // `resumen` viola `.min(1)` de `contextBriefSchema` — degradación de forma que la gramática NO
+    // garantiza al 100%, debe clasificarse domain_validation y disparar el retry compartido aunque
+    // NO se pase `domainSchema` (el shape-check corre siempre, ver `validateOutput` en `./run.ts`).
+    const malformed = { ...validBrief(), resumen: "" };
+    client.messages.create
+      .mockResolvedValueOnce(textResponse(malformed, { usage: { input_tokens: 90, output_tokens: 150 } }))
+      .mockResolvedValueOnce(textResponse(validBrief(), { usage: { input_tokens: 95, output_tokens: 60 } }));
+    const callbacks = makeCallbacks();
+
+    const result = await executeOperation({
+      client: client as unknown as Anthropic,
+      operation: "analyze_context",
+      system: "system prompt",
+      messages: BASE_MESSAGES,
+      callbacks,
+    });
+
+    expect(client.messages.create).toHaveBeenCalledTimes(2);
+    expect(callbacks.persistResult).toHaveBeenCalledTimes(1);
+    expect(callbacks.persistResult).toHaveBeenCalledWith(validBrief());
+    expect(callbacks.finishRun).toHaveBeenCalledTimes(1);
+    expect(callbacks.finishRun).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "succeeded",
+        retryCount: 1,
+        tokensIn: 90 + 95,
+        tokensOut: 150 + 60,
+      })
+    );
+    expect(result).toEqual({ output: validBrief() });
   });
 });

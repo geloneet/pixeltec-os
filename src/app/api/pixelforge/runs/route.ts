@@ -2,13 +2,28 @@
  * POST /api/pixelforge/runs — arranca una corrida IA de PixelForge.
  *
  * F2 solo soporta `analyze_context` (las otras 10 operaciones llegan en
- * fases posteriores — de ahí el zod `literal`). El POST ejecuta la operación
- * INLINE (síncrono, sin cola de workers): llama al motor
- * (`executeOperation`, F2-T3) que reporta progreso vía `updateRunProgress`
- * mientras corre, así que el cliente puede pollear
- * `GET /api/pixelforge/runs/:runId` (hook `usePixelforgeRun`, patrón
- * `growthJobs`) para ver el avance aunque la respuesta HTTP de este POST no
- * llegue hasta que termine.
+ * fases posteriores — de ahí el zod `literal`). El POST arranca la operación
+ * y responde de INMEDIATO con `{ runId, status: "running" }` en cuanto
+ * `claimRun` confirma que la corrida quedó reservada; `executeOperation`
+ * sigue corriendo en background (fire-and-forget, sin `await` en el handler)
+ * y reporta progreso vía `updateRunProgress` mientras tanto, así que el
+ * cliente pollea `GET /api/pixelforge/runs/:runId` (hook `usePixelforgeRun`,
+ * patrón `growthJobs`) para ver el avance y el resultado final.
+ *
+ * Por qué fire-and-forget (decisión I1 de la revisión final F2): antes el
+ * handler hacía `await executeOperation(...)` y devolvía el resultado en la
+ * MISMA respuesta HTTP — pero una corrida de IA puede tardar más de 60s
+ * (el límite de nginx/proxy delante de Next.js en este repo), lo que
+ * producía un 504 aunque la corrida siguiera viva del lado del servidor
+ * (dejando al cliente sin respuesta Y sin nada útil que pollear mientras
+ * tanto). Self-hosted en Node (no serverless/edge): el proceso del servidor
+ * sigue vivo después de que este handler responde, así que una promesa
+ * disparada sin `await` sigue ejecutándose normalmente — no hace falta
+ * `waitUntil`/equivalente de runtimes serverless. Riesgo aceptado para F2:
+ * si el proceso Node muere a mitad de una corrida (deploy, crash, OOM),
+ * esa corrida queda "running" huérfana visible en la UI (el poller nunca
+ * ve succeeded/failed) — no hay watchdog todavía. Se documenta y se acepta
+ * para esta fase; un mecanismo de detección de huérfanos es mejora futura.
  *
  * Mismo patrón de auth/errores que `src/app/api/definition/generate/route.ts`.
  */
@@ -34,6 +49,12 @@ import {
 import { contextBriefDomainSchema } from "@/lib/pixelforge/schemas/analyze-context";
 
 export const runtime = "nodejs";
+// Ya no acota la duración real de este handler (responde apenas `claimRun` confirma, ver
+// comentario de cabecera I1) — el trabajo largo corre fire-and-forget DESPUÉS de la respuesta.
+// Se conserva porque es el patrón que ya usan `growth/generate-post` y
+// `growth/campaigns/[campaignId]/strategy` en este repo (relevante en runtimes serverless/edge
+// donde `maxDuration` limita la función completa, no solo la respuesta); inofensivo dejarlo en
+// self-hosted Node, donde no aplica.
 export const maxDuration = 60;
 
 const createRunSchema = z.object({
@@ -79,6 +100,16 @@ export async function POST(req: NextRequest) {
       return fail(parsed.error.errors[0]?.message ?? "Petición inválida", 400);
     }
     const { projectId, operation } = parsed.data;
+
+    // I3: validar ANTES de crear la corrida — si no hay API key configurada, `getPixelforgeAnthropic()`
+    // (llamado más abajo, ya en background) lanzaría igual, pero para entonces ya habríamos creado
+    // un registro `ai_runs` y devuelto 200 al cliente. Cortar acá evita corridas basura.
+    if (!process.env.ANTHROPIC_API_KEY) {
+      return NextResponse.json(
+        { error: "El motor de IA no está configurado (falta ANTHROPIC_API_KEY)" },
+        { status: 503 }
+      );
+    }
 
     const full = await getPixelforgeProjectFull(projectId, ownerId);
     if (!full) return fail("Proyecto no encontrado", 404);
@@ -129,24 +160,52 @@ export async function POST(req: NextRequest) {
     // queda "running" — un huérfano visible (el usuario ve el draft nuevo
     // pero la corrida nunca cierra), no una corrupción de datos. Aceptado
     // para F2; una tx compartida es mejora futura si el caso se presenta.
-    const result = await executeOperation({
-      client: getPixelforgeAnthropic(),
-      operation,
-      system,
-      messages,
-      domainSchema: contextBriefDomainSchema,
-      callbacks: {
-        onProgress: (progress, currentStep) => updateRunProgress(runId as string, progress, currentStep),
-        persistResult: (output) =>
-          updateArtifactDraft(projectId, ownerId, "context_brief", output, actor, { lastRunId: runId }),
-        finishRun: (r) => finishRunRecord(runId as string, r),
-      },
-    });
+    //
+    // I1: `runId` ya está confirmado (`claimed === true`) — cerrado sobre una
+    // const no-opcional para las callbacks, en vez de seguir castenado
+    // `runId as string` como antes.
+    const claimedRunId = runId;
 
-    if ("output" in result) {
-      return NextResponse.json({ runId, status: "succeeded" as const });
-    }
-    return NextResponse.json({ runId, status: "failed" as const, failure: result.failure, error: result.error });
+    // Fire-and-forget: NO se hace `await` acá — el handler responde de inmediato (debajo) y esta
+    // promesa sigue corriendo en background. Ver comentario de cabecera (I1) para el razonamiento
+    // completo. El catch de ESTA promesa es el único best-effort de cierre para errores que ocurran
+    // DESPUÉS de que el handler ya respondió (p.ej. si algo no capturado internamente por
+    // `executeOperation` lanzara, o si una de las callbacks fallara) — el catch del try/catch
+    // externo de este handler ya no puede cubrir esta parte, porque para cuando corre el handler ya
+    // habrá devuelto la respuesta HTTP.
+    void (async () => {
+      try {
+        await executeOperation({
+          client: getPixelforgeAnthropic(),
+          operation,
+          system,
+          messages,
+          domainSchema: contextBriefDomainSchema,
+          callbacks: {
+            onProgress: (progress, currentStep) => updateRunProgress(claimedRunId, progress, currentStep),
+            persistResult: (output) =>
+              updateArtifactDraft(projectId, ownerId, "context_brief", output, actor, { lastRunId: claimedRunId }),
+            finishRun: (r) => finishRunRecord(claimedRunId, r),
+          },
+        });
+      } catch (err) {
+        console.error("[pixelforge/runs background]", err);
+        // Best-effort: mismo patrón que el catch global de abajo, pero acá — ya no hay respuesta
+        // HTTP pendiente que dependa de esto, solo evitar que la corrida quede "running" para
+        // siempre si algo lanzó por fuera del manejo interno de `executeOperation`.
+        try {
+          await finishRunRecord(claimedRunId, {
+            status: "failed",
+            failureKind: "provider_error",
+            error: "Error inesperado",
+            durationMs: 0,
+            retryCount: 0,
+          });
+        } catch {}
+      }
+    })();
+
+    return NextResponse.json({ runId, status: "running" as const });
   } catch (err) {
     console.error("[pixelforge/runs POST]", err);
     if (runId) {

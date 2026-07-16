@@ -28,7 +28,7 @@ describe("contextBriefDomainSchema", () => {
           titulo: "Ticket promedio",
           detalle: "Posiblemente proyectos de gama media por el tono del texto.",
           confianza: "baja",
-          evidencias: [],
+          evidencias: [{ sourceRef: "braindump", cita: "trabajos de calidad para cada presupuesto" }],
         },
       ],
       faltantes: [
@@ -71,6 +71,26 @@ describe("contextBriefDomainSchema", () => {
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error.issues.some((issue) => issue.path.join(".") === "confirmados.0.evidencias")).toBe(true);
+    }
+  });
+
+  it("rechaza un ítem de inferidos sin evidencias", () => {
+    const brief = baseBrief({
+      inferidos: [
+        {
+          titulo: "Ticket promedio",
+          detalle: "Posiblemente proyectos de gama media por el tono del texto.",
+          confianza: "baja",
+          evidencias: [],
+        },
+      ],
+    });
+
+    const result = contextBriefDomainSchema.safeParse(brief);
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues.some((issue) => issue.path.join(".") === "inferidos.0.evidencias")).toBe(true);
     }
   });
 

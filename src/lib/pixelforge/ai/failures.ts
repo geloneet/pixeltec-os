@@ -28,7 +28,7 @@ export class PixelforgeRunError extends Error {
   }
 }
 
-/** stop_reason de `messages.parse` → kind de fallo, o null si NO es un fallo (hay que seguir leyendo la respuesta). */
+/** stop_reason de `messages.create` → kind de fallo, o null si NO es un fallo (hay que seguir leyendo la respuesta). */
 export function classifyStopReason(stopReason: string | null): PixelforgeRunFailure | null {
   if (stopReason === "refusal") return "refusal";
   if (stopReason === "max_tokens") return "max_tokens";
@@ -76,8 +76,10 @@ function isZodErrorLike(err: unknown): err is z.ZodError {
 
 /**
  * Clasifica un error capturado en `ai/run.ts` (try/catch alrededor de
- * `messages.parse`) en una `PixelforgeRunFailure`:
- * - `ZodError` → `domain_validation`.
+ * `messages.create`) en una `PixelforgeRunFailure`:
+ * - `ZodError` → `domain_validation` (hoy `run.ts` no deja escapar `ZodError` desde ese try/catch
+ *   — el parseo/validación corre AFUERA, con `safeParse` propio — pero esta rama se conserva por
+ *   si algún caller externo captura un `ZodError` real y lo pasa por acá).
  * - Timeout/abort → `timeout`.
  * - `APIError` con status 400 y mensaje relacionado a schema/grammar/output_config/format → `schema_too_complex`.
  * - Cualquier otro `APIError`/`APIConnectionError` → `provider_error`.

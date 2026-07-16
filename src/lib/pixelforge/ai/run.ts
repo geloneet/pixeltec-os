@@ -1,14 +1,35 @@
 /**
  * Motor de ejecución de operaciones IA de PixelForge — Structured Outputs
- * vía `client.messages.parse` + `zodOutputFormat` (SDK 0.91.1). Recibe el
- * cliente Anthropic INYECTADO (no importa `./client`, que trae
- * `"server-only"`) para ser testeable sin red y sin DB: la persistencia y el
- * cierre de la corrida llegan como callbacks (`RunCallbacks`) — el
- * repositorio real (claimRun/finishRun contra `ai_runs`) se conecta en
- * F2-T4/T5.
+ * vía `client.messages.create` + `output_config.format` (`zodOutputFormat`,
+ * SDK 0.91.1) con PARSEO MANUAL de la respuesta, en vez de
+ * `client.messages.parse()`. Recibe el cliente Anthropic INYECTADO (no
+ * importa `./client`, que trae `"server-only"`) para ser testeable sin red y
+ * sin DB: la persistencia y el cierre de la corrida llegan como callbacks
+ * (`RunCallbacks`) — el repositorio real (claimRun/finishRun contra
+ * `ai_runs`) se conecta en F2-T4/T5.
+ *
+ * Por qué NO `messages.parse()` (hallazgo C1 de la revisión final F2):
+ * `client.messages.parse()` es azúcar sobre `create().then(parseMessage)`, y
+ * `parseMessage` corre `outputFormat.parse(block.text)` INCONDICIONALMENTE —
+ * sin mirar `stop_reason` primero. Si la respuesta se truncó por
+ * `max_tokens`, el texto queda con JSON a medias y ese `parse()` interno
+ * LANZA una `AnthropicError` (`"Failed to parse structured output as
+ * JSON..."`) ANTES de que este módulo pueda leer `stop_reason` — el catch de
+ * `callModel` la reclasificaba entonces como error genérico, y la corrida
+ * nunca registraba `failureKind: "max_tokens"` real (la taxonomía dejaba de
+ * ser observable). Por eso acá usamos `client.messages.create` (el mismo
+ * endpoint, mismo `output_config.format` como constraint de gramática — eso
+ * NO cambia) y hacemos nosotros mismos, en este orden: 1) clasificar
+ * `stop_reason` PRIMERO (gana aunque el texto truncado pareciera parseable),
+ * 2) extraer el texto de los bloques `content` tipo `"text"`, 3) `JSON.parse`
+ * propio, 4) `spec.outputSchema.safeParse` — la validación de FORMA que la
+ * gramática no garantiza al 100% (p.ej. `minLength`/`minItems` puede
+ * degradarse, ver `transform-json-schema` del SDK), tratada como
+ * `domain_validation` y enrutada al MISMO retry semántico que los refines de
+ * dominio.
  *
  * NO se envía `temperature`/`top_p`/`top_k` (Sonnet 5 los rechaza con 400).
- * Sin streaming — `messages.parse` es single-shot, convención de la casa.
+ * Sin streaming — single-shot, convención de la casa.
  */
 import type Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
@@ -52,7 +73,9 @@ export type ExecuteOperationResult = { output: unknown } | { failure: Pixelforge
 
 const REFUSAL_MESSAGE = "El modelo rechazó generar una respuesta para esta operación.";
 const MAX_TOKENS_MESSAGE = "La respuesta del modelo alcanzó el límite de tokens configurado antes de completarse.";
-const NO_PARSED_OUTPUT_MESSAGE = "El modelo no devolvió salida parseable.";
+const EMPTY_TEXT_MESSAGE = "El modelo no devolvió ningún bloque de texto en la respuesta.";
+const INVALID_JSON_MESSAGE =
+  "La respuesta del modelo no es JSON válido; la gramática de Structured Outputs debió garantizarlo.";
 
 function stopFailureMessage(kind: PixelforgeRunFailure): string {
   // classifyStopReason (./failures) solo devuelve "refusal" | "max_tokens" | null en la práctica —
@@ -86,12 +109,30 @@ function buildOutputFormat(schema: z.ZodTypeAny): ReturnType<typeof zodOutputFor
   return zodOutputFormat(schema as unknown as Parameters<typeof zodOutputFormat>[0]);
 }
 
-/** Respuesta de `messages.parse` — tipada laxa a propósito: `spec.outputSchema` es `z.ZodTypeAny`, así que `parsed_output` no puede inferirse de forma más específica sin perder la genericidad de `OPERATION_SPECS`. */
-interface ParseResponse {
+/**
+ * Respuesta de `messages.create` — tipada laxa a propósito (solo los campos
+ * que este módulo lee): `stop_reason` se clasifica ANTES que nada, `content`
+ * se recorre para extraer texto, `usage` se acumula. Nada de `parsed_output`
+ * — ver comentario de cabecera del archivo (C1).
+ */
+interface CreateResponse {
   stop_reason: string | null;
-  parsed_output: unknown;
+  content: Anthropic.ContentBlock[];
   usage: { input_tokens: number; output_tokens: number };
 }
+
+/** Concatena los bloques `content` de type `"text"` — Structured Outputs entrega el JSON como texto plano restringido por la gramática, en uno o más bloques. */
+function extractText(content: Anthropic.ContentBlock[]): string {
+  return content
+    .filter((block): block is Anthropic.TextBlock => block.type === "text")
+    .map((block) => block.text)
+    .join("");
+}
+
+type ProcessResult =
+  | { ok: true; data: unknown }
+  | { ok: false; failure: "provider_error"; error: string }
+  | { ok: false; failure: "domain_validation"; error: string; json: unknown };
 
 export async function executeOperation(params: ExecuteOperationParams): Promise<ExecuteOperationResult> {
   const { client, operation, system, messages, domainSchema, callbacks } = params;
@@ -119,19 +160,60 @@ export async function executeOperation(params: ExecuteOperationParams): Promise<
     return { failure: failureKind, error };
   }
 
-  async function callModel(callMessages: Anthropic.MessageParam[]): Promise<ParseResponse | { error: PixelforgeRunFailure; message: string }> {
+  async function callModel(callMessages: Anthropic.MessageParam[]): Promise<CreateResponse | { error: PixelforgeRunFailure; message: string }> {
     try {
-      const response = (await client.messages.parse({
+      const response = (await client.messages.create({
         model,
         max_tokens: spec.maxTokens,
         system,
         messages: callMessages,
         output_config: { format: buildOutputFormat(spec.outputSchema) },
-      })) as unknown as ParseResponse;
+      })) as unknown as CreateResponse;
       return response;
     } catch (err) {
       return { error: classifyError(err), message: messageFromError(err) };
     }
+  }
+
+  /**
+   * Forma+dominio en un único paso — `spec.outputSchema` (forma, la gramática
+   * NO la garantiza al 100%) y, si hay `domainSchema` (refines), también eso.
+   * Se usa tanto en la 1ra respuesta como en la de retry: así el retry se
+   * valida "completo forma+dominio" en una sola pasada, sin reintentos
+   * anidados.
+   */
+  function validateOutput(json: unknown): { success: true; data: unknown } | { success: false; errorsText: string } {
+    const shapeResult = spec.outputSchema.safeParse(json);
+    if (!shapeResult.success) {
+      return { success: false, errorsText: formatZodErrors(shapeResult.error) };
+    }
+    if (domainSchema) {
+      const domainResult = domainSchema.safeParse(json);
+      if (!domainResult.success) {
+        return { success: false, errorsText: formatZodErrors(domainResult.error) };
+      }
+      return { success: true, data: domainResult.data };
+    }
+    return { success: true, data: shapeResult.data };
+  }
+
+  /** Pipeline post stop_reason: extraer texto → JSON.parse propio → validar forma+dominio. */
+  function processResponse(response: CreateResponse): ProcessResult {
+    const text = extractText(response.content);
+    if (!text) {
+      return { ok: false, failure: "provider_error", error: EMPTY_TEXT_MESSAGE };
+    }
+    let json: unknown;
+    try {
+      json = JSON.parse(text);
+    } catch {
+      return { ok: false, failure: "provider_error", error: INVALID_JSON_MESSAGE };
+    }
+    const validated = validateOutput(json);
+    if (!validated.success) {
+      return { ok: false, failure: "domain_validation", error: validated.errorsText, json };
+    }
+    return { ok: true, data: validated.data };
   }
 
   // 2. Progreso inicial.
@@ -146,62 +228,57 @@ export async function executeOperation(params: ExecuteOperationParams): Promise<
   tokensIn += first.usage.input_tokens;
   tokensOut += first.usage.output_tokens;
 
-  // 4. stop_reason antes de leer parsed_output.
+  // 4. stop_reason ANTES de leer el texto — gana aunque el texto truncado pareciera parseable.
   const firstStopFailure = classifyStopReason(first.stop_reason);
   if (firstStopFailure) {
     return fail(firstStopFailure, stopFailureMessage(firstStopFailure));
   }
 
-  // 5. parsed_output null → provider_error.
-  if (first.parsed_output === null || first.parsed_output === undefined) {
-    return fail("provider_error", NO_PARSED_OUTPUT_MESSAGE);
+  const firstResult = processResponse(first);
+
+  let output: unknown;
+
+  if (!firstResult.ok && firstResult.failure === "provider_error") {
+    // Texto vacío o JSON roto con stop_reason end_turn — la gramática debió garantizar JSON; sin retry.
+    return fail("provider_error", firstResult.error);
   }
 
-  let output: unknown = first.parsed_output;
+  if (!firstResult.ok) {
+    // 6. Validación de forma/dominio falló → 1 retry semántico (máximo 1 retry TOTAL).
+    retryCount = 1;
+    await callbacks.onProgress?.(60, "Corrigiendo validación de dominio");
 
-  // 6. Refines de dominio — 1 retry si falla.
-  if (domainSchema) {
-    const firstAttempt = domainSchema.safeParse(output);
-    if (!firstAttempt.success) {
-      retryCount = 1;
-      await callbacks.onProgress?.(60, "Corrigiendo validación de dominio");
+    const retryMessages: Anthropic.MessageParam[] = [
+      ...messages,
+      { role: "assistant", content: JSON.stringify(firstResult.json) },
+      {
+        role: "user",
+        content: `La salida violó estas reglas de dominio:\n${firstResult.error}\nDevuelve la salida corregida completa.`,
+      },
+    ];
 
-      const errorsText = formatZodErrors(firstAttempt.error);
-      const retryMessages: Anthropic.MessageParam[] = [
-        ...messages,
-        { role: "assistant", content: JSON.stringify(output) },
-        {
-          role: "user",
-          content: `La salida violó estas reglas de dominio:\n${errorsText}\nDevuelve la salida corregida completa.`,
-        },
-      ];
-
-      const retry = await callModel(retryMessages);
-      if ("error" in retry) {
-        return fail(retry.error, retry.message);
-      }
-
-      // 7. Acumula tokens de TODAS las llamadas.
-      tokensIn += retry.usage.input_tokens;
-      tokensOut += retry.usage.output_tokens;
-
-      const retryStopFailure = classifyStopReason(retry.stop_reason);
-      if (retryStopFailure) {
-        return fail(retryStopFailure, stopFailureMessage(retryStopFailure));
-      }
-
-      if (retry.parsed_output === null || retry.parsed_output === undefined) {
-        return fail("provider_error", NO_PARSED_OUTPUT_MESSAGE);
-      }
-
-      const secondAttempt = domainSchema.safeParse(retry.parsed_output);
-      if (!secondAttempt.success) {
-        return fail("domain_validation", formatZodErrors(secondAttempt.error));
-      }
-      output = secondAttempt.data;
-    } else {
-      output = firstAttempt.data;
+    const retry = await callModel(retryMessages);
+    if ("error" in retry) {
+      return fail(retry.error, retry.message);
     }
+
+    // 7. Acumula tokens de TODAS las llamadas.
+    tokensIn += retry.usage.input_tokens;
+    tokensOut += retry.usage.output_tokens;
+
+    const retryStopFailure = classifyStopReason(retry.stop_reason);
+    if (retryStopFailure) {
+      return fail(retryStopFailure, stopFailureMessage(retryStopFailure));
+    }
+
+    // La respuesta del retry se valida COMPLETA forma+dominio — sin un segundo retry pase lo que pase.
+    const retryResult = processResponse(retry);
+    if (!retryResult.ok) {
+      return fail(retryResult.failure, retryResult.error);
+    }
+    output = retryResult.data;
+  } else {
+    output = firstResult.data;
   }
 
   // 8. Persistir + succeeded.

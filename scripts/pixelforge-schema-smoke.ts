@@ -2,7 +2,7 @@
  * Smoke de compilación de schemas — PixelForge F2-T7 (Gate 0, condición 1).
  *
  * Qué hace: para cada una de las 11 operaciones IA de PixelForge, dispara una
- * llamada MÍNIMA real a `client.messages.parse` con el `output_config.format`
+ * llamada MÍNIMA real a `client.messages.create` con el `output_config.format`
  * de esa operación (vía `zodOutputFormat`, igual que `ai/run.ts`) y
  * `max_tokens: 64`. El objetivo NO es generar una salida completa — es forzar
  * al servidor de Anthropic a COMPILAR la grammar de Structured Outputs a
@@ -15,23 +15,26 @@
  * real de cada operación, que llega a 16000 en `compose_page_tree`): solo
  * queremos ver si la compilación de la grammar tronó o no.
  *
+ * `messages.create` en vez de `messages.parse` (mismo cambio que `ai/run.ts`,
+ * hallazgo C1 de la revisión final F2): así el resultado se clasifica por
+ * `stop_reason` directamente, sin depender del `throw` client-side que
+ * `messages.parse()` dispara cuando el JSON queda truncado — ver el caso
+ * `TRUNCATED_PARSE_PATTERN` más abajo, que ahora es solo un fallback
+ * documentado por si el SDK cambia de comportamiento, no el camino principal.
+ *
  * Resultado por operación:
- *   - Respuesta normal, O stop_reason "max_tokens", O parsed_output null
- *     ⇒ "OK (compiló)" — la grammar se aceptó; que la respuesta se haya
- *     cortado por max_tokens o no haya alcanzado a parsear un objeto
- *     completo en 64 tokens es esperado y NO es una falla de compilación.
- *   - `messages.parse()` LANZA (no devuelve `stop_reason: "max_tokens"`)
- *     cuando la respuesta truncada por `max_tokens` deja JSON incompleto:
- *     el SDK intenta `JSON.parse` client-side sobre el texto truncado
- *     ANTES de exponer `stop_reason`, y esa excepción es una
- *     `AnthropicError` (no `APIError`) con mensaje
- *     `"Failed to parse structured output as JSON: Unterminated string..."`
- *     (ver `helpers/zod.js`/`lib/parser.js` del SDK). Esto NO prueba que la
- *     grammar falló — al revés: la API respondió 200 y generó tokens
- *     restringidos por el schema, lo cual solo es posible si la grammar
- *     compiló. Por eso este mensaje se detecta ANTES del check de
- *     `APIError` (más abajo) y también cuenta como ⇒ "OK (compiló — salida
- *     truncada por max_tokens)".
+ *   - Respuesta normal, O `stop_reason: "max_tokens"` ⇒ "OK (compiló)" — la
+ *     grammar se aceptó; que la respuesta se haya cortado por max_tokens
+ *     antes de completar un objeto en 64 tokens es esperado y NO es una
+ *     falla de compilación (ya NO dependemos de que el texto truncado sea
+ *     JSON parseable: `stop_reason` se lee directo de la respuesta, sin pasar
+ *     por ningún parseo client-side que pueda lanzar).
+ *   - (Fallback, no debería alcanzarse con `messages.create`, pero se deja
+ *     documentado por si algún día se reintroduce un parseo automático):
+ *     un error cuyo mensaje matchea `TRUNCATED_PARSE_PATTERN` también cuenta
+ *     como ⇒ "OK (compiló — salida truncada por max_tokens)" — la API
+ *     respondió 200 y generó tokens restringidos por el schema, lo cual solo
+ *     es posible si la grammar compiló.
  *   - APIError con status 400 y mensaje que matchea /schema|grammar|
  *     output_config|format/i ⇒ "FALLA schema_too_complex" — la MISMA regla
  *     de clasificación que usa `ai/failures.ts` (`classifyError`), para que
@@ -66,7 +69,7 @@ import { getPixelforgeAnthropic, resolvePixelForgeModel } from "@/lib/pixelforge
 import { OPERATION_SPECS, PIXELFORGE_AI_OPERATIONS, type PixelforgeAIOperation } from "@/lib/pixelforge/schemas";
 
 const SCHEMA_ISSUE_PATTERN = /schema|grammar|output_config|format/i;
-/** Ver comentario de cabecera: `messages.parse()` lanza esto client-side cuando `max_tokens` corta el JSON a mitad de camino — es la prueba de que la grammar SÍ compiló (llegó a generar tokens restringidos), no un fallo. */
+/** Fallback documentado — ver comentario de cabecera: ya no es el camino principal con `messages.create`, pero se deja por si algún parseo client-side vuelve a introducirse. */
 const TRUNCATED_PARSE_PATTERN = /Failed to parse structured output/i;
 const SMOKE_MAX_TOKENS = 64;
 
@@ -92,9 +95,8 @@ function buildOutputFormat(schema: z.ZodTypeAny): ReturnType<typeof zodOutputFor
   return zodOutputFormat(schema as unknown as Parameters<typeof zodOutputFormat>[0]);
 }
 
-interface ParseResponse {
+interface CreateResponse {
   stop_reason: string | null;
-  parsed_output: unknown;
   usage: { input_tokens: number; output_tokens: number };
 }
 
@@ -104,18 +106,21 @@ async function smokeOne(client: Anthropic, operation: PixelforgeAIOperation): Pr
   const startedAt = Date.now();
 
   try {
-    const response = (await client.messages.parse({
+    const response = (await client.messages.create({
       model,
       max_tokens: SMOKE_MAX_TOKENS,
       system: "Responde el objeto pedido.",
       messages: [{ role: "user", content: "Genera un ejemplo mínimo." }],
       output_config: { format: buildOutputFormat(spec.outputSchema) },
-    })) as unknown as ParseResponse;
+    })) as unknown as CreateResponse;
 
+    // stop_reason "max_tokens" cuenta igual que una respuesta completa: la grammar SÍ compiló y
+    // generó tokens restringidos por el schema — que se haya cortado antes de terminar el objeto
+    // en 64 tokens es esperado (ver comentario de cabecera), no una falla de compilación.
     return {
       operacion: operation,
       resultado: "OK",
-      detalle: "compiló",
+      detalle: response.stop_reason === "max_tokens" ? "compiló — cortada por max_tokens (esperado)" : "compiló",
       stopReason: response.stop_reason,
       tokensIn: response.usage.input_tokens,
       tokensOut: response.usage.output_tokens,

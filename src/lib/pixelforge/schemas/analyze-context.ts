@@ -44,7 +44,9 @@ export type ContextBrief = z.infer<typeof contextBriefSchema>;
  * Refines de DOMINIO — NO se registran en `OPERATION_SPECS` (esa entrada usa
  * `contextBriefSchema` a secas). Se aplican en un segundo paso, después de
  * que Structured Outputs ya garantizó la forma:
- * - `confirmados` y `contradicciones`: todo ítem requiere ≥1 evidencia.
+ * - `confirmados`, `inferidos` y `contradicciones`: todo ítem requiere ≥1
+ *   evidencia (el prompt ya lo pide para los tres — esto solo alinea el
+ *   schema; un "inferido" sin evidencia es indistinguible de una invención).
  * - `faltantes`: NO debe tener evidencias (si hay evidencia, no "falta").
  * - Debe haber al menos 1 ítem en total entre las 4 listas.
  */
@@ -55,6 +57,15 @@ export const contextBriefDomainSchema = contextBriefSchema.superRefine((brief, c
         code: "custom",
         path: ["confirmados", i, "evidencias"],
         message: `El ítem confirmado "${item.titulo}" no tiene evidencias.`,
+      });
+    }
+  });
+  brief.inferidos.forEach((item, i) => {
+    if (item.evidencias.length === 0) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["inferidos", i, "evidencias"],
+        message: `El ítem inferido "${item.titulo}" no tiene evidencias.`,
       });
     }
   });

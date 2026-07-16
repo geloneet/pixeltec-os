@@ -15,7 +15,22 @@ export interface PixelforgeRunState {
   resultRef: string | null;
 }
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+/**
+ * Lanza si `!res.ok` (con el status en el mensaje, en español) para que SWR
+ * registre el error en `error` en vez de tragarse un body de error como si
+ * fuera el estado de la corrida — de lo contrario `data` queda con forma
+ * inesperada (p.ej. `{ ok: false, error: "..." }` en vez de `PixelforgeRunState`)
+ * y el `refreshInterval` de abajo, que solo se apaga mirando
+ * `data?.status`, sigue polleando para siempre sobre un fetch que nunca
+ * va a tener ese campo.
+ */
+async function fetcher(url: string) {
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error(`No se pudo obtener el estado de la corrida (HTTP ${res.status}).`);
+  }
+  return res.json();
+}
 
 /** Clon de `src/hooks/growth/use-generation-job.ts` adaptado al shape público de `getRunForOwner` (F2-T4). */
 export function usePixelforgeRun(runId: string | null) {
