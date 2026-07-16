@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { MessageCircle, Settings2 } from "lucide-react";
 import { useInboxContacts } from "@/hooks/use-inbox-contacts";
 import { useInboxConversations } from "@/hooks/use-inbox-conversations";
@@ -34,6 +34,28 @@ export function InboxShell({ tenantId, onOpenConfig }: InboxShellProps) {
     refetch: refetchConversations,
   } = useInboxConversations();
   const selectedConv = conversations.find((c) => c.id === selectedPhone);
+
+  // Al abrir un hilo con no leídos, avisamos al bot para que resetee el
+  // contador (POST /internal/conversations/read) — solo si hace falta, para
+  // no generar una request por cada click en una conversación ya leída.
+  useEffect(() => {
+    if (!selectedPhone) return;
+    const conv = conversations.find((c) => c.id === selectedPhone);
+    if (!conv || (conv.unreadCount ?? 0) === 0) return;
+
+    void fetch("/api/whatsapp-inbox/conversations/read", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone: selectedPhone }),
+    })
+      .then((res) => {
+        if (res.ok) refetchConversations();
+      })
+      .catch((err) => console.error("mark conversation read error:", err));
+    // Solo re-corre al cambiar de hilo — conversations cambia por polling y
+    // no debe disparar esto de nuevo mientras el mismo hilo sigue abierto.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedPhone]);
 
   if (!tenantId) {
     return (

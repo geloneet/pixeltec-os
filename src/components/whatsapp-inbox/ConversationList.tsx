@@ -407,12 +407,25 @@ export function ConversationList({
                           className="h-2 w-2 flex-shrink-0 rounded-full bg-cyan-400"
                         />
                       )}
-                      <span className="truncate font-medium text-foreground">
+                      <span
+                        className={cn(
+                          "truncate text-foreground",
+                          (conv.unreadCount ?? 0) > 0 ? "font-semibold" : "font-medium"
+                        )}
+                      >
                         {contact?.name ?? conv.id}
                       </span>
                       <span className="ml-auto flex-shrink-0 text-xs text-muted-foreground">
                         {formatRelative(conv.lastMessageAt)}
                       </span>
+                      {(conv.unreadCount ?? 0) > 0 && (
+                        <span
+                          aria-label={`${conv.unreadCount} no leídos`}
+                          className="flex-shrink-0 rounded-full bg-cyan-500 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white"
+                        >
+                          {conv.unreadCount}
+                        </span>
+                      )}
                     </div>
                     {contact?.name && (
                       <p className="truncate text-xs text-muted-foreground">{conv.id}</p>

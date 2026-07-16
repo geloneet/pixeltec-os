@@ -16,6 +16,9 @@ export interface InboxConversation {
   updatedAt?: string;
   pausedUntil?: string | null;
   suggestedClassification?: ContactClassification;
+  /** Mensajes sin leer por el asesor. Se resetea a 0 vía POST /api/whatsapp-inbox/conversations/read
+   * cuando se abre el hilo (ver agent/main.py::internal_mark_read en pixelbot). */
+  unreadCount?: number;
 }
 
 /**
