@@ -1,6 +1,6 @@
 /**
  * Motor de ejecución de operaciones IA de PixelForge — Structured Outputs
- * vía `client.messages.create` + `output_config.format` (`zodOutputFormat`,
+ * vía `client.messages.stream` + `output_config.format` (`zodOutputFormat`,
  * SDK 0.91.1) con PARSEO MANUAL de la respuesta, en vez de
  * `client.messages.parse()`. Recibe el cliente Anthropic INYECTADO (no
  * importa `./client`, que trae `"server-only"`) para ser testeable sin red y
@@ -17,19 +17,30 @@
  * JSON..."`) ANTES de que este módulo pueda leer `stop_reason` — el catch de
  * `callModel` la reclasificaba entonces como error genérico, y la corrida
  * nunca registraba `failureKind: "max_tokens"` real (la taxonomía dejaba de
- * ser observable). Por eso acá usamos `client.messages.create` (el mismo
- * endpoint, mismo `output_config.format` como constraint de gramática — eso
- * NO cambia) y hacemos nosotros mismos, en este orden: 1) clasificar
- * `stop_reason` PRIMERO (gana aunque el texto truncado pareciera parseable),
- * 2) extraer el texto de los bloques `content` tipo `"text"`, 3) `JSON.parse`
- * propio, 4) `spec.outputSchema.safeParse` — la validación de FORMA que la
- * gramática no garantiza al 100% (p.ej. `minLength`/`minItems` puede
- * degradarse, ver `transform-json-schema` del SDK), tratada como
- * `domain_validation` y enrutada al MISMO retry semántico que los refines de
- * dominio.
+ * ser observable). Por eso hacemos nosotros mismos el parseo, en este orden:
+ * 1) clasificar `stop_reason` PRIMERO (gana aunque el texto truncado
+ * pareciera parseable), 2) extraer el texto de los bloques `content` tipo
+ * `"text"`, 3) `JSON.parse` propio, 4) `spec.outputSchema.safeParse` — la
+ * validación de FORMA que la gramática no garantiza al 100% (p.ej.
+ * `minLength`/`minItems` puede degradarse, ver `transform-json-schema` del
+ * SDK), tratada como `domain_validation` y enrutada al MISMO retry semántico
+ * que los refines de dominio.
+ *
+ * `client.messages.stream(...)` + `stream.finalMessage()` en vez de
+ * `.create()` (fix F5-6): el SDK lanza client-side "Streaming is required for
+ * operations that may take longer than 10 minutes" en `.create()` no-stream
+ * cuando `max_tokens` es alto (`generate_directions` subió a 24000, por
+ * encima del umbral ~21333 que calcula `_calculateNonstreamingTimeout`), ANTES
+ * de cualquier request HTTP — reproducido determinísticamente en el smoke F5
+ * (`failure_kind=provider_error`, tokens 0/0). `.stream()` acepta los mismos
+ * params y `finalMessage()` resuelve al mismo `Message` completo — mismo
+ * pipeline de abajo, solo cambia el transporte. IMPORTANTE: `buildOutputFormat`
+ * quita a propósito el `.parse` que trae `zodOutputFormat(...)` antes de
+ * pasarlo a `output_config.format` — ver el comentario de esa función: sin
+ * quitarlo, `.stream()` reintroduciría el MISMO bug C1 (invoca `.parse`
+ * SIEMPRE en `message_stop`, sin importar `.create()` vs `.stream()`).
  *
  * NO se envía `temperature`/`top_p`/`top_k` (Sonnet 5 los rechaza con 400).
- * Sin streaming — single-shot, convención de la casa.
  */
 import type Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
@@ -104,9 +115,29 @@ function messageFromError(err: unknown): string {
  * `OPERATION_SPECS`/`domainSchema` SÍ son `zod/v4` reales (ver `../schemas/`), que es exactamente
  * lo que la implementación real necesita — el cast solo evita que TS compare contra el tipo v3
  * equivocado del `.d.ts`.
+ *
+ * Devuelve `Anthropic.JSONOutputFormat` (`{ type, schema }`) SIN el `.parse` que trae
+ * `zodOutputFormat(...)` — se descarta a propósito. `client.messages.stream(...)`
+ * (a diferencia de `.create()`) inspecciona `output_config.format` en CADA `message_stop`
+ * vía `maybeParseMessage`/`'parse' in outputFormat` (ver
+ * `node_modules/@anthropic-ai/sdk/src/lib/parser.ts` y `.../lib/MessageStream.ts`), sin
+ * importar si el caller usó `.parse()` o `.stream()` — si el format trae `.parse`, lo INVOCA
+ * SIEMPRE, y ese `.parse` interno (`helpers/zod.ts`) hace `JSON.parse` + `zodObject.safeParse`
+ * y LANZA `AnthropicError` si cualquiera de los dos falla. Eso reintroduciría el bug C1 (el
+ * mismo que motivó no usar `messages.parse()`, ver comentario de cabecera) pero un nivel más
+ * abajo: `stream.finalMessage()` rechazaría ANTES de que este módulo pueda leer `stop_reason`
+ * — tanto en truncamientos por `max_tokens` como en cualquier respuesta con JSON válido pero
+ * que viola `outputSchema`/`domainSchema` (rompiendo el retry semántico de `domain_validation`
+ * por completo, ya que todo terminaría clasificado como `provider_error` genérico vía
+ * `classifyError`). El servidor solo necesita `{ type: 'json_schema', schema }` para compilar
+ * la gramática — `.parse` es un helper 100% cliente que nunca viaja por HTTP — así que quitarlo
+ * preserva el constraint de Structured Outputs intacto y mantiene a `run.ts` haciendo su propio
+ * pipeline `stop_reason` → texto → `JSON.parse` → `safeParse`, ahora con `.stream()` como
+ * transporte.
  */
-function buildOutputFormat(schema: z.ZodTypeAny): ReturnType<typeof zodOutputFormat> {
-  return zodOutputFormat(schema as unknown as Parameters<typeof zodOutputFormat>[0]);
+function buildOutputFormat(schema: z.ZodTypeAny): Anthropic.JSONOutputFormat {
+  const { type, schema: jsonSchema } = zodOutputFormat(schema as unknown as Parameters<typeof zodOutputFormat>[0]);
+  return { type, schema: jsonSchema };
 }
 
 /**
@@ -162,13 +193,14 @@ export async function executeOperation(params: ExecuteOperationParams): Promise<
 
   async function callModel(callMessages: Anthropic.MessageParam[]): Promise<CreateResponse | { error: PixelforgeRunFailure; message: string }> {
     try {
-      const response = (await client.messages.create({
+      const stream = client.messages.stream({
         model,
         max_tokens: spec.maxTokens,
         system,
         messages: callMessages,
         output_config: { format: buildOutputFormat(spec.outputSchema) },
-      })) as unknown as CreateResponse;
+      });
+      const response = (await stream.finalMessage()) as unknown as CreateResponse;
       return response;
     } catch (err) {
       return { error: classifyError(err), message: messageFromError(err) };
