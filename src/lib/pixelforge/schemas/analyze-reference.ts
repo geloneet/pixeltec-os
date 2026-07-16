@@ -18,7 +18,7 @@ export const referenceAnalysisSchema = z
       .array(z.enum(["premium", "tecnica", "cercana", "corporativa", "juvenil", "artesanal", "audaz", "sobria"]))
       .min(1)
       .max(3),
-    notas: z.string(),
+    notas: z.string().max(500),
   })
   .describe(
     "Análisis de una referencia visual usando SOLO enums cerrados de atributos abstractos — nunca colores/textos libres extraídos del sitio de terceros."
