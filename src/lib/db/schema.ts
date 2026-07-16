@@ -1754,3 +1754,256 @@ export type DefinitionMessage = typeof definitionMessages.$inferSelect;
 export type NewDefinitionMessage = typeof definitionMessages.$inferInsert;
 export type DefinitionEvent = typeof definitionEvents.$inferSelect;
 export type NewDefinitionEvent = typeof definitionEvents.$inferInsert;
+
+// ════════════════════════════════════════════════════════════════════════
+// PixelForge — landings por estaciones (F1: fundaciones)
+//
+// Módulo nuevo, en paralelo a "Definición de Proyecto": pipeline guiado por
+// IA de 8 estaciones (contexto → estrategia → visual → direcciones →
+// blueprint → producción → qa → revisión) para producir una landing page
+// desde una descarga mental hasta el entregable final. Secuencia canónica en
+// src/lib/pixelforge/types.ts (PIXELFORGE_STATION_SEQUENCE) — los valores de
+// los enums de abajo deben coincidir EXACTO con ese archivo.
+//
+// A diferencia de `project_definitions`, un proyecto PixelForge SIEMPRE
+// cuelga de un `clients` (no se decide al final) y puede opcionalmente venir
+// de una Definición de Proyecto ya sellada (definitionId). Los pares
+// `*ById`/`*ByName` (addedBy, actor, sealedBy, uploadedBy) son autoría
+// desnormalizada SIN FK — decisión de diseño F1 para no acoplar el historial
+// a la existencia continua del usuario.
+// ════════════════════════════════════════════════════════════════════════
+
+export const pixelforgeStationEnum = pgEnum("pixelforge_station", [
+  "contexto",
+  "estrategia",
+  "visual",
+  "direcciones",
+  "blueprint",
+  "produccion",
+  "qa",
+  "revision",
+]);
+
+export const pixelforgeStatusEnum = pgEnum("pixelforge_status", [
+  "draft",
+  "in_progress",
+  "completed",
+  "approved",
+]);
+
+export const pixelforgeArtifactKindEnum = pgEnum("pixelforge_artifact_kind", [
+  "context_brief",
+  "landing_dna",
+  "visual_dna",
+  "direction_decision",
+  "narrative_blueprint",
+]);
+
+export const pixelforgeArtifactStatusEnum = pgEnum("pixelforge_artifact_status", [
+  "pending",
+  "in_progress",
+  "sealed",
+  "invalidated",
+]);
+
+export const pixelforgeSourceTypeEnum = pgEnum("pixelforge_source_type", [
+  "note",
+  "document",
+  "definition_import",
+  "url",
+]);
+
+export const pixelforgeAssetKindEnum = pgEnum("pixelforge_asset_kind", [
+  "reference_image",
+  "export",
+]);
+
+export const pixelforgeProjects = pgTable(
+  "pixelforge_projects",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    clientId: uuid("client_id")
+      .notNull()
+      .references(() => clients.id, { onDelete: "cascade" }),
+    // Id estilo CRM (firestoreId) del cliente — mismo patrón que
+    // project_definitions.clientCrmId, necesario para operar el contexto CRM
+    // client-side.
+    clientCrmId: text("client_crm_id").notNull(),
+    crmProjectId: text("crm_project_id"),
+    definitionId: uuid("definition_id").references(() => projectDefinitions.id, {
+      onDelete: "set null",
+    }),
+    title: text("title").notNull(),
+    brainDump: text("brain_dump").notNull(), // la descarga mental original, inmutable
+    currentStation: pixelforgeStationEnum("current_station").notNull().default("contexto"),
+    status: pixelforgeStatusEnum("status").notNull().default("in_progress"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("pixelforge_projects_owner_idx").on(t.ownerId),
+    index("pixelforge_projects_client_idx").on(t.clientId),
+  ]
+);
+
+export const pixelforgeContextSources = pgTable(
+  "pixelforge_context_sources",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => pixelforgeProjects.id, { onDelete: "cascade" }),
+    type: pixelforgeSourceTypeEnum("type").notNull(),
+    title: text("title").notNull(),
+    content: text("content").notNull(),
+    url: text("url"),
+    // Autoría desnormalizada, sin FK (ver nota de cabecera de sección).
+    addedById: uuid("added_by_id").notNull(),
+    addedByName: text("added_by_name").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("pixelforge_context_sources_project_idx").on(t.projectId)]
+);
+
+export const pixelforgeArtifacts = pgTable(
+  "pixelforge_artifacts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => pixelforgeProjects.id, { onDelete: "cascade" }),
+    kind: pixelforgeArtifactKindEnum("kind").notNull(),
+    status: pixelforgeArtifactStatusEnum("status").notNull().default("pending"),
+    // Sin $type específico por ahora (los schemas Zod por-kind llegan en F2);
+    // ambas columnas infieren `unknown`.
+    currentDraft: jsonb("current_draft"),
+    sealedContent: jsonb("sealed_content"),
+    sealedAt: timestamp("sealed_at", { withTimezone: true }),
+    // Autoría desnormalizada, sin FK (ver nota de cabecera de sección).
+    sealedById: uuid("sealed_by_id"),
+    sealedByName: text("sealed_by_name"),
+    reopenCount: integer("reopen_count").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("pixelforge_artifacts_project_kind_idx").on(t.projectId, t.kind),
+  ]
+);
+
+export const pixelforgeEvents = pgTable(
+  "pixelforge_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => pixelforgeProjects.id, { onDelete: "cascade" }),
+    station: pixelforgeStationEnum("station"),
+    // NO enum — decisión de diseño: los tipos de evento crecen por fase;
+    // validación de valores en capa TS (src/lib/pixelforge/types.ts).
+    type: text("type").notNull(),
+    // Autoría desnormalizada, sin FK (ver nota de cabecera de sección).
+    actorId: uuid("actor_id").notNull(),
+    actorName: text("actor_name").notNull(),
+    reason: text("reason"),
+    snapshot: jsonb("snapshot"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("pixelforge_events_project_idx").on(t.projectId)]
+);
+
+export const pixelforgeAssets = pgTable(
+  "pixelforge_assets",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => pixelforgeProjects.id, { onDelete: "cascade" }),
+    kind: pixelforgeAssetKindEnum("kind").notNull(),
+    url: text("url").notNull(),
+    r2Key: text("r2_key").notNull(),
+    contentType: text("content_type").notNull(),
+    sizeBytes: integer("size_bytes").notNull(),
+    // Autoría desnormalizada, sin FK (ver nota de cabecera de sección).
+    uploadedById: uuid("uploaded_by_id").notNull(),
+    uploadedByName: text("uploaded_by_name").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("pixelforge_assets_project_idx").on(t.projectId)]
+);
+
+export const pixelforgeProjectsRelations = relations(
+  pixelforgeProjects,
+  ({ many, one }) => ({
+    owner: one(users, {
+      fields: [pixelforgeProjects.ownerId],
+      references: [users.id],
+    }),
+    client: one(clients, {
+      fields: [pixelforgeProjects.clientId],
+      references: [clients.id],
+    }),
+    definition: one(projectDefinitions, {
+      fields: [pixelforgeProjects.definitionId],
+      references: [projectDefinitions.id],
+    }),
+    contextSources: many(pixelforgeContextSources),
+    artifacts: many(pixelforgeArtifacts),
+    events: many(pixelforgeEvents),
+    assets: many(pixelforgeAssets),
+  })
+);
+
+export const pixelforgeContextSourcesRelations = relations(
+  pixelforgeContextSources,
+  ({ one }) => ({
+    project: one(pixelforgeProjects, {
+      fields: [pixelforgeContextSources.projectId],
+      references: [pixelforgeProjects.id],
+    }),
+  })
+);
+
+export const pixelforgeArtifactsRelations = relations(
+  pixelforgeArtifacts,
+  ({ one }) => ({
+    project: one(pixelforgeProjects, {
+      fields: [pixelforgeArtifacts.projectId],
+      references: [pixelforgeProjects.id],
+    }),
+  })
+);
+
+export const pixelforgeEventsRelations = relations(
+  pixelforgeEvents,
+  ({ one }) => ({
+    project: one(pixelforgeProjects, {
+      fields: [pixelforgeEvents.projectId],
+      references: [pixelforgeProjects.id],
+    }),
+  })
+);
+
+export const pixelforgeAssetsRelations = relations(
+  pixelforgeAssets,
+  ({ one }) => ({
+    project: one(pixelforgeProjects, {
+      fields: [pixelforgeAssets.projectId],
+      references: [pixelforgeProjects.id],
+    }),
+  })
+);
+
+export type PixelforgeProject = typeof pixelforgeProjects.$inferSelect;
+export type NewPixelforgeProject = typeof pixelforgeProjects.$inferInsert;
+export type PixelforgeContextSource = typeof pixelforgeContextSources.$inferSelect;
+export type NewPixelforgeContextSource = typeof pixelforgeContextSources.$inferInsert;
+export type PixelforgeArtifact = typeof pixelforgeArtifacts.$inferSelect;
+export type NewPixelforgeArtifact = typeof pixelforgeArtifacts.$inferInsert;
+export type PixelforgeEvent = typeof pixelforgeEvents.$inferSelect;
+export type NewPixelforgeEvent = typeof pixelforgeEvents.$inferInsert;
+export type PixelforgeAsset = typeof pixelforgeAssets.$inferSelect;
+export type NewPixelforgeAsset = typeof pixelforgeAssets.$inferInsert;
