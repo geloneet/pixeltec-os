@@ -947,6 +947,53 @@ export async function updateReferenceAnalysis(
     .where(eq(pixelforgeVisualReferences.id, referenceId));
 }
 
+export interface VisualReferenceForAnalysis {
+  id: string;
+  projectId: string;
+  kind: PixelforgeVisualReference["kind"];
+  label: string;
+  url: string | null;
+  fetchedMeta: unknown;
+  analysis: unknown;
+  weight: number;
+  note: string | null;
+  /** Resuelta vía join a `pixelforge_assets` — null salvo `kind: "image"`. */
+  assetUrl: string | null;
+}
+
+/**
+ * Referencia visual por id, ownership-checked vía join a `pixelforgeProjects`
+ * (mismo patrón que `getRunForOwner`/`setRunUserDecision`), CON la URL
+ * pública del asset ya resuelta (join a `pixelforge_assets`) — el route de
+ * `analyze_reference` (F4-T4) la necesita para armar el content block
+ * `image` sin tener que resolver `assetId` a mano. Null si no existe o no
+ * pertenece al owner.
+ */
+export async function getVisualReferenceForOwner(
+  referenceId: string,
+  ownerId: string
+): Promise<VisualReferenceForAnalysis | null> {
+  const [row] = await db
+    .select({
+      id: pixelforgeVisualReferences.id,
+      projectId: pixelforgeVisualReferences.projectId,
+      kind: pixelforgeVisualReferences.kind,
+      label: pixelforgeVisualReferences.label,
+      url: pixelforgeVisualReferences.url,
+      fetchedMeta: pixelforgeVisualReferences.fetchedMeta,
+      analysis: pixelforgeVisualReferences.analysis,
+      weight: pixelforgeVisualReferences.weight,
+      note: pixelforgeVisualReferences.note,
+      assetUrl: pixelforgeAssets.url,
+    })
+    .from(pixelforgeVisualReferences)
+    .innerJoin(pixelforgeProjects, eq(pixelforgeVisualReferences.projectId, pixelforgeProjects.id))
+    .leftJoin(pixelforgeAssets, eq(pixelforgeVisualReferences.assetId, pixelforgeAssets.id))
+    .where(and(eq(pixelforgeVisualReferences.id, referenceId), eq(pixelforgeProjects.ownerId, ownerId)))
+    .limit(1);
+  return row ?? null;
+}
+
 // ─── Helpers privados ──────────────────────────────────────────────────────
 
 async function touchProject(tx: Tx, projectId: string) {

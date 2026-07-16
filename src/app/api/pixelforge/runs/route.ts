@@ -2,20 +2,28 @@
  * POST /api/pixelforge/runs — arranca una corrida IA de PixelForge.
  *
  * F3-T1 abre esto a un mapa de operaciones HABILITADAS (`ENABLED_OPERATIONS`,
- * NO un framework genérico): hoy `analyze_context` (F2) y `generate_strategy`
- * (F3) — las 9 operaciones restantes llegan en fases posteriores, de ahí el
- * zod `enum` acotado. Cada entrada del mapa define el artifact que la
- * operación llena (`targetKind`), la compuerta de negocio (`guard`), cómo
- * arma el request al modelo (`buildRequest`) y qué refines de dominio validan
- * el resultado (`domainSchema`) — el resto del flujo (createRun/claimRun/
- * fire-and-forget/persistResult) es COMPARTIDO entre operaciones, sin
- * bifurcaciones por operación fuera de este mapa. El POST arranca la
- * operación y responde de INMEDIATO con `{ runId, status: "running" }` en
- * cuanto `claimRun` confirma que la corrida quedó reservada; `executeOperation`
- * sigue corriendo en background (fire-and-forget, sin `await` en el handler)
- * y reporta progreso vía `updateRunProgress` mientras tanto, así que el
- * cliente pollea `GET /api/pixelforge/runs/:runId` (hook `usePixelforgeRun`,
- * patrón `growthJobs`) para ver el avance y el resultado final.
+ * NO un framework genérico): `analyze_context`/`generate_strategy` (F2/F3) y,
+ * desde F4-T4, `analyze_reference`/`synthesize_visual_dna` — las 7 operaciones
+ * restantes llegan en fases posteriores, de ahí el zod `enum` acotado. Cada
+ * entrada del mapa define la compuerta de negocio (`guard`), cómo arma el
+ * request al modelo (`buildRequest`), qué refines de dominio validan el
+ * resultado (`domainSchema`), dónde queda registrado el resultado
+ * (`resultRef`/`persistResult`) y, opcionalmente, un dato operación-específico
+ * resuelto una sola vez (`loadExtra` — lo usa `analyze_reference` para
+ * resolver la referencia por id ANTES de guard/buildRequest/inputSummary) —
+ * el resto del flujo (createRun/claimRun/fire-and-forget) es COMPARTIDO entre
+ * operaciones, sin bifurcaciones por operación fuera de este mapa. `analyze_reference`
+ * es la única operación POR-REFERENCIA (no por-proyecto): el body debe traer
+ * `referenceId` además de `projectId` (`createRunSchema.superRefine`), y su
+ * resultado NO es un artifact — vive en `pixelforge_visual_references.analysis`
+ * (`resultRef: "reference:<id>"`, `persistResult` llama `updateReferenceAnalysis`
+ * en vez de `updateArtifactDraft`). El POST arranca la operación y responde de
+ * INMEDIATO con `{ runId, status: "running" }` en cuanto `claimRun` confirma
+ * que la corrida quedó reservada; `executeOperation` sigue corriendo en
+ * background (fire-and-forget, sin `await` en el handler) y reporta progreso
+ * vía `updateRunProgress` mientras tanto, así que el cliente pollea
+ * `GET /api/pixelforge/runs/:runId` (hook `usePixelforgeRun`, patrón
+ * `growthJobs`) para ver el avance y el resultado final.
  *
  * Por qué fire-and-forget (decisión I1 de la revisión final F2): antes el
  * handler hacía `await executeOperation(...)` y devolvía el resultado en la
@@ -59,8 +67,11 @@ import {
   updateRunProgress,
   finishRunRecord,
   updateArtifactDraft,
+  getVisualReferenceForOwner,
+  updateReferenceAnalysis,
   type Actor,
   type PixelforgeProjectFull,
+  type VisualReferenceForAnalysis,
 } from "@/lib/db/repos/pixelforge";
 import { executeOperation } from "@/lib/pixelforge/ai/run";
 import { getPixelforgeAnthropic, resolvePixelForgeModel } from "@/lib/pixelforge/ai/client";
@@ -73,14 +84,47 @@ import {
   buildGenerateStrategyRequest,
   GENERATE_STRATEGY_PROMPT_VERSION,
 } from "@/lib/pixelforge/ai/prompts/generate-strategy.v1";
-import { landingDnaDomainSchema } from "@/lib/pixelforge/schemas/generate-strategy";
-import type { PixelforgeArtifactKind } from "@/lib/pixelforge/types";
+import { landingDnaDomainSchema, landingDnaSchema } from "@/lib/pixelforge/schemas/generate-strategy";
+import {
+  buildAnalyzeReferenceRequest,
+  ANALYZE_REFERENCE_PROMPT_VERSION,
+} from "@/lib/pixelforge/ai/prompts/analyze-reference.v1";
+import {
+  buildSynthesizeVisualDnaRequest,
+  SYNTHESIZE_VISUAL_DNA_PROMPT_VERSION,
+} from "@/lib/pixelforge/ai/prompts/synthesize-visual-dna.v1";
+import { referenceAnalysisSchema } from "@/lib/pixelforge/schemas/analyze-reference";
 
+/** Contexto compartido de una corrida — común a todas las operaciones del mapa. */
+interface OperationRunCtx {
+  referenceId?: string;
+  ownerId: string;
+}
+
+/**
+ * `extra`: dato operación-específico resuelto UNA vez (`loadExtra`) y pasado
+ * a `guard`/`buildRequest`/`inputSummary` — así `analyze_reference` resuelve
+ * la referencia (con `assetUrl` ya unido, ver `getVisualReferenceForOwner`)
+ * en una sola consulta en vez de repetirla en cada función. Las operaciones
+ * que no la necesitan simplemente ignoran el parámetro (queda `undefined`).
+ */
 interface OperationConfig {
-  targetKind: PixelforgeArtifactKind;
+  loadExtra?: (full: PixelforgeProjectFull, ctx: OperationRunCtx) => Promise<unknown>;
   /** Compuerta de negocio — string de error (→ 409) si la operación no puede arrancar, null si puede. */
-  guard: (full: PixelforgeProjectFull) => string | null;
-  buildRequest: (full: PixelforgeProjectFull) => { system: string; messages: Anthropic.MessageParam[] };
+  guard: (full: PixelforgeProjectFull, ctx: OperationRunCtx, extra: unknown) => string | null;
+  buildRequest: (
+    full: PixelforgeProjectFull,
+    ctx: OperationRunCtx,
+    extra: unknown
+  ) => { system: string; messages: Anthropic.MessageParam[] };
+  /** Metadatos de `ai_runs.inputSummary` — JAMÁS contenido crudo del usuario, solo tamaños/ids. */
+  inputSummary: (full: PixelforgeProjectFull, ctx: OperationRunCtx, extra: unknown) => Record<string, unknown>;
+  /** `ai_runs.resultRef` — dónde vive el resultado (`artifact:<kind>` o `reference:<id>`). */
+  resultRef: (ctx: OperationRunCtx) => string;
+  persistResult: (
+    output: unknown,
+    ctx: OperationRunCtx & { projectId: string; actor: Actor; runId: string }
+  ) => Promise<void>;
   domainSchema: Parameters<typeof executeOperation>[0]["domainSchema"];
   promptVersion: string;
 }
@@ -91,7 +135,7 @@ interface OperationConfig {
  */
 const ENABLED_OPERATIONS = {
   analyze_context: {
-    targetKind: "context_brief",
+    loadExtra: undefined,
     // Compuerta actual: no re-analizar un Context Brief ya sellado — comportamiento IDÉNTICO al de F2.
     guard: (full) => {
       const contextBrief = full.artifacts.find((a) => a.kind === "context_brief");
@@ -111,11 +155,20 @@ const ENABLED_OPERATIONS = {
           contenido: s.content,
         })),
       }),
+    inputSummary: (full) => ({
+      titleLength: full.project.title.length,
+      brainDumpLength: full.project.brainDump.length,
+      sourceCount: full.sources.length,
+      sourceIds: full.sources.map((s) => s.id),
+    }),
+    resultRef: () => "artifact:context_brief",
+    persistResult: (output, ctx) =>
+      updateArtifactDraft(ctx.projectId, ctx.ownerId, "context_brief", output, ctx.actor, { lastRunId: ctx.runId }),
     domainSchema: contextBriefDomainSchema,
     promptVersion: ANALYZE_CONTEXT_PROMPT_VERSION,
   },
   generate_strategy: {
-    targetKind: "landing_dna",
+    loadExtra: undefined,
     guard: (full) => {
       const landingDna = full.artifacts.find((a) => a.kind === "landing_dna");
       if (landingDna?.status === "sealed") {
@@ -145,8 +198,112 @@ const ENABLED_OPERATIONS = {
         contextBrief: sealedContent,
       });
     },
+    inputSummary: (full) => ({
+      titleLength: full.project.title.length,
+      brainDumpLength: full.project.brainDump.length,
+      sourceCount: full.sources.length,
+      sourceIds: full.sources.map((s) => s.id),
+    }),
+    resultRef: () => "artifact:landing_dna",
+    persistResult: (output, ctx) =>
+      updateArtifactDraft(ctx.projectId, ctx.ownerId, "landing_dna", output, ctx.actor, { lastRunId: ctx.runId }),
     domainSchema: landingDnaDomainSchema,
     promptVersion: GENERATE_STRATEGY_PROMPT_VERSION,
+  },
+  analyze_reference: {
+    // Resuelve la referencia UNA vez (con `assetUrl` ya unido) — guard/buildRequest/inputSummary la reusan.
+    loadExtra: (full, ctx) => {
+      void full;
+      // `ctx.referenceId` ya fue validado por `createRunSchema` (superRefine: requerido para esta operación).
+      return getVisualReferenceForOwner(ctx.referenceId!, ctx.ownerId);
+    },
+    // Guard: la referencia debe existir, pertenecer al owner (ya lo garantiza `getVisualReferenceForOwner`,
+    // join a `pixelforgeProjects` por `ownerId`) Y pertenecer AL PROYECTO de este body — un owner con varias
+    // referencias no puede analizar la de otro proyecto pasando un `projectId` distinto.
+    guard: (full, ctx, extra) => {
+      if (!ctx.referenceId) return "Falta referenceId";
+      const reference = extra as VisualReferenceForAnalysis | null;
+      if (!reference || reference.projectId !== full.project.id) {
+        return "Referencia no encontrada";
+      }
+      return null;
+    },
+    buildRequest: (full, ctx, extra) => {
+      void full;
+      void ctx;
+      // El guard ya garantizó que `extra` no es null.
+      const reference = extra as VisualReferenceForAnalysis;
+      return buildAnalyzeReferenceRequest({
+        reference: {
+          kind: reference.kind,
+          label: reference.label,
+          url: reference.url,
+          fetchedMeta: reference.fetchedMeta,
+          assetUrl: reference.assetUrl,
+          note: reference.note,
+        },
+      });
+    },
+    // Sin contenido — solo metadatos, ni siquiera la nota/URL del trabajador.
+    inputSummary: (full, ctx, extra) => {
+      void full;
+      const reference = extra as VisualReferenceForAnalysis | null;
+      return { referenceId: ctx.referenceId, kind: reference?.kind ?? null, hasImage: reference?.kind === "image" };
+    },
+    resultRef: (ctx) => `reference:${ctx.referenceId}`,
+    persistResult: (output, ctx) => updateReferenceAnalysis(ctx.referenceId!, { analysis: output }),
+    // Sin refines de dominio — el schema (SOLO enums cerrados) ya es la validación completa; no lo relajamos.
+    domainSchema: undefined,
+    promptVersion: ANALYZE_REFERENCE_PROMPT_VERSION,
+  },
+  synthesize_visual_dna: {
+    loadExtra: undefined,
+    guard: (full) => {
+      const visualDna = full.artifacts.find((a) => a.kind === "visual_dna");
+      if (visualDna?.status === "sealed") {
+        return "El Visual DNA está sellado; reábrelo para re-sintetizar";
+      }
+      const landingDna = full.artifacts.find((a) => a.kind === "landing_dna");
+      if (landingDna?.status !== "sealed") {
+        return "Sella la Estrategia antes de sintetizar el Visual DNA";
+      }
+      const analyzedCount = full.visualReferences.filter((r) => r.analysis != null).length;
+      if (analyzedCount === 0) {
+        return "Analiza al menos una referencia primero";
+      }
+      return null;
+    },
+    buildRequest: (full) => {
+      // El guard ya garantizó que landing_dna está sellado — sealedContent existe.
+      const landingDnaArtifact = full.artifacts.find((a) => a.kind === "landing_dna");
+      const sealedLandingDna = landingDnaSchema.parse(landingDnaArtifact?.sealedContent);
+      const references = full.visualReferences
+        .filter((r) => r.analysis != null)
+        .map((r) => ({
+          id: r.id,
+          label: r.label,
+          weight: r.weight,
+          // `analysis` es jsonb (`unknown`) — re-validar la FORMA acá en vez de castear a ciegas, mismo
+          // criterio que `contextBriefSchema.parse`/`landingDnaSchema.parse` arriba.
+          analysis: referenceAnalysisSchema.parse(r.analysis),
+        }));
+      return buildSynthesizeVisualDnaRequest({
+        title: full.project.title,
+        landingDna: sealedLandingDna,
+        references,
+      });
+    },
+    inputSummary: (full) => ({
+      titleLength: full.project.title.length,
+      referenceCount: full.visualReferences.length,
+      analyzedReferenceCount: full.visualReferences.filter((r) => r.analysis != null).length,
+    }),
+    resultRef: () => "artifact:visual_dna",
+    persistResult: (output, ctx) =>
+      updateArtifactDraft(ctx.projectId, ctx.ownerId, "visual_dna", output, ctx.actor, { lastRunId: ctx.runId }),
+    // synthesize-visual-dna.ts no define refines de dominio (a diferencia de generate-strategy) — se omite.
+    domainSchema: undefined,
+    promptVersion: SYNTHESIZE_VISUAL_DNA_PROMPT_VERSION,
   },
 } satisfies Record<string, OperationConfig>;
 
@@ -159,12 +316,26 @@ export const runtime = "nodejs";
 // self-hosted Node, donde no aplica.
 export const maxDuration = 60;
 
-const createRunSchema = z.object({
-  projectId: z.string().uuid("Proyecto inválido"),
-  operation: z.enum(["analyze_context", "generate_strategy"], {
-    errorMap: () => ({ message: "Operación no disponible en esta fase" }),
-  }),
-});
+/** Exportado para test — ver `route.test.ts` (analyze_reference exige `referenceId`, el resto no). */
+export const createRunSchema = z
+  .object({
+    projectId: z.string().uuid("Proyecto inválido"),
+    operation: z.enum(["analyze_context", "generate_strategy", "analyze_reference", "synthesize_visual_dna"], {
+      errorMap: () => ({ message: "Operación no disponible en esta fase" }),
+    }),
+    // Solo `analyze_reference` es POR-REFERENCIA — ver el `superRefine` debajo. El resto de operaciones
+    // ignora este campo aunque venga en el body.
+    referenceId: z.string().uuid("Referencia inválida").optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.operation === "analyze_reference" && !data.referenceId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["referenceId"],
+        message: "Falta referenceId para analizar una referencia",
+      });
+    }
+  });
 
 function fail(error: string, status: number) {
   return NextResponse.json({ ok: false, error }, { status });
@@ -201,8 +372,9 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) {
       return fail(parsed.error.errors[0]?.message ?? "Petición inválida", 400);
     }
-    const { projectId, operation } = parsed.data;
+    const { projectId, operation, referenceId } = parsed.data;
     const opConfig = ENABLED_OPERATIONS[operation];
+    const opCtx: OperationRunCtx = { referenceId, ownerId };
 
     // I3: validar ANTES de crear la corrida — si no hay API key configurada, `getPixelforgeAnthropic()`
     // (llamado más abajo, ya en background) lanzaría igual, pero para entonces ya habríamos creado
@@ -217,8 +389,12 @@ export async function POST(req: NextRequest) {
     const full = await getPixelforgeProjectFull(projectId, ownerId);
     if (!full) return fail("Proyecto no encontrado", 404);
 
+    // Dato operación-específico resuelto UNA vez (ver docstring de `loadExtra` en `OperationConfig`) —
+    // `undefined` para las operaciones que no lo necesitan.
+    const extra = await opConfig.loadExtra?.(full, opCtx);
+
     // ── Compuerta de negocio: específica de cada operación (ver ENABLED_OPERATIONS) ──
-    const guardError = opConfig.guard(full);
+    const guardError = opConfig.guard(full, opCtx, extra);
     if (guardError) return fail(guardError, 409);
 
     runId = await createRun({
@@ -227,22 +403,17 @@ export async function POST(req: NextRequest) {
       operation,
       model: resolvePixelForgeModel(operation),
       promptVersion: opConfig.promptVersion,
-      // Metadatos únicamente — JAMÁS el texto del usuario (brainDump/fuentes)
+      // Metadatos únicamente — JAMÁS el texto del usuario (brainDump/fuentes/nota/URL de referencia)
       // en un campo que se loguea/inspecciona fuera del flujo de la IA.
-      inputSummary: {
-        titleLength: full.project.title.length,
-        brainDumpLength: full.project.brainDump.length,
-        sourceCount: full.sources.length,
-        sourceIds: full.sources.map((s) => s.id),
-      },
-      resultRef: `artifact:${opConfig.targetKind}`,
+      inputSummary: opConfig.inputSummary(full, opCtx, extra),
+      resultRef: opConfig.resultRef(opCtx),
       actor,
     });
 
     const claimed = await claimRun(runId);
     if (!claimed) return fail("La corrida no pudo iniciarse (ya estaba en curso)", 409);
 
-    const { system, messages } = opConfig.buildRequest(full);
+    const { system, messages } = opConfig.buildRequest(full, opCtx, extra);
 
     // Nota transaccional: `persistResult` (guarda el draft del artifact) y
     // `finishRun` (cierra la corrida) corren SECUENCIALES dentro del motor
@@ -276,7 +447,7 @@ export async function POST(req: NextRequest) {
           callbacks: {
             onProgress: (progress, currentStep) => updateRunProgress(claimedRunId, progress, currentStep),
             persistResult: (output) =>
-              updateArtifactDraft(projectId, ownerId, opConfig.targetKind, output, actor, { lastRunId: claimedRunId }),
+              opConfig.persistResult(output, { ...opCtx, projectId, actor, runId: claimedRunId }),
             finishRun: (r) => finishRunRecord(claimedRunId, r),
           },
         });
