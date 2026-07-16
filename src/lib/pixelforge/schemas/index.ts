@@ -58,7 +58,8 @@ export const OPERATION_SPECS: Record<PixelforgeAIOperation, OperationSpec> = {
   generate_strategy: { outputSchema: landingDnaSchema, promptVersion: "v1", maxTokens: 8000 },
   analyze_reference: { outputSchema: referenceAnalysisSchema, promptVersion: "v1", maxTokens: 4000 },
   synthesize_visual_dna: { outputSchema: visualDnaSchema, promptVersion: "v1", maxTokens: 6000 },
-  generate_directions: { outputSchema: creativeDirectionsSchema, promptVersion: "v1", maxTokens: 12000 },
+  // 24000: el smoke F5 demostró que 3 direcciones completas truncan a 12000 (max_tokens exacto, 2×).
+  generate_directions: { outputSchema: creativeDirectionsSchema, promptVersion: "v1", maxTokens: 24000 },
   build_narrative: { outputSchema: narrativeBlueprintSchema, promptVersion: "v1", maxTokens: 8000 },
   compose_page_tree: { outputSchema: pageTreeSchema, promptVersion: "v1", maxTokens: 16000 },
   propose_change: { outputSchema: proposedChangeSchema, promptVersion: "v1", maxTokens: 8000 },
