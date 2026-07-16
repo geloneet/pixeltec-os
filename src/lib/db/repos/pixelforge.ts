@@ -43,7 +43,7 @@ import {
   type PixelforgeSourceType,
 } from "@/lib/pixelforge/types";
 import type { PixelforgeAIOperation } from "@/lib/pixelforge/schemas";
-import { computeScoreTotal } from "@/lib/pixelforge/scores";
+import { computeScoreTotal, type DirectionScores } from "@/lib/pixelforge/scores";
 import { directionDecisionSchema } from "@/lib/pixelforge/schemas/direction-decision";
 // Import de SOLO TIPO — no cruza zod/v4 al repo (restricción global: zod/v4
 // vive solo en `src/lib/pixelforge/schemas/`). `Direccion` es la forma que
@@ -1032,8 +1032,27 @@ export async function getVisualReferenceForOwner(
 /** Forma de UNA dirección del output de `generate_directions` (schema T2, `direccionSchema`) — lo que persiste el repo. */
 export type DirectionInput = Direccion;
 
+/**
+ * Forma empaquetada en la columna jsonb `scores` de una fila de
+ * `pixelforge_creative_directions`: los 5 criterios (`DirectionScores`,
+ * `scores.ts`) + `scoresRazones` (el porqué de cada criterio) + `risks`
+ * (riesgos que la IA identificó de esa dirección) — ver el comentario de
+ * cabecera de esta sección para el porqué de empaquetarlos juntos.
+ * Exportado para que T4/T5 lean esta columna con el contrato ya tipado, sin
+ * re-declararlo.
+ */
+export type PackedDirectionScores = DirectionScores & {
+  scoresRazones: Direccion["scoresRazones"];
+  risks: Direccion["risks"];
+};
+
 /** Campos de contenido comunes a insertar/actualizar una fila de dirección — todo excepto `projectId`/`slot`/`status`/`generationRunId`, que dependen de si es alta o update. */
 function directionContentFields(direction: DirectionInput) {
+  const scores: PackedDirectionScores = {
+    ...direction.scores,
+    scoresRazones: direction.scoresRazones,
+    risks: direction.risks,
+  };
   return {
     title: direction.title,
     concept: direction.concept,
@@ -1041,13 +1060,38 @@ function directionContentFields(direction: DirectionInput) {
     motionDna: direction.motionDna,
     signatureMotif: direction.signatureMotif,
     signatureComponent: direction.signatureComponent,
-    scores: {
-      ...direction.scores,
-      scoresRazones: direction.scoresRazones,
-      risks: direction.risks,
-    },
+    scores,
     scoreTotal: computeScoreTotal(direction.scores),
   };
+}
+
+/**
+ * Valida `combinedFromDirectionIds` de `chooseDirection`: cada id debe ser
+ * una dirección DISTINTA a la elegida y DEBE pertenecer al mismo proyecto
+ * (estar en `projectDirectionIds`, las direcciones ya cargadas en la misma
+ * transacción). Lanza con mensaje claro en la primera violación; no
+ * modifica nada — función pura, testeable sin DB. Se llama ANTES de
+ * escribir cualquier cosa en `chooseDirection` (aceptar ids ajenos sería una
+ * superficie IDOR latente si algo downstream los derreferencia sin scope).
+ */
+export function assertCombinedFromDirectionIdsValid(
+  chosenDirectionId: string,
+  combinedFromDirectionIds: string[],
+  projectDirectionIds: string[]
+): void {
+  const validIds = new Set(projectDirectionIds);
+  for (const combinedId of combinedFromDirectionIds) {
+    if (combinedId === chosenDirectionId) {
+      throw new Error(
+        "combinedFromDirectionIds no puede incluir la propia dirección elegida"
+      );
+    }
+    if (!validIds.has(combinedId)) {
+      throw new Error(
+        `combinedFromDirectionIds incluye una dirección que no pertenece a este proyecto: ${combinedId}`
+      );
+    }
+  }
 }
 
 /**
@@ -1262,6 +1306,16 @@ export function chooseDirection(
 
     const chosen = directions.find((d) => d.id === input.directionId);
     if (!chosen) throw new Error("La dirección no pertenece a este proyecto");
+
+    // combinedFromDirectionIds solo puede referenciar OTRAS direcciones YA
+    // cargadas de este mismo proyecto (superficie IDOR latente si se
+    // aceptaran ids ajenos: algo downstream podría derreferenciarlos sin
+    // scope). Se valida ANTES de escribir draft/evento.
+    assertCombinedFromDirectionIdsValid(
+      chosen.id,
+      input.combinedFromDirectionIds,
+      directions.map((d) => d.id)
+    );
 
     const [artifact] = await tx
       .select()
