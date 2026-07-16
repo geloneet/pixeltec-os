@@ -16,6 +16,7 @@ import {
   BarChart3,
   Send,
   Bell,
+  Wand2,
   type LucideIcon,
 } from "lucide-react";
 
@@ -66,6 +67,13 @@ export const PALETTE_NAV_ITEMS: PaletteNavItem[] = [
     label: "Definición de proyectos",
     description: "Pipeline IA por estaciones para aterrizar ideas en entregables sellados",
     icon: Sparkles,
+    section: "trabajo",
+  },
+  {
+    href: "/proyectos/pixelforge",
+    label: "PixelForge",
+    description: "Landings diferenciadas por estaciones: contexto, estrategia, direcciones creativas y producción",
+    icon: Wand2,
     section: "trabajo",
   },
   // ── Finanzas ──────────────────────────────────────────────────────────────
