@@ -41,5 +41,16 @@ jobs:
             docker image prune -f > /dev/null 2>&1 || true
             echo "==> Health check"
             sleep 5
-            curl -s -o /dev/null -w "%{http_code}" http://localhost
+            # Host explícito: nginx tiene un default_server que descarta (444) cualquier
+            # request cuyo Host no matchee un server_name configurado (hardening — ver
+            # pixeltec-infra/nginx/conf.d/00-default.conf), así que "http://localhost" a
+            # secas siempre da "Empty reply from server" y tumbaba este step aunque el
+            # deploy hubiera salido bien. Pegarle con el Host real también valida que
+            # nginx esté enrutando al contenedor nuevo, no solo que el contenedor viva.
+            CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 -H "Host: pixeltec.mx" http://localhost)
+            echo "HTTP $CODE"
+            if [ "$CODE" -lt 200 ] || [ "$CODE" -ge 400 ]; then
+              echo "Health check falló (HTTP $CODE)"
+              exit 1
+            fi
           ENDSSH
