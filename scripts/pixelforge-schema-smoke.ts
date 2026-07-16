@@ -20,6 +20,18 @@
  *     ⇒ "OK (compiló)" — la grammar se aceptó; que la respuesta se haya
  *     cortado por max_tokens o no haya alcanzado a parsear un objeto
  *     completo en 64 tokens es esperado y NO es una falla de compilación.
+ *   - `messages.parse()` LANZA (no devuelve `stop_reason: "max_tokens"`)
+ *     cuando la respuesta truncada por `max_tokens` deja JSON incompleto:
+ *     el SDK intenta `JSON.parse` client-side sobre el texto truncado
+ *     ANTES de exponer `stop_reason`, y esa excepción es una
+ *     `AnthropicError` (no `APIError`) con mensaje
+ *     `"Failed to parse structured output as JSON: Unterminated string..."`
+ *     (ver `helpers/zod.js`/`lib/parser.js` del SDK). Esto NO prueba que la
+ *     grammar falló — al revés: la API respondió 200 y generó tokens
+ *     restringidos por el schema, lo cual solo es posible si la grammar
+ *     compiló. Por eso este mensaje se detecta ANTES del check de
+ *     `APIError` (más abajo) y también cuenta como ⇒ "OK (compiló — salida
+ *     truncada por max_tokens)".
  *   - APIError con status 400 y mensaje que matchea /schema|grammar|
  *     output_config|format/i ⇒ "FALLA schema_too_complex" — la MISMA regla
  *     de clasificación que usa `ai/failures.ts` (`classifyError`), para que
@@ -54,6 +66,8 @@ import { getPixelforgeAnthropic, resolvePixelForgeModel } from "@/lib/pixelforge
 import { OPERATION_SPECS, PIXELFORGE_AI_OPERATIONS, type PixelforgeAIOperation } from "@/lib/pixelforge/schemas";
 
 const SCHEMA_ISSUE_PATTERN = /schema|grammar|output_config|format/i;
+/** Ver comentario de cabecera: `messages.parse()` lanza esto client-side cuando `max_tokens` corta el JSON a mitad de camino — es la prueba de que la grammar SÍ compiló (llegó a generar tokens restringidos), no un fallo. */
+const TRUNCATED_PARSE_PATTERN = /Failed to parse structured output/i;
 const SMOKE_MAX_TOKENS = 64;
 
 type Resultado = "OK" | "FALLA" | "ERROR";
@@ -109,6 +123,22 @@ async function smokeOne(client: Anthropic, operation: PixelforgeAIOperation): Pr
     };
   } catch (err) {
     const ms = Date.now() - startedAt;
+    const rawMessage = err instanceof Error ? err.message : String(err);
+
+    // Debe ir ANTES del check de APIError: esta excepción es client-side
+    // (JSON.parse post-generación sobre una respuesta truncada por
+    // max_tokens), no un rechazo del servidor — ver comentario de cabecera.
+    if (TRUNCATED_PARSE_PATTERN.test(rawMessage)) {
+      return {
+        operacion: operation,
+        resultado: "OK",
+        detalle: "compiló — salida truncada por max_tokens (JSON.parse client-side falló sobre la respuesta incompleta, no la API)",
+        stopReason: "max_tokens (inferido — el SDK lanza antes de exponerlo)",
+        tokensIn: null,
+        tokensOut: null,
+        ms,
+      };
+    }
 
     if (err instanceof Anthropic.APIError) {
       const status = err.status;
@@ -135,11 +165,10 @@ async function smokeOne(client: Anthropic, operation: PixelforgeAIOperation): Pr
       };
     }
 
-    const message = err instanceof Error ? err.message : String(err);
     return {
       operacion: operation,
       resultado: "ERROR",
-      detalle: `${message} (no prueba fallo de compilación — otra causa)`,
+      detalle: `${rawMessage} (no prueba fallo de compilación — otra causa)`,
       stopReason: null,
       tokensIn: null,
       tokensOut: null,
@@ -223,7 +252,13 @@ async function main(): Promise<void> {
     return;
   }
 
-  console.log("\n✅ Los 11 schemas compilaron como grammars de Structured Outputs.");
+  if (errores.length > 0) {
+    console.log(
+      `\n◯ Sin fallos de compilación detectados, pero ${errores.length} operación(es) no fueron concluyentes (ver detalle arriba).`
+    );
+  } else {
+    console.log(`\n✅ Los ${filas.length} schemas compilaron como grammars de Structured Outputs.`);
+  }
   process.exit(0);
 }
 
