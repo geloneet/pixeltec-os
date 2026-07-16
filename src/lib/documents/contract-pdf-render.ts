@@ -20,6 +20,15 @@ const WORKER_PATH = path.join(
   "src/lib/documents/pdf-render-worker/render-contract.mjs",
 );
 
+// Bug confirmado del motor de paginación de @react-pdf/renderer (v3.4.5, la
+// última de la serie 3.4.x): con ciertas combinaciones de secciones cortas
+// entra en bucle infinito y el proceso nunca termina — reproducido con datos
+// reales (contrato 806d48d0), no es un patrón de markdown evitable (ver
+// commit de este fix para el detalle de la bisección). Sin timeout, el
+// worker colgado deja la request esperando indefinidamente hasta que el
+// kernel lo mata por OOM. Con timeout, la generación falla rápido y limpio.
+const WORKER_TIMEOUT_MS = 30_000;
+
 export async function resolveContractClientName(publicClientId: string): Promise<string> {
   const clientPgId = await resolveClientPgId(publicClientId);
   if (!clientPgId) return publicClientId;
@@ -39,6 +48,8 @@ export async function generateContractPdf(contract: Contract & { id: string }, c
     await writeFile(inputPath, JSON.stringify({ ...contract, clientName }), "utf-8");
     await execFileAsync(process.execPath, [WORKER_PATH, inputPath, outputPath], {
       cwd: process.cwd(),
+      timeout: WORKER_TIMEOUT_MS,
+      killSignal: "SIGKILL",
     });
     return await readFile(outputPath);
   } finally {

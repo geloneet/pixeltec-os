@@ -22,6 +22,11 @@ const WORKER_PATH = path.join(
   "src/lib/documents/pdf-render-worker/render-proposal.mjs",
 );
 
+// Mismo bug de paginación de @react-pdf/renderer que contract-pdf-render.ts —
+// ver ese archivo para el detalle. Comparte el worker/renderer, así que
+// comparte el mismo riesgo de colgarse; mismo timeout como salvaguarda.
+const WORKER_TIMEOUT_MS = 30_000;
+
 async function generateProposalPdf(proposal: Proposal & { id: string }): Promise<Buffer> {
   const dir = await mkdtemp(path.join(tmpdir(), "proposal-pdf-"));
   const inputPath = path.join(dir, "input.json");
@@ -30,6 +35,8 @@ async function generateProposalPdf(proposal: Proposal & { id: string }): Promise
     await writeFile(inputPath, JSON.stringify(proposal), "utf-8");
     await execFileAsync(process.execPath, [WORKER_PATH, inputPath, outputPath], {
       cwd: process.cwd(),
+      timeout: WORKER_TIMEOUT_MS,
+      killSignal: "SIGKILL",
     });
     return await readFile(outputPath);
   } finally {
