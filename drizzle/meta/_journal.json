@@ -162,6 +162,13 @@
       "when": 1784188992589,
       "tag": "0022_real_madame_web",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1784225534183,
+      "tag": "0023_exotic_pride",
+      "breakpoints": true
     }
   ]
 }

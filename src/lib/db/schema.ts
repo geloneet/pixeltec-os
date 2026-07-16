@@ -1842,6 +1842,12 @@ export const pixelforgeReferenceKindEnum = pgEnum("pixelforge_reference_kind", [
   "note",
 ]);
 
+export const pixelforgeDirectionStatusEnum = pgEnum("pixelforge_direction_status", [
+  "candidate",
+  "chosen",
+  "discarded",
+]);
+
 export const pixelforgeProjects = pgTable(
   "pixelforge_projects",
   {
@@ -1864,6 +1870,14 @@ export const pixelforgeProjects = pgTable(
     brainDump: text("brain_dump").notNull(), // la descarga mental original, inmutable
     currentStation: pixelforgeStationEnum("current_station").notNull().default("contexto"),
     status: pixelforgeStatusEnum("status").notNull().default("in_progress"),
+    // Referencia circular a pixelforge_creative_directions (definida más
+    // abajo en este archivo, F5) — la dirección elegida por el usuario en la
+    // estación "direcciones". Mismo patrón forward-ref que
+    // pixelforgeArtifacts.lastRunId (L1919).
+    chosenDirectionId: uuid("chosen_direction_id").references(
+      (): AnyPgColumn => pixelforgeCreativeDirections.id,
+      { onDelete: "set null" }
+    ),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -2042,6 +2056,40 @@ export const pixelforgeVisualReferences = pgTable(
   (t) => [index("pixelforge_visual_references_project_idx").on(t.projectId)]
 );
 
+export const pixelforgeCreativeDirections = pgTable(
+  "pixelforge_creative_directions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => pixelforgeProjects.id, { onDelete: "cascade" }),
+    // Posición 1-3 dentro del proyecto — junto con projectId forma la unicidad
+    // que permite regenerar una dirección individual (UPDATE in place).
+    slot: integer("slot").notNull(),
+    title: text("title").notNull(),
+    concept: text("concept").notNull(),
+    designTokens: jsonb("design_tokens").notNull(),
+    motionDna: jsonb("motion_dna").notNull(),
+    signatureMotif: jsonb("signature_motif").notNull(),
+    signatureComponent: jsonb("signature_component").notNull(),
+    // Los 5 criterios 0-100 (razones incluidas) devueltos por la IA.
+    scores: jsonb("scores").notNull(),
+    // Calculado server-side en persistResult — NUNCA se confía al modelo.
+    scoreTotal: integer("score_total").notNull(),
+    status: pixelforgeDirectionStatusEnum("status").notNull().default("candidate"),
+    // Referencia al run de IA que generó/regeneró esta dirección.
+    generationRunId: uuid("generation_run_id").references(() => pixelforgeAiRuns.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("pixelforge_creative_directions_project_idx").on(t.projectId),
+    uniqueIndex("pixelforge_creative_directions_project_slot_idx").on(t.projectId, t.slot),
+  ]
+);
+
 export const pixelforgeProjectsRelations = relations(
   pixelforgeProjects,
   ({ many, one }) => ({
@@ -2057,12 +2105,17 @@ export const pixelforgeProjectsRelations = relations(
       fields: [pixelforgeProjects.definitionId],
       references: [projectDefinitions.id],
     }),
+    chosenDirection: one(pixelforgeCreativeDirections, {
+      fields: [pixelforgeProjects.chosenDirectionId],
+      references: [pixelforgeCreativeDirections.id],
+    }),
     contextSources: many(pixelforgeContextSources),
     artifacts: many(pixelforgeArtifacts),
     events: many(pixelforgeEvents),
     assets: many(pixelforgeAssets),
     aiRuns: many(pixelforgeAiRuns),
     visualReferences: many(pixelforgeVisualReferences),
+    creativeDirections: many(pixelforgeCreativeDirections),
   })
 );
 
@@ -2134,6 +2187,20 @@ export const pixelforgeVisualReferencesRelations = relations(
   })
 );
 
+export const pixelforgeCreativeDirectionsRelations = relations(
+  pixelforgeCreativeDirections,
+  ({ one }) => ({
+    project: one(pixelforgeProjects, {
+      fields: [pixelforgeCreativeDirections.projectId],
+      references: [pixelforgeProjects.id],
+    }),
+    generationRun: one(pixelforgeAiRuns, {
+      fields: [pixelforgeCreativeDirections.generationRunId],
+      references: [pixelforgeAiRuns.id],
+    }),
+  })
+);
+
 export type PixelforgeProject = typeof pixelforgeProjects.$inferSelect;
 export type NewPixelforgeProject = typeof pixelforgeProjects.$inferInsert;
 export type PixelforgeContextSource = typeof pixelforgeContextSources.$inferSelect;
@@ -2148,3 +2215,5 @@ export type PixelforgeAiRun = typeof pixelforgeAiRuns.$inferSelect;
 export type NewPixelforgeAiRun = typeof pixelforgeAiRuns.$inferInsert;
 export type PixelforgeVisualReference = typeof pixelforgeVisualReferences.$inferSelect;
 export type NewPixelforgeVisualReference = typeof pixelforgeVisualReferences.$inferInsert;
+export type PixelforgeCreativeDirection = typeof pixelforgeCreativeDirections.$inferSelect;
+export type NewPixelforgeCreativeDirection = typeof pixelforgeCreativeDirections.$inferInsert;
