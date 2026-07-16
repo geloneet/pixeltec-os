@@ -70,12 +70,46 @@ export const STATION_ARTIFACT: Record<PixelforgeStation, PixelforgeArtifactKind 
 };
 
 /**
- * Tipos de evento del historial de una estación. Crece por fase: F1 solo
- * cubre creación e ingesta de fuentes; fases futuras añadirán más (sellado,
- * invalidación, etc.).
+ * Tipos de evento del historial de una estación. Crece por fase: F1 cubre
+ * creación e ingesta de fuentes; F2 añade el ciclo sellar/reabrir/invalidar y
+ * el arranque/cierre de corridas IA (repo, `src/lib/db/repos/pixelforge.ts`).
  */
-export type PixelforgeEventType = "created" | "source_added";
+export type PixelforgeEventType =
+  | "created"
+  | "source_added"
+  | "sealed"
+  | "reopened"
+  | "invalidated"
+  | "run_started"
+  | "run_finished";
 
 export type PixelforgeArtifactStatus = "pending" | "in_progress" | "sealed" | "invalidated";
 
 export type PixelforgeSourceType = "note" | "document" | "definition_import" | "url";
+
+/**
+ * Los kinds POSTERIORES a `kind` en el orden canónico de `ARTIFACT_KINDS`.
+ * Vacío si `kind` es el último. Usado por `reopenArtifact` (repo) para saber
+ * qué sellos downstream invalidar al reabrir uno anterior.
+ */
+export function downstreamKinds(kind: PixelforgeArtifactKind): PixelforgeArtifactKind[] {
+  const i = ARTIFACT_KINDS.indexOf(kind);
+  return ARTIFACT_KINDS.slice(i + 1);
+}
+
+/**
+ * Inversa de `STATION_ARTIFACT`: la estación que sella un `kind` dado. Total
+ * sobre los 5 kinds de F2 (no hace falta manejar `null` — a diferencia de
+ * `STATION_ARTIFACT`, cada kind tiene exactamente una estación que lo sella).
+ */
+const KIND_STATION: Record<PixelforgeArtifactKind, PixelforgeStation> = {
+  context_brief: "contexto",
+  landing_dna: "estrategia",
+  visual_dna: "visual",
+  direction_decision: "direcciones",
+  narrative_blueprint: "blueprint",
+};
+
+export function stationForKind(kind: PixelforgeArtifactKind): PixelforgeStation {
+  return KIND_STATION[kind];
+}

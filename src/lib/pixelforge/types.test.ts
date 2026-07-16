@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  ARTIFACT_KINDS,
   PIXELFORGE_STATION_SEQUENCE,
   STATION_ARTIFACT,
+  downstreamKinds,
   isDownstream,
   isValidStation,
   nextStation,
+  stationForKind,
   stationOrder,
 } from "./types";
 import { STATION_META } from "./station-meta";
@@ -112,5 +115,46 @@ describe("STATION_META", () => {
     expect(STATION_META.map((m) => m.id).sort()).toEqual(
       [...PIXELFORGE_STATION_SEQUENCE].sort()
     );
+  });
+});
+
+describe("downstreamKinds", () => {
+  it("devuelve los kinds posteriores en el orden canónico", () => {
+    expect(downstreamKinds("context_brief")).toEqual([
+      "landing_dna",
+      "visual_dna",
+      "direction_decision",
+      "narrative_blueprint",
+    ]);
+    expect(downstreamKinds("landing_dna")).toEqual([
+      "visual_dna",
+      "direction_decision",
+      "narrative_blueprint",
+    ]);
+    expect(downstreamKinds("visual_dna")).toEqual([
+      "direction_decision",
+      "narrative_blueprint",
+    ]);
+    expect(downstreamKinds("direction_decision")).toEqual(["narrative_blueprint"]);
+  });
+
+  it("vacío para el último kind", () => {
+    expect(downstreamKinds("narrative_blueprint")).toEqual([]);
+  });
+});
+
+describe("stationForKind", () => {
+  it("es la inversa de STATION_ARTIFACT para cada kind", () => {
+    for (const kind of ARTIFACT_KINDS) {
+      expect(STATION_ARTIFACT[stationForKind(kind)]).toBe(kind);
+    }
+  });
+
+  it("mapea cada kind a su estación", () => {
+    expect(stationForKind("context_brief")).toBe("contexto");
+    expect(stationForKind("landing_dna")).toBe("estrategia");
+    expect(stationForKind("visual_dna")).toBe("visual");
+    expect(stationForKind("direction_decision")).toBe("direcciones");
+    expect(stationForKind("narrative_blueprint")).toBe("blueprint");
   });
 });
