@@ -68,6 +68,8 @@ export default async function PixelforgeContextoPage({
         <SealBar
           projectId={id}
           artifactStatus={artifact.status}
+          kind="context_brief"
+          kindLabel="Context Brief"
           sealedByName={artifact.sealedByName}
           sealedAt={sealedAtIso}
           canSeal={artifact.currentDraft != null}

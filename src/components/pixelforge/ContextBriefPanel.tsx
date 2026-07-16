@@ -18,7 +18,7 @@ import {
   XCircle,
 } from "lucide-react";
 import {
-  updateContextBriefDraftAction,
+  updateArtifactDraftAction,
   setRunDecisionAction,
 } from "@/app/(admin)/proyectos/pixelforge/actions";
 import { usePixelforgeRun } from "@/hooks/pixelforge/use-pixelforge-run";
@@ -60,15 +60,6 @@ const CONFIDENCE_LABEL: Record<BriefItem["confianza"], string> = {
   baja: "Confianza baja",
 };
 
-const FAILURE_MESSAGES: Record<string, string> = {
-  refusal: "El modelo rechazó la solicitud",
-  max_tokens: "La salida excedió el límite",
-  schema_too_complex: "El esquema de salida es demasiado complejo para el proveedor",
-  domain_validation: "La salida no pasó las reglas de dominio",
-  provider_error: "Hubo un error del proveedor de IA",
-  timeout: "La solicitud tardó demasiado (timeout)",
-};
-
 /** Clona el brief completo y aplica `mutate` sobre la copia — nunca se manda un parche parcial al backend. */
 function cloneBrief(brief: ContextBrief): ContextBrief {
   return JSON.parse(JSON.stringify(brief)) as ContextBrief;
@@ -85,7 +76,6 @@ export function ContextBriefPanel({ projectId, artifactStatus, brief, sealedInfo
   const [runId, setRunId] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
   const [failureMessage, setFailureMessage] = useState<string | null>(null);
-  const [failureKind, setFailureKind] = useState<string | null>(null);
   const [reanalyzeConfirming, setReanalyzeConfirming] = useState(false);
   const [editing, setEditing] = useState<{ column: BriefColumnKey; index: number } | null>(null);
   const [editText, setEditText] = useState("");
@@ -117,7 +107,6 @@ export function ContextBriefPanel({ projectId, artifactStatus, brief, sealedInfo
   const startAnalysis = async () => {
     setStarting(true);
     setFailureMessage(null);
-    setFailureKind(null);
     setReanalyzeConfirming(false);
     handledRunRef.current = null;
     try {
@@ -133,18 +122,11 @@ export function ContextBriefPanel({ projectId, artifactStatus, brief, sealedInfo
         toast.error(msg);
         return;
       }
+      // El POST siempre responde `{ runId, status: "running" }` en éxito — el
+      // contrato es async (fire-and-forget, ver docstring de la ruta): el
+      // resultado real (succeeded/failed) llega por el poller de arriba
+      // (`usePixelforgeRun`), nunca en esta misma respuesta.
       setRunId(json.runId ?? null);
-      if (json.status === "succeeded") {
-        handledRunRef.current = json.runId ?? null;
-        toast.success("Context Brief generado");
-        router.refresh();
-      } else if (json.status === "failed") {
-        handledRunRef.current = json.runId ?? null;
-        setFailureKind(json.failure ?? null);
-        const msg = json.error ?? "No se pudo generar el Context Brief";
-        setFailureMessage(msg);
-        toast.error(msg);
-      }
     } catch {
       const msg = "No se pudo iniciar el análisis";
       setFailureMessage(msg);
@@ -155,7 +137,7 @@ export function ContextBriefPanel({ projectId, artifactStatus, brief, sealedInfo
   };
 
   const persistDraft = async (draft: ContextBrief) => {
-    const r = await updateContextBriefDraftAction({ projectId, draft });
+    const r = await updateArtifactDraftAction({ projectId, kind: "context_brief", draft });
     if (!r.success) {
       toast.error(r.error ?? "No se pudo guardar el borrador");
       return false;
@@ -233,11 +215,7 @@ export function ContextBriefPanel({ projectId, artifactStatus, brief, sealedInfo
         <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2.5">
           <div className="flex items-start gap-2">
             <AlertCircle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-amber-400" />
-            <p className="text-xs text-amber-700 dark:text-amber-300">
-              {failureKind && FAILURE_MESSAGES[failureKind]
-                ? `${FAILURE_MESSAGES[failureKind]}: ${failureMessage}`
-                : failureMessage}
-            </p>
+            <p className="text-xs text-amber-700 dark:text-amber-300">{failureMessage}</p>
           </div>
           <button
             type="button"

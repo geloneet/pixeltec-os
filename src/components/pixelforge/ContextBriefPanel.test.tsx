@@ -11,19 +11,19 @@ afterEach(() => {
 });
 
 const {
-  updateContextBriefDraftActionMock,
+  updateArtifactDraftActionMock,
   setRunDecisionActionMock,
   refreshMock,
   usePixelforgeRunMock,
 } = vi.hoisted(() => ({
-  updateContextBriefDraftActionMock: vi.fn(),
+  updateArtifactDraftActionMock: vi.fn(),
   setRunDecisionActionMock: vi.fn(),
   refreshMock: vi.fn(),
   usePixelforgeRunMock: vi.fn(),
 }));
 
 vi.mock("@/app/(admin)/proyectos/pixelforge/actions", () => ({
-  updateContextBriefDraftAction: updateContextBriefDraftActionMock,
+  updateArtifactDraftAction: updateArtifactDraftActionMock,
   setRunDecisionAction: setRunDecisionActionMock,
 }));
 vi.mock("next/navigation", () => ({
@@ -101,7 +101,7 @@ describe("ContextBriefPanel", () => {
   });
 
   it("editar detalle: guarda llamando la action con el brief COMPLETO y el detalle modificado", async () => {
-    updateContextBriefDraftActionMock.mockResolvedValue({ success: true });
+    updateArtifactDraftActionMock.mockResolvedValue({ success: true });
     const brief = fixtureBrief();
     render(<ContextBriefPanel projectId="proj-1" artifactStatus="in_progress" brief={brief} />);
 
@@ -112,9 +112,10 @@ describe("ContextBriefPanel", () => {
     fireEvent.change(textarea, { target: { value: "Remodelaciones residenciales y comerciales." } });
     fireEvent.click(screen.getByText("Guardar"));
 
-    await waitFor(() => expect(updateContextBriefDraftActionMock).toHaveBeenCalled());
-    const call = updateContextBriefDraftActionMock.mock.calls[0][0];
+    await waitFor(() => expect(updateArtifactDraftActionMock).toHaveBeenCalled());
+    const call = updateArtifactDraftActionMock.mock.calls[0][0];
     expect(call.projectId).toBe("proj-1");
+    expect(call.kind).toBe("context_brief");
     expect(call.draft.confirmados[0].detalle).toBe("Remodelaciones residenciales y comerciales.");
     // El resto del brief se conserva íntegro (clon completo, no un parche).
     expect(call.draft.inferidos).toEqual(brief.inferidos);
@@ -123,7 +124,7 @@ describe("ContextBriefPanel", () => {
   });
 
   it("descartar item: quita el ítem del array correspondiente en el payload", async () => {
-    updateContextBriefDraftActionMock.mockResolvedValue({ success: true });
+    updateArtifactDraftActionMock.mockResolvedValue({ success: true });
     const brief = fixtureBrief();
     render(<ContextBriefPanel projectId="proj-1" artifactStatus="in_progress" brief={brief} />);
 
@@ -131,8 +132,8 @@ describe("ContextBriefPanel", () => {
     // El primer botón de descartar corresponde al único ítem de "confirmados".
     fireEvent.click(discardButtons[0]);
 
-    await waitFor(() => expect(updateContextBriefDraftActionMock).toHaveBeenCalled());
-    const call = updateContextBriefDraftActionMock.mock.calls[0][0];
+    await waitFor(() => expect(updateArtifactDraftActionMock).toHaveBeenCalled());
+    const call = updateArtifactDraftActionMock.mock.calls[0][0];
     expect(call.draft.confirmados).toEqual([]);
     expect(call.draft.inferidos).toEqual(brief.inferidos);
   });

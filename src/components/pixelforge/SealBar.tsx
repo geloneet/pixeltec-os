@@ -7,14 +7,20 @@ import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { AlertTriangle, CheckCircle2, Loader2, Lock, RotateCcw } from "lucide-react";
 import {
-  sealContextBriefAction,
-  reopenContextBriefAction,
+  sealArtifactByKindAction,
+  reopenArtifactByKindAction,
 } from "@/app/(admin)/proyectos/pixelforge/actions";
 import type { PixelforgeArtifactStatus } from "@/lib/pixelforge/types";
+
+type OperativeArtifactKind = "context_brief" | "landing_dna";
 
 interface Props {
   projectId: string;
   artifactStatus: PixelforgeArtifactStatus;
+  /** Kind del artifact que sella esta barra — determina qué action genérica llamar. */
+  kind: OperativeArtifactKind;
+  /** Nombre visible del artifact en los textos ("Context Brief", "Landing DNA"). */
+  kindLabel: string;
   sealedByName?: string | null;
   sealedAt?: string | null;
   canSeal: boolean;
@@ -25,13 +31,17 @@ interface Props {
 const MIN_REASON_LENGTH = 5;
 
 /**
- * Barra de sellado/reapertura del Context Brief (F2, único kind operativo —
- * F3+ generaliza a otros kinds). Calco visual/UX de ApproveBar +
- * SealedStationView, pero llama directo las actions de context_brief.
+ * Barra de sellado/reapertura genérica por `kind` (F3 generaliza el único
+ * kind operativo de F2 — `context_brief` — a cualquier artifact OPERATIVO:
+ * `landing_dna` se suma en F3). Calco visual/UX de ApproveBar +
+ * SealedStationView; llama las actions genéricas por kind
+ * (`sealArtifactByKindAction`/`reopenArtifactByKindAction`, F3-T1).
  */
 export function SealBar({
   projectId,
   artifactStatus,
+  kind,
+  kindLabel,
   sealedByName,
   sealedAt,
   canSeal,
@@ -48,13 +58,13 @@ export function SealBar({
   const handleSeal = async () => {
     if (!canSeal || busy) return;
     setBusy(true);
-    const r = await sealContextBriefAction({ projectId });
+    const r = await sealArtifactByKindAction({ projectId, kind });
     setBusy(false);
     if (!r.success) {
-      toast.error(r.error ?? "No se pudo sellar el Context Brief");
+      toast.error(r.error ?? `No se pudo sellar ${kindLabel}`);
       return;
     }
-    toast.success("Context Brief sellado");
+    toast.success(`${kindLabel} sellado`);
     setConfirming(false);
     router.refresh();
   };
@@ -63,13 +73,13 @@ export function SealBar({
     const trimmed = reason.trim();
     if (trimmed.length < MIN_REASON_LENGTH || busy) return;
     setBusy(true);
-    const r = await reopenContextBriefAction({ projectId, reason: trimmed });
+    const r = await reopenArtifactByKindAction({ projectId, kind, reason: trimmed });
     setBusy(false);
     if (!r.success) {
-      toast.error(r.error ?? "No se pudo reabrir el Context Brief");
+      toast.error(r.error ?? `No se pudo reabrir ${kindLabel}`);
       return;
     }
-    toast.success("Context Brief reabierto");
+    toast.success(`${kindLabel} reabierto`);
     setReopening(false);
     setReason("");
     router.refresh();
@@ -160,7 +170,7 @@ export function SealBar({
             className="flex items-center gap-2 rounded-md bg-cyan-500 px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-cyan-400 disabled:opacity-40"
           >
             <Lock className="h-4 w-4" />
-            Sellar Context Brief
+            Sellar {kindLabel}
           </button>
           {!canSeal && (
             <span className="text-[11px] text-muted-foreground/70">
@@ -171,7 +181,7 @@ export function SealBar({
       ) : (
         <div className="space-y-2">
           <p className="text-xs text-muted-foreground">
-            Al sellar, el Context Brief queda congelado. Podrás reabrirlo después, pero quedará
+            Al sellar, {kindLabel} queda congelado. Podrás reabrirlo después, pero quedará
             registrado.
           </p>
           <div className="flex items-center gap-2">

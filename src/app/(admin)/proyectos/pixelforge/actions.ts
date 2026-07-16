@@ -239,7 +239,7 @@ const artifactDraftSchema = z.object({
  * Guarda el borrador editado de un artifact operativo. Valida la FORMA con
  * el schema del `kind` (mapa `KIND_SCHEMAS`) antes de persistir — el caller
  * siempre manda el artifact COMPLETO (clonado y modificado), nunca un parche
- * parcial (mismo contrato que la vieja `updateContextBriefDraftAction`).
+ * parcial.
  */
 export async function updateArtifactDraftAction(input: {
   projectId: string;
@@ -340,32 +340,6 @@ export async function reopenArtifactByKindAction(input: {
       error: err instanceof Error ? err.message : "No se pudo reabrir el artefacto",
     };
   }
-}
-
-// ─── Context Brief (F2) ─────────────────────────────────────────────────────
-// Delegan en las genéricas de arriba — se conservan como wrappers finos para
-// no tocar los call sites de ContextBriefPanel/SealBar (la UI real de F3 es
-// F3-T2; acá solo se generaliza el backend de las actions).
-
-/** @deprecated usa `updateArtifactDraftAction({ kind: "context_brief", ... })` — se mantiene por compat con ContextBriefPanel. */
-export async function updateContextBriefDraftAction(input: {
-  projectId: string;
-  draft: unknown;
-}): Promise<PortalActionResult> {
-  return updateArtifactDraftAction({ projectId: input.projectId, kind: "context_brief", draft: input.draft });
-}
-
-/** @deprecated usa `sealArtifactByKindAction({ kind: "context_brief", ... })` — se mantiene por compat con SealBar. */
-export async function sealContextBriefAction(input: { projectId: string }): Promise<PortalActionResult> {
-  return sealArtifactByKindAction({ projectId: input.projectId, kind: "context_brief" });
-}
-
-/** @deprecated usa `reopenArtifactByKindAction({ kind: "context_brief", ... })` — se mantiene por compat con SealBar. */
-export async function reopenContextBriefAction(input: {
-  projectId: string;
-  reason: string;
-}): Promise<PortalActionResult> {
-  return reopenArtifactByKindAction({ projectId: input.projectId, kind: "context_brief", reason: input.reason });
 }
 
 const setRunDecisionSchema = z.object({
