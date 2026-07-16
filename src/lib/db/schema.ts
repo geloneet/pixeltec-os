@@ -1820,6 +1820,13 @@ export const pixelforgeAssetKindEnum = pgEnum("pixelforge_asset_kind", [
   "export",
 ]);
 
+export const pixelforgeRunStatusEnum = pgEnum("pixelforge_run_status", [
+  "queued",
+  "running",
+  "succeeded",
+  "failed",
+]);
+
 export const pixelforgeProjects = pgTable(
   "pixelforge_projects",
   {
@@ -1891,6 +1898,12 @@ export const pixelforgeArtifacts = pgTable(
     sealedById: uuid("sealed_by_id").references(() => users.id, { onDelete: "set null" }),
     sealedByName: text("sealed_by_name"),
     reopenCount: integer("reopen_count").notNull().default(0),
+    // Referencia circular a pixelforge_ai_runs (definida más abajo en este
+    // archivo, F2) — el run de IA que generó el draft/sealed actual, para
+    // trazabilidad. Mismo patrón forward-ref que tasks.sessionId (L523).
+    lastRunId: uuid("last_run_id").references((): AnyPgColumn => pixelforgeAiRuns.id, {
+      onDelete: "set null",
+    }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -1942,6 +1955,48 @@ export const pixelforgeAssets = pgTable(
   (t) => [index("pixelforge_assets_project_idx").on(t.projectId)]
 );
 
+export const pixelforgeAiRuns = pgTable(
+  "pixelforge_ai_runs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => pixelforgeProjects.id, { onDelete: "cascade" }),
+    // NO enum — decisión de diseño: las operaciones crecen por fase, igual
+    // que pixelforgeEvents.type.
+    operation: text("operation").notNull(),
+    status: pixelforgeRunStatusEnum("status").notNull().default("queued"),
+    progress: integer("progress").notNull().default(0),
+    currentStep: text("current_step"),
+    model: text("model").notNull(),
+    promptVersion: text("prompt_version").notNull(),
+    tokensIn: integer("tokens_in"),
+    tokensOut: integer("tokens_out"),
+    durationMs: integer("duration_ms"),
+    retryCount: integer("retry_count").notNull().default(0),
+    // Valores de PixelforgeRunFailure: refusal | max_tokens |
+    // schema_too_complex | domain_validation | provider_error | timeout.
+    failureKind: text("failure_kind"),
+    error: text("error"),
+    // params + hash del input, NUNCA el prompt ensamblado.
+    inputSummary: jsonb("input_summary"),
+    // Referencia al destino del resultado (p.ej. "artifact:context_brief").
+    resultRef: text("result_ref"),
+    // "accepted" | "rejected" — métricas del experimento de modelos.
+    userDecision: text("user_decision"),
+    // Autoría desnormalizada — nullable + FK a users con set null, igual que
+    // definition_events.actorId (L1649).
+    requestedById: uuid("requested_by_id").references(() => users.id, { onDelete: "set null" }),
+    requestedByName: text("requested_by_name").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("pixelforge_ai_runs_project_idx").on(t.projectId),
+    index("pixelforge_ai_runs_project_operation_idx").on(t.projectId, t.operation),
+  ]
+);
+
 export const pixelforgeProjectsRelations = relations(
   pixelforgeProjects,
   ({ many, one }) => ({
@@ -1961,6 +2016,7 @@ export const pixelforgeProjectsRelations = relations(
     artifacts: many(pixelforgeArtifacts),
     events: many(pixelforgeEvents),
     assets: many(pixelforgeAssets),
+    aiRuns: many(pixelforgeAiRuns),
   })
 );
 
@@ -1980,6 +2036,10 @@ export const pixelforgeArtifactsRelations = relations(
     project: one(pixelforgeProjects, {
       fields: [pixelforgeArtifacts.projectId],
       references: [pixelforgeProjects.id],
+    }),
+    lastRun: one(pixelforgeAiRuns, {
+      fields: [pixelforgeArtifacts.lastRunId],
+      references: [pixelforgeAiRuns.id],
     }),
   })
 );
@@ -2004,6 +2064,16 @@ export const pixelforgeAssetsRelations = relations(
   })
 );
 
+export const pixelforgeAiRunsRelations = relations(
+  pixelforgeAiRuns,
+  ({ one }) => ({
+    project: one(pixelforgeProjects, {
+      fields: [pixelforgeAiRuns.projectId],
+      references: [pixelforgeProjects.id],
+    }),
+  })
+);
+
 export type PixelforgeProject = typeof pixelforgeProjects.$inferSelect;
 export type NewPixelforgeProject = typeof pixelforgeProjects.$inferInsert;
 export type PixelforgeContextSource = typeof pixelforgeContextSources.$inferSelect;
@@ -2014,3 +2084,5 @@ export type PixelforgeEvent = typeof pixelforgeEvents.$inferSelect;
 export type NewPixelforgeEvent = typeof pixelforgeEvents.$inferInsert;
 export type PixelforgeAsset = typeof pixelforgeAssets.$inferSelect;
 export type NewPixelforgeAsset = typeof pixelforgeAssets.$inferInsert;
+export type PixelforgeAiRun = typeof pixelforgeAiRuns.$inferSelect;
+export type NewPixelforgeAiRun = typeof pixelforgeAiRuns.$inferInsert;
