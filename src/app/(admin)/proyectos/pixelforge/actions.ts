@@ -9,6 +9,7 @@
  * `console.error("[nombreAction]", err)`.
  */
 import { revalidatePath } from "next/cache";
+import { randomUUID } from "node:crypto";
 import { and, eq, or } from "drizzle-orm";
 import { z } from "zod";
 import { auth } from "@/lib/auth/config";
@@ -21,6 +22,9 @@ import {
   sealArtifact,
   reopenArtifact,
   setRunUserDecision,
+  addVisualReference,
+  createReferenceAsset,
+  removeVisualReference,
   type Actor,
 } from "@/lib/db/repos/pixelforge";
 import { getDefinitionFull } from "@/lib/db/repos/definitions";
@@ -29,6 +33,9 @@ import {
   type OperativeArtifactKind,
   type PixelforgeSourceType,
 } from "@/lib/pixelforge/types";
+import { safeFetch } from "@/lib/pixelforge/visual/safe-fetch";
+import { extractSignals } from "@/lib/pixelforge/visual/extract";
+import { uploadReferenceImage } from "@/lib/pixelforge/visual/storage";
 import type { PortalActionResult } from "@/lib/action-types";
 // OJO: estos schemas usan `zod/v4` (ver docstring de sus archivos) — el resto
 // de este módulo sigue con `zod` v3 clásico a propósito, no lo migres.
@@ -374,6 +381,216 @@ export async function setRunDecisionAction(input: {
     return {
       success: false,
       error: err instanceof Error ? err.message : "No se pudo registrar tu respuesta",
+    };
+  }
+}
+
+// ─── Referencias visuales (F4) ──────────────────────────────────────────────
+// Insumo de la estación `visual`: agregar/quitar referencias en cualquier
+// momento (no hay compuerta dura acá — son insumo libre, se editan sin
+// depender de en qué estación esté el proyecto). La IA
+// (analyze_reference/synthesize_visual_dna) es F4-T4; la UI es F4-T5.
+
+function visualReferencePaths(projectId: string) {
+  revalidatePath(`/proyectos/pixelforge/${projectId}`);
+  revalidatePath(`/proyectos/pixelforge/${projectId}/visual`);
+}
+
+const addUrlReferenceSchema = z.object({
+  projectId: z.string().uuid("Proyecto inválido"),
+  label: z.string().trim().min(1, "Falta la etiqueta"),
+  url: z
+    .string()
+    .url("URL inválida")
+    .refine((u) => /^https?:\/\//i.test(u), "Solo URLs http(s)"),
+});
+
+/**
+ * Agrega una referencia visual de tipo URL. Pega la URL con `safeFetch`
+ * (fetcher anti-SSRF real, `src/lib/pixelforge/visual/safe-fetch.ts`) y, si
+ * responde ok, extrae señales SANEADAS con `extractSignals` — el HTML crudo
+ * de `fetchResult.body` NUNCA se persiste, ni entero ni en fragmentos: solo
+ * las señales de `extractSignals` (+ `fetchedUrl`/`status`) van a
+ * `fetchedMeta`. Cobertura siempre `semantic-only` — una URL sin screenshot
+ * es semántica; el screenshot (si el usuario lo sube) es OTRA referencia,
+ * de `kind: "image"`. Si `safeFetch` falla (bloqueado, timeout, no-html,
+ * etc.) la referencia se agrega igual, con `fetchedMeta: { error: reason }`
+ * — el usuario puede complementar subiendo un screenshot a mano.
+ */
+export async function addUrlReferenceAction(input: {
+  projectId: string;
+  label: string;
+  url: string;
+}): Promise<PortalActionResult<{ id: string }>> {
+  try {
+    const { ownerId, actor } = await requireAuth();
+    const parsed = addUrlReferenceSchema.safeParse(input);
+    if (!parsed.success) {
+      return { success: false, error: parsed.error.errors[0]?.message };
+    }
+    const { projectId, label, url } = parsed.data;
+
+    const fetchResult = await safeFetch(url);
+
+    const fetchedMeta = fetchResult.ok
+      ? {
+          ...extractSignals(fetchResult.body, fetchResult.finalUrl),
+          fetchedUrl: fetchResult.finalUrl,
+          status: fetchResult.status,
+        }
+      : { error: fetchResult.reason };
+
+    const id = await addVisualReference(
+      projectId,
+      ownerId,
+      { kind: "url", label, url, coverage: "semantic-only", fetchedMeta },
+      actor
+    );
+
+    visualReferencePaths(projectId);
+    return { success: true, data: { id } };
+  } catch (err) {
+    console.error("[addUrlReferenceAction]", err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "No se pudo agregar la referencia",
+    };
+  }
+}
+
+const addImageReferenceHeaderSchema = z.object({
+  projectId: z.string().uuid("Proyecto inválido"),
+  label: z.string().trim().min(1, "Falta la etiqueta"),
+});
+
+/**
+ * Agrega una referencia visual de tipo imagen (screenshot subido a mano).
+ * Recibe `FormData` (campos `projectId`, `label`, `file`) porque es un
+ * upload real, no JSON. Genera `referenceId = randomUUID()` ANTES de subir
+ * — se usa como nombre del objeto en R2 (`uploadReferenceImage`, que valida
+ * mime whitelist + cap 5MB) Y como id explícito de la fila al insertar
+ * (`addVisualReference(..., referenceId)`), para no tener que renombrar el
+ * objeto después de crear la fila. Cobertura SIEMPRE `static-visual-partial`
+ * por defecto: un screenshot nunca prueba el sitio completo (scroll,
+ * estados, responsive) — nunca se marca `fullpage` automáticamente; eso
+ * queda a criterio explícito del usuario en la UI (F4-T5).
+ */
+export async function addImageReferenceAction(
+  formData: FormData
+): Promise<PortalActionResult<{ id: string }>> {
+  try {
+    const { ownerId, actor } = await requireAuth();
+
+    const headerParsed = addImageReferenceHeaderSchema.safeParse({
+      projectId: formData.get("projectId"),
+      label: formData.get("label"),
+    });
+    if (!headerParsed.success) {
+      return { success: false, error: headerParsed.error.errors[0]?.message };
+    }
+    const { projectId, label } = headerParsed.data;
+
+    const file = formData.get("file");
+    if (!(file instanceof File)) {
+      return { success: false, error: "Falta la imagen" };
+    }
+
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const referenceId = randomUUID();
+
+    let uploaded: { url: string; key: string };
+    try {
+      uploaded = await uploadReferenceImage(ownerId, projectId, referenceId, buffer, file.type);
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "No se pudo subir la imagen",
+      };
+    }
+
+    const assetId = await createReferenceAsset(
+      projectId,
+      ownerId,
+      { url: uploaded.url, r2Key: uploaded.key, contentType: file.type, sizeBytes: buffer.length },
+      actor
+    );
+
+    const id = await addVisualReference(
+      projectId,
+      ownerId,
+      { kind: "image", label, assetId, coverage: "static-visual-partial" },
+      actor,
+      referenceId
+    );
+
+    visualReferencePaths(projectId);
+    return { success: true, data: { id } };
+  } catch (err) {
+    console.error("[addImageReferenceAction]", err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "No se pudo agregar la referencia",
+    };
+  }
+}
+
+const addNoteReferenceSchema = z.object({
+  projectId: z.string().uuid("Proyecto inválido"),
+  label: z.string().trim().min(1, "Falta la etiqueta"),
+  note: z.string().trim().min(1, "Falta la nota"),
+});
+
+/** Agrega una referencia visual de tipo nota (texto libre, sin fetch ni upload). */
+export async function addNoteReferenceAction(input: {
+  projectId: string;
+  label: string;
+  note: string;
+}): Promise<PortalActionResult<{ id: string }>> {
+  try {
+    const { ownerId, actor } = await requireAuth();
+    const parsed = addNoteReferenceSchema.safeParse(input);
+    if (!parsed.success) {
+      return { success: false, error: parsed.error.errors[0]?.message };
+    }
+    const { projectId, label, note } = parsed.data;
+
+    const id = await addVisualReference(projectId, ownerId, { kind: "note", label, note }, actor);
+
+    visualReferencePaths(projectId);
+    return { success: true, data: { id } };
+  } catch (err) {
+    console.error("[addNoteReferenceAction]", err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "No se pudo agregar la nota",
+    };
+  }
+}
+
+const removeReferenceSchema = z.object({
+  referenceId: z.string().uuid("Referencia inválida"),
+});
+
+/** Quita una referencia visual (cualquier kind). El repo borra el asset/objeto R2 si aplica. */
+export async function removeReferenceAction(input: {
+  referenceId: string;
+}): Promise<PortalActionResult> {
+  try {
+    const { ownerId, actor } = await requireAuth();
+    const parsed = removeReferenceSchema.safeParse(input);
+    if (!parsed.success) {
+      return { success: false, error: parsed.error.errors[0]?.message };
+    }
+
+    const { projectId } = await removeVisualReference(parsed.data.referenceId, ownerId, actor);
+
+    visualReferencePaths(projectId);
+    return { success: true };
+  } catch (err) {
+    console.error("[removeReferenceAction]", err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "No se pudo eliminar la referencia",
     };
   }
 }

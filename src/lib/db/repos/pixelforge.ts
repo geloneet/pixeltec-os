@@ -13,6 +13,7 @@
  */
 import { and, asc, desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { deleteObject } from "@/lib/r2/upload";
 import {
   clients,
   pixelforgeProjects,
@@ -20,11 +21,14 @@ import {
   pixelforgeArtifacts,
   pixelforgeEvents,
   pixelforgeAiRuns,
+  pixelforgeAssets,
+  pixelforgeVisualReferences,
   type PixelforgeProject,
   type PixelforgeContextSource,
   type PixelforgeArtifact,
   type PixelforgeEvent,
   type PixelforgeAiRun,
+  type PixelforgeVisualReference,
 } from "@/lib/db/schema";
 import {
   ARTIFACT_KINDS,
@@ -213,9 +217,11 @@ export interface PixelforgeProjectFull {
   sources: PixelforgeContextSource[];
   /** Orden desc por `createdAt`. */
   events: PixelforgeEvent[];
+  /** Referencias visuales (F4) — orden asc por `createdAt`. */
+  visualReferences: PixelforgeVisualReference[];
 }
 
-/** Proyecto + artifacts + fuentes + eventos, escopado por owner. Null si no existe. */
+/** Proyecto + artifacts + fuentes + eventos + referencias visuales, escopado por owner. Null si no existe. */
 export async function getPixelforgeProjectFull(
   projectId: string,
   ownerId: string
@@ -223,7 +229,7 @@ export async function getPixelforgeProjectFull(
   const project = await getPixelforgeProject(projectId, ownerId);
   if (!project) return null;
 
-  const [artifacts, sources, events] = await Promise.all([
+  const [artifacts, sources, events, visualReferences] = await Promise.all([
     db
       .select()
       .from(pixelforgeArtifacts)
@@ -238,6 +244,11 @@ export async function getPixelforgeProjectFull(
       .from(pixelforgeEvents)
       .where(eq(pixelforgeEvents.projectId, projectId))
       .orderBy(desc(pixelforgeEvents.createdAt)),
+    db
+      .select()
+      .from(pixelforgeVisualReferences)
+      .where(eq(pixelforgeVisualReferences.projectId, projectId))
+      .orderBy(asc(pixelforgeVisualReferences.createdAt)),
   ]);
 
   // Orden estable de artifacts según la secuencia canónica de kinds.
@@ -245,7 +256,7 @@ export async function getPixelforgeProjectFull(
     (a, b) => ARTIFACT_KINDS.indexOf(a.kind) - ARTIFACT_KINDS.indexOf(b.kind)
   );
 
-  return { project, artifacts, sources, events };
+  return { project, artifacts, sources, events, visualReferences };
 }
 
 export interface PixelforgeProjectListItem {
@@ -706,6 +717,234 @@ export function reopenArtifact(
       .set({ currentStation: station, updatedAt: now })
       .where(eq(pixelforgeProjects.id, projectId));
   });
+}
+
+// ─── Referencias visuales (F4) ──────────────────────────────────────────────
+// El repo SOLO persiste — no fetchea URLs ni decide `coverage`: eso lo hace
+// la action (`src/app/(admin)/proyectos/pixelforge/actions.ts`), que ya trae
+// `coverage`/`fetchedMeta` resueltos (kind "url": tras `safeFetch` +
+// `extractSignals`; kind "image": tras subir a R2 vía `storage.ts`).
+
+export type AddVisualReferenceInput =
+  | {
+      kind: "url";
+      label: string;
+      url: string;
+      coverage: PixelforgeVisualReference["coverage"];
+      /** Señales SANEADAS de `extractSignals` (+ fetchedUrl/status) — NUNCA HTML crudo. */
+      fetchedMeta: unknown;
+    }
+  | {
+      kind: "image";
+      label: string;
+      /** Asset ya creado (ver `createReferenceAsset`) apuntando a la imagen en R2. */
+      assetId: string;
+      coverage: PixelforgeVisualReference["coverage"];
+    }
+  | { kind: "note"; label: string; note: string };
+
+/**
+ * Persiste una referencia visual (url/image/note) de un proyecto. Ownership
+ * del proyecto. Para `kind: "note"` la cobertura es siempre `semantic-only`
+ * (una nota no aporta señal visual). Deja evento `reference_added` (snapshot
+ * null, reason = kind). `explicitId`: la action de imagen genera el id ANTES
+ * de llamar (lo usa también como nombre del objeto en R2, ver
+ * `uploadReferenceImage` en `storage.ts`) y lo pasa acá para que la fila
+ * nazca con ESE id; si se omite, el id lo genera la DB (`defaultRandom()`).
+ * Devuelve el id de la referencia.
+ */
+export function addVisualReference(
+  projectId: string,
+  ownerId: string,
+  input: AddVisualReferenceInput,
+  actor: Actor,
+  explicitId?: string
+): Promise<string> {
+  return db.transaction(async (tx) => {
+    const [project] = await tx
+      .select({ id: pixelforgeProjects.id })
+      .from(pixelforgeProjects)
+      .where(and(eq(pixelforgeProjects.id, projectId), eq(pixelforgeProjects.ownerId, ownerId)))
+      .limit(1);
+    if (!project) throw new Error("Proyecto no encontrado");
+
+    const [reference] = await tx
+      .insert(pixelforgeVisualReferences)
+      .values({
+        ...(explicitId ? { id: explicitId } : {}),
+        projectId,
+        kind: input.kind,
+        label: input.label,
+        url: input.kind === "url" ? input.url : null,
+        assetId: input.kind === "image" ? input.assetId : null,
+        coverage: input.kind === "note" ? "semantic-only" : input.coverage,
+        fetchedMeta: input.kind === "url" ? (input.fetchedMeta ?? null) : null,
+        note: input.kind === "note" ? input.note : null,
+        addedById: actor.id,
+        addedByName: actor.name,
+      })
+      .returning({ id: pixelforgeVisualReferences.id });
+
+    await tx.insert(pixelforgeEvents).values({
+      projectId,
+      station: "visual",
+      type: "reference_added",
+      actorId: actor.id,
+      actorName: actor.name,
+      reason: input.kind,
+      snapshot: null,
+    });
+
+    await touchProject(tx, projectId);
+
+    return reference.id;
+  });
+}
+
+export interface CreateReferenceAssetInput {
+  url: string;
+  r2Key: string;
+  contentType: string;
+  sizeBytes: number;
+}
+
+/**
+ * Registra en `pixelforge_assets` (kind `reference_image`) una imagen de
+ * referencia YA subida a R2 (la action sube primero vía `storage.ts`, luego
+ * llama acá). Ownership del proyecto. Devuelve el id del asset — la action lo
+ * usa como `assetId` al llamar `addVisualReference`.
+ */
+export function createReferenceAsset(
+  projectId: string,
+  ownerId: string,
+  input: CreateReferenceAssetInput,
+  actor: Actor
+): Promise<string> {
+  return db.transaction(async (tx) => {
+    const [project] = await tx
+      .select({ id: pixelforgeProjects.id })
+      .from(pixelforgeProjects)
+      .where(and(eq(pixelforgeProjects.id, projectId), eq(pixelforgeProjects.ownerId, ownerId)))
+      .limit(1);
+    if (!project) throw new Error("Proyecto no encontrado");
+
+    const [asset] = await tx
+      .insert(pixelforgeAssets)
+      .values({
+        projectId,
+        kind: "reference_image",
+        url: input.url,
+        r2Key: input.r2Key,
+        contentType: input.contentType,
+        sizeBytes: input.sizeBytes,
+        uploadedById: actor.id,
+        uploadedByName: actor.name,
+      })
+      .returning({ id: pixelforgeAssets.id });
+
+    return asset.id;
+  });
+}
+
+/**
+ * Elimina una referencia visual. Ownership vía join a `pixelforgeProjects`
+ * (mismo patrón que `getRunForOwner`/`setRunUserDecision` — sin un select
+ * previo de proyecto). Si la referencia era `kind: "image"` (tenía
+ * `assetId`), también borra la fila de `pixelforge_assets`; el objeto en R2
+ * se borra DESPUÉS de que la transacción de DB confirme (best-effort —
+ * `deleteObject` nunca lanza — y evita mantener la tx abierta durante una
+ * llamada de red). Deja evento `reference_removed`. Devuelve el `projectId`
+ * de la referencia borrada para que la action pueda revalidar sus rutas
+ * (la action solo recibe `referenceId`, no conoce el proyecto de antemano).
+ */
+export async function removeVisualReference(
+  referenceId: string,
+  ownerId: string,
+  actor: Actor
+): Promise<{ projectId: string }> {
+  const result = await db.transaction(async (tx) => {
+    const [row] = await tx
+      .select({
+        projectId: pixelforgeVisualReferences.projectId,
+        assetId: pixelforgeVisualReferences.assetId,
+      })
+      .from(pixelforgeVisualReferences)
+      .innerJoin(pixelforgeProjects, eq(pixelforgeVisualReferences.projectId, pixelforgeProjects.id))
+      .where(
+        and(
+          eq(pixelforgeVisualReferences.id, referenceId),
+          eq(pixelforgeProjects.ownerId, ownerId)
+        )
+      )
+      .limit(1);
+    if (!row) throw new Error("Referencia no encontrada");
+
+    await tx
+      .delete(pixelforgeVisualReferences)
+      .where(eq(pixelforgeVisualReferences.id, referenceId));
+
+    let r2Key: string | null = null;
+    if (row.assetId) {
+      const [asset] = await tx
+        .select({ r2Key: pixelforgeAssets.r2Key })
+        .from(pixelforgeAssets)
+        .where(eq(pixelforgeAssets.id, row.assetId))
+        .limit(1);
+      r2Key = asset?.r2Key ?? null;
+
+      await tx.delete(pixelforgeAssets).where(eq(pixelforgeAssets.id, row.assetId));
+    }
+
+    await tx.insert(pixelforgeEvents).values({
+      projectId: row.projectId,
+      station: "visual",
+      type: "reference_removed",
+      actorId: actor.id,
+      actorName: actor.name,
+      snapshot: null,
+    });
+
+    await touchProject(tx, row.projectId);
+
+    return { projectId: row.projectId, r2Key };
+  });
+
+  if (result.r2Key) {
+    await deleteObject(result.r2Key);
+  }
+
+  return { projectId: result.projectId };
+}
+
+/** Referencias visuales de un proyecto, ownership-checked. Orden asc por `createdAt`. */
+export async function listVisualReferences(
+  projectId: string,
+  ownerId: string
+): Promise<PixelforgeVisualReference[]> {
+  const project = await getPixelforgeProject(projectId, ownerId);
+  if (!project) throw new Error("Proyecto no encontrado");
+
+  return db
+    .select()
+    .from(pixelforgeVisualReferences)
+    .where(eq(pixelforgeVisualReferences.projectId, projectId))
+    .orderBy(asc(pixelforgeVisualReferences.createdAt));
+}
+
+/**
+ * Guarda el análisis IA de una referencia (F4-T4: `analyze_reference`). Sin
+ * ownership por diseño — igual que `updateRunProgress`/`finishRunRecord`: la
+ * invoca el worker de IA con un `referenceId` ya resuelto internamente, no
+ * directamente una action de usuario.
+ */
+export async function updateReferenceAnalysis(
+  referenceId: string,
+  input: { analysis: unknown }
+): Promise<void> {
+  await db
+    .update(pixelforgeVisualReferences)
+    .set({ analysis: input.analysis, updatedAt: new Date() })
+    .where(eq(pixelforgeVisualReferences.id, referenceId));
 }
 
 // ─── Helpers privados ──────────────────────────────────────────────────────

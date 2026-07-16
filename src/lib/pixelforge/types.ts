@@ -75,7 +75,8 @@ export const STATION_ARTIFACT: Record<PixelforgeStation, PixelforgeArtifactKind 
 /**
  * Tipos de evento del historial de una estación. Crece por fase: F1 cubre
  * creación e ingesta de fuentes; F2 añade el ciclo sellar/reabrir/invalidar y
- * el arranque/cierre de corridas IA (repo, `src/lib/db/repos/pixelforge.ts`).
+ * el arranque/cierre de corridas IA (repo, `src/lib/db/repos/pixelforge.ts`);
+ * F4 añade agregar/quitar referencias visuales de la estación `visual`.
  */
 export type PixelforgeEventType =
   | "created"
@@ -84,7 +85,9 @@ export type PixelforgeEventType =
   | "reopened"
   | "invalidated"
   | "run_started"
-  | "run_finished";
+  | "run_finished"
+  | "reference_added"
+  | "reference_removed";
 
 export type PixelforgeArtifactStatus = "pending" | "in_progress" | "sealed" | "invalidated";
 
