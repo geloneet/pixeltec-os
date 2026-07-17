@@ -209,6 +209,42 @@ describe("BlueprintPanel", () => {
     expect(draft.cinematicMoments[0].actoOrden).toBe(1);
   });
 
+  it("mientras el swap está en vuelo, Subir/Bajar quedan disabled — y se re-habilitan al resolver (guard anti doble-click)", async () => {
+    let resolvePersist!: (value: { success: true }) => void;
+    updateArtifactDraftActionMock.mockReturnValue(
+      new Promise((resolve) => {
+        resolvePersist = resolve;
+      })
+    );
+    render(
+      <BlueprintPanel
+        projectId="proj-1"
+        artifactStatus="in_progress"
+        blueprint={fixtureBlueprint()}
+        decisionSealed={true}
+      />
+    );
+
+    fireEvent.click(screen.getByLabelText("Bajar acto 1"));
+
+    await waitFor(() => expect(updateArtifactDraftActionMock).toHaveBeenCalled());
+    // Con la persistencia todavía pendiente, TODOS los botones de reorder
+    // (no solo el que se clickeó) quedan disabled — un segundo click
+    // (en cualquier acto) no debe disparar un swap sobre props obsoletas.
+    expect(screen.getByLabelText("Bajar acto 2")).toBeDisabled();
+    expect(screen.getByLabelText("Subir acto 2")).toBeDisabled();
+    // "Subir acto 3" normalmente está enabled en reposo (no es el extremo) —
+    // que quede disabled acá prueba que el guard aplica a TODOS los botones,
+    // no solo al que originó el swap.
+    expect(screen.getByLabelText("Subir acto 3")).toBeDisabled();
+
+    resolvePersist({ success: true });
+
+    await waitFor(() => expect(screen.getByLabelText("Bajar acto 2")).toBeEnabled());
+    expect(screen.getByLabelText("Subir acto 2")).toBeEnabled();
+    expect(screen.getByLabelText("Subir acto 3")).toBeEnabled();
+  });
+
   it("reordenar mientras se edita OTRO acto: cancela la edición en curso (evita buffer viejo sobre contenido distinto)", async () => {
     updateArtifactDraftActionMock.mockResolvedValue({ success: true });
     render(

@@ -83,3 +83,79 @@ describe("directionTokensToCssVars", () => {
     expect(vars["--pf-shadow"]).toContain("rgba");
   });
 });
+
+describe("directionTokensToCssVars — sanitización de valores hostiles (inyección CSS)", () => {
+  it("un `;` en el valor de un token de paleta rompe la declaración — se omite el passthrough, no se emite", () => {
+    const vars = directionTokensToCssVars(
+      fixtureTokens({
+        paleta: [
+          { token: "color-primario", valor: "red; background:url(https://evil.example/px)", uso: "Marca principal." },
+          { token: "color-fondo", valor: "#FFFFFF", uso: "Fondo general de la landing." },
+          { token: "color-acento", valor: "#F59E0B", uso: "CTAs y detalles destacados." },
+        ],
+      })
+    );
+    expect(vars["--pf-color-primario"]).toBeUndefined();
+    // El rol semántico deriva del mismo token hostil → cae al fallback neutro, nunca al valor hostil.
+    expect(vars["--pf-primary"]).not.toContain(";");
+    expect(vars["--pf-primary"]).not.toContain("url(");
+  });
+
+  it("llaves `{}` en un valor de paleta se rechazan igual que `;`", () => {
+    const vars = directionTokensToCssVars(
+      fixtureTokens({
+        paleta: [
+          { token: "color-primario", valor: "a{}", uso: "Marca principal." },
+          { token: "color-fondo", valor: "#FFFFFF", uso: "Fondo general." },
+          { token: "color-acento", valor: "#F59E0B", uso: "CTA." },
+        ],
+      })
+    );
+    expect(vars["--pf-color-primario"]).toBeUndefined();
+    expect(vars["--pf-primary"]).not.toContain("{");
+    expect(vars["--pf-primary"]).not.toContain("}");
+  });
+
+  it("`url(` case-insensitive en un valor se rechaza (aunque no lleve `;` ni comillas)", () => {
+    const vars = directionTokensToCssVars(
+      fixtureTokens({
+        paleta: [
+          { token: "color-primario", valor: "x URL(https://evil.example)", uso: "Marca principal." },
+          { token: "color-fondo", valor: "#FFFFFF", uso: "Fondo general." },
+          { token: "color-acento", valor: "#F59E0B", uso: "CTA." },
+        ],
+      })
+    );
+    expect(vars["--pf-color-primario"]).toBeUndefined();
+    expect(vars["--pf-primary"].toLowerCase()).not.toContain("url(");
+  });
+
+  it("cuando el fallback de un rol (paleta[0].valor) también es hostil, cae al neutro final — nunca emite comillas/backslash", () => {
+    const vars = directionTokensToCssVars(
+      fixtureTokens({
+        paleta: [
+          { token: "tono-a", valor: "a\"; --pf-fg: red", uso: "Uso a." },
+          { token: "tono-b", valor: "b\\onload", uso: "Uso b." },
+          { token: "tono-c", valor: "c'; alert(1)", uso: "Uso c." },
+        ],
+      })
+    );
+    for (const key of ["--pf-primary", "--pf-accent", "--pf-bg", "--pf-fg", "--pf-muted"]) {
+      expect(vars[key]).not.toMatch(/["';{}\\]/);
+    }
+    expect(vars["--pf-color-primario"] ?? vars["--pf-tono-a"]).toBeUndefined();
+  });
+
+  it("una comilla en la familia tipográfica se strippea antes de embeberse en el stack (no rompe el `'${family}'`)", () => {
+    const vars = directionTokensToCssVars(
+      fixtureTokens({
+        tipografia: { display: "Inter'; } body{background:url(x)} /*", body: "Roboto", escala: "Modular 1.25" },
+      })
+    );
+    expect(vars["--pf-font-display"]).not.toContain("'; }");
+    expect(vars["--pf-font-display"]).not.toMatch(/["{}\\]/);
+    expect(vars["--pf-font-display"].toLowerCase()).not.toContain("url(");
+    // Sigue siendo un stack de fuentes bien formado (una sola comilla de apertura y una de cierre).
+    expect(vars["--pf-font-display"]).toMatch(/^'[^']*', ui-sans-serif, system-ui, sans-serif$/);
+  });
+});

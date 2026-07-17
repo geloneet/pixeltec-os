@@ -94,6 +94,7 @@ export function BlueprintPanel({
     resolucion: "",
   });
   const [savingEdit, setSavingEdit] = useState(false);
+  const [reordering, setReordering] = useState(false);
   const [newNote, setNewNote] = useState("");
   const [decisionGiven, setDecisionGiven] = useState(false);
   const [decisionBusy, setDecisionBusy] = useState(false);
@@ -173,8 +174,18 @@ export function BlueprintPanel({
    * al intercambiar dos actos, sus `orden` viejos se remapean entre sí
    * (swap simétrico) para que los momentos sigan apuntando al mismo acto.
    */
+  /**
+   * Guard `reordering`: sin esto, doble-click rápido en Subir/Bajar dispara
+   * un segundo `moveActo` mientras el primer `persistDraft` sigue en vuelo —
+   * ese segundo swap parte de `sortedActos`/`blueprint` (props) TODAVÍA
+   * viejos (el primer `router.refresh()` no ha resuelto), así que calcula el
+   * swap sobre un estado obsoleto y puede pisar el resultado del primero.
+   * Se fija ANTES de persistir y se limpia en el `finally` (también si
+   * `persistDraft` falla) — ambos botones se deshabilitan mientras está en
+   * `true`.
+   */
   const moveActo = async (orden: number, direction: "up" | "down") => {
-    if (!blueprint) return;
+    if (!blueprint || reordering) return;
     const idx = sortedActos.findIndex((a) => a.orden === orden);
     const swapIdx = direction === "up" ? idx - 1 : idx + 1;
     if (idx < 0 || swapIdx < 0 || swapIdx >= sortedActos.length) return;
@@ -202,7 +213,12 @@ export function BlueprintPanel({
     // contenido (buffer de edición mostrando texto viejo sobre un acto
     // distinto). Más simple y seguro reiniciar que intentar remapear.
     cancelEditActo();
-    await persistDraft(clone);
+    setReordering(true);
+    try {
+      await persistDraft(clone);
+    } finally {
+      setReordering(false);
+    }
   };
 
   const startEditActo = (acto: Acto) => {
@@ -407,7 +423,7 @@ export function BlueprintPanel({
                             type="button"
                             aria-label={`Subir acto ${acto.orden}`}
                             onClick={() => moveActo(acto.orden, "up")}
-                            disabled={i === 0}
+                            disabled={i === 0 || reordering}
                             className="text-muted-foreground transition-colors hover:text-cyan-400 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:text-muted-foreground"
                           >
                             <ChevronUp className="h-3.5 w-3.5" />
@@ -416,7 +432,7 @@ export function BlueprintPanel({
                             type="button"
                             aria-label={`Bajar acto ${acto.orden}`}
                             onClick={() => moveActo(acto.orden, "down")}
-                            disabled={i === sortedActos.length - 1}
+                            disabled={i === sortedActos.length - 1 || reordering}
                             className="text-muted-foreground transition-colors hover:text-cyan-400 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:text-muted-foreground"
                           >
                             <ChevronDown className="h-3.5 w-3.5" />

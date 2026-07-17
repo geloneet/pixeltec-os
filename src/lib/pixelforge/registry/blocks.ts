@@ -24,9 +24,20 @@ import { z } from "zod";
  * NUNCA `javascript:` ni ningún otro esquema (mailto:, data:, vbscript:,
  * etc.). Es el único punto de la validación de hrefs — cualquier campo href
  * nuevo debe reusar esta misma constante, no reimplementar la regla.
+ *
+ * `value.startsWith("/")` NO basta para "ruta interna": `"//evil.com"` y
+ * `"/\evil.com"` también empiezan con `/`, y el navegador los resuelve como
+ * URLs PROTOCOL-RELATIVE (`//evil.com` → `https://evil.com`, y `\` se
+ * normaliza a `/` en el parser de URLs de los navegadores, así que
+ * `/\evil.com` también termina siendo `//evil.com`). Una ruta interna real
+ * nunca tiene `/` o `\` como segundo carácter.
  */
 function isSafeHref(value: string): boolean {
-  return value.startsWith("/") || value.startsWith("#") || value.startsWith("https://");
+  if (value.startsWith("/")) {
+    const second = value[1];
+    return second !== "/" && second !== "\\";
+  }
+  return value.startsWith("#") || value.startsWith("https://");
 }
 
 const hrefSchema = z.string().min(1).refine(isSafeHref, {

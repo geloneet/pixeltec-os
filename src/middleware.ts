@@ -13,10 +13,11 @@ function withSecurityHeaders(res: NextResponse, nonce: string, pathname: string)
   // quitó para no tener dos CSP compitiendo (ver next.config.ts).
   //
   // La construcción de la CSP y los matchers por-ruta viven en
-  // `@/lib/security/csp` (funciones puras, testeadas sin DB ni auth): la ruta
-  // de "Imprimir" (proposal-pdf) conserva `frame-ancestors 'self'`; el preview
-  // de PixelForge se declara embebible y sus páginas admin embedder relajan
-  // `frame-src` a 'self' SOLO bajo `/proyectos/pixelforge`.
+  // `@/lib/security/csp` (funciones puras, testeadas sin DB ni auth):
+  // `frame-src 'self'` es GLOBAL e incondicional (la CSP es per-documento,
+  // no sobrevive la navegación cliente de una SPA); lo que sí es por-ruta es
+  // `frame-ancestors` — la ruta de "Imprimir" (proposal-pdf) y el preview de
+  // PixelForge declaran `frame-ancestors 'self'`, el resto del sitio 'none'.
   res.headers.set('Content-Security-Policy', cspForPath(nonce, pathname));
   res.headers.set('Reporting-Endpoints', 'csp-endpoint="/api/csp-report"');
   res.headers.set('x-nonce', nonce);

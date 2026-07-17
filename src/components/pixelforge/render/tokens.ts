@@ -36,6 +36,51 @@ function normalize(value: string): string {
     .toLowerCase();
 }
 
+/**
+ * Caracteres que permitirían romper fuera de la declaración de una
+ * custom-property CSS (`--pf-x: <valor>;`) o inyectar contenido hostil:
+ * `;` cierra la declaración, `{`/`}` abre/cierra un bloque de regla, `"`/`'`
+ * rompe el `style="..."` (o el stack de fuentes `'${family}'`), `\`
+ * permite escapes CSS, `url(` puede exfiltrar vía red (tracking pixel /
+ * `expression()` histórico de IE), y los caracteres de control no tienen
+ * ningún uso legítimo en un valor de token de diseño.
+ */
+const HOSTILE_CSS_VALUE_RE = /[;{}"'\\]|url\(|[\x00-\x1f\x7f]/i;
+
+/**
+ * `paleta[].valor` y `tipografia.display/body` son texto libre que produce
+ * la IA y se serializa server-side en un atributo `style="..."` literal
+ * (`PageRenderer`) — nunca hay que confiar en que sea CSS inerte. Rechaza
+ * cualquier valor que contenga los caracteres de `HOSTILE_CSS_VALUE_RE`
+ * (ver comentario ahí) devolviendo `null` en vez de intentar "limpiar" el
+ * valor a medias — el llamador cae al fallback neutro de ese slot, nunca
+ * emite la parte hostil.
+ */
+function sanitizeCssValue(value: string): string | null {
+  return HOSTILE_CSS_VALUE_RE.test(value) ? null : value;
+}
+
+/**
+ * Igual que `HOSTILE_CSS_VALUE_RE` pero global — para STRIPPEAR (no
+ * rechazar) los mismos caracteres hostiles de un nombre de familia
+ * tipográfica antes de embeberlo en `'${family}'` dentro del stack. Una
+ * familia no tiene un "valor neutro" razonable al que caer (a diferencia de
+ * los roles de color, que sí tienen fallback fijo), así que aquí se limpia
+ * el nombre en vez de descartarlo entero.
+ */
+const HOSTILE_CSS_VALUE_STRIP_RE = /[;{}"'\\\x00-\x1f\x7f]|url\(/gi;
+
+/** Fallback neutro cuando, tras strippear caracteres hostiles, no queda nombre de familia utilizable. */
+const NEUTRAL_FONT_FAMILY = "sans-serif";
+
+function sanitizeFontFamilyName(family: string): string {
+  const stripped = family.replace(HOSTILE_CSS_VALUE_STRIP_RE, "").trim();
+  return stripped.length > 0 ? stripped : NEUTRAL_FONT_FAMILY;
+}
+
+/** Último recurso de `pickRole` cuando keywords, `uso` y `fallback` son todos hostiles/ausentes. */
+const NEUTRAL_ROLE_FALLBACK = "#0f172a";
+
 /** `Color Primario!` → `color-primario` (para el nombre de la CSS var). */
 function slugify(value: string): string {
   return normalize(value)
@@ -50,13 +95,21 @@ function slugify(value: string): string {
  * primero busca la keyword en el slug del token; sólo si nadie matchea por
  * nombre cae a buscar en el `uso`; y si aún nada, `fallback`. Así el rol
  * siempre tiene valor sin depender de que la IA nombre los tokens "bien".
+ *
+ * Cada `entry.valor` es texto libre de la IA — un candidato solo cuenta como
+ * match si además pasa `sanitizeCssValue` (si no, se trata como si no
+ * matcheara y se sigue buscando). `fallback` también se sanitiza antes de
+ * devolverse: si el propio fallback viene hostil (p.ej. `paleta[0].valor`
+ * como fallback de `primary`), cae al neutro final.
  */
 function pickRole(paleta: readonly PaletaToken[], keywords: readonly string[], fallback: string): string {
   const matches = (text: string) => keywords.some((keyword) => normalize(text).includes(keyword));
-  const byName = paleta.find((entry) => matches(entry.token));
-  if (byName) return byName.valor;
-  const byUso = paleta.find((entry) => matches(entry.uso));
-  return byUso ? byUso.valor : fallback;
+  const safeValor = (entry: PaletaToken) => sanitizeCssValue(entry.valor);
+  const byName = paleta.find((entry) => matches(entry.token) && safeValor(entry) !== null);
+  if (byName) return safeValor(byName) as string;
+  const byUso = paleta.find((entry) => matches(entry.uso) && safeValor(entry) !== null);
+  if (byUso) return safeValor(byUso) as string;
+  return sanitizeCssValue(fallback) ?? NEUTRAL_ROLE_FALLBACK;
 }
 
 const RADIUS_MAP: Record<DesignTokens["radios"], string> = {
@@ -77,22 +130,34 @@ const SHADOW_MAP: Record<NonNullable<DesignTokens["sombra"]>, string> = {
   pronunciada: "0 4px 8px rgba(0,0,0,0.10), 0 18px 40px rgba(0,0,0,0.14)",
 };
 
-/** Stack tipográfico: la familia elegida + fallbacks genéricos del sistema. */
+/**
+ * Stack tipográfico: la familia elegida + fallbacks genéricos del sistema.
+ * `family` es texto libre de la IA embebido entre comillas simples — se
+ * strippean los mismos caracteres hostiles que `sanitizeCssValue` rechaza
+ * (una comilla suelta rompería el `'${family}'` y todo lo que sigue).
+ */
 function fontStack(family: string): string {
-  return `'${family.trim()}', ui-sans-serif, system-ui, sans-serif`;
+  return `'${sanitizeFontFamilyName(family)}', ui-sans-serif, system-ui, sans-serif`;
 }
 
 export function directionTokensToCssVars(tokens: DesignTokens): Record<string, string> {
   const vars: Record<string, string> = {};
 
-  // 1. Passthrough slugueado de cada token de paleta.
+  // 1. Passthrough slugueado de cada token de paleta. Un `valor` hostil
+  //    (rechazado por `sanitizeCssValue`) simplemente NO se emite — no hay
+  //    un fallback semántico razonable para un slug arbitrario, y omitir la
+  //    var es estrictamente más seguro que inventar un valor.
   for (const entry of tokens.paleta) {
     const slug = slugify(entry.token);
-    if (slug) vars[`--pf-${slug}`] = entry.valor;
+    if (!slug) continue;
+    const safeValor = sanitizeCssValue(entry.valor);
+    if (safeValor !== null) vars[`--pf-${slug}`] = safeValor;
   }
 
   // 2. Roles semánticos estables (lo que consumen los blocks).
   const primary = pickRole(tokens.paleta, ["primari", "primary", "marca", "brand", "principal"], tokens.paleta[0].valor);
+  // `accent` usa `primary` como fallback: ya viene sanitizado (arriba), así
+  // que no puede reintroducir un valor hostil.
   const accent = pickRole(tokens.paleta, ["acent", "accent", "secundari", "secondary", "highlight", "destac", "cta"], primary);
   vars["--pf-primary"] = primary;
   vars["--pf-accent"] = accent;

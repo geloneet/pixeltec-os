@@ -199,6 +199,20 @@ describe("hrefs seguros (nunca javascript:)", () => {
       expect(def.propsSchema.safeParse(candidate).success).toBe(true);
     }
   });
+
+  it("rechaza '//evil.com' (protocol-relative — el navegador lo resuelve como https://evil.com)", () => {
+    const def = getBlockDefinition("cta-banner");
+    const base = VALID_FIXTURES["cta-banner"] as { titulo: string; subtitulo: string; cta: { label: string; href: string } };
+    const candidate = { ...base, cta: { ...base.cta, href: "//evil.com" } };
+    expect(def.propsSchema.safeParse(candidate).success).toBe(false);
+  });
+
+  it("rechaza '/\\\\evil.com' (el navegador normaliza el backslash a protocol-relative)", () => {
+    const def = getBlockDefinition("cta-banner");
+    const base = VALID_FIXTURES["cta-banner"] as { titulo: string; subtitulo: string; cta: { label: string; href: string } };
+    const candidate = { ...base, cta: { ...base.cta, href: "/\\evil.com" } };
+    expect(def.propsSchema.safeParse(candidate).success).toBe(false);
+  });
 });
 
 describe("getCatalogForPrompt", () => {
