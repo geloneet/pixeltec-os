@@ -47,6 +47,7 @@ import { contextBriefSchema } from "@/lib/pixelforge/schemas/analyze-context";
 import { landingDnaSchema } from "@/lib/pixelforge/schemas/generate-strategy";
 import { visualDnaSchema } from "@/lib/pixelforge/schemas/synthesize-visual-dna";
 import { directionDecisionSchema } from "@/lib/pixelforge/schemas/direction-decision";
+import { narrativeBlueprintSchema } from "@/lib/pixelforge/schemas/build-narrative";
 
 interface Auth {
   ownerId: string;
@@ -248,17 +249,24 @@ export async function addContextSourceAction(input: {
 // `direction_decision` — a diferencia de los otros 3 kinds, su draft NUNCA se
 // escribe por `updateArtifactDraftAction` (ver el rechazo explícito debajo);
 // se incluye igual acá porque comparte sellado/reapertura genéricos por kind.
-const OPERATIVE_ARTIFACT_KIND = z.enum(
-  ["context_brief", "landing_dna", "visual_dna", "direction_decision"],
+// F6A suma `narrative_blueprint` — a diferencia de `direction_decision`, SÍ es
+// un draft editable normal (como `visual_dna`): el reorder de actos en la UI
+// (T2) pasa por este mismo `updateArtifactDraftAction`.
+// Exportado para test — `actions.test.ts` verifica que el enum runtime y
+// `KIND_SCHEMAS` mantengan paridad con `OperativeArtifactKind` (mismo
+// criterio que `resolveDomainSchema` en `runs/route.ts`).
+export const OPERATIVE_ARTIFACT_KIND = z.enum(
+  ["context_brief", "landing_dna", "visual_dna", "direction_decision", "narrative_blueprint"],
   { errorMap: () => ({ message: "Tipo de artefacto inválido" }) }
 ) satisfies z.ZodType<OperativeArtifactKind>;
 
 /** Mapa kind → schema de FORMA (zod v4, ver imports arriba) para validar el draft antes de persistir. */
-const KIND_SCHEMAS = {
+export const KIND_SCHEMAS = {
   context_brief: contextBriefSchema,
   landing_dna: landingDnaSchema,
   visual_dna: visualDnaSchema,
   direction_decision: directionDecisionSchema,
+  narrative_blueprint: narrativeBlueprintSchema,
 } as const;
 
 const artifactDraftSchema = z.object({

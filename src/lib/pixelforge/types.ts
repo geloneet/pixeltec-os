@@ -53,12 +53,13 @@ export const ARTIFACT_KINDS = [
 
 export type PixelforgeArtifactKind = (typeof ARTIFACT_KINDS)[number];
 
-/** Kinds operativos — crece por fase. F4 suma `visual_dna`. F5 suma `direction_decision`. */
+/** Kinds operativos — crece por fase. F4 suma `visual_dna`. F5 suma `direction_decision`. F6A suma `narrative_blueprint`. */
 export type OperativeArtifactKind =
   | "context_brief"
   | "landing_dna"
   | "visual_dna"
-  | "direction_decision";
+  | "direction_decision"
+  | "narrative_blueprint";
 
 /**
  * Mapeo estación → artifact que sella. Las estaciones de producción, QA y

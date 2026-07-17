@@ -108,6 +108,8 @@ import {
   type Direccion,
 } from "@/lib/pixelforge/schemas/generate-directions";
 import { getCapabilitiesForPrompt, CAPABILITY_IDS } from "@/lib/pixelforge/registry/capabilities";
+import { buildBuildNarrativeRequest, BUILD_NARRATIVE_PROMPT_VERSION } from "@/lib/pixelforge/ai/prompts/build-narrative.v1";
+import { directionDecisionSchema } from "@/lib/pixelforge/schemas/direction-decision";
 
 /** Contexto compartido de una corrida — común a todas las operaciones del mapa. */
 interface OperationRunCtx {
@@ -171,8 +173,12 @@ export function resolveDomainSchema(
 /**
  * Operaciones IA habilitadas en esta fase. Extender esto (F4+) es agregar una
  * entrada nueva — el resto del handler no cambia.
+ *
+ * Exportado para test — `route.test.ts` verifica el guard de `build_narrative`
+ * contra fixtures de `PixelforgeProjectFull` (mismo criterio que
+ * `resolveDomainSchema`, exportado arriba por la misma razón).
  */
-const ENABLED_OPERATIONS = {
+export const ENABLED_OPERATIONS = {
   analyze_context: {
     loadExtra: undefined,
     // Compuerta actual: no re-analizar un Context Brief ya sellado — comportamiento IDÉNTICO al de F2.
@@ -419,6 +425,85 @@ const ENABLED_OPERATIONS = {
       buildCreativeDirectionsDomainSchema(ctx.slot ? { mode: "slot", slot: ctx.slot } : { mode: "full" }),
     promptVersion: GENERATE_DIRECTIONS_PROMPT_VERSION,
   },
+  build_narrative: {
+    loadExtra: undefined,
+    // Guard (F6A #1): 1) el Blueprint no puede estar sellado (si lo está, hay que reabrirlo primero —
+    // mismo criterio que analyze_context/generate_strategy/synthesize_visual_dna); 2) la decisión de
+    // dirección debe estar sellada (fuente del blueprint); 3) la elección debe seguir VIGENTE — la
+    // dirección `project.chosenDirectionId` debe existir en `full.directions` con `status: "chosen"`.
+    // Invariante normal del repo: `replaceCreativeDirection`/`replaceCreativeDirections` (regeneración)
+    // rechazan correr mientras `direction_decision` está sellada (`"Reabre la decisión antes de
+    // regenerar"`), así que con la decisión sellada `chosenDirectionId` siempre debería apuntar a una
+    // dirección `chosen` vigente — este 3er check es defensa en profundidad (TOCTOU/estado inconsistente
+    // por un bug futuro), mismo criterio que `assertDirectionDecisionStillCurrent` en el repo.
+    guard: (full) => {
+      const blueprint = full.artifacts.find((a) => a.kind === "narrative_blueprint");
+      if (blueprint?.status === "sealed") {
+        return "El Blueprint está sellado; reábrelo para regenerar";
+      }
+      const decision = full.artifacts.find((a) => a.kind === "direction_decision");
+      if (decision?.status !== "sealed") {
+        return "Sella la decisión de dirección antes del blueprint";
+      }
+      const chosenDirectionId = full.project.chosenDirectionId;
+      const chosen = chosenDirectionId
+        ? full.directions.find((d) => d.id === chosenDirectionId && d.status === "chosen")
+        : undefined;
+      if (!chosen) {
+        return "La elección quedó obsoleta — vuelve a elegir";
+      }
+      return null;
+    },
+    buildRequest: (full) => {
+      // El guard ya garantizó que landing_dna/visual_dna/direction_decision están sellados y que la
+      // dirección elegida (`chosenDirectionId`) sigue vigente con status "chosen" — sealedContent y la
+      // fila de `full.directions` existen.
+      const landingDnaArtifact = full.artifacts.find((a) => a.kind === "landing_dna");
+      const sealedLandingDna = landingDnaSchema.parse(landingDnaArtifact?.sealedContent);
+      const visualDnaArtifact = full.artifacts.find((a) => a.kind === "visual_dna");
+      const sealedVisualDna = visualDnaSchema.parse(visualDnaArtifact?.sealedContent);
+      const decisionArtifact = full.artifacts.find((a) => a.kind === "direction_decision");
+      const sealedDecision = directionDecisionSchema.parse(decisionArtifact?.sealedContent);
+      // No-null: el guard ya confirmó que existe una dirección con este id y status "chosen".
+      const chosen = full.directions.find((d) => d.id === full.project.chosenDirectionId)!;
+
+      return buildBuildNarrativeRequest({
+        title: full.project.title,
+        landingDna: sealedLandingDna,
+        visualDna: sealedVisualDna,
+        decision: sealedDecision,
+        chosenDirection: {
+          title: chosen.title,
+          concept: chosen.concept,
+          // `signatureMotif`/`motionDna` son jsonb (`unknown` en Drizzle) — el shape lo garantiza el
+          // propio `persistResult` de `generate_directions` (mismo criterio de cast que
+          // `motifNombre` arriba), así que basta castear en vez de re-validar la forma completa acá.
+          signatureMotif: chosen.signatureMotif as Direccion["signatureMotif"],
+          motionDna: chosen.motionDna as Direccion["motionDna"],
+        },
+      });
+    },
+    // Sin texto crudo — solo tamaños/flags (I3 del docstring de OperationConfig.inputSummary).
+    inputSummary: (full) => {
+      const decisionArtifact = full.artifacts.find((a) => a.kind === "direction_decision");
+      const sealedDecision = directionDecisionSchema.parse(decisionArtifact?.sealedContent);
+      return {
+        actosHint: null,
+        decisionRationaleLength: sealedDecision.rationale.length,
+        cinematicCap: 3,
+      };
+    },
+    resultRef: () => "artifact:narrative_blueprint",
+    persistResult: (output, ctx) =>
+      updateArtifactDraft(ctx.projectId, ctx.ownerId, "narrative_blueprint", output, ctx.actor, {
+        lastRunId: ctx.runId,
+      }),
+    // narrativeBlueprintSchema (schemas/build-narrative.ts) ya aplica su superRefine directamente sobre
+    // el schema registrado en OPERATION_SPECS (igual que synthesize-visual-dna/analyze-reference) — no
+    // hace falta un refine de dominio aparte acá.
+    domainSchema: undefined,
+    promptVersion: BUILD_NARRATIVE_PROMPT_VERSION,
+  },
 } satisfies Record<string, OperationConfig>;
 
 export const runtime = "nodejs";
@@ -435,7 +520,14 @@ export const createRunSchema = z
   .object({
     projectId: z.string().uuid("Proyecto inválido"),
     operation: z.enum(
-      ["analyze_context", "generate_strategy", "analyze_reference", "synthesize_visual_dna", "generate_directions"],
+      [
+        "analyze_context",
+        "generate_strategy",
+        "analyze_reference",
+        "synthesize_visual_dna",
+        "generate_directions",
+        "build_narrative",
+      ],
       {
         errorMap: () => ({ message: "Operación no disponible en esta fase" }),
       }
