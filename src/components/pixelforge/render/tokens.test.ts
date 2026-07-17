@@ -159,3 +159,91 @@ describe("directionTokensToCssVars — sanitización de valores hostiles (inyecc
     expect(vars["--pf-font-display"]).toMatch(/^'[^']*', ui-sans-serif, system-ui, sans-serif$/);
   });
 });
+
+describe("directionTokensToCssVars — B1 gate F6A (bg general + guard primary≠bg)", () => {
+  // La paleta REAL de la dirección elegida del proyecto demo del gate: dos
+  // usos contienen "fondo" y ningún token matchea keywords de primario.
+  const PALETA_HALLAZGO: DesignTokens["paleta"] = [
+    { token: "azul-madrugada-950", valor: "#0A1B33", uso: "Fondo de arranque del horizonte, sección de dudas iniciales" },
+    { token: "azul-atardecer-600", valor: "#2C5C8F", uso: "Tono intermedio de la línea de horizonte y pasos a medio completar" },
+    { token: "dorado-amanecer-500", valor: "#F4B860", uso: "Punto de llegada del degradado y CTA de cierre" },
+    { token: "coral-calido-400", valor: "#E98B5A", uso: "Acentos de paso completado en la línea de tiempo" },
+    { token: "neutro-arena-50", valor: "#FBF7F0", uso: "Fondo general de la página" },
+    { token: "neutro-arena-300", valor: "#E4D9C7", uso: "Líneas de separación entre pasos del proceso" },
+    { token: "texto-tinta-900", valor: "#201C18", uso: "Texto de cuerpo sobre fondos claros" },
+  ];
+
+  it("paleta del hallazgo: bg toma el 'Fondo general de la página', no el primer uso con 'fondo'", () => {
+    const vars = directionTokensToCssVars(fixtureTokens({ paleta: PALETA_HALLAZGO }));
+    expect(vars["--pf-bg"]).toBe("#FBF7F0");
+  });
+
+  it("paleta del hallazgo: primary ya no colisiona con bg (los stats/headings vuelven a ser legibles)", () => {
+    const vars = directionTokensToCssVars(fixtureTokens({ paleta: PALETA_HALLAZGO }));
+    expect(vars["--pf-primary"]).not.toBe(vars["--pf-bg"]);
+    // El fallback paleta[0] sigue siendo el valor de primary — sólo que ahora bg es el correcto.
+    expect(vars["--pf-primary"]).toBe("#0A1B33");
+    expect(vars["--pf-fg"]).toBe("#201C18");
+    // accent: "CTA de cierre" (dorado) matchea "cta" antes que "Acentos de
+    // paso" en orden de paleta — comportamiento preexistente, fuera de B1.
+    expect(vars["--pf-accent"]).toBe("#F4B860");
+  });
+
+  it("dos fondos: 'Fondo de página' gana sobre un uso previo con 'fondo' incidental", () => {
+    const vars = directionTokensToCssVars(
+      fixtureTokens({
+        paleta: [
+          { token: "tono-nube", valor: "#101820", uso: "Fondo de la sección hero nocturna." },
+          { token: "tono-papel", valor: "#FDFDF8", uso: "Fondo de página para todo el recorrido." },
+          { token: "tono-brasa", valor: "#D9481C", uso: "Detalles de marca principal." },
+        ],
+      })
+    );
+    expect(vars["--pf-bg"]).toBe("#FDFDF8");
+  });
+
+  it("'Background principal' también cuenta como fondo general prioritario", () => {
+    const vars = directionTokensToCssVars(
+      fixtureTokens({
+        paleta: [
+          { token: "deep-space", valor: "#05070D", uso: "Background de tarjetas flotantes." },
+          { token: "paper-white", valor: "#F7F7F2", uso: "Background principal del layout." },
+          { token: "signal-red", valor: "#E11D2E", uso: "Marca y CTAs." },
+        ],
+      })
+    );
+    expect(vars["--pf-bg"]).toBe("#F7F7F2");
+  });
+
+  it("nombres libres de IA sin keywords: todos los roles resuelven y primary≠bg", () => {
+    const vars = directionTokensToCssVars(
+      fixtureTokens({
+        paleta: [
+          { token: "bruma-al-alba", valor: "#223344", uso: "Atmósfera superior del relato." },
+          { token: "eco-de-cobre", valor: "#B87333", uso: "Momentos de énfasis emocional." },
+          { token: "silencio-crema", valor: "#F5EFE6", uso: "Respiro entre capítulos." },
+        ],
+      })
+    );
+    for (const key of ["--pf-primary", "--pf-accent", "--pf-bg", "--pf-fg", "--pf-muted"]) {
+      expect(vars[key]).toBeTruthy();
+    }
+    expect(vars["--pf-primary"]).not.toBe(vars["--pf-bg"]);
+  });
+
+  it("primary==bg inicial: el guard elige el siguiente candidato válido de la paleta", () => {
+    const vars = directionTokensToCssVars(
+      fixtureTokens({
+        paleta: [
+          { token: "marca-principal", valor: "#123456", uso: "Identidad de marca." },
+          { token: "fondo-base", valor: "#123456", uso: "Fondo general de la página." },
+          { token: "tinta-suave", valor: "#654321", uso: "Texto de cuerpo." },
+        ],
+      })
+    );
+    expect(vars["--pf-bg"]).toBe("#123456");
+    expect(vars["--pf-primary"]).not.toBe("#123456");
+    // Siguiente candidato válido distinto de bg en orden de paleta.
+    expect(vars["--pf-primary"]).toBe("#654321");
+  });
+});

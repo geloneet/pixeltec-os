@@ -102,15 +102,37 @@ function slugify(value: string): string {
  * devolverse: si el propio fallback viene hostil (p.ej. `paleta[0].valor`
  * como fallback de `primary`), cae al neutro final.
  */
-function pickRole(paleta: readonly PaletaToken[], keywords: readonly string[], fallback: string): string {
+function findRoleValue(paleta: readonly PaletaToken[], keywords: readonly string[]): string | null {
   const matches = (text: string) => keywords.some((keyword) => normalize(text).includes(keyword));
   const safeValor = (entry: PaletaToken) => sanitizeCssValue(entry.valor);
   const byName = paleta.find((entry) => matches(entry.token) && safeValor(entry) !== null);
   if (byName) return safeValor(byName) as string;
   const byUso = paleta.find((entry) => matches(entry.uso) && safeValor(entry) !== null);
   if (byUso) return safeValor(byUso) as string;
-  return sanitizeCssValue(fallback) ?? NEUTRAL_ROLE_FALLBACK;
+  return null;
 }
+
+function pickRole(paleta: readonly PaletaToken[], keywords: readonly string[], fallback: string): string {
+  return findRoleValue(paleta, keywords) ?? sanitizeCssValue(fallback) ?? NEUTRAL_ROLE_FALLBACK;
+}
+
+/**
+ * Frases que describen el fondo GENERAL de la página (gate F6A, hallazgo B1):
+ * las paletas IA suelen traer VARIOS usos con "fondo" ("fondo de arranque de
+ * la sección X" vs "fondo general de la página") y el primer match por orden
+ * de paleta elegía el fondo de UNA sección como fondo de TODA la landing.
+ * Estas frases se buscan primero; sólo si ninguna aparece se cae a las
+ * keywords genéricas de fondo. (Se matchea sobre texto normalizado sin
+ * acentos: "página" → "pagina".)
+ */
+const BG_GENERAL_KEYWORDS = [
+  "fondo general",
+  "fondo de pagina",
+  "fondo de la pagina",
+  "fondo principal",
+  "background principal",
+  "background general",
+] as const;
 
 const RADIUS_MAP: Record<DesignTokens["radios"], string> = {
   rectos: "0px",
@@ -154,14 +176,29 @@ export function directionTokensToCssVars(tokens: DesignTokens): Record<string, s
     if (safeValor !== null) vars[`--pf-${slug}`] = safeValor;
   }
 
-  // 2. Roles semánticos estables (lo que consumen los blocks).
-  const primary = pickRole(tokens.paleta, ["primari", "primary", "marca", "brand", "principal"], tokens.paleta[0].valor);
+  // 2. Roles semánticos estables (lo que consumen los blocks). `bg` se
+  //    resuelve PRIMERO (con prioridad para el fondo general de la página)
+  //    porque el guard de colisión de `primary` depende de él.
+  vars["--pf-bg"] =
+    findRoleValue(tokens.paleta, BG_GENERAL_KEYWORDS) ??
+    pickRole(tokens.paleta, ["fondo", "background", "base", "superficie", "surface", "papel", "lienzo", "claro", "light"], "#ffffff");
+
+  let primary = pickRole(tokens.paleta, ["primari", "primary", "marca", "brand", "principal"], tokens.paleta[0].valor);
+  // Guard B1: primary NUNCA puede quedar igual que bg (texto invisible —
+  // stats-band, headings). Si colisionan (comparación case-insensitive, son
+  // valores hex/texto de IA), se toma el siguiente candidato válido de la
+  // paleta en orden; si la paleta entera es monocolor, el neutro final.
+  if (primary.toLowerCase() === vars["--pf-bg"].toLowerCase()) {
+    const next = tokens.paleta
+      .map((entry) => sanitizeCssValue(entry.valor))
+      .find((valor): valor is string => valor !== null && valor.toLowerCase() !== vars["--pf-bg"].toLowerCase());
+    primary = next ?? NEUTRAL_ROLE_FALLBACK;
+  }
   // `accent` usa `primary` como fallback: ya viene sanitizado (arriba), así
   // que no puede reintroducir un valor hostil.
   const accent = pickRole(tokens.paleta, ["acent", "accent", "secundari", "secondary", "highlight", "destac", "cta"], primary);
   vars["--pf-primary"] = primary;
   vars["--pf-accent"] = accent;
-  vars["--pf-bg"] = pickRole(tokens.paleta, ["fondo", "background", "base", "superficie", "surface", "papel", "lienzo", "claro", "light"], "#ffffff");
   vars["--pf-fg"] = pickRole(tokens.paleta, ["texto", "text", "tinta", "ink", "cuerpo", "body", "oscuro", "dark", "contenido"], "#0f172a");
   vars["--pf-muted"] = pickRole(tokens.paleta, ["muted", "apagado", "suave", "tenue", "gris", "gray", "grey", "borde", "border", "neutral", "sutil"], "#64748b");
   vars["--pf-on-primary"] = "#ffffff";
