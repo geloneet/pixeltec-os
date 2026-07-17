@@ -71,6 +71,12 @@ export function buildCsp(nonce: string, opts: CspOptions): string {
     "connect-src 'self'",
     "img-src 'self' data: blob: https:",
     "font-src 'self' data:",
+    // EXCEPCIÓN DE IMPLEMENTACIÓN (aprobada por Miguel, gate F6A 2026-07-17):
+    // el plan maestro pedía relajar `frame-src` solo bajo /proyectos/pixelforge,
+    // pero eso es inviable en una SPA (razones abajo). La superficie de ataque
+    // NO se amplía: `frame-ancestors` por-respuesta sigue siendo el gate real y
+    // solo el preview embebido de PixelForge (y proposal-pdf) aceptan framing.
+    //
     // `frame-src 'self'` es GLOBAL e incondicional (no por-ruta) — la CSP es
     // per-DOCUMENT, y en App Router la navegación cliente (soft nav) NO
     // recarga el documento ni recalcula sus headers: un usuario que cargó
