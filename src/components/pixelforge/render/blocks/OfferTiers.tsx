@@ -9,7 +9,11 @@
  * Nota de accesibilidad/color: el `Table` de shadcn trae clases de la paleta
  * admin (`text-muted-foreground`, `bg-muted`, bordes del tema). Como los blocks
  * consumen SOLO `--pf-*`, aquí se sobreescriben esos colores con `style` inline
- * en cada celda/encabezado (el inline gana al utility class).
+ * en cada celda/encabezado (el inline gana al utility class). Cada `TableRow`
+ * lleva ADEMÁS `backgroundColor: var(--pf-bg)` inline: sin un fondo base propio,
+ * la clase `hover:bg-muted/50` del row pintaría el `--muted` admin al pasar el
+ * cursor (un estado `:hover` no se neutraliza con ausencia de estilo, sí con un
+ * fondo inline que gana siempre).
  *
  * El schema de un tier trae `ctaLabel` pero NO href (la acción se cableará en
  * F6C/capabilities), así que el CTA se rinde como `<button type="button">`
@@ -84,7 +88,7 @@ export function OfferTiers({ titulo, tiers, variant }: OfferTiersProps) {
           <div style={{ marginTop: "calc(var(--pf-space) * 3)" }}>
             <Table>
               <TableHeader>
-                <TableRow style={{ borderColor: "var(--pf-muted)" }}>
+                <TableRow style={{ borderColor: "var(--pf-muted)", backgroundColor: "var(--pf-bg)" }}>
                   <TableHead style={{ color: "var(--pf-muted)", width: "1%" }} />
                   {tiers.map((tier) => (
                     <TableHead
@@ -113,7 +117,7 @@ export function OfferTiers({ titulo, tiers, variant }: OfferTiersProps) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                <TableRow style={{ borderColor: "var(--pf-muted)" }}>
+                <TableRow style={{ borderColor: "var(--pf-muted)", backgroundColor: "var(--pf-bg)" }}>
                   <TableHead scope="row" style={{ color: "var(--pf-muted)", fontWeight: 600 }}>
                     Precio
                   </TableHead>
@@ -124,7 +128,7 @@ export function OfferTiers({ titulo, tiers, variant }: OfferTiersProps) {
                     </TableCell>
                   ))}
                 </TableRow>
-                <TableRow style={{ borderColor: "var(--pf-muted)" }}>
+                <TableRow style={{ borderColor: "var(--pf-muted)", backgroundColor: "var(--pf-bg)" }}>
                   <TableHead scope="row" style={{ color: "var(--pf-muted)", fontWeight: 600, verticalAlign: "top" }}>
                     Incluye
                   </TableHead>
@@ -143,7 +147,7 @@ export function OfferTiers({ titulo, tiers, variant }: OfferTiersProps) {
                     </TableCell>
                   ))}
                 </TableRow>
-                <TableRow style={{ borderColor: "transparent" }}>
+                <TableRow style={{ borderColor: "transparent", backgroundColor: "var(--pf-bg)" }}>
                   <TableCell style={{ borderColor: "transparent" }} />
                   {tiers.map((tier) => (
                     <TableCell key={tier.nombre} className="text-center" style={{ borderColor: "transparent" }}>

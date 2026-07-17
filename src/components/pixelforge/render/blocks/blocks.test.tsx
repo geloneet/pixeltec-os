@@ -256,6 +256,15 @@ describe("OfferTiers", () => {
     expect(screen.getByRole("button", { name: "Empezar" })).toBeInTheDocument();
   });
 
+  it("variant table: cada fila lleva fondo --pf-bg inline (neutraliza el hover:bg-muted admin del Table shadcn)", () => {
+    const { container } = render(<OfferTiers {...props} variant="table" />);
+    const rows = container.querySelectorAll("tr");
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      expect(row).toHaveStyle({ backgroundColor: "var(--pf-bg)" });
+    }
+  });
+
   it("marca el tier destacado (badge Recomendado) en cards", () => {
     render(<OfferTiers {...props} variant="cards" />);
     expect(screen.getByText("Recomendado")).toBeInTheDocument();

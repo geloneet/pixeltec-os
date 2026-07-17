@@ -19,7 +19,13 @@ export interface ProcessStepsProps {
 
 export function ProcessSteps({ titulo, pasos, variant }: ProcessStepsProps) {
   const vertical = variant === "vertical";
-  const cols = pasos.length >= 4 ? "md:grid-cols-4" : "md:grid-cols-3";
+  // Una columna por paso (3-5) para que no haga wrap desparejo (p.ej. 4+1 con 5).
+  const HORIZONTAL_COLS: Record<number, string> = {
+    3: "md:grid-cols-3",
+    4: "md:grid-cols-4",
+    5: "md:grid-cols-5",
+  };
+  const cols = HORIZONTAL_COLS[pasos.length] ?? "md:grid-cols-3";
 
   const disc = (numero: number) => (
     <span
