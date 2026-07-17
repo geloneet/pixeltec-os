@@ -6,12 +6,22 @@
  * TodayData    — the complete payload returned by the Hoy data action
  */
 
+export type ActiveProjectKind = "crm" | "definicion" | "pixelforge";
+
 export interface ActiveProject {
   id: string;
+  /** Fuente de origen — distingue proyecto CRM clásico, Definición o PixelForge. */
+  kind: ActiveProjectKind;
+  /** Ruta de detalle correcta para este tipo de proyecto (difiere por kind). */
+  href: string;
   clientId: string;
   clientName: string;
   name: string;
   domain: string;
+  /** Estación actual del pipeline (definición/pixelforge). null en proyectos CRM. */
+  station: string | null;
+  /** Estado del proyecto (definición/pixelforge). null en proyectos CRM. */
+  status: string | null;
   /** ISO 8601 string — updatedAt del documento proyecto. null if field absent. */
   lastActivityAt: string | null;
 }

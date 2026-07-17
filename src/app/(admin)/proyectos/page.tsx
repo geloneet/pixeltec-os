@@ -1,15 +1,27 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { FolderKanban } from "lucide-react";
+import { FolderKanban, Sparkles, Wand2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { getSessionUid } from "@/lib/auth/session";
 import { getAllActiveProjects } from "./actions";
-import type { ActiveProject } from "@/lib/hoy/types";
+import type { ActiveProject, ActiveProjectKind } from "@/lib/hoy/types";
 
 export const metadata: Metadata = {
   title: "Proyectos — PixelTEC OS",
+};
+
+const KIND_ICON: Record<ActiveProjectKind, typeof FolderKanban> = {
+  crm: FolderKanban,
+  pixelforge: Wand2,
+  definicion: Sparkles,
+};
+
+const KIND_LABEL: Record<ActiveProjectKind, string> = {
+  crm: "Proyecto",
+  pixelforge: "PixelForge",
+  definicion: "Definición",
 };
 
 function ProjectCard({ project }: { project: ActiveProject }) {
@@ -19,14 +31,15 @@ function ProjectCard({ project }: { project: ActiveProject }) {
         locale: es,
       })
     : "Sin actividad registrada";
+  const Icon = KIND_ICON[project.kind];
 
   return (
     <Link
-      href={`/proyectos/${project.id}`}
+      href={project.href}
       className="flex flex-col gap-2 rounded-xl border border-border bg-card p-5 transition-colors hover:border-cyan-400/30 hover:bg-secondary/40"
     >
       <div className="flex items-center gap-2">
-        <FolderKanban
+        <Icon
           className="h-4 w-4 flex-shrink-0 text-cyan-300"
           strokeWidth={1.75}
         />
@@ -38,6 +51,17 @@ function ProjectCard({ project }: { project: ActiveProject }) {
         {project.clientName}
         {project.domain ? ` · ${project.domain}` : ""}
       </p>
+      <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground/80">
+        <span className="rounded bg-secondary/60 px-1.5 py-0.5">
+          {KIND_LABEL[project.kind]}
+        </span>
+        {project.station && (
+          <span className="rounded bg-secondary/60 px-1.5 py-0.5">{project.station}</span>
+        )}
+        {project.status && (
+          <span className="rounded bg-secondary/60 px-1.5 py-0.5">{project.status}</span>
+        )}
+      </div>
       <p className="mt-auto pt-1 text-[11px] text-muted-foreground/60">{lastActivity}</p>
     </Link>
   );

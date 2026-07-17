@@ -50,7 +50,14 @@ export default async function PixelforgeListPage() {
           {projects.map((p) => (
             <Link
               key={p.id}
-              href={`/proyectos/pixelforge/${p.id}`}
+              // Enlaza directo a la estación actual (no al `[id]` pelado):
+              // ese `[id]/page.tsx` hace un `redirect()` server-side que, en
+              // navegación cliente, encadena dos cambios de pathname seguidos
+              // sobre el `motion.div key={pathname}` del shell — eso es lo
+              // que dispara el "Rendered more hooks than during the previous
+              // render" al entrar desde este listado. La ruta `[id]` pelada
+              // se mantiene como fallback válido para acceso directo por URL.
+              href={`/proyectos/pixelforge/${p.id}/${p.currentStation}`}
               className="flex flex-col gap-2 rounded-xl border border-border bg-card p-5 transition-colors hover:border-cyan-400/30 hover:bg-secondary/40"
             >
               <div className="flex items-center gap-2">
