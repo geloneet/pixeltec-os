@@ -1,0 +1,375 @@
+import { describe, expect, it } from "vitest";
+import { validatePageTree } from "./validate-page-tree";
+
+/**
+ * Fixtures mínimas válidas por componentId — mismas formas que
+ * `blocks.test.ts` pero solo para los ids que usa esta suite.
+ */
+const HERO_SPLIT_PROPS = {
+  titulo: "Plomería de emergencia 24/7",
+  subtitulo: "Llegamos en menos de 40 minutos a toda la CDMX",
+  cta: { label: "Solicitar servicio", href: "/contacto" },
+  mediaAlt: "Técnico reparando una tubería en cocina",
+  badges: ["24/7", "Garantía 90 días"],
+};
+
+const FEATURE_GRID_PROPS = {
+  titulo: "Todo lo que necesitas",
+  features: [
+    { titulo: "Rápido", texto: "Respuesta en menos de una hora.", icono: "zap" },
+    { titulo: "Seguro", texto: "Técnicos certificados." },
+    { titulo: "Garantizado", texto: "90 días de garantía por escrito." },
+  ],
+};
+
+const CTA_BANNER_PROPS = {
+  titulo: "¿Listo para empezar?",
+  subtitulo: "Agenda tu diagnóstico gratuito hoy mismo.",
+  cta: { label: "Agendar ahora", href: "https://wa.me/5215500000000" },
+};
+
+const FOOTER_CONTACT_PROPS = {
+  empresa: "PIXELTEC.MX",
+  telefono: "+52 55 0000 0000",
+  links: [{ label: "Aviso de privacidad", href: "/privacidad" }],
+};
+
+/** Construye un nodo válido; permite overrides parciales a nivel del nodo del schema shape. */
+function node(overrides: Record<string, unknown> = {}) {
+  return {
+    nodeId: "n1",
+    componentId: "hero-split",
+    variant: "media-right",
+    orden: 1,
+    propsJson: JSON.stringify(HERO_SPLIT_PROPS),
+    ...overrides,
+  };
+}
+
+/** Árbol válido de referencia: 3 nodos, sin choreography. */
+function validTree() {
+  return {
+    notas: "Landing de plomería de emergencia.",
+    nodes: [
+      node({ nodeId: "hero-1", componentId: "hero-split", variant: "media-right", orden: 1, propsJson: JSON.stringify(HERO_SPLIT_PROPS) }),
+      node({ nodeId: "features-1", componentId: "feature-grid", variant: "3-col", orden: 2, propsJson: JSON.stringify(FEATURE_GRID_PROPS) }),
+      node({ nodeId: "footer-1", componentId: "footer-contact", variant: "default", orden: 3, propsJson: JSON.stringify(FOOTER_CONTACT_PROPS) }),
+    ],
+  };
+}
+
+/** Coreografía válida de referencia sobre hero-split (allowsCinematic: true). */
+function validChoreography(overrides: Record<string, unknown> = {}) {
+  return {
+    narrativePurpose: "Anclar la promesa de urgencia desde el primer scroll.",
+    motifConnection: "El motif es 'respuesta inmediata' — el hero revela el CTA con la misma velocidad.",
+    reducedMotionFallback: "Mostrar todo estático, sin animación.",
+    sequences: [
+      {
+        behaviorId: "fade-up-v1",
+        targetSlot: "titulo",
+        trigger: "load",
+        order: 0,
+        durationToken: "normal",
+        delayStrategy: "none",
+        intensity: 1,
+      },
+    ],
+    ...overrides,
+  };
+}
+
+describe("validatePageTree — árbol válido", () => {
+  it("acepta un árbol completo válido y devuelve ok:true con tree y warnings vacíos", () => {
+    const result = validatePageTree(validTree());
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("expected ok:true");
+    expect(result.tree.nodes).toHaveLength(3);
+    expect(result.tree.notas).toBe("Landing de plomería de emergencia.");
+    expect(result.warnings).toEqual([]);
+    const heroNode = result.tree.nodes.find((n) => n.nodeId === "hero-1");
+    expect(heroNode?.componentId).toBe("hero-split");
+    expect(heroNode?.props).toEqual(HERO_SPLIT_PROPS);
+  });
+
+  it("rechaza un input que no cumple el shape base (menos de 3 nodos)", () => {
+    const tree = validTree();
+    tree.nodes = tree.nodes.slice(0, 2);
+    const result = validatePageTree(tree);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("expected ok:false");
+    expect(result.errors.length).toBeGreaterThan(0);
+  });
+
+  it("rechaza input que no es ni siquiera un objeto", () => {
+    const result = validatePageTree("no soy un árbol");
+    expect(result.ok).toBe(false);
+  });
+});
+
+describe("validatePageTree — errores por nodo", () => {
+  it("componentId desconocido produce error nombrando el nodeId", () => {
+    const tree = validTree();
+    tree.nodes[0] = node({ nodeId: "hero-1", componentId: "hero-parallax-3000", orden: 1 });
+    const result = validatePageTree(tree);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("expected ok:false");
+    expect(result.errors.some((e) => e.includes("hero-1") && e.includes("hero-parallax-3000"))).toBe(true);
+  });
+
+  it("variant inválida produce error nombrando el nodeId", () => {
+    const tree = validTree();
+    tree.nodes[0] = node({
+      nodeId: "hero-1",
+      componentId: "hero-split",
+      variant: "media-explosion",
+      orden: 1,
+      propsJson: JSON.stringify(HERO_SPLIT_PROPS),
+    });
+    const result = validatePageTree(tree);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("expected ok:false");
+    expect(result.errors.some((e) => e.includes("hero-1") && e.includes("media-explosion"))).toBe(true);
+  });
+
+  it("propsJson malformado (no parseable) produce el error exacto 'propsJson inválido en <nodeId>'", () => {
+    const tree = validTree();
+    tree.nodes[0] = node({ nodeId: "hero-1", componentId: "hero-split", orden: 1, propsJson: "{not valid json" });
+    const result = validatePageTree(tree);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("expected ok:false");
+    expect(result.errors.some((e) => e.includes("propsJson inválido en hero-1"))).toBe(true);
+  });
+
+  it("props que violan el propsSchema del block producen error nombrando el nodeId", () => {
+    const tree = validTree();
+    tree.nodes[0] = node({
+      nodeId: "hero-1",
+      componentId: "hero-split",
+      orden: 1,
+      propsJson: JSON.stringify({ titulo: "Solo título, falta todo lo demás" }),
+    });
+    const result = validatePageTree(tree);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("expected ok:false");
+    expect(result.errors.some((e) => e.includes("hero-1"))).toBe(true);
+  });
+
+  it("targetSlot inexistente en editableSlots produce error nombrando el nodeId", () => {
+    const tree = validTree();
+    tree.nodes[0] = node({
+      nodeId: "hero-1",
+      componentId: "hero-split",
+      orden: 1,
+      propsJson: JSON.stringify(HERO_SPLIT_PROPS),
+      choreography: validChoreography({
+        sequences: [
+          {
+            behaviorId: "fade-up-v1",
+            targetSlot: "campoQueNoExiste",
+            trigger: "load",
+            order: 0,
+            durationToken: "normal",
+            delayStrategy: "none",
+            intensity: 1,
+          },
+        ],
+      }),
+    });
+    const result = validatePageTree(tree);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("expected ok:false");
+    expect(result.errors.some((e) => e.includes("hero-1") && e.includes("campoQueNoExiste"))).toBe(true);
+  });
+
+  it("intensity 3 en un block sin allowsCinematic produce error nombrando el nodeId", () => {
+    const tree = validTree();
+    // feature-grid: allowsCinematic === false
+    tree.nodes[1] = node({
+      nodeId: "features-1",
+      componentId: "feature-grid",
+      variant: "3-col",
+      orden: 2,
+      propsJson: JSON.stringify(FEATURE_GRID_PROPS),
+      choreography: validChoreography({
+        sequences: [
+          {
+            behaviorId: "fade-up-v1",
+            targetSlot: "titulo",
+            trigger: "load",
+            order: 0,
+            durationToken: "normal",
+            delayStrategy: "none",
+            intensity: 3,
+          },
+        ],
+      }),
+    });
+    const result = validatePageTree(tree);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("expected ok:false");
+    expect(result.errors.some((e) => e.includes("features-1"))).toBe(true);
+  });
+
+  it("acepta intensity 3 en un block con allowsCinematic (hero-split)", () => {
+    const tree = validTree();
+    tree.nodes[0] = node({
+      nodeId: "hero-1",
+      componentId: "hero-split",
+      orden: 1,
+      propsJson: JSON.stringify(HERO_SPLIT_PROPS),
+      choreography: validChoreography({
+        sequences: [
+          {
+            behaviorId: "fade-up-v1",
+            targetSlot: "titulo",
+            trigger: "load",
+            order: 0,
+            durationToken: "normal",
+            delayStrategy: "none",
+            intensity: 3,
+          },
+        ],
+      }),
+    });
+    const result = validatePageTree(tree);
+    expect(result.ok).toBe(true);
+  });
+});
+
+describe("validatePageTree — límite global de nodos cinematográficos", () => {
+  function cinematicNode(nodeId: string, orden: number) {
+    return node({
+      nodeId,
+      componentId: "hero-split",
+      variant: "media-right",
+      orden,
+      propsJson: JSON.stringify(HERO_SPLIT_PROPS),
+      choreography: validChoreography({
+        sequences: [
+          {
+            behaviorId: "fade-up-v1",
+            targetSlot: "titulo",
+            trigger: "load",
+            order: 0,
+            durationToken: "normal",
+            delayStrategy: "none",
+            intensity: 3,
+          },
+        ],
+      }),
+    });
+  }
+
+  it("permite hasta 3 nodos con alguna sequence intensity 3", () => {
+    const tree = {
+      notas: "3 nodos cinematográficos, todavía dentro del límite.",
+      nodes: [cinematicNode("c1", 1), cinematicNode("c2", 2), cinematicNode("c3", 3)],
+    };
+    const result = validatePageTree(tree);
+    expect(result.ok).toBe(true);
+  });
+
+  it("rechaza 4 nodos con alguna sequence intensity 3", () => {
+    const tree = {
+      notas: "4 nodos cinematográficos, excede el límite.",
+      nodes: [cinematicNode("c1", 1), cinematicNode("c2", 2), cinematicNode("c3", 3), cinematicNode("c4", 4)],
+    };
+    const result = validatePageTree(tree);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("expected ok:false");
+    expect(result.errors.some((e) => /cinemat/i.test(e))).toBe(true);
+  });
+});
+
+describe("validatePageTree — orden duplicado (global)", () => {
+  it("rechaza dos nodos con el mismo orden", () => {
+    const tree = validTree();
+    tree.nodes[1] = { ...tree.nodes[1], orden: tree.nodes[0].orden };
+    const result = validatePageTree(tree);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("expected ok:false");
+    expect(result.errors.some((e) => e.includes("orden") && /duplicad/i.test(e))).toBe(true);
+  });
+});
+
+describe("validatePageTree — behaviorId (warning, no error — behaviors registry es F6B)", () => {
+  it("behaviorId desconocido produce un warning y ok:true (no bloquea)", () => {
+    const tree = validTree();
+    tree.nodes[0] = node({
+      nodeId: "hero-1",
+      componentId: "hero-split",
+      orden: 1,
+      propsJson: JSON.stringify(HERO_SPLIT_PROPS),
+      choreography: validChoreography({
+        sequences: [
+          {
+            behaviorId: "un-comportamiento-que-no-existe",
+            targetSlot: "titulo",
+            trigger: "load",
+            order: 0,
+            durationToken: "normal",
+            delayStrategy: "none",
+            intensity: 1,
+          },
+        ],
+      }),
+    });
+    const result = validatePageTree(tree);
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("expected ok:true");
+    expect(result.warnings.length).toBeGreaterThan(0);
+    expect(result.warnings.some((w) => w.includes("un-comportamiento-que-no-existe") && w.includes("hero-1"))).toBe(true);
+    expect(result.warnings.some((w) => /F6B/.test(w))).toBe(true);
+  });
+});
+
+describe("validatePageTree — accumula múltiples errores en una sola pasada (no corta en el primero)", () => {
+  it("acumula errores de nodos y de tipos distintos simultáneamente", () => {
+    const tree = {
+      notas: "Árbol con múltiples problemas a la vez.",
+      nodes: [
+        // 1. componentId desconocido
+        node({ nodeId: "bad-component", componentId: "hero-parallax-3000", orden: 1 }),
+        // 2. variant inválida
+        node({
+          nodeId: "bad-variant",
+          componentId: "hero-split",
+          variant: "media-explosion",
+          orden: 2,
+          propsJson: JSON.stringify(HERO_SPLIT_PROPS),
+        }),
+        // 3. propsJson malformado
+        node({ nodeId: "bad-json", componentId: "hero-split", orden: 3, propsJson: "{not json" }),
+        // 4. props que violan schema
+        node({
+          nodeId: "bad-props",
+          componentId: "feature-grid",
+          variant: "3-col",
+          orden: 4,
+          propsJson: JSON.stringify({ titulo: "solo titulo" }),
+        }),
+        // 5. orden duplicado con el nodo anterior
+        node({
+          nodeId: "dup-orden",
+          componentId: "footer-contact",
+          variant: "default",
+          orden: 4,
+          propsJson: JSON.stringify(FOOTER_CONTACT_PROPS),
+        }),
+      ],
+    };
+
+    const result = validatePageTree(tree);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("expected ok:false");
+
+    // Al menos un error por cada nodo problemático + el error global de orden duplicado.
+    expect(result.errors.some((e) => e.includes("bad-component"))).toBe(true);
+    expect(result.errors.some((e) => e.includes("bad-variant"))).toBe(true);
+    expect(result.errors.some((e) => e.includes("propsJson inválido en bad-json"))).toBe(true);
+    expect(result.errors.some((e) => e.includes("bad-props"))).toBe(true);
+    expect(result.errors.some((e) => e.includes("orden") && /duplicad/i.test(e))).toBe(true);
+    expect(result.errors.length).toBeGreaterThanOrEqual(5);
+  });
+});
