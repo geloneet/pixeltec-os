@@ -1,13 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 
-// `actions.ts` importa `@/lib/auth/config` (next-auth) — bajo Vitest (Node ESM
-// puro, sin el resolutor de módulos de Next) el propio `next-auth` rompe al
-// intentar importar "next/server" (mismo mock que `runs/route.test.ts`). Solo
-// necesitamos `KIND_SCHEMAS`/`OPERATIVE_ARTIFACT_KIND`, que no dependen de
-// auth — mockeamos para poder importar el módulo sin arrastrar next-auth.
+// El enum runtime y KIND_SCHEMAS viven en su propio módulo (un archivo
+// "use server" no puede exportar objetos — gate F6A), así que este test ya
+// no arrastra next-auth; el mock queda por si el módulo vuelve a crecer.
 vi.mock("@/lib/auth/config", () => ({ auth: vi.fn() }));
 
-import { KIND_SCHEMAS, OPERATIVE_ARTIFACT_KIND } from "./actions";
+import { KIND_SCHEMAS, OPERATIVE_ARTIFACT_KIND } from "@/lib/pixelforge/kind-schemas";
 import type { OperativeArtifactKind } from "@/lib/pixelforge/types";
 
 const OPERATIVE_KINDS: OperativeArtifactKind[] = [
