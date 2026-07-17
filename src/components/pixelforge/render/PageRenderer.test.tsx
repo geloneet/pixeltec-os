@@ -105,7 +105,7 @@ describe("PageRenderer", () => {
     expect(screen.getByText("Con gradiente")).toBeInTheDocument();
   });
 
-  it("degrada a placeholder neutro un componentId sin componente (llega en T6)", () => {
+  it("con la paridad total (T6) un BlockId del registry se resuelve a su block real, no al placeholder", () => {
     render(
       <PageRenderer
         tokens={TOKENS}
@@ -115,7 +115,27 @@ describe("PageRenderer", () => {
             componentId: "stats-band",
             variant: "default",
             orden: 1,
-            props: { stats: [] },
+            props: { stats: [{ valor: "+250", etiqueta: "Proyectos" }, { valor: "98%", etiqueta: "Satisfacción" }] },
+          },
+        ])}
+      />
+    );
+    expect(screen.getByText("+250")).toBeInTheDocument();
+    expect(screen.queryByText(/aún no disponible/)).not.toBeInTheDocument();
+  });
+
+  it("degrada a placeholder neutro un componentId sin componente en RENDER_MAP (rama defensiva)", () => {
+    render(
+      <PageRenderer
+        tokens={TOKENS}
+        tree={tree([
+          {
+            nodeId: "n1",
+            // Id fuera del registry: no puede llegar por un árbol validado, pero PageRenderer lo degrada con gracia.
+            componentId: "bloque-inexistente" as ValidatedPageTree["nodes"][number]["componentId"],
+            variant: "default",
+            orden: 1,
+            props: {},
           },
         ])}
       />

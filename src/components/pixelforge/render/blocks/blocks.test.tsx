@@ -6,7 +6,16 @@ import { HeroSplit } from "./HeroSplit";
 import { CtaBanner } from "./CtaBanner";
 import { FeatureGrid } from "./FeatureGrid";
 import { FooterContact } from "./FooterContact";
+import { HeroEditorial } from "./HeroEditorial";
+import { ProofLogos } from "./ProofLogos";
+import { OfferTiers } from "./OfferTiers";
+import { NarrativeScroller } from "./NarrativeScroller";
+import { FaqAccordion } from "./FaqAccordion";
+import { TestimonialQuote } from "./TestimonialQuote";
+import { ProcessSteps } from "./ProcessSteps";
+import { StatsBand } from "./StatsBand";
 import { RENDER_MAP } from "./index";
+import { BLOCK_IDS } from "@/lib/pixelforge/registry/blocks";
 
 afterEach(() => {
   cleanup();
@@ -158,6 +167,220 @@ describe("FooterContact", () => {
 describe("RENDER_MAP (paridad parcial F6A-T5)", () => {
   it("incluye los 4 blocks núcleo mapeados a un componente", () => {
     for (const id of ["hero-split", "cta-banner", "feature-grid", "footer-contact"] as const) {
+      expect(typeof RENDER_MAP[id]).toBe("function");
+    }
+  });
+});
+
+describe("HeroEditorial", () => {
+  const props = {
+    titulo: "Diseño que vende, no que decora",
+    kicker: "Estudio creativo",
+    parrafo: "Convertimos tu propuesta de valor en una experiencia que la gente recuerda.",
+    cta: { label: "Ver portafolio", href: "/portafolio" },
+  };
+
+  it("renderiza un único h1, kicker, párrafo y CTA", () => {
+    render(<HeroEditorial {...props} variant="centered" />);
+    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Diseño que vende");
+    expect(screen.getByText("Estudio creativo")).toBeInTheDocument();
+    expect(screen.getByText(/Convertimos tu propuesta/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Ver portafolio" })).toHaveAttribute("href", "/portafolio");
+  });
+
+  it("variant offset recompone a un layout asimétrico en grid", () => {
+    const { container } = render(<HeroEditorial {...props} variant="offset" />);
+    const inner = container.querySelector(".pf-hero-editorial > div")!;
+    expect(inner.className).toContain("grid");
+    expect(inner.className).not.toContain("text-center");
+  });
+
+  it("variant centered centra el contenido en una sola columna", () => {
+    const { container } = render(<HeroEditorial {...props} variant="centered" />);
+    const inner = container.querySelector(".pf-hero-editorial > div")!;
+    expect(inner.className).toContain("text-center");
+    expect(inner.className).not.toContain("grid");
+  });
+});
+
+describe("ProofLogos", () => {
+  const props = {
+    titulo: "Con la confianza de marcas líderes",
+    logos: [{ nombre: "Acme" }, { nombre: "Globex" }, { nombre: "Umbrella" }, { nombre: "Initech" }],
+  };
+
+  it("renderiza el título como h2 y cada logo como item de lista real", () => {
+    render(<ProofLogos {...props} variant="row" />);
+    expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent("Con la confianza");
+    expect(screen.getAllByRole("listitem")).toHaveLength(4);
+    expect(screen.getByText("Umbrella")).toBeInTheDocument();
+  });
+
+  it("omite el título cuando no se provee", () => {
+    render(<ProofLogos logos={props.logos} variant="row" />);
+    expect(screen.queryByRole("heading", { level: 2 })).not.toBeInTheDocument();
+    expect(screen.getAllByRole("listitem")).toHaveLength(4);
+  });
+
+  it("variant grid cambia el layout a grid", () => {
+    const { container } = render(<ProofLogos {...props} variant="grid" />);
+    const list = container.querySelector("ul")!;
+    expect(list.className).toContain("grid");
+  });
+});
+
+describe("OfferTiers", () => {
+  const props = {
+    titulo: "Planes a tu medida",
+    tiers: [
+      { nombre: "Básico", precio: "$1,990", periodo: "/mes", bullets: ["Landing de 1 sección", "Soporte por correo"], ctaLabel: "Empezar" },
+      { nombre: "Pro", precio: "$3,990", periodo: "/mes", bullets: ["Landing completa", "Soporte prioritario"], destacado: true, ctaLabel: "Elegir Pro" },
+    ],
+  };
+
+  it("variant cards renderiza h2, h3 por tier, precio, bullets y CTA (button sin href)", () => {
+    render(<OfferTiers {...props} variant="cards" />);
+    expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent("Planes a tu medida");
+    expect(screen.getAllByRole("heading", { level: 3 })).toHaveLength(2);
+    expect(screen.getByText("$3,990")).toBeInTheDocument();
+    expect(screen.getByText("Landing completa")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Elegir Pro" })).toBeInTheDocument();
+  });
+
+  it("variant table renderiza una tabla con una columna por tier", () => {
+    render(<OfferTiers {...props} variant="table" />);
+    expect(screen.getByRole("table")).toBeInTheDocument();
+    const headers = screen.getAllByRole("columnheader");
+    expect(headers.map((h) => h.textContent)).toEqual(expect.arrayContaining([expect.stringContaining("Básico"), expect.stringContaining("Pro")]));
+    expect(screen.getByRole("button", { name: "Empezar" })).toBeInTheDocument();
+  });
+
+  it("marca el tier destacado (badge Recomendado) en cards", () => {
+    render(<OfferTiers {...props} variant="cards" />);
+    expect(screen.getByText("Recomendado")).toBeInTheDocument();
+  });
+});
+
+describe("NarrativeScroller (estático)", () => {
+  const props = {
+    pasos: [
+      { titulo: "Descubrimiento", texto: "Entendemos tu negocio a fondo." },
+      { titulo: "Diseño", texto: "Creamos la dirección visual." },
+      { titulo: "Lanzamiento", texto: "Publicamos y medimos." },
+    ],
+  };
+
+  it("renderiza los pasos como lista ordenada con h3 y texto", () => {
+    render(<NarrativeScroller {...props} variant="default" />);
+    const ol = screen.getByRole("list");
+    expect(ol.tagName).toBe("OL");
+    expect(screen.getAllByRole("listitem")).toHaveLength(3);
+    expect(screen.getAllByRole("heading", { level: 3 })).toHaveLength(3);
+    expect(screen.getByText("Publicamos y medimos.")).toBeInTheDocument();
+  });
+});
+
+describe("FaqAccordion", () => {
+  const props = {
+    titulo: "Preguntas frecuentes",
+    items: [
+      { pregunta: "¿Cuánto tarda?", respuesta: "Entre 2 y 4 semanas según el alcance." },
+      { pregunta: "¿Incluye hosting?", respuesta: "Sí, el primer año va incluido." },
+      { pregunta: "¿Puedo editarlo?", respuesta: "Sí, entregamos un panel editable." },
+    ],
+  };
+
+  it("renderiza h2 y cada pregunta como trigger accesible (button)", () => {
+    render(<FaqAccordion {...props} variant="single" />);
+    expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent("Preguntas frecuentes");
+    const triggers = screen.getAllByRole("button");
+    expect(triggers).toHaveLength(3);
+    expect(screen.getByRole("button", { name: /¿Cuánto tarda\?/ })).toBeInTheDocument();
+  });
+
+  it("variant two-column reparte los items en dos columnas", () => {
+    const { container } = render(<FaqAccordion {...props} variant="two-column" />);
+    expect(container.querySelector(".pf-faq-accordion .md\\:grid-cols-2")).toBeTruthy();
+    expect(screen.getAllByRole("button")).toHaveLength(3);
+  });
+});
+
+describe("TestimonialQuote", () => {
+  const props = {
+    quotes: [
+      { texto: "Triplicamos nuestros leads en un mes.", autor: "María López", cargo: "CEO, Café Aurora" },
+      { texto: "El mejor equipo con el que hemos trabajado.", autor: "Juan Pérez" },
+    ],
+  };
+
+  it("renderiza cada cita como blockquote con autor y cite del cargo", () => {
+    const { container } = render(<TestimonialQuote {...props} variant="single" />);
+    expect(container.querySelectorAll("blockquote")).toHaveLength(2);
+    expect(screen.getByText(/Triplicamos nuestros leads/)).toBeInTheDocument();
+    expect(screen.getByText("María López")).toBeInTheDocument();
+    expect(container.querySelector("cite")?.textContent).toContain("CEO, Café Aurora");
+  });
+
+  it("variant carousel-static dispone las citas en una fila (grid, sin JS)", () => {
+    const { container } = render(<TestimonialQuote {...props} variant="carousel-static" />);
+    const list = container.querySelector("ul")!;
+    expect(list.className).toContain("grid");
+  });
+});
+
+describe("ProcessSteps", () => {
+  const props = {
+    titulo: "Cómo trabajamos",
+    pasos: [
+      { numero: 1, titulo: "Briefing", texto: "Nos cuentas tu idea." },
+      { numero: 2, titulo: "Propuesta", texto: "Te presentamos el plan." },
+      { numero: 3, titulo: "Entrega", texto: "Lanzamos tu proyecto." },
+    ],
+  };
+
+  it("renderiza h2 y los pasos como lista ordenada con h3", () => {
+    render(<ProcessSteps {...props} variant="vertical" />);
+    expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent("Cómo trabajamos");
+    const ol = screen.getByRole("list");
+    expect(ol.tagName).toBe("OL");
+    expect(screen.getAllByRole("listitem")).toHaveLength(3);
+    expect(screen.getAllByRole("heading", { level: 3 })).toHaveLength(3);
+  });
+
+  it("variant horizontal usa un layout en fila (grid)", () => {
+    const { container } = render(<ProcessSteps {...props} variant="horizontal" />);
+    const ol = container.querySelector("ol")!;
+    expect(ol.className).toContain("grid");
+  });
+});
+
+describe("StatsBand", () => {
+  const props = {
+    stats: [
+      { valor: "+250", etiqueta: "Proyectos entregados" },
+      { valor: "98%", etiqueta: "Clientes satisfechos" },
+      { valor: "12", etiqueta: "Años de experiencia" },
+    ],
+  };
+
+  it("renderiza cada métrica con su valor y etiqueta en un dl semántico", () => {
+    const { container } = render(<StatsBand {...props} variant="default" />);
+    expect(container.querySelector("dl")).toBeInTheDocument();
+    expect(container.querySelectorAll("dt")).toHaveLength(3);
+    expect(container.querySelectorAll("dd")).toHaveLength(3);
+    expect(screen.getByText("+250")).toBeInTheDocument();
+    expect(screen.getByText("Clientes satisfechos")).toBeInTheDocument();
+  });
+});
+
+describe("RENDER_MAP — paridad TOTAL registry ↔ RENDER_MAP (F6A-T6)", () => {
+  it("cada BlockId del registry tiene EXACTAMENTE un componente en RENDER_MAP (y viceversa)", () => {
+    expect(Object.keys(RENDER_MAP).sort()).toEqual([...BLOCK_IDS].sort());
+  });
+
+  it("los 12 componentes del mapa son funciones React", () => {
+    for (const id of BLOCK_IDS) {
       expect(typeof RENDER_MAP[id]).toBe("function");
     }
   });
