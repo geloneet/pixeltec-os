@@ -87,8 +87,11 @@ describe("NewPixelforgeForm — filtro de definiciones por cliente", () => {
 });
 
 describe("NewPixelforgeForm — submit", () => {
-  it("llama a la action con el payload correcto y navega al proyecto creado", async () => {
-    createPixelforgeProjectActionMock.mockResolvedValue({ success: true, data: { id: "proj-1" } });
+  it("llama a la action con el payload correcto y navega DIRECTO a la estación inicial (sin pasar por el [id] pelado, que re-redirige y crashea el shell)", async () => {
+    createPixelforgeProjectActionMock.mockResolvedValue({
+      success: true,
+      data: { id: "proj-1", station: "contexto" },
+    });
     render(<NewPixelforgeForm clients={clients} definitions={definitions} />);
 
     fireEvent.change(screen.getByLabelText(/cliente/i), { target: { value: "client-1" } });
@@ -108,7 +111,9 @@ describe("NewPixelforgeForm — submit", () => {
         definitionId: "def-1",
       })
     );
-    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/proyectos/pixelforge/proj-1"));
+    await waitFor(() =>
+      expect(pushMock).toHaveBeenCalledWith("/proyectos/pixelforge/proj-1/contexto")
+    );
   });
 
   it("muestra toast.error y no navega cuando la action falla", async () => {
@@ -153,7 +158,10 @@ describe("NewPixelforgeForm — borrador en localStorage", () => {
 
   it("limpia el localStorage tras crear el proyecto exitosamente", async () => {
     window.localStorage.setItem(DRAFT_KEY, JSON.stringify({ title: "x" }));
-    createPixelforgeProjectActionMock.mockResolvedValue({ success: true, data: { id: "proj-1" } });
+    createPixelforgeProjectActionMock.mockResolvedValue({
+      success: true,
+      data: { id: "proj-1", station: "contexto" },
+    });
     render(<NewPixelforgeForm clients={clients} definitions={definitions} />);
 
     fireEvent.change(screen.getByLabelText(/cliente/i), { target: { value: "client-1" } });

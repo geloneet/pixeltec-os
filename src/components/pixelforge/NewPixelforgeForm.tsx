@@ -103,7 +103,10 @@ export function NewPixelforgeForm({ clients, definitions }: Props) {
     } catch {
       // no bloquea la navegación si falla.
     }
-    router.push(`/proyectos/pixelforge/${r.data.id}`);
+    // Directo a la estación inicial: pasar por el [id] pelado encadena un
+    // segundo redirect server-side y ese doble salto de pathname crashea el
+    // AnimatePresence del shell admin (mismo root cause que el listado, PF-H1).
+    router.push(`/proyectos/pixelforge/${r.data.id}/${r.data.station}`);
   };
 
   return (

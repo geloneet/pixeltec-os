@@ -30,9 +30,11 @@ import {
 } from "@/lib/db/repos/pixelforge";
 import { getDefinitionFull } from "@/lib/db/repos/definitions";
 import {
+  PIXELFORGE_STATION_SEQUENCE,
   stationForKind,
   type OperativeArtifactKind,
   type PixelforgeSourceType,
+  type PixelforgeStation,
 } from "@/lib/pixelforge/types";
 import { safeFetch } from "@/lib/pixelforge/visual/safe-fetch";
 import { extractSignals } from "@/lib/pixelforge/visual/extract";
@@ -106,7 +108,7 @@ export async function createPixelforgeProjectAction(input: {
   title: string;
   brainDump: string;
   definitionId?: string;
-}): Promise<PortalActionResult<{ id: string }>> {
+}): Promise<PortalActionResult<{ id: string; station: PixelforgeStation }>> {
   try {
     const { ownerId, actor } = await requireAuth();
     const parsed = createPixelforgeProjectSchema.safeParse(input);
@@ -156,7 +158,11 @@ export async function createPixelforgeProjectAction(input: {
     });
 
     revalidatePath("/proyectos/pixelforge");
-    return { success: true, data: { id } };
+    // El repo crea todo proyecto en la primera estación de la secuencia
+    // canónica; devolverla permite al form navegar DIRECTO a la estación
+    // (un solo cambio de pathname — el salto intermedio por el [id] pelado
+    // dispara el crash de hooks del AnimatePresence del shell admin).
+    return { success: true, data: { id, station: PIXELFORGE_STATION_SEQUENCE[0] } };
   } catch (err) {
     console.error("[createPixelforgeProjectAction]", err);
     return { success: false, error: "No se pudo crear el proyecto" };
