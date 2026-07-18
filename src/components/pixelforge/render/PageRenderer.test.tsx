@@ -61,6 +61,7 @@ describe("PageRenderer", () => {
           {
             nodeId: "n1",
             componentId: "cta-banner",
+            kind: "block",
             variant: "solid",
             orden: 1,
             props: { titulo: "Cierre", cta: { label: "Ir", href: "/" } },
@@ -85,6 +86,7 @@ describe("PageRenderer", () => {
           {
             nodeId: "footer",
             componentId: "footer-contact",
+            kind: "block",
             variant: "default",
             orden: 2,
             props: { empresa: "PIXELTEC.MX", links: [] },
@@ -92,6 +94,7 @@ describe("PageRenderer", () => {
           {
             nodeId: "hero",
             componentId: "hero-split",
+            kind: "block",
             variant: "media-right",
             orden: 1,
             props: {
@@ -118,6 +121,7 @@ describe("PageRenderer", () => {
           {
             nodeId: "n1",
             componentId: "cta-banner",
+            kind: "block",
             variant: "gradient",
             orden: 1,
             props: { titulo: "Con gradiente", cta: { label: "Ir", href: "/" } },
@@ -138,6 +142,7 @@ describe("PageRenderer", () => {
           {
             nodeId: "n1",
             componentId: "stats-band",
+            kind: "block",
             variant: "default",
             orden: 1,
             props: { stats: [{ valor: "+250", etiqueta: "Proyectos" }, { valor: "98%", etiqueta: "Satisfacción" }] },
@@ -158,6 +163,7 @@ describe("PageRenderer", () => {
             nodeId: "n1",
             // Id fuera del registry: no puede llegar por un árbol validado, pero PageRenderer lo degrada con gracia.
             componentId: "bloque-inexistente" as ValidatedPageTree["nodes"][number]["componentId"],
+            kind: "block",
             variant: "default",
             orden: 1,
             props: {},
@@ -194,6 +200,7 @@ describe("PageRenderer", () => {
           {
             nodeId: "conMotion",
             componentId: "stats-band",
+            kind: "block",
             variant: "default",
             orden: 1,
             props: { stats: [{ valor: "+250", etiqueta: "Proyectos" }] },
@@ -202,6 +209,7 @@ describe("PageRenderer", () => {
           {
             nodeId: "sinMotion",
             componentId: "cta-banner",
+            kind: "block",
             variant: "solid",
             orden: 2,
             props: { titulo: "Cierre", cta: { label: "Ir", href: "/" } },
@@ -228,10 +236,11 @@ describe("PageRenderer", () => {
       <PageRenderer
         tokens={TOKENS}
         tree={tree([
-          { nodeId: "boom", componentId: "hero-split", variant: "media-right", orden: 1, props: {} },
+          { nodeId: "boom", componentId: "hero-split", kind: "block", variant: "media-right", orden: 1, props: {} },
           {
             nodeId: "ok",
             componentId: "cta-banner",
+            kind: "block",
             variant: "solid",
             orden: 2,
             props: { titulo: "Sigo vivo", cta: { label: "Ir", href: "/" } },

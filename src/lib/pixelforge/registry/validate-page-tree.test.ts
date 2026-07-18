@@ -1,6 +1,23 @@
 import { describe, expect, it } from "vitest";
 import { validatePageTree } from "./validate-page-tree";
 
+/** Props mínimas válidas de coverage-map-v1 (única certificada usada en esta suite de capabilities). */
+const COVERAGE_MAP_PROPS = {
+  zonas: [{ nombre: "Puerto Vallarta", poligonoOrRadio: "10km desde el centro" }],
+};
+
+/** Nodo capability válido (variant "default", propsJson serializado, sin choreography). */
+function capabilityNode(overrides: Record<string, unknown> = {}) {
+  return {
+    nodeId: "cap-1",
+    componentId: "coverage-map-v1",
+    variant: "default",
+    orden: 4,
+    propsJson: JSON.stringify(COVERAGE_MAP_PROPS),
+    ...overrides,
+  };
+}
+
 /**
  * Fixtures mínimas válidas por componentId — mismas formas que
  * `blocks.test.ts` pero solo para los ids que usa esta suite.
@@ -485,5 +502,164 @@ describe("validatePageTree — accumula múltiples errores en una sola pasada (n
     expect(result.errors.some((e) => e.includes("bad-props"))).toBe(true);
     expect(result.errors.some((e) => e.includes("orden") && /duplicad/i.test(e))).toBe(true);
     expect(result.errors.length).toBeGreaterThanOrEqual(5);
+  });
+});
+
+describe("validatePageTree — capability nodes (F6C-T2: componentId ∈ CAPABILITY_IDS)", () => {
+  it("acepta un nodo capability válido (variant default, props válidas, sin choreography) y lo marca kind:'capability'", () => {
+    const tree = validTree();
+    tree.nodes.push(capabilityNode());
+    const result = validatePageTree(tree);
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("expected ok:true");
+    const capNode = result.tree.nodes.find((n) => n.nodeId === "cap-1");
+    expect(capNode?.kind).toBe("capability");
+    expect(capNode?.componentId).toBe("coverage-map-v1");
+    expect(capNode?.props).toEqual(COVERAGE_MAP_PROPS);
+  });
+
+  it("los nodos block del árbol siguen marcados kind:'block'", () => {
+    const tree = validTree();
+    tree.nodes.push(capabilityNode());
+    const result = validatePageTree(tree);
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("expected ok:true");
+    const heroNode = result.tree.nodes.find((n) => n.nodeId === "hero-1");
+    expect(heroNode?.kind).toBe("block");
+  });
+
+  it("rechaza variant !== 'default' en un nodo capability", () => {
+    const tree = validTree();
+    tree.nodes.push(capabilityNode({ variant: "media-right" }));
+    const result = validatePageTree(tree);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("expected ok:false");
+    expect(
+      result.errors.some(
+        (e) => e.includes("cap-1") && e.includes("coverage-map-v1") && e.includes("media-right") && /variant/i.test(e)
+      )
+    ).toBe(true);
+  });
+
+  it("props inválidas contra el propsSchema de la capability acumulan error con path y nodeId", () => {
+    const tree = validTree();
+    // coverage-map-v1 exige zonas: array min 1 de { nombre, poligonoOrRadio } — omitimos zonas.
+    tree.nodes.push(capabilityNode({ propsJson: JSON.stringify({}) }));
+    const result = validatePageTree(tree);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("expected ok:false");
+    expect(result.errors.some((e) => e.includes("cap-1") && e.includes("zonas"))).toBe(true);
+  });
+
+  it("propsJson malformado en un nodo capability produce el error exacto 'propsJson inválido en <nodeId>'", () => {
+    const tree = validTree();
+    tree.nodes.push(capabilityNode({ propsJson: "{not valid json" }));
+    const result = validatePageTree(tree);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("expected ok:false");
+    expect(result.errors.some((e) => e.includes("propsJson inválido en cap-1"))).toBe(true);
+  });
+
+  it("rechaza choreography sobre un nodo capability (allowsChoreography:false)", () => {
+    const tree = validTree();
+    tree.nodes.push(
+      capabilityNode({
+        choreography: validChoreography({
+          sequences: [
+            {
+              behaviorId: "fade-rise",
+              targetSlot: "titulo",
+              trigger: "load",
+              order: 0,
+              durationToken: "normal",
+              delayStrategy: "none",
+              intensity: 1,
+            },
+          ],
+        }),
+      })
+    );
+    const result = validatePageTree(tree);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("expected ok:false");
+    expect(
+      result.errors.some((e) => e.includes("cap-1") && e.includes("coverage-map-v1") && /choreography/i.test(e))
+    ).toBe(true);
+  });
+
+  it("componentId que no es ni block ni capability produce el mensaje ampliado 'ni block ni capability'", () => {
+    const tree = validTree();
+    tree.nodes[0] = node({ nodeId: "hero-1", componentId: "hero-parallax-3000", orden: 1 });
+    const result = validatePageTree(tree);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("expected ok:false");
+    expect(
+      result.errors.some((e) => e.includes("hero-1") && e.includes("hero-parallax-3000") && e.includes("ni como block ni como capability"))
+    ).toBe(true);
+  });
+
+  it("árbol mixto (blocks + capability) valida ambos tipos de nodo correctamente", () => {
+    const tree = validTree();
+    tree.nodes.push(capabilityNode());
+    const result = validatePageTree(tree);
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("expected ok:true");
+    expect(result.tree.nodes).toHaveLength(4);
+    const kinds = result.tree.nodes.map((n) => n.kind);
+    expect(kinds).toEqual(["block", "block", "block", "capability"]);
+  });
+
+  it("los nodos capability NO cuentan para MAX_CINEMATIC_NODES — 3 blocks cinematográficos + 1 capability sigue ok:true", () => {
+    const tree = {
+      notas: "3 nodos cinematográficos (blocks) + 1 capability — la capability no debe sumar al límite.",
+      nodes: [
+        node({
+          nodeId: "c1",
+          componentId: "hero-split",
+          variant: "media-right",
+          orden: 1,
+          propsJson: JSON.stringify(HERO_SPLIT_PROPS),
+          choreography: validChoreography({
+            sequences: [
+              { behaviorId: "fade-rise", targetSlot: "titulo", trigger: "load", order: 0, durationToken: "normal", delayStrategy: "none", intensity: 3 },
+            ],
+          }),
+        }),
+        node({
+          nodeId: "c2",
+          componentId: "hero-split",
+          variant: "media-right",
+          orden: 2,
+          propsJson: JSON.stringify(HERO_SPLIT_PROPS),
+          choreography: validChoreography({
+            sequences: [
+              { behaviorId: "fade-rise", targetSlot: "titulo", trigger: "load", order: 0, durationToken: "normal", delayStrategy: "none", intensity: 3 },
+            ],
+          }),
+        }),
+        node({
+          nodeId: "c3",
+          componentId: "hero-split",
+          variant: "media-right",
+          orden: 3,
+          propsJson: JSON.stringify(HERO_SPLIT_PROPS),
+          choreography: validChoreography({
+            sequences: [
+              { behaviorId: "fade-rise", targetSlot: "titulo", trigger: "load", order: 0, durationToken: "normal", delayStrategy: "none", intensity: 3 },
+            ],
+          }),
+        }),
+        capabilityNode({ nodeId: "cap-1", orden: 4 }),
+      ],
+    };
+    const result = validatePageTree(tree);
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("expected ok:true");
+    expect(result.tree.nodes).toHaveLength(4);
+  });
+
+  it("árbol sin ningún nodo capability sigue validando ok:true (compat retro)", () => {
+    const result = validatePageTree(validTree());
+    expect(result.ok).toBe(true);
   });
 });
