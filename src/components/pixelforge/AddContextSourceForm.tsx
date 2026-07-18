@@ -6,12 +6,30 @@ import { toast } from "sonner";
 import { Link2, Loader2, Paperclip } from "lucide-react";
 import { addContextSourceAction } from "@/app/(admin)/proyectos/pixelforge/actions";
 import type { PixelforgeSourceType } from "@/lib/pixelforge/types";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface Props {
   projectId: string;
 }
 
 type AddableSourceType = Exclude<PixelforgeSourceType, "definition_import">;
+
+const SOURCE_TYPE_OPTIONS: { value: AddableSourceType; label: string }[] = [
+  { value: "note", label: "Nota" },
+  { value: "document", label: "Documento" },
+  { value: "url", label: "URL" },
+];
+
+const pfxSelectTriggerClass =
+  "mb-3 w-full rounded-[var(--pfx-radius)] border border-pfx-border bg-pfx-surface px-3.5 py-2.5 text-sm text-pfx-text focus:outline-none focus:ring-2 focus:ring-pfx-accent focus:ring-offset-0";
+const pfxSelectContentClass = "border-pfx-border bg-pfx-surface-elevated text-pfx-text";
+const pfxSelectItemClass = "text-pfx-text focus:bg-pfx-accent/10 focus:text-pfx-text";
 
 /** Formulario para anexar una fuente de contexto (estación Contexto). */
 export function AddContextSourceForm({ projectId }: Props) {
@@ -61,16 +79,18 @@ export function AddContextSourceForm({ projectId }: Props) {
       >
         Tipo
       </label>
-      <select
-        id="context-source-type"
-        value={type}
-        onChange={(e) => setType(e.target.value as AddableSourceType)}
-        className="mb-3 w-full rounded-md border border-border bg-secondary/40 px-3.5 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-400/40"
-      >
-        <option value="note">Nota</option>
-        <option value="document">Documento</option>
-        <option value="url">URL</option>
-      </select>
+      <Select value={type} onValueChange={(v) => setType(v as AddableSourceType)}>
+        <SelectTrigger id="context-source-type" className={pfxSelectTriggerClass}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent className={pfxSelectContentClass}>
+          {SOURCE_TYPE_OPTIONS.map((opt) => (
+            <SelectItem key={opt.value} value={opt.value} className={pfxSelectItemClass}>
+              {opt.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
 
       <label
         htmlFor="context-source-title"

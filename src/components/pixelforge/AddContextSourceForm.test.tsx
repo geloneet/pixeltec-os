@@ -1,8 +1,14 @@
 // @vitest-environment jsdom
 // src/components/pixelforge/AddContextSourceForm.test.tsx
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+
+// Ver NewPixelforgeForm.test.tsx: jsdom no implementa scrollIntoView, que el
+// Select de radix (PF-X1 T3) invoca al abrir para posicionar el item activo.
+beforeAll(() => {
+  Element.prototype.scrollIntoView = vi.fn();
+});
 
 afterEach(() => {
   cleanup();
@@ -23,15 +29,21 @@ vi.mock("next/navigation", () => ({
 
 import { AddContextSourceForm } from "./AddContextSourceForm";
 
+/** Abre el Select (radix) de "Tipo" y elige la opción dada por texto. */
+async function selectType(optionName: string) {
+  fireEvent.click(screen.getByRole("combobox", { name: /tipo/i }));
+  fireEvent.click(await screen.findByRole("option", { name: optionName }));
+}
+
 describe("AddContextSourceForm", () => {
   it("no muestra el campo URL cuando el tipo es 'note'", () => {
     render(<AddContextSourceForm projectId="proj-1" />);
     expect(screen.queryByPlaceholderText(/https?:\/\//i)).not.toBeInTheDocument();
   });
 
-  it("muestra el campo URL (obligatorio) cuando el tipo es 'url'", () => {
+  it("muestra el campo URL (obligatorio) cuando el tipo es 'url'", async () => {
     render(<AddContextSourceForm projectId="proj-1" />);
-    fireEvent.change(screen.getByLabelText(/tipo/i), { target: { value: "url" } });
+    await selectType("URL");
     expect(screen.getByPlaceholderText(/https?:\/\//i)).toBeInTheDocument();
   });
 
@@ -72,7 +84,7 @@ describe("AddContextSourceForm", () => {
     addContextSourceActionMock.mockResolvedValue({ success: true, data: { id: "src-1" } });
     render(<AddContextSourceForm projectId="proj-1" />);
 
-    fireEvent.change(screen.getByLabelText(/tipo/i), { target: { value: "url" } });
+    await selectType("URL");
     fireEvent.change(screen.getByLabelText(/título/i), { target: { value: "Competencia" } });
     fireEvent.change(screen.getByLabelText(/contenido/i), { target: { value: "Referencia de un competidor" } });
     fireEvent.change(screen.getByPlaceholderText(/https?:\/\//i), {

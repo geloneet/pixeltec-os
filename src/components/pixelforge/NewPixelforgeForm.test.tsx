@@ -1,8 +1,21 @@
 // @vitest-environment jsdom
 // src/components/pixelforge/NewPixelforgeForm.test.tsx
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+
+// El Select de radix (PF-X1 T3) mide/desplaza el item activo al abrir — jsdom
+// no implementa scrollIntoView (solo emite un warning "not implemented").
+// Lo stubeamos para mantener la salida de test limpia; no afecta el
+// comportamiento evaluado (la apertura/selección funciona vía onClick, que
+// radix dispara igual en jsdom sin necesitar Pointer Events reales).
+beforeAll(() => {
+  if (!Element.prototype.scrollIntoView) {
+    Element.prototype.scrollIntoView = () => {};
+  } else {
+    Element.prototype.scrollIntoView = vi.fn();
+  }
+});
 
 afterEach(() => {
   cleanup();
@@ -40,13 +53,19 @@ const definitions = [
   { id: "def-2", title: "Definición B", clientCrmId: "client-2" },
 ];
 
+/** Abre un Select (radix) por su combobox y elige la opción dada por texto. */
+async function selectOption(comboboxName: RegExp, optionName: string | RegExp) {
+  fireEvent.click(screen.getByRole("combobox", { name: comboboxName }));
+  fireEvent.click(await screen.findByRole("option", { name: optionName }));
+}
+
 describe("NewPixelforgeForm — validación y botón", () => {
-  it("el botón 'Crear proyecto' está disabled hasta que cliente + título + brainDump(>=20) sean válidos", () => {
+  it("el botón 'Crear proyecto' está disabled hasta que cliente + título + brainDump(>=20) sean válidos", async () => {
     render(<NewPixelforgeForm clients={clients} definitions={definitions} />);
     const submit = screen.getByText("Crear proyecto");
     expect(submit).toBeDisabled();
 
-    fireEvent.change(screen.getByLabelText(/cliente/i), { target: { value: "client-1" } });
+    await selectOption(/cliente/i, "Cliente Uno");
     expect(submit).toBeDisabled();
 
     fireEvent.change(screen.getByPlaceholderText(/título/i), { target: { value: "Landing X" } });
@@ -65,23 +84,28 @@ describe("NewPixelforgeForm — validación y botón", () => {
 });
 
 describe("NewPixelforgeForm — filtro de definiciones por cliente", () => {
-  it("solo muestra las definiciones del cliente elegido", () => {
+  it("solo muestra las definiciones del cliente elegido", async () => {
     render(<NewPixelforgeForm clients={clients} definitions={definitions} />);
 
-    fireEvent.change(screen.getByLabelText(/cliente/i), { target: { value: "client-1" } });
-    expect(screen.getByText("Definición A")).toBeInTheDocument();
-    expect(screen.queryByText("Definición B")).not.toBeInTheDocument();
+    await selectOption(/^cliente$/i, "Cliente Uno");
+    fireEvent.click(screen.getByRole("combobox", { name: /importar de definición/i }));
+    expect(await screen.findByRole("option", { name: "Definición A" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Definición B" })).not.toBeInTheDocument();
+    // Elegir la opción visible cierra el dropdown (mismo mecanismo de uso normal)
+    // antes de tocar el otro combobox.
+    fireEvent.click(screen.getByRole("option", { name: "Definición A" }));
 
-    fireEvent.change(screen.getByLabelText(/cliente/i), { target: { value: "client-2" } });
-    expect(screen.queryByText("Definición A")).not.toBeInTheDocument();
-    expect(screen.getByText("Definición B")).toBeInTheDocument();
+    await selectOption(/^cliente$/i, "Cliente Dos");
+    fireEvent.click(screen.getByRole("combobox", { name: /importar de definición/i }));
+    expect(screen.queryByRole("option", { name: "Definición A" })).not.toBeInTheDocument();
+    expect(await screen.findByRole("option", { name: "Definición B" })).toBeInTheDocument();
   });
 
-  it("muestra texto muted cuando el cliente elegido no tiene definiciones completadas", () => {
+  it("muestra texto muted cuando el cliente elegido no tiene definiciones completadas", async () => {
     render(
       <NewPixelforgeForm clients={[{ crmId: "client-3", name: "Sin defs" }, ...clients]} definitions={definitions} />
     );
-    fireEvent.change(screen.getByLabelText(/cliente/i), { target: { value: "client-3" } });
+    await selectOption(/^cliente$/i, "Sin defs");
     expect(screen.getByText(/este cliente no tiene definiciones completadas/i)).toBeInTheDocument();
   });
 });
@@ -94,12 +118,12 @@ describe("NewPixelforgeForm — submit", () => {
     });
     render(<NewPixelforgeForm clients={clients} definitions={definitions} />);
 
-    fireEvent.change(screen.getByLabelText(/cliente/i), { target: { value: "client-1" } });
+    await selectOption(/^cliente$/i, "Cliente Uno");
     fireEvent.change(screen.getByPlaceholderText(/título/i), { target: { value: "Landing X" } });
     fireEvent.change(screen.getByPlaceholderText(/idea|problema|cabeza/i), {
       target: { value: "Descripción con más de veinte caracteres" },
     });
-    fireEvent.change(screen.getByLabelText(/importar de definición/i), { target: { value: "def-1" } });
+    await selectOption(/importar de definición/i, "Definición A");
 
     fireEvent.click(screen.getByText("Crear proyecto"));
 
@@ -120,7 +144,7 @@ describe("NewPixelforgeForm — submit", () => {
     createPixelforgeProjectActionMock.mockResolvedValue({ success: false, error: "Cliente no encontrado" });
     render(<NewPixelforgeForm clients={clients} definitions={definitions} />);
 
-    fireEvent.change(screen.getByLabelText(/cliente/i), { target: { value: "client-1" } });
+    await selectOption(/^cliente$/i, "Cliente Uno");
     fireEvent.change(screen.getByPlaceholderText(/título/i), { target: { value: "Landing X" } });
     fireEvent.change(screen.getByPlaceholderText(/idea|problema|cabeza/i), {
       target: { value: "Descripción con más de veinte caracteres" },
@@ -164,7 +188,7 @@ describe("NewPixelforgeForm — borrador en localStorage", () => {
     });
     render(<NewPixelforgeForm clients={clients} definitions={definitions} />);
 
-    fireEvent.change(screen.getByLabelText(/cliente/i), { target: { value: "client-1" } });
+    await selectOption(/^cliente$/i, "Cliente Uno");
     fireEvent.change(screen.getByPlaceholderText(/título/i), { target: { value: "Landing X" } });
     fireEvent.change(screen.getByPlaceholderText(/idea|problema|cabeza/i), {
       target: { value: "Descripción con más de veinte caracteres" },

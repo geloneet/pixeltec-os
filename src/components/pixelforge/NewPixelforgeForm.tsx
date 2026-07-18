@@ -5,6 +5,13 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Brain, FileText, Loader2, Sparkles, Users } from "lucide-react";
 import { createPixelforgeProjectAction } from "@/app/(admin)/proyectos/pixelforge/actions";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export interface ClientOption {
   crmId: string;
@@ -24,6 +31,15 @@ interface Props {
 
 const MIN_BRAIN_DUMP = 20;
 const DRAFT_KEY = "pixelforge:new-draft";
+// Radix Select no permite value="" en un Item (ese valor está reservado para
+// "sin selección"/placeholder) — usamos un sentinel para "Ninguna" y lo
+// traducimos a "" al guardar en el estado (mismo contrato que el <select> nativo).
+const NONE_DEFINITION = "__none__";
+
+const pfxSelectTriggerClass =
+  "w-full rounded-[var(--pfx-radius)] border border-pfx-border bg-pfx-surface px-3.5 py-2.5 text-sm text-pfx-text focus:outline-none focus:ring-2 focus:ring-pfx-accent focus:ring-offset-0 data-[placeholder]:text-pfx-text-muted/70";
+const pfxSelectContentClass = "border-pfx-border bg-pfx-surface-elevated text-pfx-text";
+const pfxSelectItemClass = "text-pfx-text focus:bg-pfx-accent/10 focus:text-pfx-text";
 
 interface Draft {
   clientCrmId?: string;
@@ -129,22 +145,24 @@ export function NewPixelforgeForm({ clients, definitions }: Props) {
           <Users className="h-4 w-4 text-muted-foreground" />
           Cliente
         </label>
-        <select
-          id="pixelforge-client"
+        <Select
           value={clientCrmId}
-          onChange={(e) => {
-            setClientCrmId(e.target.value);
+          onValueChange={(v) => {
+            setClientCrmId(v);
             setDefinitionId("");
           }}
-          className="w-full rounded-md border border-border bg-secondary/40 px-3.5 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-400/40"
         >
-          <option value="">Selecciona un cliente</option>
-          {clients.map((c) => (
-            <option key={c.crmId} value={c.crmId}>
-              {c.name}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger id="pixelforge-client" className={pfxSelectTriggerClass}>
+            <SelectValue placeholder="Selecciona un cliente" />
+          </SelectTrigger>
+          <SelectContent className={pfxSelectContentClass}>
+            {clients.map((c) => (
+              <SelectItem key={c.crmId} value={c.crmId} className={pfxSelectItemClass}>
+                {c.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
         <label
           htmlFor="pixelforge-title"
@@ -193,19 +211,24 @@ export function NewPixelforgeForm({ clients, definitions }: Props) {
               >
                 Importar de Definición (opcional)
               </label>
-              <select
-                id="pixelforge-definition"
-                value={definitionId}
-                onChange={(e) => setDefinitionId(e.target.value)}
-                className="w-full rounded-md border border-border bg-secondary/40 px-3.5 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-400/40"
+              <Select
+                value={definitionId || NONE_DEFINITION}
+                onValueChange={(v) => setDefinitionId(v === NONE_DEFINITION ? "" : v)}
               >
-                <option value="">Ninguna</option>
-                {clientDefinitions.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.title}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger id="pixelforge-definition" className={pfxSelectTriggerClass}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className={pfxSelectContentClass}>
+                  <SelectItem value={NONE_DEFINITION} className={pfxSelectItemClass}>
+                    Ninguna
+                  </SelectItem>
+                  {clientDefinitions.map((d) => (
+                    <SelectItem key={d.id} value={d.id} className={pfxSelectItemClass}>
+                      {d.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </>
           ) : (
             <p className="mt-5 text-[11px] text-muted-foreground/70">
