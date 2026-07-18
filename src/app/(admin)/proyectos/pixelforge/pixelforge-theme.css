@@ -130,3 +130,169 @@
      vs canvas 2.54:1, se apoya en opacidad 55% + contorno punteado + ícono. */
   --pfx-forge-locked: 222 8% 34%;
 }
+
+/* =========================================================================
+   PRIMITIVAS DE FORJA (PF-X1 T2) — materialidad de las planchas.
+
+   Todo escopado a [data-product="pixelforge"]. Las clases las emiten los
+   componentes de src/components/pixelforge/forge/. La animación de la veta
+   (solo en `forging`) vive AQUÍ y queda estática bajo prefers-reduced-motion:
+   los estados siguen distinguiéndose por forma y color sin movimiento.
+   ========================================================================= */
+
+/* --- ForgeZone: la plancha anclada --------------------------------------- */
+
+/* Base: perímetro pfx-border 1px + radio de forja. El fondo (bg-pfx-surface /
+   surface-elevated) lo aporta el componente vía Tailwind. La veta izquierda se
+   dibuja con ::before (2px) para poder animarla en `forging` sin tocar el borde
+   real; su color/estilo lo fija cada estado. */
+[data-product="pixelforge"] .forge-zone {
+  position: relative;
+  border: 1px solid hsl(var(--pfx-border));
+  border-radius: var(--pfx-radius);
+  /* Micro-interacción material (DNA: 180–260ms ease-out). */
+  transition:
+    box-shadow 220ms ease-out,
+    border-color 220ms ease-out;
+}
+
+[data-product="pixelforge"] .forge-zone::before {
+  content: "";
+  position: absolute;
+  inset-block: -1px; /* cubre el alto del borde superior/inferior */
+  inset-inline-start: -1px; /* se asienta sobre el borde izquierdo */
+  width: 2px;
+  border-start-start-radius: var(--pfx-radius);
+  border-end-start-radius: var(--pfx-radius);
+  pointer-events: none;
+}
+
+/* draft: veta tenue en reposo (seam ya viene apagada en los tokens). */
+[data-product="pixelforge"] .forge-zone--draft::before {
+  background: hsl(var(--pfx-seam));
+}
+
+/* forging: veta cobre que FLUYE (gradiente vertical desplazándose por
+   background-position) + glow ámbar sutil en el perímetro. Único estado con
+   movimiento y con calor (DNA: "una sola fuente de calor"). */
+[data-product="pixelforge"] .forge-zone--forging::before {
+  background-image: linear-gradient(
+    180deg,
+    hsl(var(--pfx-accent) / 0.15) 0%,
+    hsl(var(--pfx-accent)) 30%,
+    hsl(var(--pfx-glow)) 50%,
+    hsl(var(--pfx-accent)) 70%,
+    hsl(var(--pfx-accent) / 0.15) 100%
+  );
+  background-size: 100% 220%;
+  background-position: 50% 0%;
+  animation: pfx-veta-flow 2.2s ease-in-out infinite;
+}
+
+[data-product="pixelforge"] .forge-zone--forging {
+  box-shadow:
+    0 0 0 1px hsl(var(--pfx-accent) / 0.25),
+    0 0 26px -8px hsl(var(--pfx-glow) / 0.4);
+}
+
+@keyframes pfx-veta-flow {
+  0% {
+    background-position: 50% 0%;
+  }
+  100% {
+    background-position: 50% 200%;
+  }
+}
+
+/* sealed: veta sólida en acero frío + notch 45° en la esquina superior-derecha.
+   Técnica del notch (documentada): clip-path recorta el vértice de la plancha
+   (corte material, honesto respecto al fondo, sea canvas o surface elevada). Como
+   clip-path también recorta el borde en la diagonal, un ::after dibuja el bisel:
+   una caja de 14×14 en la esquina cuya línea central a 45° coincide con el chaflán;
+   se desplaza 1px hacia dentro (top/right:1px) para quedar íntegra dentro del área
+   recortada y leerse como borde biselado. Además, `pfx-settle` asienta la pieza una
+   sola vez (scale 0.985→1), como "sellar = asentar" del DNA. */
+[data-product="pixelforge"] .forge-zone--sealed {
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+  animation: pfx-settle 220ms ease-out;
+}
+
+[data-product="pixelforge"] .forge-zone--sealed::before {
+  background: hsl(var(--pfx-forge-sealed));
+}
+
+[data-product="pixelforge"] .forge-zone--sealed::after {
+  content: "";
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  width: 14px;
+  height: 14px;
+  background: linear-gradient(
+    45deg,
+    transparent calc(50% - 0.75px),
+    hsl(var(--pfx-border-strong)) calc(50% - 0.75px),
+    hsl(var(--pfx-border-strong)) calc(50% + 0.75px),
+    transparent calc(50% + 0.75px)
+  );
+  pointer-events: none;
+}
+
+@keyframes pfx-settle {
+  from {
+    transform: scale(0.985);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+/* locked: contorno punteado + contenido al 55%. La veta izquierda se apaga
+   (el punteado es la firma de forma); el título y el perímetro siguen legibles. */
+[data-product="pixelforge"] .forge-zone--locked {
+  border-style: dashed;
+  border-color: hsl(var(--pfx-forge-locked));
+}
+
+[data-product="pixelforge"] .forge-zone--locked::before {
+  background: none;
+}
+
+[data-product="pixelforge"] .forge-zone--locked .forge-zone__content {
+  opacity: 0.55;
+}
+
+/* invalidated: veta izquierda discontinua en ámbar (repeating-linear-gradient
+   vertical) — la veta "se rompe" (DNA). */
+[data-product="pixelforge"] .forge-zone--invalidated::before {
+  background: repeating-linear-gradient(
+    180deg,
+    hsl(var(--pfx-warning)) 0 6px,
+    transparent 6px 12px
+  );
+}
+
+/* Reduced-motion: sin flujo ni asentamiento; los estados siguen distinguibles
+   por forma (notch, punteado) y color (cobre, acero, ámbar). */
+@media (prefers-reduced-motion: reduce) {
+  [data-product="pixelforge"] .forge-zone--forging::before {
+    animation: none;
+    background-position: 50% 50%;
+  }
+  [data-product="pixelforge"] .forge-zone--sealed {
+    animation: none;
+  }
+}
+
+/* --- ForgeSeam: separación por veta horizontal --------------------------- */
+
+[data-product="pixelforge"] .forge-seam {
+  height: 1px;
+  margin: 0;
+  border: 0;
+  background: hsl(var(--pfx-seam));
+}
+
+[data-product="pixelforge"] .forge-seam--strong {
+  background: hsl(var(--pfx-border-strong));
+}
