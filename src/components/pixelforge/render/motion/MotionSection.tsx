@@ -212,14 +212,18 @@ function MotionSectionRunner({
   // --- Pre-paint: aplicar TODOS los estados "ocultos" SIN flash de salto ---
   // (progressive enhancement: sin JS este layout effect no corre y el
   //  contenido server-rendered queda visible; ver hydration-safety en el
-  //  docstring del módulo). Cubre: la tween PRIMARIA sobre el propio wrapper,
+  //  docstring del módulo). Cubre: la tween PRIMARIA sobre el HIJO del wrapper,
   //  los items de stagger/scroll-steps y las cifras de count-up.
   useLayoutEffect(() => {
-    // Tween primaria: el estado oculto va sobre el wrapper (`ref.current`),
-    // no sobre los items. Sin transición inline — la revelación imperativa la
-    // gobierna `animate()` con la duración/ease del resolver.
+    // Tween primaria: el estado oculto va sobre el HIJO del wrapper
+    // (`motionTarget`), NUNCA sobre `ref.current` — el elemento observado por
+    // useInView JAMÁS recibe estilos de motion — un clip-path/transform en el
+    // target colapsa su intersectionRatio en Chromium y deja el trigger in-view
+    // en deadlock (bug real del gate F6B). Sin transición inline — la
+    // revelación imperativa la gobierna `animate()` con la duración/ease del
+    // resolver.
     if (primary && ref.current) {
-      applyKeyframeStyle(ref.current, primary.hidden);
+      applyKeyframeStyle(motionTarget(ref.current), primary.hidden);
     }
     const items = ref.current?.querySelectorAll<HTMLElement>(ITEM_SELECTOR);
     if (!items || items.length === 0) return;
@@ -243,14 +247,16 @@ function MotionSectionRunner({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // --- tween primaria: revelación IMPERATIVA del wrapper (hydration-safe) ---
+  // --- tween primaria: revelación IMPERATIVA del HIJO del wrapper ---
   // El estado oculto ya lo aplicó el pre-paint; aquí solo se anima hacia el
   // `visible` resuelto. trigger "load" ⇒ al montar; trigger "in-view" ⇒ cuando
-  // `inView` (misma política once + amount:0.3 que el resto del runner).
+  // `inView` (misma política once + amount:0.3 que el resto del runner). Anima
+  // al HIJO, NO al wrapper observado por useInView (ver invariante en el
+  // pre-paint: un clip-path/transform en el target lo deadlockea en Chromium).
   useEffect(() => {
     if (!primary) return;
-    const el = ref.current;
-    if (!el) return;
+    if (!ref.current) return;
+    const el = motionTarget(ref.current);
     const shouldRun = primary.trigger === "load" ? true : inView;
     if (!shouldRun) return;
     const controls = animate(el, keyframeToTarget(primary.visible), {
@@ -271,8 +277,11 @@ function MotionSectionRunner({
     if (!pulseSeq || pulseSeq.pulseScale === undefined) return;
     if (pulseSeq.trigger === "interaction") return; // gesto declarativo, no aquí
     if (!inView) return;
-    const el = ref.current;
-    if (!el) return;
+    if (!ref.current) return;
+    // Escala sobre el HIJO, NO sobre el wrapper observado: un scale en el target
+    // también perturba la geometría de IO a mitad de ciclo (misma invariante que
+    // la tween primaria — ver pre-paint).
+    const el = motionTarget(ref.current);
     const controls = animate(el, { scale: [1, pulseSeq.pulseScale, 1] }, {
       duration: toSeconds(pulseSeq.durationMs),
       ease: [...pulseSeq.ease],
@@ -349,6 +358,18 @@ function MotionSectionRunner({
 // Helpers puros (sin React) — traducen keyframes numéricos a props de framer
 // o a estilos inline. No re-calculan nada: consumen lo que dejó el resolver.
 // ---------------------------------------------------------------------------
+
+/**
+ * Elemento que recibe los estilos/animaciones de motion PRIMARIA (tween e
+ * in-view pulse): el PRIMER hijo del wrapper, con fallback al propio wrapper si
+ * no hubiera hijos. INVARIANTE: el elemento observado por `useInView`
+ * (`ref.current`) JAMÁS recibe estilos de motion — un clip-path/transform en el
+ * target colapsa su intersectionRatio en Chromium y deja el trigger in-view en
+ * deadlock (bug real del gate F6B). Por eso todo lo que oculta/anima va al hijo.
+ */
+function motionTarget(wrapper: HTMLElement): HTMLElement {
+  return (wrapper.firstElementChild as HTMLElement | null) ?? wrapper;
+}
 
 type WrapperProps = Record<string, unknown>;
 

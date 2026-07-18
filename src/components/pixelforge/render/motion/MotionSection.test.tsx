@@ -209,15 +209,21 @@ describe("MotionSection — paridad estructural (regresión de hidratación)", (
   });
 });
 
-/** Llamada de `animate` cuyo primer arg es un elemento DOM (revelación imperativa del wrapper). */
-function wrapperAnimateCall(): [unknown, unknown, Record<string, unknown> | undefined] | undefined {
+/** Llamada de `animate` cuyo primer arg es un elemento DOM (revelación imperativa: hijo del wrapper). */
+function elementAnimateCall(): [unknown, unknown, Record<string, unknown> | undefined] | undefined {
   return animateSpy.mock.calls.find((c) => c[0] instanceof HTMLElement) as
     | [unknown, unknown, Record<string, unknown> | undefined]
     | undefined;
 }
 
-describe("MotionSection — tween primaria IMPERATIVA sobre el wrapper (hydration-safe)", () => {
-  it("trigger load → animate(wrapper, visible, {duration,ease,delay}); hidden aplicado pre-paint; SIN initial/animate/whileInView declarativos", () => {
+/** Hijo del wrapper `.pf-motion` — el elemento que SÍ recibe estilos/animaciones de motion primaria. */
+function motionChild(container: HTMLElement): HTMLElement {
+  const wrapper = container.querySelector<HTMLElement>(".pf-motion");
+  return wrapper!.firstElementChild as HTMLElement;
+}
+
+describe("MotionSection — tween primaria IMPERATIVA sobre el HIJO (hydration-safe + IO-safe)", () => {
+  it("trigger load → animate(hijo, visible, {duration,ease,delay}); hidden aplicado pre-paint al hijo; SIN initial/animate/whileInView declarativos", () => {
     const { container } = render(
       <MotionSection nodeId="n1" choreography={choreography([seq({ behaviorId: "fade-rise", trigger: "load" })])}>
         <p>hero</p>
@@ -225,6 +231,7 @@ describe("MotionSection — tween primaria IMPERATIVA sobre el wrapper (hydratio
     );
     const wrapper = container.querySelector<HTMLElement>(".pf-motion");
     expect(wrapper).not.toBeNull();
+    const child = motionChild(container);
 
     // El wrapper NO lleva ningún prop declarativo de motion — esa es la fuente
     // del mismatch de hidratación, ya eliminada.
@@ -234,21 +241,25 @@ describe("MotionSection — tween primaria IMPERATIVA sobre el wrapper (hydratio
     expect(w.whileInView).toBeUndefined();
     expect(w.transition).toBeUndefined();
 
-    // hidden aplicado pre-paint (useLayoutEffect) sobre el propio wrapper.
-    // fade-rise: hidden {opacity:0,y:24}. intensity 2 + defaults ⇒ factor 1.
-    expect(wrapper!.style.opacity).toBe("0");
-    expect(wrapper!.style.transform).toContain("translateY(24px)");
+    // INVARIANTE: el wrapper OBSERVADO por useInView no recibe estilos de motion.
+    expect(wrapper!.style.opacity).toBe("");
+    expect(wrapper!.style.transform).toBe("");
 
-    // Revelación imperativa: animate(wrapper, visible, transición en segundos).
-    const call = wrapperAnimateCall();
+    // hidden aplicado pre-paint (useLayoutEffect) sobre el HIJO del wrapper.
+    // fade-rise: hidden {opacity:0,y:24}. intensity 2 + defaults ⇒ factor 1.
+    expect(child.style.opacity).toBe("0");
+    expect(child.style.transform).toContain("translateY(24px)");
+
+    // Revelación imperativa: animate(hijo, visible, transición en segundos).
+    const call = elementAnimateCall();
     expect(call).toBeDefined();
-    expect(call![0]).toBe(wrapper);
+    expect(call![0]).toBe(child);
     expect(call![1]).toEqual({ opacity: 1, y: 0 });
     // normal=450ms ⇒ 0.45s; ease-out cubic-bezier; delay "none" ⇒ 0.
     expect(call![2]).toMatchObject({ duration: 0.45, delay: 0, ease: [0.16, 1, 0.3, 1] });
   });
 
-  it("trigger in-view + inView:true → animate(wrapper, visible) gobernado por useInView", () => {
+  it("trigger in-view + inView:true → animate(hijo, visible) gobernado por useInView", () => {
     mockState.inView = true;
     const { container } = render(
       <MotionSection nodeId="n1" choreography={choreography([seq({ behaviorId: "fade-in", trigger: "in-view" })])}>
@@ -256,18 +267,21 @@ describe("MotionSection — tween primaria IMPERATIVA sobre el wrapper (hydratio
       </MotionSection>
     );
     const wrapper = container.querySelector<HTMLElement>(".pf-motion");
+    const child = motionChild(container);
     const w = lastWrapper();
     expect(w.whileInView).toBeUndefined();
     expect(w.animate).toBeUndefined();
-    // fade-in: hidden {opacity:0}, visible {opacity:1} — sin transform.
-    expect(wrapper!.style.opacity).toBe("0");
-    const call = wrapperAnimateCall();
+    // fade-in: hidden {opacity:0}, visible {opacity:1} — sin transform. El
+    // hidden va al hijo; el wrapper observado queda limpio.
+    expect(wrapper!.style.opacity).toBe("");
+    expect(child.style.opacity).toBe("0");
+    const call = elementAnimateCall();
     expect(call).toBeDefined();
-    expect(call![0]).toBe(wrapper);
+    expect(call![0]).toBe(child);
     expect(call![1]).toEqual({ opacity: 1 });
   });
 
-  it("trigger in-view + inView:false → NO se revela (sin animate sobre el wrapper)", () => {
+  it("trigger in-view + inView:false → NO se revela (sin animate sobre ningún elemento)", () => {
     mockState.inView = false;
     render(
       <MotionSection nodeId="n1" choreography={choreography([seq({ behaviorId: "fade-in", trigger: "in-view" })])}>
@@ -275,7 +289,42 @@ describe("MotionSection — tween primaria IMPERATIVA sobre el wrapper (hydratio
       </MotionSection>
     );
     // El pre-paint dejó el hidden; sin inView no hay revelación imperativa.
-    expect(wrapperAnimateCall()).toBeUndefined();
+    expect(elementAnimateCall()).toBeUndefined();
+  });
+});
+
+describe("MotionSection — INVARIANTE IO-safe: el wrapper observado nunca recibe estilos de motion (deadlock clip-path, gate F6B)", () => {
+  it("wipe-reveal (hidden clipPath): el wrapper .pf-motion NO lleva clipPath/opacity/transform inline; el HIJO SÍ", () => {
+    // Root cause del gate F6B: `wipe-reveal` oculta con clipPath inset(0 100% 0 0).
+    // Si ese clip-path cae sobre el elemento observado por useInView, en Chromium
+    // su intersectionRatio colapsa a 0 y el trigger in-view nunca dispara
+    // (deadlock: el contenido queda invisible para siempre). La revelación debe
+    // aplicarse SIEMPRE al hijo, dejando el wrapper observado limpio.
+    const { container } = render(
+      <MotionSection
+        nodeId="n11"
+        choreography={choreography([seq({ behaviorId: "wipe-reveal", trigger: "in-view", intensity: 3 })])}
+      >
+        <div>cta-banner</div>
+      </MotionSection>
+    );
+    const wrapper = container.querySelector<HTMLElement>(".pf-motion")!;
+    const child = motionChild(container);
+
+    // El wrapper OBSERVADO queda sin NINGÚN estilo de motion inline.
+    expect(wrapper.style.clipPath).toBe("");
+    expect(wrapper.style.opacity).toBe("");
+    expect(wrapper.style.transform).toBe("");
+
+    // El HIJO es quien carga el estado oculto (clip-path del pre-paint).
+    expect(child.style.clipPath).toBe("inset(0 100% 0 0)");
+
+    // Y la revelación imperativa apunta al hijo, no al wrapper observado.
+    const call = elementAnimateCall();
+    expect(call).toBeDefined();
+    expect(call![0]).toBe(child);
+    expect(call![0]).not.toBe(wrapper);
+    expect(call![1]).toEqual({ clipPath: "inset(0)" });
   });
 });
 
@@ -298,7 +347,7 @@ describe("MotionSection — pulse", () => {
     expect(w.whileHover).toEqual({ scale: 1.03, transition });
     expect(w.whileTap).toEqual({ scale: 1, transition });
     // El pulse de interacción NO es imperativo (no anima el elemento).
-    expect(wrapperAnimateCall()).toBeUndefined();
+    expect(elementAnimateCall()).toBeUndefined();
   });
 
   it("interacción: la transition declarativa cambia con motionDna.ritmo (lento ≠ moderado) — antes idéntica por ignorar el resolver", () => {
@@ -329,20 +378,20 @@ describe("MotionSection — pulse", () => {
     expect(durationLento).toBeCloseTo(Math.round(450 * RHYTHM_FACTOR.lento) / 1000, 10);
   });
 
-  it("in-view → ciclo de escala IMPERATIVO con duración/ease del resolver (no declarativo, sin whileInView)", () => {
+  it("in-view → ciclo de escala IMPERATIVO sobre el HIJO con duración/ease del resolver (no declarativo, sin whileInView)", () => {
     mockState.inView = true;
     const { container } = render(
       <MotionSection nodeId="n1" choreography={choreography([seq({ behaviorId: "pulse-accent", trigger: "in-view" })])}>
         <button>CTA</button>
       </MotionSection>
     );
-    const wrapper = container.querySelector<HTMLElement>(".pf-motion");
+    const child = motionChild(container);
     const w = lastWrapper();
     expect(w.whileInView).toBeUndefined();
     expect(w.whileHover).toBeUndefined();
-    const call = wrapperAnimateCall();
+    const call = elementAnimateCall();
     expect(call).toBeDefined();
-    expect(call![0]).toBe(wrapper);
+    expect(call![0]).toBe(child);
     expect(call![1]).toEqual({ scale: [1, 1.03, 1] });
     // normal=450ms x moderado(1.0) ⇒ 0.45s; ease-in-out del recipe (finding L1:
     // antes el in-view pulse pasaba duration pero olvidaba `ease`).
@@ -360,7 +409,7 @@ describe("MotionSection — pulse", () => {
         <button>CTA</button>
       </MotionSection>
     );
-    const call = wrapperAnimateCall();
+    const call = elementAnimateCall();
     expect(call).toBeDefined();
     expect(call![2]).toMatchObject({ duration: Math.round(450 * RHYTHM_FACTOR.lento) / 1000 });
   });
