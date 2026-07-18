@@ -22,6 +22,9 @@ export default {
         headline: ['var(--font-poppins)', 'sans-serif'],
         roboto: ['var(--font-roboto)', 'sans-serif'],
         logo: ['var(--font-league-spartan)', 'sans-serif'],
+        // Mono de forja — solo se resuelve dentro de [data-product="pixelforge"]
+        // (PF-X1 T1); fuera de ese scope la variable no existe y cae al fallback.
+        'forge-mono': ['var(--pfx-font-mono)', 'ui-monospace', 'monospace'],
       },
       colors: {
         'brand-blue': '#2196F3',
@@ -72,6 +75,28 @@ export default {
         'hero-blue': '#292da3',
         'hero-purple': '#5f41ab',
         'hero-subtitle': '#4f547b',
+        // Tokens escopados del módulo PixelForge (PF-X1 T1). Solo resuelven
+        // dentro de [data-product="pixelforge"] — ver pixelforge-theme.css.
+        pfx: {
+          canvas: 'hsl(var(--pfx-canvas))',
+          surface: 'hsl(var(--pfx-surface))',
+          'surface-elevated': 'hsl(var(--pfx-surface-elevated))',
+          text: 'hsl(var(--pfx-text))',
+          'text-muted': 'hsl(var(--pfx-text-muted))',
+          border: 'hsl(var(--pfx-border))',
+          'border-strong': 'hsl(var(--pfx-border-strong))',
+          seam: 'hsl(var(--pfx-seam))',
+          accent: 'hsl(var(--pfx-accent))',
+          'accent-strong': 'hsl(var(--pfx-accent-strong))',
+          'on-accent': 'hsl(var(--pfx-on-accent))',
+          glow: 'hsl(var(--pfx-glow))',
+          success: 'hsl(var(--pfx-success))',
+          warning: 'hsl(var(--pfx-warning))',
+          error: 'hsl(var(--pfx-error))',
+          'forge-active': 'hsl(var(--pfx-forge-active))',
+          'forge-sealed': 'hsl(var(--pfx-forge-sealed))',
+          'forge-locked': 'hsl(var(--pfx-forge-locked))',
+        },
       },
       borderRadius: {
         lg: `var(--radius)`,

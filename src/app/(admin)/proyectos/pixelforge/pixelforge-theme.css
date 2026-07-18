@@ -1,0 +1,132 @@
+/**
+ * Tokens escopados de PixelForge (PF-X1 T1).
+ *
+ * Namespace `--pfx-*`, activo únicamente dentro de `[data-product="pixelforge"]`
+ * (el wrapper que monta `pixelforge/layout.tsx`). No colisiona con `--pf-*`
+ * (reservado al render de landings, documento aparte en iframe) ni con los
+ * tokens globales del shell (`--background`, `--foreground`, etc. en globals.css).
+ *
+ * El tema global sigue mandando vía la clase `.dark` de next-themes en <html>:
+ * el bloque base de abajo son los valores LIGHT (mismo comportamiento que
+ * `:root` en globals.css) y `.dark [data-product="pixelforge"]` sobreescribe
+ * con los valores DARK. Idiom HSL-triple (sin envoltura `hsl()`) para poder
+ * componer opacidad en el punto de consumo: `hsl(var(--pfx-accent) / 0.4)`.
+ *
+ * Contraste (WCAG AA, texto normal 4.5:1 / texto grande o componentes de UI
+ * 3:1) verificado por par a continuación de cada valor. Fuente: docs/pixelforge/product-dna.md.
+ */
+
+[data-product="pixelforge"] {
+  /* ---- LIGHT (valores por defecto de la cascada; el .dark de abajo gana en dark) ---- */
+
+  /* Fondo del módulo — papel cálido a luz de día. */
+  --pfx-canvas: 36 33% 96%;
+  /* Plancha base. text/canvas → 16.63:1 AA (ver --pfx-text). */
+  --pfx-surface: 0 0% 100%;
+  /* Plancha elevada (modal, popover, banco activo). */
+  --pfx-surface-elevated: 36 20% 99%;
+
+  /* Texto principal. vs canvas 16.63:1, vs surface 18.01:1 — AA texto normal holgado. */
+  --pfx-text: 222 30% 10%;
+  /* Secundario / metadata. vs canvas 5.31:1, vs surface 5.76:1 — AA texto normal (>4.5). */
+  --pfx-text-muted: 222 12% 42%;
+
+  /* Perímetro de zona. No es texto — contraste informativo, no sujeto a 4.5:1;
+     decorativo/estructural (SC 1.4.11 no aplica a separadores no esenciales). */
+  --pfx-border: 35 15% 86%;
+  --pfx-border-strong: 35 12% 72%;
+
+  /* La veta en reposo. Elemento gráfico decorativo (no transmite info por sí
+     solo sin el resto de la materialidad de estado) — no exigido a 3:1. */
+  --pfx-seam: 24 55% 55%;
+
+  /* Acción / actividad / foco. Usado también como texto de énfasis:
+     vs canvas 4.56:1, vs surface 4.94:1 — pasa AA texto normal (4.5:1). */
+  --pfx-accent: 20 72% 42%;
+  /* Hover/pressed. vs on-accent 6.00:1 (ver --pfx-on-accent). */
+  --pfx-accent-strong: 18 78% 36%;
+  /* Texto sobre acento (botones). vs accent 4.64:1, vs accent-strong 6.00:1 — AA texto normal. */
+  --pfx-on-accent: 30 40% 97%;
+
+  /* Halo de actividad IA — se consume con alpha, no como texto/borde sólido;
+     no sujeto a umbral de contraste (glow decorativo transitorio). */
+  --pfx-glow: 28 85% 50%;
+
+  /* Éxito. vs canvas 5.10:1 — AA texto normal. */
+  --pfx-success: 152 55% 30%;
+  /* Aviso / invalidated. Valor DNA (36 90% 34%) medía 4.30:1 vs canvas — por
+     debajo de 4.5:1 si se usa como texto normal (pasa 3:1 de sobra para
+     iconos/badges). Ajuste mínimo de lightness manteniendo el hue/sat:
+     34% → 33% para cruzar el umbral de texto normal (4.52:1). */
+  --pfx-warning: 36 90% 33%;
+  /* Error / destructivo. vs canvas 5.76:1 — AA texto normal. */
+  --pfx-error: 4 72% 42%;
+
+  /* Estación/artefacto trabajándose — alias de accent (DNA: "= accent"). */
+  --pfx-forge-active: var(--pfx-accent);
+  /* Sellado (frío, sólido). vs canvas 7.12:1, vs surface 7.71:1 — AA texto normal. */
+  --pfx-forge-sealed: 200 45% 30%;
+  /* Bloqueado (apagado, punteado). Estado de UI inactivo/deshabilitado — la
+     SC 1.4.11 exime componentes inactivos del umbral de 3:1; vs canvas 2.75:1
+     (informativo, no bloqueante para AA porque el contenido bloqueado ya se
+     atenúa al 55% de opacidad y se distingue por forma, no solo color). */
+  --pfx-forge-locked: 222 8% 60%;
+
+  /* Radio de plancha — igual en ambos temas, no requiere override en .dark. */
+  --pfx-radius: 6px;
+
+  /* Fuente de forja: variable inyectada por next/font en el layout del
+     módulo (peso 400/500), con fallback a monospace del sistema. */
+  --pfx-font-mono: var(--pfx-font-mono-src), ui-monospace, monospace;
+}
+
+.dark [data-product="pixelforge"] {
+  /* ---- DARK (default conceptual del módulo per DNA: carbón azulado) ---- */
+
+  /* Carbón profundo con matiz azul frío — distinto del #030303 neutro del OS. */
+  --pfx-canvas: 220 18% 6%;
+  /* Plancha base. text/canvas 16.91:1, text/surface 15.93:1 — AA holgado. */
+  --pfx-surface: 219 16% 9%;
+  /* Plancha elevada (modal, popover, banco activo). text/surface-elevated 14.77:1. */
+  --pfx-surface-elevated: 218 15% 12%;
+
+  /* Texto principal. AA texto normal holgado en las tres superficies. */
+  --pfx-text: 30 15% 94%;
+  /* Secundario / metadata. vs canvas 6.87:1, vs surface 6.47:1 — AA texto normal. */
+  --pfx-text-muted: 225 8% 62%;
+
+  /* Perímetro de zona. Decorativo/estructural, no sujeto a 4.5:1. */
+  --pfx-border: 220 12% 17%;
+  --pfx-border-strong: 220 10% 26%;
+
+  /* La veta en reposo. DNA especifica "24 60% 38% / apagada" → resuelto a
+     "24 45% 30%" (más cerca del canvas, cobre apagado). Decorativo, no
+     sujeto a 3:1 por sí solo. */
+  --pfx-seam: 24 45% 30%;
+
+  /* Acción / actividad / foco (cobre). vs canvas 6.84:1, vs surface 6.44:1 — AA texto normal. */
+  --pfx-accent: 22 78% 58%;
+  /* Hover/pressed. */
+  --pfx-accent-strong: 24 85% 66%;
+  /* Texto sobre acento (botones). vs accent 6.53:1, vs accent-strong 8.36:1 — AA texto normal. */
+  --pfx-on-accent: 20 30% 8%;
+
+  /* Halo de actividad IA (ámbar) — se consume con alpha, no sujeto a umbral. */
+  --pfx-glow: 32 90% 60%;
+
+  /* Éxito. vs canvas 8.58:1 — AA texto normal. */
+  --pfx-success: 152 45% 55%;
+  /* Aviso / invalidated. vs canvas 10.51:1 — AA texto normal, sin ajuste necesario. */
+  --pfx-warning: 40 85% 60%;
+  /* Error / destructivo. vs canvas 5.32:1 — AA texto normal. */
+  --pfx-error: 4 72% 60%;
+
+  /* Estación/artefacto trabajándose — alias de accent + glow (el glow se
+     aplica en el componente vía --pfx-glow, no cambia el color base). */
+  --pfx-forge-active: var(--pfx-accent);
+  /* Sellado (acero frío). vs canvas 4.91:1, vs surface 4.63:1 — AA texto normal. */
+  --pfx-forge-sealed: 196 35% 46%;
+  /* Bloqueado (apagado, punteado). Estado inactivo — exento de 3:1 (SC 1.4.11);
+     vs canvas 2.54:1, se apoya en opacidad 55% + contorno punteado + ícono. */
+  --pfx-forge-locked: 222 8% 34%;
+}
