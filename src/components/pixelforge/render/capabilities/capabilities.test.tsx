@@ -280,6 +280,37 @@ describe("ProductSelector", () => {
     expect(screen.queryByRole("group")).toBeNull();
     expect(screen.getByText("Único")).toBeInTheDocument();
   });
+
+  it("dos instancias con el mismo filtro no comparten grupo de radios nativo (useId, review F6C-T4)", () => {
+    const { container } = render(
+      <>
+        <div data-testid="instancia-a">
+          <ProductSelector {...props} />
+        </div>
+        <div data-testid="instancia-b">
+          <ProductSelector {...props} />
+        </div>
+      </>
+    );
+    const instanciaA = within(container.querySelector('[data-testid="instancia-a"]') as HTMLElement);
+    const instanciaB = within(container.querySelector('[data-testid="instancia-b"]') as HTMLElement);
+
+    // Selecciona "Comercial" en A y confirma que quedó marcado.
+    fireEvent.click(instanciaA.getByRole("radio", { name: "Comercial" }));
+    expect((instanciaA.getByRole("radio", { name: "Comercial" }) as HTMLInputElement).checked).toBe(true);
+
+    // Con un `name` compartido entre instancias, marcar el radio de B
+    // desmarcaría nativamente el de A (mismo grupo de radios del documento).
+    fireEvent.click(instanciaB.getByRole("radio", { name: "Residencial" }));
+
+    expect((instanciaA.getByRole("radio", { name: "Comercial" }) as HTMLInputElement).checked).toBe(true);
+    expect((instanciaB.getByRole("radio", { name: "Residencial" }) as HTMLInputElement).checked).toBe(true);
+
+    // Los `name` de radio no deben coincidir entre instancias.
+    const nombreA = (instanciaA.getByRole("radio", { name: "Comercial" }) as HTMLInputElement).name;
+    const nombreB = (instanciaB.getByRole("radio", { name: "Comercial" }) as HTMLInputElement).name;
+    expect(nombreA).not.toBe(nombreB);
+  });
 });
 
 describe("CoverageMap", () => {

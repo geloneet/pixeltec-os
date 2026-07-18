@@ -23,7 +23,7 @@
  * NINGUNA zona trae `codigosPostales`, el buscador NO se renderiza (chips-only)
  * en vez de mostrarse siempre vacío. Nunca lanza ante props degeneradas.
  */
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { matchZonaByCp, type CpMatchResult } from "@/lib/pixelforge/render/cp-match";
 
 interface Zona {
@@ -49,6 +49,10 @@ type Anuncio =
   | null;
 
 export function CoverageMap({ zonas, buscadorPorCP, mensajeFueraDeCobertura }: CoverageMapProps) {
+  // Prefijo estable por instancia (SSR-safe, ver docstring ProductSelector):
+  // evita que dos instancias en la misma página compartan el id del input de
+  // CP (rompería la asociación label/input de la segunda instancia).
+  const instanceId = useId();
   const lista = useMemo(() => (Array.isArray(zonas) ? zonas : []), [zonas]);
 
   // El buscador solo tiene sentido si se pidió Y hay datos de CP en alguna zona.
@@ -149,12 +153,12 @@ export function CoverageMap({ zonas, buscadorPorCP, mensajeFueraDeCobertura }: C
               className="flex flex-col"
               style={{ gap: "calc(var(--pf-space) * 0.75)", maxWidth: "28rem" }}
             >
-              <label htmlFor="cm-cp-input" className="font-medium">
+              <label htmlFor={`${instanceId}-cp-input`} className="font-medium">
                 Consulta tu código postal
               </label>
               <div className="flex" style={{ gap: "calc(var(--pf-space) * 0.5)" }}>
                 <input
-                  id="cm-cp-input"
+                  id={`${instanceId}-cp-input`}
                   type="text"
                   inputMode="numeric"
                   autoComplete="postal-code"

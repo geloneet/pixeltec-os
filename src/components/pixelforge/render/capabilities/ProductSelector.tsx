@@ -21,7 +21,7 @@
  * deriva valores reales de los atributos, se cae a un grid ESTÁTICO sin
  * fieldsets — nunca se lanza ante props degeneradas.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 
 interface Opcion {
   id: string;
@@ -38,6 +38,12 @@ export interface ProductSelectorProps {
 const TODAS = "";
 
 export function ProductSelector({ opciones, filtros }: ProductSelectorProps) {
+  // Prefijo estable por instancia (SSR-safe): evita que dos instancias de este
+  // componente en la misma página, con el mismo `filtro`, colisionen en un solo
+  // grupo de radios nativo (name compartido → un radio de la instancia B
+  // desmarcaría silenciosamente el de la instancia A). `useId` es idéntico en
+  // server y cliente, así que no introduce mismatch de hidratación.
+  const instanceId = useId();
   const catalogo = useMemo(() => (Array.isArray(opciones) ? opciones : []), [opciones]);
 
   // Solo los filtros que realmente derivan valores de los atributos del catálogo
@@ -110,7 +116,7 @@ export function ProductSelector({ opciones, filtros }: ProductSelectorProps) {
               style={{ gap: "calc(var(--pf-space) * 2)" }}
             >
               {filtrosActivos.map(({ filtro, valores }) => {
-                const grupo = `ps-filtro-${filtro}`;
+                const grupo = `${instanceId}-filtro-${filtro}`;
                 const sel = seleccionDe(filtro);
                 return (
                   <fieldset

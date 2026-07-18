@@ -24,7 +24,7 @@
  * Patrón tabs con activación automática (roving tabindex): ArrowLeft/Right
  * (y Up/Down), Home/End mueven la selección Y el foco a la vez.
  */
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 
 interface Paso {
   titulo: string;
@@ -39,6 +39,10 @@ export interface ProcessVisualizerProps {
 export function ProcessVisualizer({ pasos }: ProcessVisualizerProps) {
   const steps = pasos ?? [];
   const count = steps.length;
+
+  // Prefijo estable por instancia (SSR-safe, ver docstring ProductSelector):
+  // dos instancias en la misma página no deben compartir ids de tab/panel.
+  const instanceId = useId();
 
   const [active, setActive] = useState(0);
   const [mounted, setMounted] = useState(false);
@@ -108,12 +112,12 @@ export function ProcessVisualizer({ pasos }: ProcessVisualizerProps) {
                 <button
                   type="button"
                   role="tab"
-                  id={`pv-tab-${index}`}
+                  id={`${instanceId}-tab-${index}`}
                   ref={(el) => {
                     tabRefs.current[index] = el;
                   }}
                   aria-selected={selected}
-                  aria-controls={`pv-panel-${index}`}
+                  aria-controls={`${instanceId}-panel-${index}`}
                   aria-current={selected ? "step" : undefined}
                   tabIndex={selected ? 0 : -1}
                   onClick={() => select(index)}
@@ -162,8 +166,8 @@ export function ProcessVisualizer({ pasos }: ProcessVisualizerProps) {
             <div
               key={index}
               role="tabpanel"
-              id={`pv-panel-${index}`}
-              aria-labelledby={`pv-tab-${index}`}
+              id={`${instanceId}-panel-${index}`}
+              aria-labelledby={`${instanceId}-tab-${index}`}
               hidden={mounted && !selected}
               tabIndex={0}
               style={{
