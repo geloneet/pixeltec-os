@@ -1,24 +1,35 @@
 /**
- * Fixture de preview (F6A-T6/T7, coreografía real desde F6B-T3): un `PageTree`
- * serializado y VÁLIDO que ejerce los 12 blocks del registry para dogfoodear
- * el pipeline de render antes de que F7 introduzca `page_versions` reales. La
+ * Fixture de preview (F6A-T6/T7, coreografía real desde F6B-T3, capabilities
+ * desde F6C-T6): un `PageTree` serializado y VÁLIDO que ejerce los 12 blocks
+ * del registry MÁS 2 capability nodes certificadas para dogfoodear el
+ * pipeline de render antes de que F7 introduzca `page_versions` reales. La
  * page de preview lo pasa por `validatePageTree` en runtime — si no valida,
  * la page lanza (dogfooding).
  *
  * Propiedades que este fixture garantiza (cubiertas por `preview-tree.test.ts`):
- *  - Usa LOS 12 `BlockId` del catálogo, uno por nodo, `orden` 1..12 únicos.
+ *  - Usa LOS 12 `BlockId` del catálogo, uno por nodo, MÁS 2 capability nodes
+ *    (`coverage-map-v1`, `product-selector-v1`) insertados antes del footer,
+ *    `orden` 1..14 únicos (F6C-T2: el espacio de `orden` es compartido entre
+ *    blocks y capabilities — no exige consecutividad estricta, pero este
+ *    fixture la mantiene 1..14 por legibilidad).
  *  - ≥1 variante NO-default (hero-split `media-left`, offer-tiers `table`,
  *    faq-accordion `two-column`, cta-banner `gradient`, etc.).
  *  - Exactamente 3 nodos con coreografía `intensity: 3` (cinematográfica) —
  *    `n1-hero`, `n5-narrative` y `n11-cta`, los tres sobre blocks con
  *    `allowsCinematic: true` — exactamente el máximo que admite
- *    `validatePageTree` (`MAX_CINEMATIC_NODES`), ejercitado a propósito.
+ *    `validatePageTree` (`MAX_CINEMATIC_NODES`), ejercitado a propósito. Los
+ *    2 capability nodes NO cuentan para este máximo (D1/D4) y no llevan
+ *    `choreography` (prohibida en v1 para capabilities).
  *  - `targetSlot` de cada sequence ∈ `editableSlots` del block.
  *  - `behaviorId` de cada sequence ∈ `BEHAVIOR_IDS` (registry real de
  *    `registry/behaviors.ts`, F6B-T1) — ninguna sequence usa un placeholder:
  *    8 behaviors certificados, se usan 8 de ellos y los 4 `trigger` del
  *    schema (`load`, `in-view`, `scroll-progress`, `interaction`) aparecen al
  *    menos una vez, para ejercitar variedad real en el gate visual.
+ *  - `n13-cobertura` (`coverage-map-v1`) y `n14-selector` (`product-selector-v1`)
+ *    traen props realistas de un demo instalador solar en Puerto
+ *    Vallarta/Bahía de Banderas — sus `propsJson` validan directamente contra
+ *    el `propsSchema` real de cada capability en `registry/capabilities.ts`.
  */
 import type { PageTree } from "@/lib/pixelforge/schemas/compose-page-tree";
 import type { DesignTokens } from "@/components/pixelforge/render/tokens";
@@ -322,10 +333,74 @@ export const PREVIEW_FIXTURE_TREE: PageTree = {
       },
     },
     {
+      nodeId: "n13-cobertura",
+      componentId: "coverage-map-v1",
+      variant: "default",
+      orden: 12,
+      propsJson: JSON.stringify({
+        zonas: [
+          {
+            nombre: "Puerto Vallarta",
+            poligonoOrRadio: "Zona urbana y costera de Puerto Vallarta, Jalisco",
+            codigosPostales: ["48300", "48310", "48333"],
+          },
+          {
+            nombre: "Bahía de Banderas / Nuevo Nayarit",
+            poligonoOrRadio: "Municipio de Bahía de Banderas, Nayarit (incluye Nuevo Nayarit)",
+            codigosPostales: ["63732", "63735", "637"],
+          },
+          {
+            nombre: "Ixtapa",
+            poligonoOrRadio: "Colonia Ixtapa, Puerto Vallarta",
+            codigosPostales: ["48280"],
+          },
+        ],
+        buscadorPorCP: true,
+        mensajeFueraDeCobertura:
+          "Por ahora no instalamos en ese código postal. Escríbenos y te avisamos en cuanto lleguemos a tu zona.",
+      }),
+    },
+    {
+      nodeId: "n14-selector",
+      componentId: "product-selector-v1",
+      variant: "default",
+      orden: 13,
+      propsJson: JSON.stringify({
+        opciones: [
+          {
+            id: "kit-solar-3kw",
+            nombre: "Kit Solar 3kW Residencial",
+            atributos: { consumo: "bajo", instalacion: "techo" },
+          },
+          {
+            id: "kit-solar-5kw",
+            nombre: "Kit Solar 5kW Residencial",
+            atributos: { consumo: "medio", instalacion: "techo" },
+          },
+          {
+            id: "kit-solar-8kw",
+            nombre: "Kit Solar 8kW Residencial Plus",
+            atributos: { consumo: "alto", instalacion: "techo" },
+          },
+          {
+            id: "kit-solar-10kw-suelo",
+            nombre: "Kit Solar 10kW en Suelo",
+            atributos: { consumo: "alto", instalacion: "suelo" },
+          },
+          {
+            id: "kit-solar-6kw-suelo",
+            nombre: "Kit Solar 6kW en Suelo",
+            atributos: { consumo: "medio", instalacion: "suelo" },
+          },
+        ],
+        filtros: ["consumo", "instalacion"],
+      }),
+    },
+    {
       nodeId: "n12-footer",
       componentId: "footer-contact",
       variant: "default",
-      orden: 12,
+      orden: 14,
       propsJson: JSON.stringify({
         empresa: "PixelTEC",
         telefono: "+52 322 000 0000",
