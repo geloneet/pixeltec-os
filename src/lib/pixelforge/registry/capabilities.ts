@@ -155,7 +155,7 @@ export const SIGNATURE_CAPABILITIES: readonly SignatureCapabilityDefinition[] = 
       "La tabla usa elementos <table>/<caption>/<th scope> semánticos, no divs con estilos de tabla.",
       "La columna destacada muestra la insignia textual 'Recomendado', no solo color.",
       "Cada th de columna trae un botón de resaltar con aria-pressed operable por teclado (Enter/Espacio), sin depender de hover.",
-      "En viewport móvil la tabla colapsa a tarjetas apilables sin perder la etiqueta de cada fila.",
+      "En viewport móvil la tabla se desplaza horizontalmente en un contenedor accesible (overflow-x) conservando el th scope=\"row\" de cada fila — una sola tabla semántica, sin duplicar contenido para lectores de pantalla.",
       "Un valor faltante en una celda se muestra como '—', nunca vacío ni undefined.",
     ],
     certification: "certified",
@@ -171,7 +171,7 @@ export const SIGNATURE_CAPABILITIES: readonly SignatureCapabilityDefinition[] = 
     ],
     supportedIndustries: ["e-commerce", "servicios profesionales (planes/paquetes)", "SaaS o software a la medida"],
     interactionModel:
-      "Tabla responsiva con la columna propia destacada; en móvil colapsa a tarjetas apilables sin perder los encabezados de fila.",
+      "Tabla responsiva con la columna propia destacada; en móvil la tabla se desplaza horizontalmente conservando los encabezados de fila.",
     fallbackComponentId: "offer-tiers",
     accessibilityRequirements: [
       "tabla con encabezados semánticos (th/scope, no divs con estilos de tabla)",
