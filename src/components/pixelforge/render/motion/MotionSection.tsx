@@ -275,6 +275,7 @@ function MotionSectionRunner({
     if (!el) return;
     const controls = animate(el, { scale: [1, pulseSeq.pulseScale, 1] }, {
       duration: toSeconds(pulseSeq.durationMs),
+      ease: [...pulseSeq.ease],
       delay: toSeconds(pulseSeq.delayMs),
     });
     return () => controls.stop();
@@ -363,8 +364,12 @@ function buildWrapperProps(pulse: ResolvedSequence | undefined): WrapperProps {
 
   if (pulse && pulse.pulseScale !== undefined && pulse.trigger === "interaction") {
     // Pulso al interactuar: crece a pulseScale en hover, comprime en tap.
-    props.whileHover = { scale: pulse.pulseScale };
-    props.whileTap = { scale: 1 };
+    // `transition` explícita con duración/ease del resolver — SIN ella framer
+    // aplica su default y `motionDna.ritmo` (lento/rápido) deja de tener efecto
+    // observable sobre el pulso de interacción (review final F6B, finding L1).
+    const transition = { duration: toSeconds(pulse.durationMs), ease: [...pulse.ease] };
+    props.whileHover = { scale: pulse.pulseScale, transition };
+    props.whileTap = { scale: 1, transition };
   }
 
   return props;

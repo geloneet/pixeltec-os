@@ -223,7 +223,11 @@ export function resolveChoreography(
 
   const ritmo = motionDna?.ritmo ?? DEFAULT_RITMO;
   const intensidadGlobal = motionDna?.intensidadGlobal ?? DEFAULT_INTENSIDAD_GLOBAL;
-  const rhythmFactor = RHYTHM_FACTOR[ritmo];
+  // Defensa en profundidad: `ritmo` puede llegar corrupto (jsonb directo, drift
+  // de schema futuro) sin pasar por `clampLevel` como `intensidadGlobal` — un
+  // valor fuera del enum no debe degradar a `undefined` (⇒ NaN en cascada sobre
+  // durationMs/delayMs), sino al factor neutro de `moderado`.
+  const rhythmFactor = RHYTHM_FACTOR[ritmo] ?? RHYTHM_FACTOR[DEFAULT_RITMO];
   const globalFactor = GLOBAL_INTENSITY_FACTOR[clampLevel(intensidadGlobal)];
   const childStaggerMs = Math.round(DELAY_CHILD_STAGGER_BASE_MS * rhythmFactor);
 

@@ -79,6 +79,42 @@ describe("resolveChoreography", () => {
       expect(result.sequences).toHaveLength(1);
       expect(result.sequences[0]?.behaviorId).toBe("fade-rise");
     });
+
+    it("ritmo fuera del enum cerrado (drift de schema / jsonb corrupto) cae a moderado, SIN NaN en cascada (review final F6B, finding L2)", () => {
+      const corrupt: MotionDnaInput = { ritmo: "turbo" as MotionDnaInput["ritmo"] };
+      const result = resolveChoreography(
+        choreography([
+          seq({ behaviorId: "fade-rise", delayStrategy: "index", order: 2 }),
+          seq({ behaviorId: "stagger-children", delayStrategy: "distance", order: 1 }),
+        ]),
+        corrupt,
+        false
+      );
+      const moderado = resolveChoreography(
+        choreography([
+          seq({ behaviorId: "fade-rise", delayStrategy: "index", order: 2 }),
+          seq({ behaviorId: "stagger-children", delayStrategy: "distance", order: 1 }),
+        ]),
+        { ritmo: "moderado" },
+        false
+      );
+      // Mismos timings que ritmo:"moderado" explícito (factor neutro 1.0) — el
+      // fallback no inventa un ritmo distinto, reutiliza el default del módulo.
+      expect(result).toEqual(moderado);
+
+      // Ninguna cifra numérica del spec es NaN (el contrato "nunca lanza" del
+      // módulo incluye "nunca produce NaN").
+      for (const s of result.sequences) {
+        expect(Number.isNaN(s.durationMs)).toBe(false);
+        expect(Number.isNaN(s.delayMs)).toBe(false);
+        expect(Number.isNaN(s.childStaggerMs)).toBe(false);
+        for (const kf of [s.hidden, s.visible]) {
+          for (const v of Object.values(kf)) {
+            if (typeof v === "number") expect(Number.isNaN(v)).toBe(false);
+          }
+        }
+      }
+    });
   });
 
   describe("tabla de duraciones 3x3 (durationToken x ritmo)", () => {

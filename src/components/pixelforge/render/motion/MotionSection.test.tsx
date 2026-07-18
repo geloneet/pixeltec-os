@@ -280,7 +280,7 @@ describe("MotionSection — tween primaria IMPERATIVA sobre el wrapper (hydratio
 });
 
 describe("MotionSection — pulse", () => {
-  it("interacción + modo animate → whileHover/whileTap declarativos en el wrapper", () => {
+  it("interacción + modo animate → whileHover/whileTap declarativos CON la transition del resolver (review final F6B, finding L1)", () => {
     render(
       <MotionSection
         nodeId="n1"
@@ -291,13 +291,45 @@ describe("MotionSection — pulse", () => {
     );
     const w = lastWrapper();
     // pulse-accent scaleAmplitude 1.03, intensity 2 + defaults ⇒ pulseScale 1.03.
-    expect(w.whileHover).toEqual({ scale: 1.03 });
-    expect(w.whileTap).toEqual({ scale: 1 });
+    // normal=450ms x ritmo moderado(1.0) ⇒ 0.45s; ease-in-out cubic-bezier del
+    // recipe — SIN esta transition explícita framer aplica su default y el
+    // ritmo resuelto no tiene efecto observable sobre el pulso.
+    const transition = { duration: 0.45, ease: [0.65, 0, 0.35, 1] };
+    expect(w.whileHover).toEqual({ scale: 1.03, transition });
+    expect(w.whileTap).toEqual({ scale: 1, transition });
     // El pulse de interacción NO es imperativo (no anima el elemento).
     expect(wrapperAnimateCall()).toBeUndefined();
   });
 
-  it("in-view → ciclo de escala IMPERATIVO (no declarativo, sin whileInView)", () => {
+  it("interacción: la transition declarativa cambia con motionDna.ritmo (lento ≠ moderado) — antes idéntica por ignorar el resolver", () => {
+    const { unmount } = render(
+      <MotionSection
+        nodeId="n1"
+        choreography={choreography([seq({ behaviorId: "pulse-accent", trigger: "interaction" })])}
+        motionDna={{ ritmo: "moderado" }}
+      >
+        <button>CTA</button>
+      </MotionSection>
+    );
+    const durationModerado = (lastWrapper().whileHover as { transition: { duration: number } }).transition.duration;
+    unmount();
+
+    render(
+      <MotionSection
+        nodeId="n1"
+        choreography={choreography([seq({ behaviorId: "pulse-accent", trigger: "interaction" })])}
+        motionDna={{ ritmo: "lento" }}
+      >
+        <button>CTA</button>
+      </MotionSection>
+    );
+    const durationLento = (lastWrapper().whileHover as { transition: { duration: number } }).transition.duration;
+
+    expect(durationLento).not.toBe(durationModerado);
+    expect(durationLento).toBeCloseTo(Math.round(450 * RHYTHM_FACTOR.lento) / 1000, 10);
+  });
+
+  it("in-view → ciclo de escala IMPERATIVO con duración/ease del resolver (no declarativo, sin whileInView)", () => {
     mockState.inView = true;
     const { container } = render(
       <MotionSection nodeId="n1" choreography={choreography([seq({ behaviorId: "pulse-accent", trigger: "in-view" })])}>
@@ -312,6 +344,25 @@ describe("MotionSection — pulse", () => {
     expect(call).toBeDefined();
     expect(call![0]).toBe(wrapper);
     expect(call![1]).toEqual({ scale: [1, 1.03, 1] });
+    // normal=450ms x moderado(1.0) ⇒ 0.45s; ease-in-out del recipe (finding L1:
+    // antes el in-view pulse pasaba duration pero olvidaba `ease`).
+    expect(call![2]).toMatchObject({ duration: 0.45, ease: [0.65, 0, 0.35, 1] });
+  });
+
+  it("in-view → la duración imperativa también responde a motionDna.ritmo", () => {
+    mockState.inView = true;
+    render(
+      <MotionSection
+        nodeId="n1"
+        choreography={choreography([seq({ behaviorId: "pulse-accent", trigger: "in-view" })])}
+        motionDna={{ ritmo: "lento" }}
+      >
+        <button>CTA</button>
+      </MotionSection>
+    );
+    const call = wrapperAnimateCall();
+    expect(call).toBeDefined();
+    expect(call![2]).toMatchObject({ duration: Math.round(450 * RHYTHM_FACTOR.lento) / 1000 });
   });
 
   it("static/reduced → sin whileHover/whileTap ni animate", () => {
