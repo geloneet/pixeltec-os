@@ -12,18 +12,26 @@
  *      `registry/`, fuera de `schemas/`): `componentId` registrado en
  *      `PIXELFORGE_BLOCKS`; `variant` ∈ `def.variants`; `propsJson` parseable
  *      como JSON; props resultantes contra `def.propsSchema`; si hay
- *      `choreography`, cada `sequence.targetSlot` ∈ `def.editableSlots` y
- *      cualquier `intensity === 3` exige `def.allowsCinematic`.
+ *      `choreography`, por cada `sequence`: `targetSlot` ∈ `def.editableSlots`;
+ *      cualquier `intensity === 3` exige `def.allowsCinematic`; `behaviorId`
+ *      debe estar registrado en `./behaviors` (F6B-T2); `trigger` ∈
+ *      `behavior.allowedTriggers`; `behavior.coversIntents` debe intersectar
+ *      `def.motionIntents` (evita, p.ej., `count-up` en un hero); y
+ *      `behavior.cinematicOnly` exige `intensity === 3`.
  *   3. Global: como máximo `MAX_CINEMATIC_NODES` nodos con alguna sequence
  *      `intensity === 3` en todo el árbol; `orden` únicos entre nodos.
  *
- * `behaviorId` es la única excepción "suave": el registry de behaviors llega
- * en F6B, así que hoy no hay contra qué validarlo — cada `behaviorId` que
- * aparece en una `sequence` produce un WARNING (no un error) y nunca bloquea
- * `ok:true`.
+ * `behaviorId` ya NO es una excepción "suave" (F6B-T2 promovió el warning a
+ * error real usando el registry de `./behaviors`): un `behaviorId` no
+ * registrado, un `trigger` no permitido para ese behavior, un behavior que no
+ * cubre ningún `motionIntent` del block, o un behavior `cinematicOnly` con
+ * `intensity !== 3` bloquean `ok:true` igual que cualquier otro error de
+ * coreografía. `warnings` se conserva en el tipo por estabilidad de API (F7
+ * la sigue leyendo), pero hoy siempre vuelve vacío.
  */
 import { pageTreeSchema, type PageTree } from "@/lib/pixelforge/schemas/compose-page-tree";
 import { getBlockDefinition, isRegisteredBlockId, type BlockId } from "./blocks";
+import { getBehaviorDefinition, isRegisteredBehaviorId } from "./behaviors";
 
 type PageTreeNode = PageTree["nodes"][number];
 type Choreography = NonNullable<PageTreeNode["choreography"]>;
@@ -119,8 +127,32 @@ export function validatePageTree(input: unknown): PageTreeValidation {
             );
           }
         }
-        // Behaviors registry llega en F6B — hoy no hay contra qué validar behaviorId, solo advertir.
-        warnings.push(`behaviors registry llega en F6B: ${sequence.behaviorId} sin verificar (nodo "${node.nodeId}").`);
+        if (!isRegisteredBehaviorId(sequence.behaviorId)) {
+          errors.push(
+            `behaviorId "${sequence.behaviorId}" no está registrado en el catálogo de behaviors — nodo "${node.nodeId}".`
+          );
+        } else {
+          const behavior = getBehaviorDefinition(sequence.behaviorId);
+
+          if (!behavior.allowedTriggers.includes(sequence.trigger)) {
+            errors.push(
+              `trigger "${sequence.trigger}" no es válido para el behavior "${sequence.behaviorId}" — nodo "${node.nodeId}" (triggers permitidos: ${behavior.allowedTriggers.join(", ")}).`
+            );
+          }
+
+          const cubreAlgunMotionIntent = behavior.coversIntents.some((intent) => def.motionIntents.includes(intent));
+          if (!cubreAlgunMotionIntent) {
+            errors.push(
+              `behavior "${sequence.behaviorId}" no cubre ningún motionIntent de "${node.componentId}" — nodo "${node.nodeId}" (motionIntents del block: ${def.motionIntents.join(", ")}).`
+            );
+          }
+
+          if (behavior.cinematicOnly && sequence.intensity !== 3) {
+            errors.push(
+              `behavior "${sequence.behaviorId}" es cinematográfico y exige intensity 3 — nodo "${node.nodeId}" (intensity recibida: ${sequence.intensity}).`
+            );
+          }
+        }
       }
       if (nodeHasCinematicSequence) {
         cinematicNodeIds.add(node.nodeId);

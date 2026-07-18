@@ -66,7 +66,7 @@ function validChoreography(overrides: Record<string, unknown> = {}) {
     reducedMotionFallback: "Mostrar todo estático, sin animación.",
     sequences: [
       {
-        behaviorId: "fade-up-v1",
+        behaviorId: "fade-rise",
         targetSlot: "titulo",
         trigger: "load",
         order: 0,
@@ -165,7 +165,7 @@ describe("validatePageTree — errores por nodo", () => {
       choreography: validChoreography({
         sequences: [
           {
-            behaviorId: "fade-up-v1",
+            behaviorId: "fade-rise",
             targetSlot: "campoQueNoExiste",
             trigger: "load",
             order: 0,
@@ -194,7 +194,7 @@ describe("validatePageTree — errores por nodo", () => {
       choreography: validChoreography({
         sequences: [
           {
-            behaviorId: "fade-up-v1",
+            behaviorId: "fade-rise",
             targetSlot: "titulo",
             trigger: "load",
             order: 0,
@@ -221,7 +221,7 @@ describe("validatePageTree — errores por nodo", () => {
       choreography: validChoreography({
         sequences: [
           {
-            behaviorId: "fade-up-v1",
+            behaviorId: "fade-rise",
             targetSlot: "titulo",
             trigger: "load",
             order: 0,
@@ -248,7 +248,7 @@ describe("validatePageTree — límite global de nodos cinematográficos", () =>
       choreography: validChoreography({
         sequences: [
           {
-            behaviorId: "fade-up-v1",
+            behaviorId: "fade-rise",
             targetSlot: "titulo",
             trigger: "load",
             order: 0,
@@ -293,8 +293,8 @@ describe("validatePageTree — orden duplicado (global)", () => {
   });
 });
 
-describe("validatePageTree — behaviorId (warning, no error — behaviors registry es F6B)", () => {
-  it("behaviorId desconocido produce un warning y ok:true (no bloquea)", () => {
+describe("validatePageTree — behaviors (F6B-T2: validación real contra el registry)", () => {
+  it("behaviorId desconocido produce error nombrando behaviorId y nodeId (ya no es warning)", () => {
     const tree = validTree();
     tree.nodes[0] = node({
       nodeId: "hero-1",
@@ -316,11 +316,125 @@ describe("validatePageTree — behaviorId (warning, no error — behaviors regis
       }),
     });
     const result = validatePageTree(tree);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("expected ok:false");
+    expect(
+      result.errors.some((e) => e.includes("un-comportamiento-que-no-existe") && e.includes("hero-1"))
+    ).toBe(true);
+  });
+
+  it("trigger no permitido para el behavior produce error (count-up solo admite in-view, no load)", () => {
+    const tree = validTree();
+    tree.nodes[0] = node({
+      nodeId: "stats-1",
+      componentId: "stats-band",
+      variant: "default",
+      orden: 1,
+      propsJson: JSON.stringify({
+        stats: [
+          { valor: "120+", etiqueta: "Proyectos entregados" },
+          { valor: "98%", etiqueta: "Retención de clientes" },
+        ],
+      }),
+      choreography: validChoreography({
+        sequences: [
+          {
+            behaviorId: "count-up",
+            targetSlot: "stats",
+            trigger: "load",
+            order: 0,
+            durationToken: "normal",
+            delayStrategy: "none",
+            intensity: 1,
+          },
+        ],
+      }),
+    });
+    const result = validatePageTree(tree);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("expected ok:false");
+    expect(result.errors.some((e) => e.includes("count-up") && e.includes("stats-1") && e.includes("load"))).toBe(true);
+  });
+
+  it("behavior incompatible con los motionIntents del block produce error (count-up en un hero)", () => {
+    const tree = validTree();
+    tree.nodes[0] = node({
+      nodeId: "hero-1",
+      componentId: "hero-split",
+      orden: 1,
+      propsJson: JSON.stringify(HERO_SPLIT_PROPS),
+      choreography: validChoreography({
+        sequences: [
+          {
+            behaviorId: "count-up",
+            targetSlot: "titulo",
+            trigger: "in-view",
+            order: 0,
+            durationToken: "normal",
+            delayStrategy: "none",
+            intensity: 1,
+          },
+        ],
+      }),
+    });
+    const result = validatePageTree(tree);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("expected ok:false");
+    expect(result.errors.some((e) => e.includes("count-up") && e.includes("hero-1"))).toBe(true);
+  });
+
+  it("behavior cinematográfico (cinematicOnly) con intensity !== 3 produce error", () => {
+    const tree = validTree();
+    tree.nodes[0] = node({
+      nodeId: "hero-1",
+      componentId: "hero-split",
+      orden: 1,
+      propsJson: JSON.stringify(HERO_SPLIT_PROPS),
+      choreography: validChoreography({
+        sequences: [
+          {
+            behaviorId: "wipe-reveal",
+            targetSlot: "titulo",
+            trigger: "load",
+            order: 0,
+            durationToken: "normal",
+            delayStrategy: "none",
+            intensity: 2,
+          },
+        ],
+      }),
+    });
+    const result = validatePageTree(tree);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("expected ok:false");
+    expect(result.errors.some((e) => e.includes("wipe-reveal") && e.includes("hero-1"))).toBe(true);
+  });
+
+  it("caso feliz: behavior real, trigger permitido, intent compatible y intensity acorde → ok:true sin warnings", () => {
+    const tree = validTree();
+    tree.nodes[0] = node({
+      nodeId: "hero-1",
+      componentId: "hero-split",
+      orden: 1,
+      propsJson: JSON.stringify(HERO_SPLIT_PROPS),
+      choreography: validChoreography({
+        sequences: [
+          {
+            behaviorId: "fade-rise",
+            targetSlot: "titulo",
+            trigger: "load",
+            order: 0,
+            durationToken: "normal",
+            delayStrategy: "none",
+            intensity: 1,
+          },
+        ],
+      }),
+    });
+    const result = validatePageTree(tree);
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("expected ok:true");
-    expect(result.warnings.length).toBeGreaterThan(0);
-    expect(result.warnings.some((w) => w.includes("un-comportamiento-que-no-existe") && w.includes("hero-1"))).toBe(true);
-    expect(result.warnings.some((w) => /F6B/.test(w))).toBe(true);
+    expect(result.warnings).toEqual([]);
   });
 });
 
