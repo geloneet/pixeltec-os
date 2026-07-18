@@ -9,7 +9,9 @@
  *    el callback para dispararlo hook-side desde el test.
  *  - `framer-motion/dom`: `animate`/`stagger` como spies. `animate` en su forma
  *    numérica (count-up) dispara onUpdate(final)+onComplete para que el
- *    textContent quede en su valor final observable.
+ *    textContent quede en su valor final observable. Los controls devueltos
+ *    traen `stop` como `vi.fn()` (no un no-op) para poder aserir el cleanup de
+ *    unmount a mitad de animación (ver F6B-T6 review, finding 2).
  * NADA de esto anima de verdad — jsdom no ejecuta animaciones; los tests
  * observan QUÉ se pidió animar, no el resultado visual.
  */
@@ -54,13 +56,17 @@ vi.mock("framer-motion/dom", () => ({
       (opts?.onUpdate as ((v: number) => void) | undefined)?.(b as number);
       (opts?.onComplete as (() => void) | undefined)?.();
     }
-    return { stop: () => {}, then: (r?: () => void) => (r?.(), Promise.resolve()) };
+    // `stop` es un spy PROPIO por llamada (no un no-op compartido) para poder
+    // aserir, por cada `animate(...)` disparado, que el cleanup de unmount lo
+    // invoca — ver finding 2 de la review F6B-T6.
+    return { stop: vi.fn(), then: (r?: () => void) => (r?.(), Promise.resolve()) };
   }),
   stagger: vi.fn((gap: number) => gap),
 }));
 
 import { animate, stagger } from "framer-motion/dom";
 import { MotionSection, SUPPORTED_RECIPE_KINDS } from "./MotionSection";
+import { DURATION_MS_BY_TOKEN, EASE_BEZIER, RHYTHM_FACTOR } from "./resolve";
 import type { ChoreographyInput, MotionSequenceInput } from "./resolve";
 import { CERTIFIED_BEHAVIORS } from "@/lib/pixelforge/registry/behaviors";
 
@@ -232,5 +238,109 @@ describe("MotionSection — count-up", () => {
     );
     expect(screen.getByText("N/A")).toBeInTheDocument();
     expect(animateSpy.mock.calls.some((c) => typeof c[0] === "number")).toBe(false);
+  });
+});
+
+describe("MotionSection — scroll-steps: transición CSS gobernada por el resolver (review F6B-T6, finding 1)", () => {
+  /** Render con un solo `scroll-reveal-steps` y N items — devuelve el container para escopar las queries. */
+  function renderScrollSteps(ritmo: "lento" | "moderado", itemCount = 2) {
+    return render(
+      <MotionSection
+        nodeId="n5"
+        choreography={choreography([
+          seq({ behaviorId: "scroll-reveal-steps", trigger: "scroll-progress", durationToken: "normal" }),
+        ])}
+        motionDna={{ ritmo }}
+      >
+        <ul>
+          {Array.from({ length: itemCount }, (_, i) => (
+            <li key={i} data-pf-motion-item="">
+              {i}
+            </li>
+          ))}
+        </ul>
+      </MotionSection>
+    );
+  }
+
+  const [b0, b1, b2, b3] = EASE_BEZIER["ease-out"];
+  const bezier = `cubic-bezier(${b0},${b1},${b2},${b3})`;
+
+  it("pre-paint aplica la duración escalada por ritmo (NO 400ms hardcodeado) y el cubic-bezier del behavior", () => {
+    const durationModerado = Math.round(DURATION_MS_BY_TOKEN.normal * RHYTHM_FACTOR.moderado);
+    const { container: containerModerado } = renderScrollSteps("moderado");
+    const itemsModerado = containerModerado.querySelectorAll<HTMLElement>("[data-pf-motion-item]");
+    expect(itemsModerado.length).toBeGreaterThan(0);
+    itemsModerado.forEach((el) => {
+      expect(el.style.transition).toContain(`${durationModerado}ms`);
+      expect(el.style.transition).toContain(bezier);
+      // Nunca el valor hardcodeado que ignoraba al resolver.
+      expect(el.style.transition).not.toContain("400ms");
+    });
+    cleanup();
+
+    // ritmo distinto ⇒ durationMs distinto (RHYTHM_FACTOR.lento !== .moderado):
+    // demuestra que `motionDna.ritmo` SÍ afecta el reveal de scroll-steps.
+    const durationLento = Math.round(DURATION_MS_BY_TOKEN.normal * RHYTHM_FACTOR.lento);
+    expect(durationLento).not.toBe(durationModerado);
+    const { container: containerLento } = renderScrollSteps("lento");
+    const itemsLento = containerLento.querySelectorAll<HTMLElement>("[data-pf-motion-item]");
+    itemsLento.forEach((el) => {
+      expect(el.style.transition).toContain(`${durationLento}ms`);
+      expect(el.style.transition).toContain(bezier);
+    });
+  });
+
+  it("la revelación disparada por progreso de scroll usa la MISMA transición resuelta (duración+ease)", () => {
+    const duration = Math.round(DURATION_MS_BY_TOKEN.normal * RHYTHM_FACTOR.lento);
+    renderScrollSteps("lento", 1);
+    const item = document.querySelector<HTMLElement>("[data-pf-motion-item]")!;
+    // Dispara el callback registrado vía `useMotionValueEvent` con progreso
+    // total: el item cruza su umbral y pasa a `visible`.
+    mockState.scrollListeners.forEach((cb) => cb(1));
+    expect(item.style.opacity).toBe("1");
+    expect(item.style.transition).toContain(`${duration}ms`);
+    expect(item.style.transition).toContain(bezier);
+  });
+});
+
+describe("MotionSection — cleanup de animaciones imperativas al desmontar (review F6B-T6, finding 2)", () => {
+  it("detiene el AnimationPlaybackControls del stagger si se desmonta a mitad de animación", () => {
+    const { unmount } = render(
+      <MotionSection
+        nodeId="n2"
+        choreography={choreography([seq({ behaviorId: "stagger-children", trigger: "load", delayStrategy: "index" })])}
+      >
+        <ul>
+          <li data-pf-motion-item="">A</li>
+          <li data-pf-motion-item="">B</li>
+        </ul>
+      </MotionSection>
+    );
+    const itemCallIndex = animateSpy.mock.calls.findIndex((c) => Array.isArray(c[0]));
+    expect(itemCallIndex).toBeGreaterThanOrEqual(0);
+    const controls = animateSpy.mock.results[itemCallIndex]!.value as { stop: ReturnType<typeof vi.fn> };
+    expect(controls.stop).not.toHaveBeenCalled();
+    unmount();
+    expect(controls.stop).toHaveBeenCalledTimes(1);
+  });
+
+  it("detiene TODOS los AnimationPlaybackControls del count-up (uno por cifra) si se desmonta a mitad de animación", () => {
+    const { unmount } = render(
+      <MotionSection nodeId="n4" choreography={choreography([seq({ behaviorId: "count-up", trigger: "in-view" })])}>
+        <div>
+          <span data-pf-motion-count="98%">98%</span>
+          <span data-pf-motion-count="1,250">1,250</span>
+        </div>
+      </MotionSection>
+    );
+    const numericResults = animateSpy.mock.calls
+      .map((call, i) => ({ call, result: animateSpy.mock.results[i]! }))
+      .filter(({ call }) => typeof call[0] === "number")
+      .map(({ result }) => result.value as { stop: ReturnType<typeof vi.fn> });
+    expect(numericResults).toHaveLength(2);
+    numericResults.forEach(({ stop }) => expect(stop).not.toHaveBeenCalled());
+    unmount();
+    numericResults.forEach(({ stop }) => expect(stop).toHaveBeenCalledTimes(1));
   });
 });

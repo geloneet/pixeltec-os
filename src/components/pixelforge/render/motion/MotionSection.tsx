@@ -45,7 +45,7 @@ import {
   useReducedMotion,
   useScroll,
 } from "framer-motion";
-import { animate, stagger } from "framer-motion/dom";
+import { animate, stagger, type AnimationPlaybackControls } from "framer-motion/dom";
 import {
   resolveChoreography,
   type ChoreographyInput,
@@ -165,7 +165,10 @@ function MotionSectionRunner({
         // dentro de la ventana de scroll sin que el primero requiera 0 ni el
         // último requiera 1.
         const threshold = (i + 1) / (n + 1);
-        applyKeyframeStyle(el, progress >= threshold ? scrollSeq.visible : scrollSeq.hidden, true);
+        applyKeyframeStyle(el, progress >= threshold ? scrollSeq.visible : scrollSeq.hidden, {
+          durationMs: scrollSeq.durationMs,
+          ease: scrollSeq.ease,
+        });
       });
     },
     [scrollSeq]
@@ -179,9 +182,11 @@ function MotionSectionRunner({
     const items = ref.current?.querySelectorAll<HTMLElement>(ITEM_SELECTOR);
     if (!items || items.length === 0) return;
     if (staggerSeq) {
-      items.forEach((el) => applyKeyframeStyle(el, staggerSeq.hidden, false));
+      items.forEach((el) => applyKeyframeStyle(el, staggerSeq.hidden));
     } else if (scrollSeq) {
-      items.forEach((el) => applyKeyframeStyle(el, scrollSeq.hidden, true));
+      items.forEach((el) =>
+        applyKeyframeStyle(el, scrollSeq.hidden, { durationMs: scrollSeq.durationMs, ease: scrollSeq.ease })
+      );
     }
     // Pre-paint: cifras count-up arrancan en su valor formateado a 0.
     if (countSeq) {
@@ -203,13 +208,16 @@ function MotionSectionRunner({
     if (!shouldRun) return;
     const items = ref.current?.querySelectorAll<HTMLElement>(ITEM_SELECTOR);
     if (!items || items.length === 0) return;
-    animate(Array.from(items), keyframeArrays(staggerSeq.hidden, staggerSeq.visible), {
+    const controls = animate(Array.from(items), keyframeArrays(staggerSeq.hidden, staggerSeq.visible), {
       duration: toSeconds(staggerSeq.durationMs),
       ease: [...staggerSeq.ease],
       // stagger(childStaggerMs/1000): retraso incremental entre hijos; el
       // delayMs de la secuencia entra como arranque del escalonado.
       delay: stagger(toSeconds(staggerSeq.childStaggerMs), { startDelay: toSeconds(staggerSeq.delayMs) }),
     });
+    // Desmontar a mitad de animación no debe dejar `onUpdate`/`onComplete`
+    // corriendo contra nodos ya detached del DOM.
+    return () => controls.stop();
   }, [staggerSeq, inView]);
 
   // --- count-up: 0→n al entrar en view, respetando prefijo/sufijo/formato ---
@@ -217,23 +225,32 @@ function MotionSectionRunner({
     if (!countSeq || !inView) return;
     const counts = ref.current?.querySelectorAll<HTMLElement>(COUNT_SELECTOR);
     if (!counts || counts.length === 0) return;
+    // Una animación imperativa POR cifra: se retienen todos los controls para
+    // poder detenerlos en el cleanup (ver nota de stagger arriba).
+    const controls: AnimationPlaybackControls[] = [];
     counts.forEach((el) => {
       const parsed = parseCountTarget(el);
       if (!parsed) return; // no numérico ⇒ texto server intacto
-      animate(0, parsed.target, {
-        duration: toSeconds(countSeq.durationMs),
-        ease: [...countSeq.ease],
-        onUpdate: (value: number) => {
-          el.textContent = parsed.prefix + formatCount(value, parsed) + parsed.suffix;
-        },
-        // Al terminar, se restaura el texto EXACTO del server (`raw` del
-        // data-attr, NO el `textContent` actual — que el pre-paint ya puso en
-        // "0"): evita cualquier deriva de formateo frente a la cifra original.
-        onComplete: () => {
-          el.textContent = parsed.raw;
-        },
-      });
+      controls.push(
+        animate(0, parsed.target, {
+          duration: toSeconds(countSeq.durationMs),
+          ease: [...countSeq.ease],
+          onUpdate: (value: number) => {
+            el.textContent = parsed.prefix + formatCount(value, parsed) + parsed.suffix;
+          },
+          // Al terminar, se restaura el texto EXACTO del server (`raw` del
+          // data-attr, NO el `textContent` actual — que el pre-paint ya puso
+          // en "0"): evita cualquier deriva de formateo frente a la cifra
+          // original.
+          onComplete: () => {
+            el.textContent = parsed.raw;
+          },
+        })
+      );
     });
+    return () => {
+      controls.forEach((c) => c.stop());
+    };
   }, [countSeq, inView]);
 
   // --- Wrapper declarativo: secuencia primaria (tween sin stagger) + pulse ---
@@ -329,14 +346,28 @@ function keyframeArrays(hidden: MotionKeyframe, visible: MotionKeyframe): Record
   return out;
 }
 
-/** Keyframe → estilos inline (pre-paint / scroll-steps). Sin framer. */
-function applyKeyframeStyle(el: HTMLElement, kf: MotionKeyframe, withTransition: boolean): void {
+/**
+ * Keyframe → estilos inline (pre-paint / scroll-steps). Sin framer.
+ *
+ * `transition`, cuando se pasa, viene TAL CUAL del `ResolvedSequence` del
+ * resolver (`durationMs`/`ease` — nunca recalculado aquí): scroll-steps es la
+ * única superficie que hoy pasa este parámetro, así `motionDna.ritmo` (que
+ * modula `durationMs` vía `RHYTHM_FACTOR`) y el `ease` cubic-bezier del
+ * behavior tienen efecto real sobre la transición CSS del reveal — antes esta
+ * función usaba un `400ms ease-out` hardcodeado que ignoraba ambos.
+ */
+function applyKeyframeStyle(
+  el: HTMLElement,
+  kf: MotionKeyframe,
+  transition?: { durationMs: number; ease: readonly [number, number, number, number] }
+): void {
   const transforms: string[] = [];
   if (kf.x !== undefined) transforms.push(`translateX(${kf.x}px)`);
   if (kf.y !== undefined) transforms.push(`translateY(${kf.y}px)`);
   if (kf.scale !== undefined) transforms.push(`scale(${kf.scale})`);
-  if (withTransition) {
-    el.style.transition = "opacity 400ms ease-out, transform 400ms ease-out";
+  if (transition) {
+    const curve = `cubic-bezier(${transition.ease.join(",")})`;
+    el.style.transition = `opacity ${transition.durationMs}ms ${curve}, transform ${transition.durationMs}ms ${curve}`;
   }
   if (transforms.length > 0) el.style.transform = transforms.join(" ");
   if (kf.opacity !== undefined) el.style.opacity = String(kf.opacity);
