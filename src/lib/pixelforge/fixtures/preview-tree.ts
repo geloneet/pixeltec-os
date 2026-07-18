@@ -37,8 +37,9 @@ import type { DesignTokens } from "@/components/pixelforge/render/tokens";
 export const PREVIEW_FIXTURE_TREE: PageTree = {
   notas:
     "Fixture de preview F6A/F6B/F6C — ejerce los 12 blocks del registry con variantes " +
-    "mixtas, 3 nodos cinematográficos con behaviors reales, y 2 capabilities certificadas " +
-    "(coverage-map-v1, product-selector-v1). No representa una landing real de cliente.",
+    "mixtas, 3 nodos cinematográficos con behaviors reales, y las 4 capabilities certificadas " +
+    "(coverage-map-v1, product-selector-v1, comparison-table-v1, process-visualizer-v1). " +
+    "No representa una landing real de cliente.",
   nodes: [
     {
       nodeId: "n1-hero",
@@ -398,10 +399,59 @@ export const PREVIEW_FIXTURE_TREE: PageTree = {
       }),
     },
     {
+      nodeId: "n15-comparativa",
+      componentId: "comparison-table-v1",
+      variant: "default",
+      orden: 14,
+      propsJson: JSON.stringify({
+        columnas: [
+          { nombre: "Kit Arranque 3kW" },
+          { nombre: "Kit Hogar 5kW", destacada: true },
+          { nombre: "Kit Max 8kW" },
+        ],
+        filas: [
+          { etiqueta: "Paneles incluidos", valores: ["6 paneles", "10 paneles", "16 paneles"] },
+          { etiqueta: "Ahorro estimado en CFE", valores: ["hasta 60%", "hasta 85%", "hasta 95%"] },
+          { etiqueta: "Garantía", valores: ["10 años", "25 años", "25 años"] },
+          // Fila con valor faltante a propósito: ejercita el degradado "—" del block.
+          { etiqueta: "Monitoreo por app", valores: ["", "Incluido"] },
+        ],
+      }),
+    },
+    {
+      nodeId: "n16-proceso",
+      componentId: "process-visualizer-v1",
+      variant: "default",
+      orden: 15,
+      propsJson: JSON.stringify({
+        pasos: [
+          {
+            titulo: "Visita técnica sin costo",
+            descripcion: "Revisamos tu recibo de CFE y el techo o terreno disponible para dimensionar el sistema.",
+            duracionEstimada: "1 día",
+          },
+          {
+            titulo: "Propuesta y financiamiento",
+            descripcion: "Te entregamos una propuesta con ahorro proyectado y opciones de pago a tu medida.",
+            duracionEstimada: "2-3 días",
+          },
+          {
+            titulo: "Instalación",
+            descripcion: "Instalamos y conectamos tu sistema con interconexión ante CFE incluida.",
+            duracionEstimada: "1-2 días",
+          },
+          {
+            titulo: "Monitoreo por app",
+            descripcion: "Sigues tu generación y ahorro en tiempo real desde tu teléfono.",
+          },
+        ],
+      }),
+    },
+    {
       nodeId: "n12-footer",
       componentId: "footer-contact",
       variant: "default",
-      orden: 14,
+      orden: 16,
       propsJson: JSON.stringify({
         empresa: "PixelTEC",
         telefono: "+52 322 000 0000",

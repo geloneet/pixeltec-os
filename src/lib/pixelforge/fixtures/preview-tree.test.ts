@@ -13,7 +13,7 @@ import type { PageTree } from "@/lib/pixelforge/schemas/compose-page-tree";
  * (coverage-map-v1, product-selector-v1), no las 4. Estas son las que de
  * verdad aparecen en `PREVIEW_FIXTURE_TREE`.
  */
-const FIXTURE_CAPABILITY_IDS = ["coverage-map-v1", "product-selector-v1"] as const;
+const FIXTURE_CAPABILITY_IDS = ["coverage-map-v1", "product-selector-v1", "comparison-table-v1", "process-visualizer-v1"] as const;
 
 describe("PREVIEW_FIXTURE_TREE", () => {
   const result = validatePageTree(PREVIEW_FIXTURE_TREE);
@@ -27,20 +27,20 @@ describe("PREVIEW_FIXTURE_TREE", () => {
     expect(result.warnings).toEqual([]);
   });
 
-  it("usa los 12 blocks + 2 capabilities del registry, uno por nodo, con orden 1..14 único", () => {
+  it("usa los 12 blocks + 4 capabilities del registry, uno por nodo, con orden 1..16 único", () => {
     if (!result.ok) throw new Error("fixture inválido");
     const ids = result.tree.nodes.map((n) => n.componentId).sort();
     expect(ids).toEqual([...BLOCK_IDS, ...FIXTURE_CAPABILITY_IDS].sort());
     const ordenes = result.tree.nodes.map((n) => n.orden).sort((a, b) => a - b);
-    expect(ordenes).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]);
+    expect(ordenes).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
   });
 
-  it("clasifica cada nodo por kind: 12 'block' y 2 'capability' (F6C-T2/D1)", () => {
+  it("clasifica cada nodo por kind: 12 'block' y 4 'capability' (F6C-T2/D1)", () => {
     if (!result.ok) throw new Error("fixture inválido");
     const blockNodes = result.tree.nodes.filter((n) => n.kind === "block");
     const capabilityNodes = result.tree.nodes.filter((n) => n.kind === "capability");
     expect(blockNodes).toHaveLength(12);
-    expect(capabilityNodes).toHaveLength(2);
+    expect(capabilityNodes).toHaveLength(4);
     expect(capabilityNodes.map((n) => n.componentId).sort()).toEqual([...FIXTURE_CAPABILITY_IDS].sort());
     // Ambas son certificadas de verdad, no ids inventados.
     for (const id of FIXTURE_CAPABILITY_IDS) {
@@ -92,8 +92,8 @@ describe("PREVIEW_FIXTURE_TREE", () => {
       (CAPABILITY_IDS as string[]).includes(n.componentId)
     );
 
-    it("agrega exactamente los 2 capability nodes certificados, sin choreography", () => {
-      expect(capabilityNodes).toHaveLength(2);
+    it("agrega exactamente los 4 capability nodes certificados, sin choreography", () => {
+      expect(capabilityNodes).toHaveLength(4);
       for (const node of capabilityNodes) {
         expect(node.variant).toBe("default");
         expect(node.choreography).toBeUndefined();
