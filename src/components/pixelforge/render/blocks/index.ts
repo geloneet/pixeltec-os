@@ -6,9 +6,15 @@
  *
  * F6A-T5 aportó los 4 blocks núcleo; F6A-T6 completa los 8 restantes y cierra
  * la PARIDAD TOTAL: el mapa cubre ahora los 12 `BlockId` del registry. Por eso
- * el tipo pasa de `Partial<Record<…>>` a `Record<BlockId, …>` COMPLETO —
- * TypeScript exige que no falte ninguna clave (barrera de tipos + test de
- * paridad `blocks.test.tsx`). `PageRenderer` conserva su placeholder neutro por
+ * el tipo pasa de `Partial<Record<…>>` a `Record<BlockId, …>` COMPLETO. OJO
+ * (corrección F6C-T5): `BlockId` deriva de `BLOCK_IDS = PIXELFORGE_BLOCKS.map(
+ * (b) => b.id)`, que TypeScript infiere como `string[]` (el campo `id` de
+ * `ComponentDefinition` es `string`, no un literal) — `BlockId` es
+ * estructuralmente `string`, así que `Record<BlockId, …>` NO exige en tiempo
+ * de compilación que estén las 12 claves; un `Record<string, X>` acepta
+ * cualquier subconjunto sin error de tipos. La barrera real de completitud es
+ * el test de paridad en tiempo de ejecución (`blocks.test.tsx`), que itera
+ * `BLOCK_IDS` real. `PageRenderer` conserva su placeholder neutro por
  * robustez, pero con la paridad cerrada ya no debería activarse en un árbol
  * válido.
  */

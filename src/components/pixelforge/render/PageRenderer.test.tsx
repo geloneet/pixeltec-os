@@ -30,6 +30,7 @@ import { PageRenderer } from "./PageRenderer";
 import { SectionErrorBoundary } from "./SectionErrorBoundary";
 import { directionTokensToCssVars, type DesignTokens } from "./tokens";
 import type { ValidatedPageTree } from "@/lib/pixelforge/registry/validate-page-tree";
+import { CAPABILITY_RENDER_MAP } from "./capabilities";
 
 afterEach(() => {
   cleanup();
@@ -251,6 +252,158 @@ describe("PageRenderer", () => {
     expect(screen.getByText(/no se pudo renderizar \(hero-split\)/)).toBeInTheDocument();
     expect(screen.getByText("Sigo vivo")).toBeInTheDocument();
     expect(errorSpy).toHaveBeenCalled();
+  });
+});
+
+describe("PageRenderer — capability nodes (F6C-T5)", () => {
+  it("resuelve un nodo kind:capability a su componente real, dentro del boundary", () => {
+    render(
+      <PageRenderer
+        tokens={TOKENS}
+        tree={tree([
+          {
+            nodeId: "proceso",
+            componentId: "process-visualizer-v1",
+            kind: "capability",
+            variant: "default",
+            orden: 1,
+            props: {
+              pasos: [
+                { titulo: "Contacto", descripcion: "Nos escribes por WhatsApp." },
+                { titulo: "Instalación", descripcion: "Ejecutamos en sitio." },
+              ],
+            },
+          },
+        ])}
+      />
+    );
+    // El componente real de la capability se montó (tablist del stepper).
+    expect(screen.getByRole("tablist")).toBeInTheDocument();
+    expect(screen.getAllByRole("tab")).toHaveLength(2);
+    expect(screen.queryByText(/aún no disponible/)).not.toBeInTheDocument();
+    // NUNCA se envolvió en MotionSection.
+    expect(motionCalls).toHaveLength(0);
+    expect(screen.queryByTestId("motion-proceso")).toBeNull();
+  });
+
+  it("un nodo capability con choreography (hand-built, inválido per validatePageTree) NUNCA se envuelve en MotionSection — kind manda", () => {
+    const choreography = {
+      narrativePurpose: "Entrada.",
+      motifConnection: "Motif.",
+      reducedMotionFallback: "Sin movimiento.",
+      sequences: [
+        {
+          behaviorId: "fade-rise",
+          targetSlot: "titulo",
+          trigger: "load" as const,
+          order: 0,
+          durationToken: "normal" as const,
+          delayStrategy: "none" as const,
+          intensity: 2,
+        },
+      ],
+    };
+    render(
+      <PageRenderer
+        tokens={TOKENS}
+        tree={tree([
+          {
+            nodeId: "capConMotion",
+            componentId: "process-visualizer-v1",
+            kind: "capability",
+            variant: "default",
+            orden: 1,
+            props: { pasos: [{ titulo: "A", descripcion: "a" }, { titulo: "B", descripcion: "b" }] },
+            choreography,
+          },
+        ])}
+      />
+    );
+    // Aunque el nodo trae `choreography`, `kind: "capability"` gana: nunca pasa por MotionSection.
+    expect(motionCalls).toHaveLength(0);
+    expect(screen.queryByTestId("motion-capConMotion")).toBeNull();
+    expect(screen.getByRole("tablist")).toBeInTheDocument();
+  });
+
+  it("degrada a placeholder neutro un componentId capability sin componente en CAPABILITY_RENDER_MAP (rama defensiva)", () => {
+    render(
+      <PageRenderer
+        tokens={TOKENS}
+        tree={tree([
+          {
+            nodeId: "n1",
+            componentId: "capability-inexistente" as ValidatedPageTree["nodes"][number]["componentId"],
+            kind: "capability",
+            variant: "default",
+            orden: 1,
+            props: {},
+          },
+        ])}
+      />
+    );
+    expect(screen.getByText(/aún no disponible/)).toBeInTheDocument();
+  });
+
+  it("una capability que lanza cae al boundary y el resto del árbol sigue vivo", () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const original = CAPABILITY_RENDER_MAP["comparison-table-v1"];
+    // Monkey-patch de una sola entrada del mapa real para simular un componente
+    // que lanza — las 4 implementaciones reales son deliberadamente defensivas
+    // (D2: nunca lanzan ante props degeneradas), así que no hay props "reales"
+    // que las hagan fallar; esto verifica la red de seguridad del boundary.
+    (CAPABILITY_RENDER_MAP as Record<string, unknown>)["comparison-table-v1"] = function Boom(): never {
+      throw new Error("kaboom capability");
+    };
+    try {
+      render(
+        <PageRenderer
+          tokens={TOKENS}
+          tree={tree([
+            {
+              nodeId: "boom",
+              componentId: "comparison-table-v1",
+              kind: "capability",
+              variant: "default",
+              orden: 1,
+              props: { columnas: [{ nombre: "A" }, { nombre: "B" }], filas: [{ etiqueta: "x", valores: ["1", "2"] }] },
+            },
+            {
+              nodeId: "ok",
+              componentId: "process-visualizer-v1",
+              kind: "capability",
+              variant: "default",
+              orden: 2,
+              props: { pasos: [{ titulo: "Sigo vivo", descripcion: "a" }, { titulo: "B", descripcion: "b" }] },
+            },
+          ])}
+        />
+      );
+      expect(screen.getByText(/no se pudo renderizar \(comparison-table-v1\)/)).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Sigo vivo" })).toBeInTheDocument();
+      expect(errorSpy).toHaveBeenCalled();
+    } finally {
+      (CAPABILITY_RENDER_MAP as Record<string, unknown>)["comparison-table-v1"] = original;
+    }
+  });
+
+  it("una capability recibe props parseadas pero NO recibe variant (los componentes no lo declaran)", () => {
+    render(
+      <PageRenderer
+        tokens={TOKENS}
+        tree={tree([
+          {
+            nodeId: "n1",
+            componentId: "comparison-table-v1",
+            kind: "capability",
+            variant: "default",
+            orden: 1,
+            props: { columnas: [{ nombre: "Uno" }, { nombre: "Dos" }], filas: [{ etiqueta: "fila", valores: ["a", "b"] }] },
+          },
+        ])}
+      />
+    );
+    expect(screen.getByRole("table")).toBeInTheDocument();
+    expect(screen.getByText("Uno")).toBeInTheDocument();
   });
 });
 

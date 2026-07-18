@@ -25,6 +25,8 @@ import { ComparisonTable } from "./ComparisonTable";
 import { ProcessVisualizer } from "./ProcessVisualizer";
 import { ProductSelector } from "./ProductSelector";
 import { CoverageMap } from "./CoverageMap";
+import { CAPABILITY_RENDER_MAP } from "./index";
+import { CAPABILITY_IDS } from "@/lib/pixelforge/registry/capabilities";
 
 afterEach(() => {
   cleanup();
@@ -407,5 +409,17 @@ describe("CoverageMap", () => {
       render(<CoverageMap zonas={[{ nombre: "Sola", poligonoOrRadio: "x" }]} />)
     ).not.toThrow();
     expect(screen.getByText("Sola")).toBeInTheDocument();
+  });
+});
+
+describe("CAPABILITY_RENDER_MAP — paridad TOTAL registry ↔ CAPABILITY_RENDER_MAP (F6C-T5)", () => {
+  it("cada CapabilityId certificado del registry tiene EXACTAMENTE un componente en CAPABILITY_RENDER_MAP (y viceversa)", () => {
+    expect(Object.keys(CAPABILITY_RENDER_MAP).sort()).toEqual([...CAPABILITY_IDS].sort());
+  });
+
+  it("los 4 componentes del mapa son funciones React", () => {
+    for (const id of CAPABILITY_IDS) {
+      expect(typeof CAPABILITY_RENDER_MAP[id]).toBe("function");
+    }
   });
 });
