@@ -2,6 +2,30 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
 import { cleanup, render, screen } from "@testing-library/react";
+
+// MotionSection se mockea: PageRenderer solo debe ENVOLVER los nodos con
+// choreography y pasarles `motionDna` — no queremos arrastrar framer-motion ni
+// re-testear el motion aquí (eso vive en MotionSection.test.tsx). El mock
+// registra sus props y renderiza children para poder aseverar sobre ambos.
+const motionCalls = vi.hoisted(() => [] as { nodeId: string; choreography: unknown; motionDna: unknown }[]);
+vi.mock("./motion/MotionSection", () => ({
+  MotionSection: ({
+    nodeId,
+    choreography,
+    motionDna,
+    children,
+  }: {
+    nodeId: string;
+    choreography: unknown;
+    motionDna: unknown;
+    children: React.ReactNode;
+  }) => {
+    motionCalls.push({ nodeId, choreography, motionDna });
+    return <div data-testid={`motion-${nodeId}`}>{children}</div>;
+  },
+}));
+
+import type React from "react";
 import { PageRenderer } from "./PageRenderer";
 import { SectionErrorBoundary } from "./SectionErrorBoundary";
 import { directionTokensToCssVars, type DesignTokens } from "./tokens";
@@ -10,6 +34,7 @@ import type { ValidatedPageTree } from "@/lib/pixelforge/registry/validate-page-
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  motionCalls.length = 0;
 });
 
 const TOKENS: DesignTokens = {
@@ -141,6 +166,59 @@ describe("PageRenderer", () => {
       />
     );
     expect(screen.getByText(/aún no disponible/)).toBeInTheDocument();
+  });
+
+  it("envuelve en MotionSection SOLO los nodos con choreography y le pasa motionDna", () => {
+    const choreography = {
+      narrativePurpose: "Entrada.",
+      motifConnection: "Motif.",
+      reducedMotionFallback: "Sin movimiento.",
+      sequences: [
+        {
+          behaviorId: "fade-rise",
+          targetSlot: "titulo",
+          trigger: "load" as const,
+          order: 0,
+          durationToken: "normal" as const,
+          delayStrategy: "none" as const,
+          intensity: 2,
+        },
+      ],
+    };
+    const motionDna = { ritmo: "rapido" as const, intensidadGlobal: 3 as const };
+    render(
+      <PageRenderer
+        tokens={TOKENS}
+        motionDna={motionDna}
+        tree={tree([
+          {
+            nodeId: "conMotion",
+            componentId: "stats-band",
+            variant: "default",
+            orden: 1,
+            props: { stats: [{ valor: "+250", etiqueta: "Proyectos" }] },
+            choreography,
+          },
+          {
+            nodeId: "sinMotion",
+            componentId: "cta-banner",
+            variant: "solid",
+            orden: 2,
+            props: { titulo: "Cierre", cta: { label: "Ir", href: "/" } },
+          },
+        ])}
+      />
+    );
+    // Solo el nodo con choreography pasó por MotionSection.
+    expect(motionCalls).toHaveLength(1);
+    expect(motionCalls[0].nodeId).toBe("conMotion");
+    expect(motionCalls[0].choreography).toEqual(choreography);
+    expect(motionCalls[0].motionDna).toEqual(motionDna);
+    // El nodo sin choreography NO se envolvió.
+    expect(screen.queryByTestId("motion-sinMotion")).toBeNull();
+    // Ambos blocks se renderizan igualmente.
+    expect(screen.getByText("+250")).toBeInTheDocument();
+    expect(screen.getByText("Cierre")).toBeInTheDocument();
   });
 
   it("una sección que lanza no tumba la landing (boundary por sección)", () => {

@@ -23,6 +23,7 @@ import { getPixelforgeProjectFull } from "@/lib/db/repos/pixelforge";
 import { validatePageTree } from "@/lib/pixelforge/registry/validate-page-tree";
 import { PageRenderer } from "@/components/pixelforge/render/PageRenderer";
 import type { DesignTokens } from "@/components/pixelforge/render/tokens";
+import type { MotionDnaInput } from "@/components/pixelforge/render/motion/resolve";
 import { PREVIEW_FIXTURE_TREE, DEFAULT_PREVIEW_TOKENS } from "@/lib/pixelforge/fixtures/preview-tree";
 
 export const metadata: Metadata = {
@@ -51,6 +52,9 @@ export default async function PixelforgePreviewPage({
   const tokens: DesignTokens = chosen
     ? (chosen.designTokens as DesignTokens)
     : DEFAULT_PREVIEW_TOKENS;
+  // Motion DNA de la dirección elegida (mismo cast que designTokens): modula
+  // el motion en el resolver. Sin dirección elegida, MotionSection usa defaults.
+  const motionDna = chosen?.motionDna as MotionDnaInput | undefined;
 
   // Dogfooding: el fixture pasa por la MISMA puerta que cualquier árbol real.
   const v = validatePageTree(PREVIEW_FIXTURE_TREE);
@@ -58,5 +62,5 @@ export default async function PixelforgePreviewPage({
     throw new Error(`El fixture de preview no valida: ${v.errors.join(" | ")}`);
   }
 
-  return <PageRenderer tree={v.tree} tokens={tokens} />;
+  return <PageRenderer tree={v.tree} tokens={tokens} motionDna={motionDna} />;
 }

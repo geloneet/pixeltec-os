@@ -20,14 +20,21 @@ import type { CSSProperties } from "react";
 import type { ValidatedPageTree } from "@/lib/pixelforge/registry/validate-page-tree";
 import { directionTokensToCssVars, type DesignTokens } from "./tokens";
 import { SectionErrorBoundary } from "./SectionErrorBoundary";
+import { MotionSection } from "./motion/MotionSection";
+import type { MotionDnaInput } from "./motion/resolve";
 import { RENDER_MAP } from "./blocks";
 
 interface PageRendererProps {
   tree: ValidatedPageTree;
   tokens: DesignTokens;
+  /**
+   * Motion DNA de la dirección elegida (F6B). Modula duración/easing/stagger
+   * del motion. Opcional: sin él, MotionSection usa los defaults del resolver.
+   */
+  motionDna?: MotionDnaInput;
 }
 
-export function PageRenderer({ tree, tokens }: PageRendererProps) {
+export function PageRenderer({ tree, tokens, motionDna }: PageRendererProps) {
   const cssVars = directionTokensToCssVars(tokens) as CSSProperties;
   const nodes = [...tree.nodes].sort((a, b) => a.orden - b.orden);
 
@@ -35,10 +42,23 @@ export function PageRenderer({ tree, tokens }: PageRendererProps) {
     <div className="pf-page" style={cssVars}>
       {nodes.map((node) => {
         const Block = RENDER_MAP[node.componentId];
+        // Un nodo CON coreografía se envuelve en MotionSection (dentro del
+        // boundary, para que un fallo de motion tampoco tumbe la landing); un
+        // nodo SIN coreografía renderiza el block directo — cero coste de JS
+        // de motion en secciones que no animan.
+        const block = Block ? (
+          node.choreography ? (
+            <MotionSection nodeId={node.nodeId} choreography={node.choreography} motionDna={motionDna}>
+              <Block {...(node.props as Record<string, unknown>)} variant={node.variant} />
+            </MotionSection>
+          ) : (
+            <Block {...(node.props as Record<string, unknown>)} variant={node.variant} />
+          )
+        ) : null;
         return (
           <SectionErrorBoundary key={node.nodeId} componentId={node.componentId}>
-            {Block ? (
-              <Block {...(node.props as Record<string, unknown>)} variant={node.variant} />
+            {block ? (
+              block
             ) : (
               <section
                 className="pf-block pf-block-missing w-full"
