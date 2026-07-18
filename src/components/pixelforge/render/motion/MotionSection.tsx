@@ -9,15 +9,40 @@
  * duraciones ni delays — el resolver ya los dejó 100% numéricos; aquí solo se
  * traducen a props/llamadas de framer.
  *
+ * HYDRATION-SAFETY (decisión F6B gate 6B): el servidor NO puede conocer la
+ * preferencia de motion del usuario — `useReducedMotion()` SSRea siempre como
+ * `false`. Para que el HTML del servidor y el del cliente coincidan SIEMPRE,
+ * MotionSection nunca emite estilos "ocultos" en el SSR:
+ *  - La ESTRUCTURA renderizada es IDÉNTICA en ambos modos: el wrapper es
+ *    siempre el mismo `m.div.pf-motion`, tanto en `animate` como en `static`
+ *    (reduced). Nunca se devuelven `children` pelados — eso cambiaría el árbol
+ *    entre SSR (que ve `animate`) y un cliente reduced (`static`) y rompería
+ *    la hidratación.
+ *  - CERO props declarativas `initial`/`animate`/`whileInView` en el wrapper:
+ *    esas son las que framer serializa como estilos inline en el SSR y la
+ *    fuente real del mismatch. TODA revelación (tween primaria incluida) es
+ *    IMPERATIVA y client-only: el estado oculto se aplica en `useLayoutEffect`
+ *    (pre-paint) y se revela con `animate()` de `framer-motion/dom`.
+ *  - Consecuencia buscada: el HTML del SSR muestra TODO el contenido VISIBLE
+ *    (un visitante sin JS ve la sección completa, sin wrapper invisible). El
+ *    trade-off aceptado es un breve FLASH visible entre el paint del SSR y la
+ *    hidratación en clientes con motion activo (el contenido aparece visible y
+ *    un instante después arranca su entrada). Es deliberado: se prefiere ese
+ *    flash a un mismatch de hidratación y a ocultar contenido sin JS.
+ *
  * Reglas rectoras (decididas en el plan F6B, implementadas al pie de la letra):
  *  - Reduced motion (`reducedMotionOverride ?? useReducedMotion() ?? false`)
- *    ⇒ el resolver devuelve `mode:"static"` ⇒ se devuelven los `children`
- *    DIRECTOS: cero wrapper, cero transform, cero JS de animación. El
- *    `reducedMotionFallback` textual del schema es para humanos/IA — la
- *    implementación es "estático inmediato".
- *  - Progressive enhancement: los estados "ocultos" (stagger/scroll-steps) se
- *    aplican en `useLayoutEffect` (pre-paint, sin flash). SIN JS el contenido
- *    server-rendered queda VISIBLE — nunca se oculta con CSS estático.
+ *    ⇒ el resolver devuelve `mode:"static"` ⇒ se renderiza el MISMO wrapper
+ *    `m.div.pf-motion` pero INERTE: sin props de motion, sin efectos, sin
+ *    transform, sin JS de animación. Garantía para reduced: nada aplica jamás
+ *    estados ocultos ni animaciones en modo static. El `reducedMotionFallback`
+ *    textual del schema es para humanos/IA — la implementación es "estático
+ *    inmediato y visible".
+ *  - Progressive enhancement: TODOS los estados "ocultos" (tween primaria,
+ *    stagger, scroll-steps, count-up) se aplican en `useLayoutEffect`
+ *    (pre-paint, sin flash de "salto"). SIN JS ese effect no corre y el
+ *    contenido server-rendered queda VISIBLE — nunca se oculta con CSS
+ *    estático ni con estilos inline del SSR.
  *  - Bundle: `LazyMotion features={domAnimation} strict` + `m.div` (nunca
  *    `motion.*`, que rompe en `strict`). Las animaciones imperativas usan
  *    `animate`/`stagger` de `framer-motion/dom` (fuera del árbol declarativo).
@@ -29,11 +54,16 @@
  * dos selectores + el wrapper que envuelve al block.
  *
  * Solo la secuencia PRIMARIA (menor `order`, `kind:"tween"` SIN
- * `staggerChildren`) anima declarativamente el wrapper. Un segundo tween no
- * escalonado (p.ej. `media-reveal` del hero, que apunta a `mediaAlt` — un slot
- * sin data-attr de motion) no tiene superficie DOM propia en v1 y no se anima
- * individualmente: el wrapper carga la entrada de la sección. Decisión de v1
- * documentada, acotada por la superficie DOM de T5.
+ * `staggerChildren`) anima el wrapper (imperativamente, ver arriba). Un segundo
+ * tween no escalonado (p.ej. `media-reveal` del hero, que apunta a `mediaAlt` —
+ * un slot sin data-attr de motion) no tiene superficie DOM propia en v1 y no se
+ * anima individualmente: el wrapper carga la entrada de la sección. Decisión de
+ * v1 documentada, acotada por la superficie DOM de T5.
+ *
+ * Único gesto declarativo que sobrevive en el wrapper: el `pulse` de
+ * INTERACCIÓN (`whileHover`/`whileTap`), y SOLO en modo `animate` — no emite
+ * estilos inline en el SSR, así que es hydration-safe. El `pulse` in-view se
+ * ejecuta imperativo (como la tween primaria).
  */
 import { useCallback, useEffect, useLayoutEffect, useRef, type ReactNode } from "react";
 import {
@@ -103,17 +133,21 @@ export function MotionSection({
 
   const spec = resolveChoreography(choreography, motionDna, reduced);
 
-  // Reduced / sin coreografía ejecutable ⇒ children directos: cero wrapper,
-  // cero transform, cero JS. Contenido visible tal cual lo dejó el server.
-  if (spec.mode === "static") {
-    return <>{children}</>;
-  }
-
+  // La ESTRUCTURA es idéntica en ambos modos (hydration-safety, ver docstring):
+  // siempre `LazyMotion > m.div.pf-motion`. En `static` el wrapper es INERTE
+  // (sin props de motion, sin efectos): el contenido queda visible tal cual lo
+  // dejó el server, sin transform ni JS de animación.
   return (
     <LazyMotion features={domAnimation} strict>
-      <MotionSectionRunner spec={spec} nodeId={nodeId}>
-        {children}
-      </MotionSectionRunner>
+      {spec.mode === "static" ? (
+        <m.div className="pf-motion" data-pf-motion-node={nodeId}>
+          {children}
+        </m.div>
+      ) : (
+        <MotionSectionRunner spec={spec} nodeId={nodeId}>
+          {children}
+        </MotionSectionRunner>
+      )}
     </LazyMotion>
   );
 }
@@ -175,10 +209,18 @@ function MotionSectionRunner({
   );
   useMotionValueEvent(scrollYProgress, "change", onScrollProgress);
 
-  // --- Pre-paint: ocultar los items de stagger/scroll-steps SIN flash ---
+  // --- Pre-paint: aplicar TODOS los estados "ocultos" SIN flash de salto ---
   // (progressive enhancement: sin JS este layout effect no corre y el
-  //  contenido server-rendered queda visible).
+  //  contenido server-rendered queda visible; ver hydration-safety en el
+  //  docstring del módulo). Cubre: la tween PRIMARIA sobre el propio wrapper,
+  //  los items de stagger/scroll-steps y las cifras de count-up.
   useLayoutEffect(() => {
+    // Tween primaria: el estado oculto va sobre el wrapper (`ref.current`),
+    // no sobre los items. Sin transición inline — la revelación imperativa la
+    // gobierna `animate()` con la duración/ease del resolver.
+    if (primary && ref.current) {
+      applyKeyframeStyle(ref.current, primary.hidden);
+    }
     const items = ref.current?.querySelectorAll<HTMLElement>(ITEM_SELECTOR);
     if (!items || items.length === 0) return;
     if (staggerSeq) {
@@ -200,6 +242,43 @@ function MotionSectionRunner({
     // componente porque el árbol es estático dentro de un preview).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // --- tween primaria: revelación IMPERATIVA del wrapper (hydration-safe) ---
+  // El estado oculto ya lo aplicó el pre-paint; aquí solo se anima hacia el
+  // `visible` resuelto. trigger "load" ⇒ al montar; trigger "in-view" ⇒ cuando
+  // `inView` (misma política once + amount:0.3 que el resto del runner).
+  useEffect(() => {
+    if (!primary) return;
+    const el = ref.current;
+    if (!el) return;
+    const shouldRun = primary.trigger === "load" ? true : inView;
+    if (!shouldRun) return;
+    const controls = animate(el, keyframeToTarget(primary.visible), {
+      duration: toSeconds(primary.durationMs),
+      ease: [...primary.ease],
+      delay: toSeconds(primary.delayMs),
+    });
+    // Desmontar a mitad de animación no debe dejar la animación corriendo
+    // contra un nodo ya detached (misma semántica de cleanup que stagger/count).
+    return () => controls.stop();
+  }, [primary, inView]);
+
+  // --- pulse in-view: un ciclo de escala IMPERATIVO al entrar en view ---
+  // (el pulse de interacción sigue declarativo — ver buildWrapperProps). Se
+  // hace imperativo para NO usar `whileInView` declarativo en el wrapper, que
+  // reintroduciría riesgo de estilos SSR y mismatch de hidratación.
+  useEffect(() => {
+    if (!pulseSeq || pulseSeq.pulseScale === undefined) return;
+    if (pulseSeq.trigger === "interaction") return; // gesto declarativo, no aquí
+    if (!inView) return;
+    const el = ref.current;
+    if (!el) return;
+    const controls = animate(el, { scale: [1, pulseSeq.pulseScale, 1] }, {
+      duration: toSeconds(pulseSeq.durationMs),
+      delay: toSeconds(pulseSeq.delayMs),
+    });
+    return () => controls.stop();
+  }, [pulseSeq, inView]);
 
   // --- stagger: entrada escalonada imperativa sobre [data-pf-motion-item] ---
   useEffect(() => {
@@ -253,8 +332,10 @@ function MotionSectionRunner({
     };
   }, [countSeq, inView]);
 
-  // --- Wrapper declarativo: secuencia primaria (tween sin stagger) + pulse ---
-  const wrapperProps = buildWrapperProps(primary, pulseSeq);
+  // --- Único gesto declarativo del wrapper: pulse de interacción (animate) ---
+  // La tween primaria y el pulse in-view son imperativos (hydration-safety):
+  // el wrapper NO recibe initial/animate/whileInView.
+  const wrapperProps = buildWrapperProps(pulseSeq);
 
   return (
     <m.div ref={ref} className="pf-motion" data-pf-motion-node={nodeId} {...wrapperProps}>
@@ -271,51 +352,19 @@ function MotionSectionRunner({
 type WrapperProps = Record<string, unknown>;
 
 /**
- * Props declarativas del wrapper: la secuencia primaria (initial/animate en
- * "load", initial/whileInView+viewport en "in-view") + el pulse
- * (whileHover/whileTap en "interaction", ciclo único en "in-view").
+ * ÚNICO gesto declarativo que el wrapper puede llevar: el pulse de INTERACCIÓN
+ * (`whileHover`/`whileTap`). Es hydration-safe porque framer no emite estilos
+ * inline en el SSR para estos gestos (solo `initial` lo haría, y ya no existe).
+ * El pulse in-view NO entra aquí — se ejecuta imperativo en el runner. En modo
+ * `static`/reduced este helper ni se invoca: el wrapper va sin props de motion.
  */
-function buildWrapperProps(
-  primary: ResolvedSequence | undefined,
-  pulse: ResolvedSequence | undefined
-): WrapperProps {
+function buildWrapperProps(pulse: ResolvedSequence | undefined): WrapperProps {
   const props: WrapperProps = {};
 
-  if (primary) {
-    const transition = {
-      duration: toSeconds(primary.durationMs),
-      delay: toSeconds(primary.delayMs),
-      ease: [...primary.ease] as number[],
-    };
-    props.initial = keyframeToTarget(primary.hidden);
-    if (primary.trigger === "load") {
-      props.animate = keyframeToTarget(primary.visible);
-      props.transition = transition;
-    } else {
-      // in-view (único otro trigger válido para tween): revela una sola vez.
-      props.whileInView = keyframeToTarget(primary.visible);
-      props.viewport = { once: true, amount: 0.3 };
-      props.transition = transition;
-    }
-  }
-
-  if (pulse && pulse.pulseScale !== undefined) {
-    if (pulse.trigger === "interaction") {
-      // Pulso al interactuar: crece a pulseScale en hover, comprime en tap.
-      props.whileHover = { scale: pulse.pulseScale };
-      props.whileTap = { scale: 1 };
-    } else {
-      // Pulso in-view: un ciclo de escala al entrar. Si hay primaria in-view,
-      // comparte transición pero no colisiona de claves (primaria usa
-      // opacity/y/clipPath, el pulso usa scale) — aceptable en v1.
-      const whileInView = (props.whileInView as Record<string, unknown> | undefined) ?? {};
-      props.whileInView = { ...whileInView, scale: [1, pulse.pulseScale, 1] };
-      props.viewport = props.viewport ?? { once: true, amount: 0.3 };
-      props.transition = props.transition ?? {
-        duration: toSeconds(pulse.durationMs),
-        delay: toSeconds(pulse.delayMs),
-      };
-    }
+  if (pulse && pulse.pulseScale !== undefined && pulse.trigger === "interaction") {
+    // Pulso al interactuar: crece a pulseScale en hover, comprime en tap.
+    props.whileHover = { scale: pulse.pulseScale };
+    props.whileTap = { scale: 1 };
   }
 
   return props;

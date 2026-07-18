@@ -123,21 +123,32 @@ describe("SUPPORTED_RECIPE_KINDS — paridad registry↔renderer", () => {
   });
 });
 
-describe("MotionSection — reduced motion", () => {
-  it("con reducedMotionOverride:true renderiza children DIRECTOS (sin wrapper, sin animate)", () => {
+describe("MotionSection — reduced / static (hydration-safe: wrapper INERTE)", () => {
+  it("con reducedMotionOverride:true renderiza el MISMO wrapper .pf-motion pero INERTE (children intactos, sin animate, sin props de motion)", () => {
     const { container } = render(
       <MotionSection nodeId="n1" choreography={choreography([seq()])} reducedMotionOverride>
         <p>contenido</p>
       </MotionSection>
     );
     expect(screen.getByText("contenido")).toBeInTheDocument();
-    // Cero wrapper de motion, cero JS de animación.
-    expect(container.querySelector(".pf-motion")).toBeNull();
-    expect(mockState.capturedMotionProps).toHaveLength(0);
+    // El wrapper EXISTE (paridad estructural con el modo animate) pero es inerte.
+    const wrapper = container.querySelector<HTMLElement>(".pf-motion");
+    expect(wrapper).not.toBeNull();
+    // Cero JS de animación, cero estilos ocultos sobre el wrapper.
     expect(animateSpy).not.toHaveBeenCalled();
+    expect(wrapper!.style.opacity).toBe("");
+    expect(wrapper!.style.transform).toBe("");
+    // Se capturó exactamente un m.div (el wrapper) SIN ningún prop de motion.
+    expect(mockState.capturedMotionProps).toHaveLength(1);
+    const w = lastWrapper();
+    expect(w.initial).toBeUndefined();
+    expect(w.animate).toBeUndefined();
+    expect(w.whileInView).toBeUndefined();
+    expect(w.whileHover).toBeUndefined();
+    expect(w.whileTap).toBeUndefined();
   });
 
-  it("con useReducedMotion() del entorno en true, también children directos", () => {
+  it("con useReducedMotion() del entorno en true, también wrapper inerte sin animate", () => {
     mockState.reducedMotion = true;
     const { container } = render(
       <MotionSection nodeId="n1" choreography={choreography([seq()])}>
@@ -145,50 +156,178 @@ describe("MotionSection — reduced motion", () => {
       </MotionSection>
     );
     expect(screen.getByText("contenido")).toBeInTheDocument();
-    expect(container.querySelector(".pf-motion")).toBeNull();
+    expect(container.querySelector(".pf-motion")).not.toBeNull();
     expect(animateSpy).not.toHaveBeenCalled();
   });
 
-  it("choreography undefined también degrada a children directos", () => {
+  it("choreography undefined también degrada a wrapper inerte (contenido visible)", () => {
     const { container } = render(
       <MotionSection nodeId="n1" choreography={undefined}>
         <p>contenido</p>
       </MotionSection>
     );
     expect(screen.getByText("contenido")).toBeInTheDocument();
-    expect(container.querySelector(".pf-motion")).toBeNull();
+    expect(container.querySelector(".pf-motion")).not.toBeNull();
+    expect(animateSpy).not.toHaveBeenCalled();
   });
 });
 
-describe("MotionSection — tween primaria en el wrapper", () => {
-  it("trigger load → initial/animate con los valores resueltos y transición en segundos", () => {
+describe("MotionSection — paridad estructural (regresión de hidratación)", () => {
+  it("reduced=false y reduced=true producen el MISMO esqueleto (tagName + className del wrapper)", () => {
+    const { container: animated } = render(
+      <MotionSection nodeId="n1" choreography={choreography([seq({ behaviorId: "fade-rise", trigger: "load" })])}>
+        <p>hero</p>
+      </MotionSection>
+    );
+    const a = animated.querySelector<HTMLElement>(".pf-motion");
+    expect(a).not.toBeNull();
+    // Se capturan tagName/className/text ANTES de desmontar: cleanup() elimina
+    // el árbol y dejaría el nodo sin hijos.
+    const aTag = a!.tagName;
+    const aClass = a!.className;
+    const aText = a!.textContent;
+    cleanup();
+
+    const { container: reduced } = render(
+      <MotionSection
+        nodeId="n1"
+        choreography={choreography([seq({ behaviorId: "fade-rise", trigger: "load" })])}
+        reducedMotionOverride
+      >
+        <p>hero</p>
+      </MotionSection>
+    );
+    const r = reduced.querySelector<HTMLElement>(".pf-motion");
+    expect(r).not.toBeNull();
+    // Mismo elemento wrapper en ambos modos ⇒ el SSR (siempre `animate`) y un
+    // cliente reduced (`static`) hidratan sin mismatch estructural.
+    expect(aTag).toBe(r!.tagName);
+    expect(aClass).toBe(r!.className);
+    // Y en ambos el contenido está presente (visible) dentro del wrapper.
+    expect(aText).toBe("hero");
+    expect(r!.textContent).toBe("hero");
+  });
+});
+
+/** Llamada de `animate` cuyo primer arg es un elemento DOM (revelación imperativa del wrapper). */
+function wrapperAnimateCall(): [unknown, unknown, Record<string, unknown> | undefined] | undefined {
+  return animateSpy.mock.calls.find((c) => c[0] instanceof HTMLElement) as
+    | [unknown, unknown, Record<string, unknown> | undefined]
+    | undefined;
+}
+
+describe("MotionSection — tween primaria IMPERATIVA sobre el wrapper (hydration-safe)", () => {
+  it("trigger load → animate(wrapper, visible, {duration,ease,delay}); hidden aplicado pre-paint; SIN initial/animate/whileInView declarativos", () => {
     const { container } = render(
       <MotionSection nodeId="n1" choreography={choreography([seq({ behaviorId: "fade-rise", trigger: "load" })])}>
         <p>hero</p>
       </MotionSection>
     );
-    expect(container.querySelector(".pf-motion")).not.toBeNull();
+    const wrapper = container.querySelector<HTMLElement>(".pf-motion");
+    expect(wrapper).not.toBeNull();
+
+    // El wrapper NO lleva ningún prop declarativo de motion — esa es la fuente
+    // del mismatch de hidratación, ya eliminada.
     const w = lastWrapper();
-    // fade-rise: hidden {opacity:0,y:24}, visible {opacity:1,y:0}. intensity 2 +
-    // defaults ⇒ factor 1 ⇒ y=24 sin escalar.
-    expect(w.initial).toEqual({ opacity: 0, y: 24 });
-    expect(w.animate).toEqual({ opacity: 1, y: 0 });
+    expect(w.initial).toBeUndefined();
+    expect(w.animate).toBeUndefined();
     expect(w.whileInView).toBeUndefined();
-    // normal=450ms ⇒ 0.45s; ease-out cubic-bezier.
-    expect(w.transition).toMatchObject({ duration: 0.45, delay: 0, ease: [0.16, 1, 0.3, 1] });
+    expect(w.transition).toBeUndefined();
+
+    // hidden aplicado pre-paint (useLayoutEffect) sobre el propio wrapper.
+    // fade-rise: hidden {opacity:0,y:24}. intensity 2 + defaults ⇒ factor 1.
+    expect(wrapper!.style.opacity).toBe("0");
+    expect(wrapper!.style.transform).toContain("translateY(24px)");
+
+    // Revelación imperativa: animate(wrapper, visible, transición en segundos).
+    const call = wrapperAnimateCall();
+    expect(call).toBeDefined();
+    expect(call![0]).toBe(wrapper);
+    expect(call![1]).toEqual({ opacity: 1, y: 0 });
+    // normal=450ms ⇒ 0.45s; ease-out cubic-bezier; delay "none" ⇒ 0.
+    expect(call![2]).toMatchObject({ duration: 0.45, delay: 0, ease: [0.16, 1, 0.3, 1] });
   });
 
-  it("trigger in-view → whileInView + viewport {once:true, amount:0.3}, sin animate", () => {
+  it("trigger in-view + inView:true → animate(wrapper, visible) gobernado por useInView", () => {
+    mockState.inView = true;
+    const { container } = render(
+      <MotionSection nodeId="n1" choreography={choreography([seq({ behaviorId: "fade-in", trigger: "in-view" })])}>
+        <p>faq</p>
+      </MotionSection>
+    );
+    const wrapper = container.querySelector<HTMLElement>(".pf-motion");
+    const w = lastWrapper();
+    expect(w.whileInView).toBeUndefined();
+    expect(w.animate).toBeUndefined();
+    // fade-in: hidden {opacity:0}, visible {opacity:1} — sin transform.
+    expect(wrapper!.style.opacity).toBe("0");
+    const call = wrapperAnimateCall();
+    expect(call).toBeDefined();
+    expect(call![0]).toBe(wrapper);
+    expect(call![1]).toEqual({ opacity: 1 });
+  });
+
+  it("trigger in-view + inView:false → NO se revela (sin animate sobre el wrapper)", () => {
+    mockState.inView = false;
     render(
       <MotionSection nodeId="n1" choreography={choreography([seq({ behaviorId: "fade-in", trigger: "in-view" })])}>
         <p>faq</p>
       </MotionSection>
     );
+    // El pre-paint dejó el hidden; sin inView no hay revelación imperativa.
+    expect(wrapperAnimateCall()).toBeUndefined();
+  });
+});
+
+describe("MotionSection — pulse", () => {
+  it("interacción + modo animate → whileHover/whileTap declarativos en el wrapper", () => {
+    render(
+      <MotionSection
+        nodeId="n1"
+        choreography={choreography([seq({ behaviorId: "pulse-accent", trigger: "interaction" })])}
+      >
+        <button>CTA</button>
+      </MotionSection>
+    );
     const w = lastWrapper();
-    expect(w.whileInView).toEqual({ opacity: 1 });
-    expect(w.initial).toEqual({ opacity: 0 });
-    expect(w.viewport).toEqual({ once: true, amount: 0.3 });
-    expect(w.animate).toBeUndefined();
+    // pulse-accent scaleAmplitude 1.03, intensity 2 + defaults ⇒ pulseScale 1.03.
+    expect(w.whileHover).toEqual({ scale: 1.03 });
+    expect(w.whileTap).toEqual({ scale: 1 });
+    // El pulse de interacción NO es imperativo (no anima el elemento).
+    expect(wrapperAnimateCall()).toBeUndefined();
+  });
+
+  it("in-view → ciclo de escala IMPERATIVO (no declarativo, sin whileInView)", () => {
+    mockState.inView = true;
+    const { container } = render(
+      <MotionSection nodeId="n1" choreography={choreography([seq({ behaviorId: "pulse-accent", trigger: "in-view" })])}>
+        <button>CTA</button>
+      </MotionSection>
+    );
+    const wrapper = container.querySelector<HTMLElement>(".pf-motion");
+    const w = lastWrapper();
+    expect(w.whileInView).toBeUndefined();
+    expect(w.whileHover).toBeUndefined();
+    const call = wrapperAnimateCall();
+    expect(call).toBeDefined();
+    expect(call![0]).toBe(wrapper);
+    expect(call![1]).toEqual({ scale: [1, 1.03, 1] });
+  });
+
+  it("static/reduced → sin whileHover/whileTap ni animate", () => {
+    render(
+      <MotionSection
+        nodeId="n1"
+        choreography={choreography([seq({ behaviorId: "pulse-accent", trigger: "interaction" })])}
+        reducedMotionOverride
+      >
+        <button>CTA</button>
+      </MotionSection>
+    );
+    const w = lastWrapper();
+    expect(w.whileHover).toBeUndefined();
+    expect(w.whileTap).toBeUndefined();
+    expect(animateSpy).not.toHaveBeenCalled();
   });
 });
 
