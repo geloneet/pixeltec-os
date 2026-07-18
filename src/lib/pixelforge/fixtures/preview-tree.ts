@@ -1,35 +1,32 @@
 /**
- * Fixture de preview (F6A-T6/T7): un `PageTree` serializado y VÁLIDO que ejerce
- * los 12 blocks del registry para dogfoodear el pipeline de render antes de que
- * F7 introduzca `page_versions` reales. La page de preview lo pasa por
- * `validatePageTree` en runtime — si no valida, la page lanza (dogfooding).
+ * Fixture de preview (F6A-T6/T7, coreografía real desde F6B-T3): un `PageTree`
+ * serializado y VÁLIDO que ejerce los 12 blocks del registry para dogfoodear
+ * el pipeline de render antes de que F7 introduzca `page_versions` reales. La
+ * page de preview lo pasa por `validatePageTree` en runtime — si no valida,
+ * la page lanza (dogfooding).
  *
  * Propiedades que este fixture garantiza (cubiertas por `preview-tree.test.ts`):
  *  - Usa LOS 12 `BlockId` del catálogo, uno por nodo, `orden` 1..12 únicos.
  *  - ≥1 variante NO-default (hero-split `media-left`, offer-tiers `table`,
  *    faq-accordion `two-column`, cta-banner `gradient`, etc.).
- *  - Exactamente 2 nodos con coreografía `intensity: 3` (cinematográfica),
- *    ambos sobre blocks con `allowsCinematic: true` (hero-split y cta-banner)
- *    — dentro del máximo de 3 que exige `validatePageTree`.
+ *  - Exactamente 3 nodos con coreografía `intensity: 3` (cinematográfica) —
+ *    `n1-hero`, `n5-narrative` y `n11-cta`, los tres sobre blocks con
+ *    `allowsCinematic: true` — exactamente el máximo que admite
+ *    `validatePageTree` (`MAX_CINEMATIC_NODES`), ejercitado a propósito.
  *  - `targetSlot` de cada sequence ∈ `editableSlots` del block.
- *
- * NOTA `behaviorId` (deferral EXPLÍCITO): el registry de behaviors de motion
- * llega en F6B. Hoy no hay contra qué validar `behaviorId`, así que se usa el
- * placeholder `"fade-rise"` — `validatePageTree` lo acepta pero emite un WARNING
- * documentado ("behaviors registry llega en F6B") por cada sequence, NUNCA un
- * error. La coreografía se valida estructuralmente pero F6A no la interpreta
- * (PageRenderer es estático; framer-motion/reduced-motion llegan en F6B).
+ *  - `behaviorId` de cada sequence ∈ `BEHAVIOR_IDS` (registry real de
+ *    `registry/behaviors.ts`, F6B-T1) — ninguna sequence usa un placeholder:
+ *    8 behaviors certificados, se usan 8 de ellos y los 4 `trigger` del
+ *    schema (`load`, `in-view`, `scroll-progress`, `interaction`) aparecen al
+ *    menos una vez, para ejercitar variedad real en el gate visual.
  */
 import type { PageTree } from "@/lib/pixelforge/schemas/compose-page-tree";
 import type { DesignTokens } from "@/components/pixelforge/render/tokens";
 
-/** Placeholder de behavior hasta que F6B registre los behaviors reales. */
-const BEHAVIOR_PLACEHOLDER = "fade-rise";
-
 export const PREVIEW_FIXTURE_TREE: PageTree = {
   notas:
-    "Fixture de preview F6A — ejerce los 12 blocks del registry con variantes " +
-    "mixtas y 2 nodos cinematográficos. No representa una landing real de cliente.",
+    "Fixture de preview F6A/F6B — ejerce los 12 blocks del registry con variantes " +
+    "mixtas y 3 nodos cinematográficos con behaviors reales. No representa una landing real de cliente.",
   nodes: [
     {
       nodeId: "n1-hero",
@@ -45,18 +42,36 @@ export const PREVIEW_FIXTURE_TREE: PageTree = {
         badges: ["ISO 27001", "+120 proyectos", "Soporte 24/7"],
       }),
       choreography: {
-        narrativePurpose: "Abrir con una entrada cinematográfica que ancle la promesa de valor.",
-        motifConnection: "El título asciende como una compuerta que se abre — el motif de 'apertura precisa'.",
-        reducedMotionFallback: "El título aparece sin desplazamiento, con un fundido corto.",
+        narrativePurpose: "Abrir con una entrada cinematográfica que ancle la promesa de valor y presente la media y los badges de confianza en cascada.",
+        motifConnection: "El título asciende como una compuerta que se abre — el motif de 'apertura precisa' — y la media y los badges completan la escena con el mismo orden calmado.",
+        reducedMotionFallback: "El título aparece sin desplazamiento con un fundido corto, la media aparece directamente en su posición final y los badges se muestran todos a la vez, sin escalonado.",
         sequences: [
           {
-            behaviorId: BEHAVIOR_PLACEHOLDER,
+            behaviorId: "fade-rise",
             targetSlot: "titulo",
             trigger: "load",
             order: 0,
             durationToken: "normal",
             delayStrategy: "none",
             intensity: 3, // cinematográfica — hero-split permite allowsCinematic
+          },
+          {
+            behaviorId: "media-reveal",
+            targetSlot: "mediaAlt",
+            trigger: "load",
+            order: 1,
+            durationToken: "normal",
+            delayStrategy: "none",
+            intensity: 2,
+          },
+          {
+            behaviorId: "stagger-children",
+            targetSlot: "badges",
+            trigger: "load",
+            order: 2,
+            durationToken: "fast",
+            delayStrategy: "index",
+            intensity: 1,
           },
         ],
       },
@@ -75,6 +90,22 @@ export const PREVIEW_FIXTURE_TREE: PageTree = {
           { nombre: "Talleres Vega" },
         ],
       }),
+      choreography: {
+        narrativePurpose: "Reforzar credibilidad inmediatamente después del hero con la entrada calmada de los logos.",
+        motifConnection: "Cascada suave de confianza — continúa el ritmo de apertura sin competir con el hero.",
+        reducedMotionFallback: "Los logos aparecen todos a la vez, sin escalonado.",
+        sequences: [
+          {
+            behaviorId: "stagger-children",
+            targetSlot: "logos",
+            trigger: "in-view",
+            order: 0,
+            durationToken: "fast",
+            delayStrategy: "index",
+            intensity: 1,
+          },
+        ],
+      },
     },
     {
       nodeId: "n3-features",
@@ -89,6 +120,22 @@ export const PREVIEW_FIXTURE_TREE: PageTree = {
           { titulo: "Reportes", texto: "Decisiones con datos en tiempo real, no en hojas de cálculo." },
         ],
       }),
+      choreography: {
+        narrativePurpose: "Desglosar los beneficios uno a uno para que cada característica se registre por separado.",
+        motifConnection: "Misma cascada escalonada que los logos — construye familiaridad de ritmo antes de las cifras.",
+        reducedMotionFallback: "Las tarjetas de características aparecen todas a la vez, sin escalonado.",
+        sequences: [
+          {
+            behaviorId: "stagger-children",
+            targetSlot: "features",
+            trigger: "in-view",
+            order: 0,
+            durationToken: "normal",
+            delayStrategy: "index",
+            intensity: 2,
+          },
+        ],
+      },
     },
     {
       nodeId: "n4-stats",
@@ -102,6 +149,31 @@ export const PREVIEW_FIXTURE_TREE: PageTree = {
           { valor: "8 años", etiqueta: "En el mercado" },
         ],
       }),
+      choreography: {
+        narrativePurpose: "Dar peso a las cifras con un conteo ascendente que las hace sentir verificadas, no decorativas.",
+        motifConnection: "El conteo asciende como el título del hero — misma sensación de construcción progresiva.",
+        reducedMotionFallback: "Las cifras aparecen directamente con su valor final, sin conteo animado.",
+        sequences: [
+          {
+            behaviorId: "count-up",
+            targetSlot: "stats",
+            trigger: "in-view",
+            order: 0,
+            durationToken: "normal",
+            delayStrategy: "none",
+            intensity: 1,
+          },
+          {
+            behaviorId: "fade-in",
+            targetSlot: "stats",
+            trigger: "in-view",
+            order: 1,
+            durationToken: "fast",
+            delayStrategy: "none",
+            intensity: 1,
+          },
+        ],
+      },
     },
     {
       nodeId: "n5-narrative",
@@ -115,6 +187,22 @@ export const PREVIEW_FIXTURE_TREE: PageTree = {
           { titulo: "Implementación", texto: "Construimos, integramos y capacitamos a tu equipo." },
         ],
       }),
+      choreography: {
+        narrativePurpose: "Contar el método paso a paso ligado al scroll real del usuario, no a un timer — la narrativa cinematográfica del medio de la landing.",
+        motifConnection: "Cada paso se revela conforme avanza el scroll, como capítulos de la misma 'apertura precisa' del hero, ahora extendida en el tiempo.",
+        reducedMotionFallback: "Los tres pasos aparecen listados en su posición final, sin animación ligada al scroll.",
+        sequences: [
+          {
+            behaviorId: "scroll-reveal-steps",
+            targetSlot: "pasos",
+            trigger: "scroll-progress",
+            order: 0,
+            durationToken: "slow",
+            delayStrategy: "distance",
+            intensity: 3, // cinematográfica — narrative-scroller permite allowsCinematic
+          },
+        ],
+      },
     },
     {
       nodeId: "n6-process",
@@ -208,18 +296,27 @@ export const PREVIEW_FIXTURE_TREE: PageTree = {
         cta: { label: "Hablar con un experto", href: "#contacto" },
       }),
       choreography: {
-        narrativePurpose: "Cerrar con un llamado a la acción que retiene la energía del scroll.",
-        motifConnection: "El banner se ilumina de borde a centro — el mismo gesto de 'apertura' del hero, cerrando el arco.",
-        reducedMotionFallback: "El banner aparece con su color final, sin barrido.",
+        narrativePurpose: "Cerrar con un llamado a la acción que retiene la energía del scroll y el gesto de apertura del hero.",
+        motifConnection: "El título se revela con un barrido de borde a centro — el mismo gesto de 'apertura precisa' del hero, cerrando el arco — y el CTA late al interactuar para no perder al visitante.",
+        reducedMotionFallback: "El banner aparece con su color y texto final de inmediato, sin barrido ni pulso.",
         sequences: [
           {
-            behaviorId: BEHAVIOR_PLACEHOLDER,
+            behaviorId: "wipe-reveal",
             targetSlot: "titulo",
             trigger: "in-view",
             order: 0,
             durationToken: "slow",
             delayStrategy: "semantic",
-            intensity: 3, // cinematográfica — cta-banner permite allowsCinematic
+            intensity: 3, // cinematográfica — cta-banner permite allowsCinematic; wipe-reveal exige intensity 3
+          },
+          {
+            behaviorId: "pulse-accent",
+            targetSlot: "cta.label",
+            trigger: "interaction",
+            order: 1,
+            durationToken: "normal",
+            delayStrategy: "none",
+            intensity: 1,
           },
         ],
       },

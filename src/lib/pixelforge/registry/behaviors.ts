@@ -13,10 +13,9 @@
  * el resolver de F6B-T2 (`render/motion/resolve.ts`) es el único que
  * traduce estos datos a algo que framer-motion ejecuta.
  *
- * `validatePageTree` (`./validate-page-tree.ts:122`) hoy solo emite un
- * WARNING para `behaviorId` ("behaviors registry llega en F6B") — F6B-T2
- * promueve ese warning a error real usando `isRegisteredBehaviorId` de este
- * archivo.
+ * `validatePageTree` (`./validate-page-tree.ts:~130`) ya NO emite un WARNING
+ * "suave" para `behaviorId` — F6B-T2 promovió ese warning a error real usando
+ * `isRegisteredBehaviorId` de este archivo.
  */
 
 /**
