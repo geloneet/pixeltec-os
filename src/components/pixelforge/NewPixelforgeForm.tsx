@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Brain, FileText, Loader2, Sparkles, Users } from "lucide-react";
 import { createPixelforgeProjectAction } from "@/app/(admin)/proyectos/pixelforge/actions";
+import { ForgeZone } from "@/components/pixelforge/forge/ForgeZone";
 import {
   Select,
   SelectContent,
@@ -129,20 +130,24 @@ export function NewPixelforgeForm({ clients, definitions }: Props) {
     <div className="mx-auto w-full max-w-2xl px-4 py-8">
       <div className="mb-6">
         <div className="mb-1 flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-cyan-400" />
-          <h1 className="text-lg font-semibold text-foreground">Nuevo Proyecto PixelForge</h1>
+          <Sparkles className="h-4 w-4 text-pfx-accent" />
+          <h1 className="text-xl font-extrabold tracking-[-0.02em] text-pfx-text">
+            Nuevo Proyecto PixelForge
+          </h1>
         </div>
-        <p className="text-xs text-muted-foreground">
-          La IA te va a acompañar por 8 estaciones para producir la landing.
+        <p className="text-xs text-pfx-text-muted">
+          La IA te va a acompañar por{" "}
+          <span className="font-forge-mono text-pfx-text">8 estaciones</span> para producir la
+          landing.
         </p>
       </div>
 
-      <div className="rounded-xl border border-border bg-card p-5">
+      <ForgeZone variant="elevated" className="p-5">
         <label
           htmlFor="pixelforge-client"
-          className="mb-2 flex items-center gap-1.5 text-sm font-medium text-foreground"
+          className="mb-2 flex items-center gap-1.5 text-sm font-medium text-pfx-text"
         >
-          <Users className="h-4 w-4 text-muted-foreground" />
+          <Users className="h-4 w-4 text-pfx-text-muted" />
           Cliente
         </label>
         <Select
@@ -166,9 +171,9 @@ export function NewPixelforgeForm({ clients, definitions }: Props) {
 
         <label
           htmlFor="pixelforge-title"
-          className="mb-2 mt-5 flex items-center gap-1.5 text-sm font-medium text-foreground"
+          className="mb-2 mt-5 flex items-center gap-1.5 text-sm font-medium text-pfx-text"
         >
-          <FileText className="h-4 w-4 text-muted-foreground" />
+          <FileText className="h-4 w-4 text-pfx-text-muted" />
           Título del proyecto
         </label>
         <input
@@ -178,14 +183,14 @@ export function NewPixelforgeForm({ clients, definitions }: Props) {
           onChange={(e) => setTitle(e.target.value)}
           maxLength={200}
           placeholder="Título del proyecto"
-          className="w-full rounded-md border border-border bg-secondary/40 px-3.5 py-2.5 text-sm text-foreground placeholder-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-cyan-400/40"
+          className="w-full rounded-[var(--pfx-radius)] border border-pfx-border bg-pfx-surface px-3.5 py-2.5 text-sm text-pfx-text placeholder:text-pfx-text-muted/60 focus:outline-none focus:ring-2 focus:ring-pfx-accent"
         />
 
         <label
           htmlFor="pixelforge-brain-dump"
-          className="mb-2 mt-5 flex items-center gap-1.5 text-sm font-medium text-foreground"
+          className="mb-2 mt-5 flex items-center gap-1.5 text-sm font-medium text-pfx-text"
         >
-          <Brain className="h-4 w-4 text-muted-foreground" />
+          <Brain className="h-4 w-4 text-pfx-text-muted" />
           Descarga mental
         </label>
         <textarea
@@ -194,9 +199,9 @@ export function NewPixelforgeForm({ clients, definitions }: Props) {
           onChange={(e) => setBrainDump(e.target.value)}
           rows={10}
           placeholder="Escribe tu idea, los problemas a solucionar o todo lo que tengas en la cabeza para poder aterrizarlo…"
-          className="w-full resize-none rounded-md border border-border bg-secondary/40 px-3.5 py-3 text-sm text-foreground placeholder-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-cyan-400/40"
+          className="w-full resize-none rounded-[var(--pfx-radius)] border border-pfx-border bg-pfx-surface px-3.5 py-3 text-sm text-pfx-text placeholder:text-pfx-text-muted/60 focus:outline-none focus:ring-2 focus:ring-pfx-accent"
         />
-        <span className="mt-1 block text-[11px] text-muted-foreground/70">
+        <span className="mt-1 block font-forge-mono text-[11px] text-pfx-text-muted">
           {brainDump.trim().length < MIN_BRAIN_DUMP
             ? "Escribe al menos un par de frases"
             : `${brainDump.trim().length} caracteres`}
@@ -207,7 +212,7 @@ export function NewPixelforgeForm({ clients, definitions }: Props) {
             <>
               <label
                 htmlFor="pixelforge-definition"
-                className="mb-2 mt-5 flex items-center gap-1.5 text-sm font-medium text-foreground"
+                className="mb-2 mt-5 flex items-center gap-1.5 text-sm font-medium text-pfx-text"
               >
                 Importar de Definición (opcional)
               </label>
@@ -231,23 +236,23 @@ export function NewPixelforgeForm({ clients, definitions }: Props) {
               </Select>
             </>
           ) : (
-            <p className="mt-5 text-[11px] text-muted-foreground/70">
+            <p className="mt-5 text-[11px] text-pfx-text-muted">
               Este cliente no tiene definiciones completadas.
             </p>
           ))}
 
-        <div className="mt-5 flex items-center justify-end">
+        <div className="mt-6 flex items-center justify-end">
           <button
             type="button"
             onClick={submit}
             disabled={!valid || busy}
-            className="flex items-center gap-2 rounded-md bg-cyan-500 px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-cyan-400 disabled:opacity-40"
+            className="inline-flex items-center gap-2 rounded-[var(--pfx-radius)] bg-pfx-accent px-4 py-2 text-sm font-semibold text-pfx-on-accent transition-colors hover:bg-pfx-accent-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pfx-accent focus-visible:ring-offset-2 focus-visible:ring-offset-pfx-surface-elevated disabled:opacity-40 disabled:hover:bg-pfx-accent"
           >
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
             Crear proyecto
           </button>
         </div>
-      </div>
+      </ForgeZone>
     </div>
   );
 }

@@ -20,12 +20,11 @@ import "./pixelforge-theme.css";
  * sistemas. `--pfx-*` es exclusivamente para la interfaz de administración
  * de PixelForge (este módulo).
  *
- * IMPORTANTE: este layout, por sí solo, NO cambia nada visualmente. No
- * consume ningún token `--pfx-*` (sin `bg-pfx-canvas`, sin `text-pfx-text`,
- * sin `font-forge-mono` aplicado aquí) — solo abre el scope y carga la
- * fuente. Las páginas y el layout de `[id]/*` siguen renderizando su propio
- * markup sin cambios hasta que las tareas siguientes (T2+) empiecen a
- * consumir los tokens.
+ * A partir de T4 el wrapper también PINTA el lienzo del módulo: `bg-pfx-canvas`
+ * (carbón azulado en dark / papel cálido en light) + `text-pfx-text` como color
+ * base, con `min-h-screen` para que el canvas cubra toda la altura del módulo
+ * (no solo el alto del contenido). El fondo del shell global queda tapado
+ * DENTRO del wrapper, sin tocar nada fuera de él.
  *
  * La tipografía de forja (IBM Plex Mono, pesos 400/500) se carga aquí vía
  * `next/font/google`, SOLO para este módulo — no se importa en el layout
@@ -48,7 +47,10 @@ export default function PixelforgeModuleLayout({
   children: ReactNode;
 }) {
   return (
-    <div data-product="pixelforge" className={forgeMono.variable}>
+    <div
+      data-product="pixelforge"
+      className={`${forgeMono.variable} min-h-screen bg-pfx-canvas text-pfx-text`}
+    >
       {children}
     </div>
   );

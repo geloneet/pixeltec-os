@@ -167,6 +167,45 @@ describe("NewPixelforgeForm — borrador en localStorage", () => {
     expect(screen.getByDisplayValue("Contenido previo de prueba largo")).toBeInTheDocument();
   });
 
+  it("round-trip: restaura cliente + definición del borrador y ambos combobox muestran el label correcto", () => {
+    window.localStorage.setItem(
+      DRAFT_KEY,
+      JSON.stringify({
+        clientCrmId: "client-1",
+        title: "Idea con definición",
+        brainDump: "Contenido previo suficientemente largo",
+        definitionId: "def-1",
+      })
+    );
+    render(<NewPixelforgeForm clients={clients} definitions={definitions} />);
+
+    // El combobox de cliente muestra el nombre del cliente restaurado…
+    expect(screen.getByRole("combobox", { name: /^cliente$/i })).toHaveTextContent("Cliente Uno");
+    // …y el de definición muestra el título de la definición restaurada
+    // (visible solo porque el cliente tiene definiciones completadas).
+    expect(
+      screen.getByRole("combobox", { name: /importar de definición/i })
+    ).toHaveTextContent("Definición A");
+  });
+
+  it("round-trip: con definitionId vacío el combobox de definición muestra 'Ninguna'", () => {
+    window.localStorage.setItem(
+      DRAFT_KEY,
+      JSON.stringify({
+        clientCrmId: "client-1",
+        title: "Idea sin definición",
+        brainDump: "Contenido previo suficientemente largo",
+        definitionId: "",
+      })
+    );
+    render(<NewPixelforgeForm clients={clients} definitions={definitions} />);
+
+    expect(screen.getByRole("combobox", { name: /^cliente$/i })).toHaveTextContent("Cliente Uno");
+    expect(
+      screen.getByRole("combobox", { name: /importar de definición/i })
+    ).toHaveTextContent("Ninguna");
+  });
+
   it("persiste en localStorage tras un debounce de escritura", () => {
     vi.useFakeTimers();
     render(<NewPixelforgeForm clients={clients} definitions={definitions} />);
