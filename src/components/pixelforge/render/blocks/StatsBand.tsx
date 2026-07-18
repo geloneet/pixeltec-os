@@ -52,7 +52,7 @@ export function StatsBand({ stats }: StatsBandProps) {
                 color: "var(--pf-primary)",
               }}
             >
-              {stat.valor}
+              <span data-pf-motion-count={stat.valor}>{stat.valor}</span>
             </dd>
           </div>
         ))}

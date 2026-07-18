@@ -76,7 +76,7 @@ export function ProcessSteps({ titulo, pasos, variant }: ProcessStepsProps) {
             {pasos.map((paso, index) => {
               const isLast = index === pasos.length - 1;
               return (
-                <li key={paso.numero} className="grid grid-cols-[auto_1fr]" style={{ gap: "calc(var(--pf-space) * 1.5)" }}>
+                <li key={paso.numero} data-pf-motion-item="" className="grid grid-cols-[auto_1fr]" style={{ gap: "calc(var(--pf-space) * 1.5)" }}>
                   <div className="flex flex-col items-center">
                     {disc(paso.numero)}
                     {!isLast && <span aria-hidden="true" style={{ flex: 1, width: "2px", marginTop: "calc(var(--pf-space) * 0.5)", backgroundColor: "var(--pf-muted)", opacity: 0.5 }} />}
@@ -107,7 +107,7 @@ export function ProcessSteps({ titulo, pasos, variant }: ProcessStepsProps) {
             style={{ gap: "calc(var(--pf-space) * 2)", marginTop: "calc(var(--pf-space) * 3)" }}
           >
             {pasos.map((paso) => (
-              <li key={paso.numero} className="flex flex-col" style={{ gap: "calc(var(--pf-space) * 0.75)" }}>
+              <li key={paso.numero} data-pf-motion-item="" className="flex flex-col" style={{ gap: "calc(var(--pf-space) * 0.75)" }}>
                 {disc(paso.numero)}
                 <h3 className="m-0" style={{ fontSize: "1.2rem", fontWeight: 600, lineHeight: 1.25, marginTop: "calc(var(--pf-space) * 0.5)" }}>
                   {paso.titulo}

@@ -59,6 +59,7 @@ export function ProofLogos({ titulo, logos, variant }: ProofLogosProps) {
             {logos.map((logo) => (
               <li
                 key={logo.nombre}
+                data-pf-motion-item=""
                 className="flex items-center justify-center"
                 style={{
                   padding: "calc(var(--pf-space) * 1.5)",
@@ -76,7 +77,7 @@ export function ProofLogos({ titulo, logos, variant }: ProofLogosProps) {
             style={{ gap: "calc(var(--pf-space) * 2.5)" }}
           >
             {logos.map((logo) => (
-              <li key={logo.nombre}>
+              <li key={logo.nombre} data-pf-motion-item="">
                 <span style={wordmarkStyle}>{logo.nombre}</span>
               </li>
             ))}

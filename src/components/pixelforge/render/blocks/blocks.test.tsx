@@ -63,6 +63,11 @@ describe("HeroSplit", () => {
     render(<HeroSplit {...props} badges={["a", "b", "c", "d", "e"]} variant="media-right" />);
     expect(screen.getAllByRole("listitem")).toHaveLength(3);
   });
+
+  it("marca cada badge con data-pf-motion-item (superficie DOM para MotionSection)", () => {
+    const { container } = render(<HeroSplit {...props} variant="media-right" />);
+    expect(container.querySelectorAll("[data-pf-motion-item]")).toHaveLength(props.badges.length);
+  });
 });
 
 describe("CtaBanner", () => {
@@ -127,6 +132,11 @@ describe("FeatureGrid", () => {
   it("pinta el icono decorativo como aria-hidden", () => {
     const { container } = render(<FeatureGrid {...props} variant="3-col" />);
     expect(container.querySelector('[aria-hidden="true"]')?.textContent).toBe("⚡");
+  });
+
+  it("marca cada tarjeta con data-pf-motion-item", () => {
+    const { container } = render(<FeatureGrid {...props} variant="3-col" />);
+    expect(container.querySelectorAll("[data-pf-motion-item]")).toHaveLength(props.features.length);
   });
 });
 
@@ -228,6 +238,14 @@ describe("ProofLogos", () => {
     const list = container.querySelector("ul")!;
     expect(list.className).toContain("grid");
   });
+
+  it("marca cada logo con data-pf-motion-item en ambas variantes", () => {
+    const row = render(<ProofLogos {...props} variant="row" />);
+    expect(row.container.querySelectorAll("[data-pf-motion-item]")).toHaveLength(props.logos.length);
+    row.unmount();
+    const grid = render(<ProofLogos {...props} variant="grid" />);
+    expect(grid.container.querySelectorAll("[data-pf-motion-item]")).toHaveLength(props.logos.length);
+  });
 });
 
 describe("OfferTiers", () => {
@@ -269,6 +287,14 @@ describe("OfferTiers", () => {
     render(<OfferTiers {...props} variant="cards" />);
     expect(screen.getByText("Recomendado")).toBeInTheDocument();
   });
+
+  it("marca cada tier con data-pf-motion-item: cards → tarjeta, table → columna (TableHead)", () => {
+    const cards = render(<OfferTiers {...props} variant="cards" />);
+    expect(cards.container.querySelectorAll("[data-pf-motion-item]")).toHaveLength(props.tiers.length);
+    cards.unmount();
+    const table = render(<OfferTiers {...props} variant="table" />);
+    expect(table.container.querySelectorAll("[data-pf-motion-item]")).toHaveLength(props.tiers.length);
+  });
 });
 
 describe("NarrativeScroller (estático)", () => {
@@ -287,6 +313,11 @@ describe("NarrativeScroller (estático)", () => {
     expect(screen.getAllByRole("listitem")).toHaveLength(3);
     expect(screen.getAllByRole("heading", { level: 3 })).toHaveLength(3);
     expect(screen.getByText("Publicamos y medimos.")).toBeInTheDocument();
+  });
+
+  it("marca cada paso con data-pf-motion-item", () => {
+    const { container } = render(<NarrativeScroller {...props} variant="default" />);
+    expect(container.querySelectorAll("[data-pf-motion-item]")).toHaveLength(props.pasos.length);
   });
 });
 
@@ -362,6 +393,14 @@ describe("ProcessSteps", () => {
     const ol = container.querySelector("ol")!;
     expect(ol.className).toContain("grid");
   });
+
+  it("marca cada paso con data-pf-motion-item en ambas variantes", () => {
+    const vertical = render(<ProcessSteps {...props} variant="vertical" />);
+    expect(vertical.container.querySelectorAll("[data-pf-motion-item]")).toHaveLength(props.pasos.length);
+    vertical.unmount();
+    const horizontal = render(<ProcessSteps {...props} variant="horizontal" />);
+    expect(horizontal.container.querySelectorAll("[data-pf-motion-item]")).toHaveLength(props.pasos.length);
+  });
 });
 
 describe("StatsBand", () => {
@@ -380,6 +419,17 @@ describe("StatsBand", () => {
     expect(container.querySelectorAll("dd")).toHaveLength(3);
     expect(screen.getByText("+250")).toBeInTheDocument();
     expect(screen.getByText("Clientes satisfechos")).toBeInTheDocument();
+  });
+
+  it("marca el span del valor con data-pf-motion-count = valor crudo (el texto server-rendered no cambia)", () => {
+    const { container } = render(<StatsBand {...props} variant="default" />);
+    const counters = container.querySelectorAll("[data-pf-motion-count]");
+    expect(counters).toHaveLength(props.stats.length);
+    counters.forEach((el, i) => {
+      const raw = props.stats[i].valor;
+      expect(el.getAttribute("data-pf-motion-count")).toBe(raw);
+      expect(el.textContent).toBe(raw);
+    });
   });
 });
 

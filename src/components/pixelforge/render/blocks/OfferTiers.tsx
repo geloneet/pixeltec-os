@@ -93,6 +93,7 @@ export function OfferTiers({ titulo, tiers, variant }: OfferTiersProps) {
                   {tiers.map((tier) => (
                     <TableHead
                       key={tier.nombre}
+                      data-pf-motion-item=""
                       scope="col"
                       className="text-center"
                       style={{
@@ -166,6 +167,7 @@ export function OfferTiers({ titulo, tiers, variant }: OfferTiersProps) {
             {tiers.map((tier) => (
               <li
                 key={tier.nombre}
+                data-pf-motion-item=""
                 className="flex flex-col"
                 style={{
                   gap: "calc(var(--pf-space) * 1.25)",

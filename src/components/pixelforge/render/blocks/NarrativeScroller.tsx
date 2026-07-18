@@ -31,7 +31,7 @@ export function NarrativeScroller({ pasos }: NarrativeScrollerProps) {
         {pasos.map((paso, index) => {
           const isLast = index === pasos.length - 1;
           return (
-            <li key={paso.titulo} className="grid grid-cols-[auto_1fr]" style={{ gap: "calc(var(--pf-space) * 1.5)" }}>
+            <li key={paso.titulo} data-pf-motion-item="" className="grid grid-cols-[auto_1fr]" style={{ gap: "calc(var(--pf-space) * 1.5)" }}>
               <div className="flex flex-col items-center">
                 <span
                   aria-hidden="true"

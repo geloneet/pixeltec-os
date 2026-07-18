@@ -48,6 +48,7 @@ export function FeatureGrid({ titulo, features, variant }: FeatureGridProps) {
           {features.map((feature) => (
             <li
               key={feature.titulo}
+              data-pf-motion-item=""
               className="flex flex-col transition-transform duration-200 hover:-translate-y-1"
               style={{
                 gap: "calc(var(--pf-space) * 0.75)",

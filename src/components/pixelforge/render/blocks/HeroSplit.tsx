@@ -50,6 +50,7 @@ export function HeroSplit({ titulo, subtitulo, cta, mediaAlt, badges, variant }:
               {badges.slice(0, 3).map((badge) => (
                 <li
                   key={badge}
+                  data-pf-motion-item=""
                   className="inline-flex items-center px-3 py-1 text-sm font-medium"
                   style={{ borderRadius: "999px", border: "1px solid var(--pf-muted)", color: "var(--pf-fg)" }}
                 >
