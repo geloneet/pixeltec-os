@@ -23,6 +23,8 @@ import { cleanup, fireEvent, render, screen, within } from "@testing-library/rea
 import { renderToStaticMarkup } from "react-dom/server";
 import { ComparisonTable } from "./ComparisonTable";
 import { ProcessVisualizer } from "./ProcessVisualizer";
+import { ProductSelector } from "./ProductSelector";
+import { CoverageMap } from "./CoverageMap";
 
 afterEach(() => {
   cleanup();
@@ -174,5 +176,205 @@ describe("ProcessVisualizer", () => {
       render(<ProcessVisualizer pasos={[{ titulo: "Único", descripcion: "Paso solo." }]} />)
     ).not.toThrow();
     expect(screen.getByText("Paso solo.")).toBeInTheDocument();
+  });
+});
+
+describe("ProductSelector", () => {
+  const props = {
+    opciones: [
+      { id: "k1", nombre: "Kit Solar 3kW", atributos: { potencia: "3kW", uso: "Residencial" } },
+      { id: "k2", nombre: "Kit Solar 5kW", atributos: { potencia: "5kW", uso: "Residencial" } },
+      { id: "k3", nombre: "Kit Solar 10kW", atributos: { potencia: "10kW", uso: "Comercial" } },
+    ],
+    filtros: ["potencia", "uso"],
+  };
+
+  it("presenta cada filtro como fieldset de radios con 'Todas' + valores derivados y etiquetados", () => {
+    render(<ProductSelector {...props} />);
+    const groups = screen.getAllByRole("group");
+    expect(groups).toHaveLength(2); // un fieldset por filtro
+    // radios etiquetados (label por radio): 'Todas' por fieldset (2) + valores únicos
+    expect(screen.getAllByRole("radio", { name: /todas/i })).toHaveLength(2);
+    // valores derivados de atributos, deduplicados
+    expect(screen.getByRole("radio", { name: "3kW" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "5kW" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "10kW" })).toBeInTheDocument();
+    // 'uso' dedup: Residencial aparece UNA vez pese a 2 opciones
+    expect(screen.getAllByRole("radio", { name: "Residencial" })).toHaveLength(1);
+    // cada fieldset tiene legend
+    groups.forEach((g) => expect(g.querySelector("legend")).toBeInTheDocument());
+  });
+
+  it("la lista de resultados usa role=list y hay una región aria-live con el conteo", () => {
+    render(<ProductSelector {...props} />);
+    expect(screen.getByRole("list")).toBeInTheDocument();
+    const live = screen.getByText(/3 opciones disponibles/i);
+    expect(live).toHaveAttribute("aria-live", "polite");
+    expect(screen.getAllByRole("listitem")).toHaveLength(3);
+  });
+
+  it("un filtro reduce la lista y actualiza el conteo aria-live", () => {
+    render(<ProductSelector {...props} />);
+    fireEvent.click(screen.getByRole("radio", { name: "Comercial" }));
+    expect(screen.getAllByRole("listitem")).toHaveLength(1);
+    expect(screen.getByText("Kit Solar 10kW")).toBeInTheDocument();
+    expect(screen.getByText(/1 opción disponible/i)).toHaveAttribute("aria-live", "polite");
+  });
+
+  it("combina filtros en AND entre fieldsets", () => {
+    render(<ProductSelector {...props} />);
+    fireEvent.click(screen.getByRole("radio", { name: "Residencial" }));
+    fireEvent.click(screen.getByRole("radio", { name: "5kW" }));
+    const items = screen.getAllByRole("listitem");
+    expect(items).toHaveLength(1);
+    expect(screen.getByText("Kit Solar 5kW")).toBeInTheDocument();
+  });
+
+  it("muestra estado vacío con CTA de reset cuando ningún resultado coincide", () => {
+    render(<ProductSelector {...props} />);
+    fireEvent.click(screen.getByRole("radio", { name: "Comercial" }));
+    fireEvent.click(screen.getByRole("radio", { name: "3kW" })); // Comercial + 3kW = 0
+    expect(screen.queryByRole("listitem")).toBeNull();
+    const vacio = screen.getByRole("note");
+    expect(within(vacio).getByText(/no encontramos/i)).toBeInTheDocument();
+    // CTA de reset dentro del estado vacío
+    expect(within(vacio).getByRole("button", { name: /restablecer/i })).toBeInTheDocument();
+  });
+
+  it("Restablecer filtros vuelve todo a 'Todas' y restaura el catálogo completo", () => {
+    render(<ProductSelector {...props} />);
+    fireEvent.click(screen.getByRole("radio", { name: "Comercial" }));
+    expect(screen.getAllByRole("listitem")).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: /restablecer/i }));
+    expect(screen.getAllByRole("listitem")).toHaveLength(3);
+    expect((screen.getByRole("radio", { name: "Comercial" }) as HTMLInputElement).checked).toBe(false);
+  });
+
+  it("sin filtros configurados renderiza un grid estático sin fieldsets", () => {
+    render(
+      <ProductSelector
+        opciones={[
+          { id: "a", nombre: "Opción A" },
+          { id: "b", nombre: "Opción B" },
+        ]}
+      />
+    );
+    expect(screen.queryByRole("group")).toBeNull();
+    expect(screen.queryByRole("radio")).toBeNull();
+    expect(screen.getByText("Opción A")).toBeInTheDocument();
+    expect(screen.getByText("Opción B")).toBeInTheDocument();
+  });
+
+  it("SSR (sin JS) renderiza el catálogo completo visible", () => {
+    const html = renderToStaticMarkup(<ProductSelector {...props} />);
+    expect(html).toContain("Kit Solar 3kW");
+    expect(html).toContain("Kit Solar 5kW");
+    expect(html).toContain("Kit Solar 10kW");
+  });
+
+  it("no lanza con una sola opción y filtros que no aplican", () => {
+    expect(() =>
+      render(<ProductSelector opciones={[{ id: "x", nombre: "Único" }]} filtros={["inexistente"]} />)
+    ).not.toThrow();
+    // filtro sin valores derivados → sin fieldset, grid estático
+    expect(screen.queryByRole("group")).toBeNull();
+    expect(screen.getByText("Único")).toBeInTheDocument();
+  });
+});
+
+describe("CoverageMap", () => {
+  const props = {
+    zonas: [
+      { nombre: "Puerto Vallarta Centro", poligonoOrRadio: "5km", codigosPostales: ["48300", "48310"] },
+      { nombre: "Bahía de Banderas", poligonoOrRadio: "radio 8km", codigosPostales: ["633"] },
+      { nombre: "Ixtapa", poligonoOrRadio: "colonia" },
+    ],
+    buscadorPorCP: true,
+  };
+
+  it("renderiza todas las zonas como chips textuales (fuente de verdad)", () => {
+    render(<CoverageMap {...props} />);
+    expect(screen.getByText("Puerto Vallarta Centro")).toBeInTheDocument();
+    expect(screen.getByText("Bahía de Banderas")).toBeInTheDocument();
+    expect(screen.getByText("Ixtapa")).toBeInTheDocument();
+  });
+
+  it("el SVG decorativo lleva aria-hidden y no es la única fuente de la info", () => {
+    const { container } = render(<CoverageMap {...props} />);
+    const svg = container.querySelector("svg");
+    expect(svg).not.toBeNull();
+    expect(svg).toHaveAttribute("aria-hidden", "true");
+  });
+
+  it("muestra el buscador de CP solo cuando buscadorPorCP y hay codigosPostales", () => {
+    render(<CoverageMap {...props} />);
+    expect(screen.getByLabelText(/consulta tu código postal/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /buscar/i })).toBeInTheDocument();
+  });
+
+  it("un CP dentro de cobertura resalta la zona y lo anuncia por aria-live", () => {
+    render(<CoverageMap {...props} />);
+    const input = screen.getByLabelText(/consulta tu código postal/i);
+    fireEvent.change(input, { target: { value: "48300" } });
+    fireEvent.click(screen.getByRole("button", { name: /buscar/i }));
+    const status = screen.getByRole("status");
+    expect(status).toHaveAttribute("aria-live", "polite");
+    expect(status).toHaveTextContent(/dentro de la zona Puerto Vallarta Centro/i);
+  });
+
+  it("un CP fuera de cobertura muestra el mensaje personalizado sin ocultar zonas", () => {
+    render(<CoverageMap {...props} mensajeFueraDeCobertura="Aún no llegamos ahí, escríbenos." />);
+    fireEvent.change(screen.getByLabelText(/consulta tu código postal/i), { target: { value: "99999" } });
+    fireEvent.click(screen.getByRole("button", { name: /buscar/i }));
+    expect(screen.getByText("Aún no llegamos ahí, escríbenos.")).toBeInTheDocument();
+    // zonas siguen visibles
+    expect(screen.getByText("Puerto Vallarta Centro")).toBeInTheDocument();
+  });
+
+  it("un CP fuera de cobertura sin mensaje personalizado usa el mensaje por defecto en español", () => {
+    render(<CoverageMap {...props} />);
+    fireEvent.change(screen.getByLabelText(/consulta tu código postal/i), { target: { value: "99999" } });
+    fireEvent.click(screen.getByRole("button", { name: /buscar/i }));
+    expect(screen.getByText(/por ahora no cubrimos ese código postal/i)).toBeInTheDocument();
+  });
+
+  it("una entrada inválida (menos de 5 dígitos) da un aviso suave, no el mensaje de cobertura", () => {
+    render(<CoverageMap {...props} />);
+    fireEvent.change(screen.getByLabelText(/consulta tu código postal/i), { target: { value: "48" } });
+    fireEvent.click(screen.getByRole("button", { name: /buscar/i }));
+    expect(screen.getByRole("status")).toHaveTextContent(/5 dígitos/i);
+  });
+
+  it("oculta el buscador cuando buscadorPorCP es true pero ninguna zona trae codigosPostales", () => {
+    render(
+      <CoverageMap
+        zonas={[
+          { nombre: "Zona A", poligonoOrRadio: "5km" },
+          { nombre: "Zona B", poligonoOrRadio: "colonia" },
+        ]}
+        buscadorPorCP
+      />
+    );
+    expect(screen.queryByLabelText(/consulta tu código postal/i)).toBeNull();
+    // pero las zonas siguen visibles (degradado chips-only)
+    expect(screen.getByText("Zona A")).toBeInTheDocument();
+  });
+
+  it("no renderiza el buscador si buscadorPorCP es falso aunque haya codigosPostales", () => {
+    render(<CoverageMap {...props} buscadorPorCP={false} />);
+    expect(screen.queryByLabelText(/consulta tu código postal/i)).toBeNull();
+  });
+
+  it("SSR (sin JS) muestra zonas y el formulario de búsqueda estático", () => {
+    const html = renderToStaticMarkup(<CoverageMap {...props} />);
+    expect(html).toContain("Puerto Vallarta Centro");
+    expect(html).toContain("Consulta tu código postal");
+  });
+
+  it("no lanza con una sola zona degenerada", () => {
+    expect(() =>
+      render(<CoverageMap zonas={[{ nombre: "Sola", poligonoOrRadio: "x" }]} />)
+    ).not.toThrow();
+    expect(screen.getByText("Sola")).toBeInTheDocument();
   });
 });
