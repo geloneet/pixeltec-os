@@ -66,6 +66,10 @@ interface PixelForgeProductDNA {
 
   motionPrinciples: [
     "Calmado y material: micro-interacciones 180–260ms ease-out; nada >400ms.",
+    "EXCEPCIÓN explícita al límite de 400ms: el flujo ambiente de la veta durante " +
+    "generación IA es un loop lento (~2s) — señala trabajo async con calor contenido; " +
+    "un flujo a velocidad de micro-interacción sería un estrobo. El límite de 400ms " +
+    "aplica a transiciones que gatean la respuesta percibida, no al flujo ambiente.",
     "La veta fluye SOLO durante generación IA (background-position, GPU-safe).",
     "Sellar = asentar: scale 0.985→1 + solidificación de la veta (una vez, no loop).",
     "Transición entre estaciones: crossfade corto del contenido; el shell no se mueve.",

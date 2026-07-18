@@ -219,6 +219,10 @@
 
 [data-product="pixelforge"] .forge-zone--sealed::before {
   background: hsl(var(--pfx-forge-sealed));
+  /* El clip-path del contenedor recorta x<0: la veta sellada se ancla en 0
+     (no en -1px como los demás estados) para no perder la mitad del trazo. */
+  inset-inline-start: 0;
+  inset-block: 0;
 }
 
 [data-product="pixelforge"] .forge-zone--sealed::after {
