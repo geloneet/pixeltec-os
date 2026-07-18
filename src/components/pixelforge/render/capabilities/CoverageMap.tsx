@@ -161,6 +161,7 @@ export function CoverageMap({ zonas, buscadorPorCP, mensajeFueraDeCobertura }: C
                   id={`${instanceId}-cp-input`}
                   type="text"
                   inputMode="numeric"
+                  maxLength={5}
                   autoComplete="postal-code"
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}

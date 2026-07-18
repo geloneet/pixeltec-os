@@ -36,8 +36,9 @@ import type { DesignTokens } from "@/components/pixelforge/render/tokens";
 
 export const PREVIEW_FIXTURE_TREE: PageTree = {
   notas:
-    "Fixture de preview F6A/F6B — ejerce los 12 blocks del registry con variantes " +
-    "mixtas y 3 nodos cinematográficos con behaviors reales. No representa una landing real de cliente.",
+    "Fixture de preview F6A/F6B/F6C — ejerce los 12 blocks del registry con variantes " +
+    "mixtas, 3 nodos cinematográficos con behaviors reales, y 2 capabilities certificadas " +
+    "(coverage-map-v1, product-selector-v1). No representa una landing real de cliente.",
   nodes: [
     {
       nodeId: "n1-hero",

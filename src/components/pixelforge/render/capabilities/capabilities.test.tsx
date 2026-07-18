@@ -345,6 +345,11 @@ describe("CoverageMap", () => {
     expect(screen.getByRole("button", { name: /buscar/i })).toBeInTheDocument();
   });
 
+  it("el input de CP limita la escritura a 5 caracteres (evita typos de más dígitos)", () => {
+    render(<CoverageMap {...props} />);
+    expect(screen.getByLabelText(/consulta tu código postal/i)).toHaveAttribute("maxLength", "5");
+  });
+
   it("un CP dentro de cobertura resalta la zona y lo anuncia por aria-live", () => {
     render(<CoverageMap {...props} />);
     const input = screen.getByLabelText(/consulta tu código postal/i);

@@ -6,10 +6,15 @@
  *
  * Reglas (D4):
  *  - Se normaliza la entrada a SOLO dígitos ("48 300" / "48-300" → "48300").
- *  - Entrada con menos de 5 dígitos tras normalizar → resultado `invalid`
- *    (distinto de `miss`: uno significa "escribe bien el CP", el otro "sí
- *    entendí tu CP pero no lo cubrimos"). Esta distinción es lo que permite al
- *    componente dar un aviso suave vs. el mensaje de fuera de cobertura.
+ *  - Entrada con una cantidad de dígitos distinta de 5 tras normalizar →
+ *    resultado `invalid` (distinto de `miss`: uno significa "escribe bien el
+ *    CP", el otro "sí entendí tu CP pero no lo cubrimos"). Los CP mexicanos
+ *    tienen exactamente 5 dígitos, así que tanto menos de 5 como más de 5
+ *    (p. ej. un typo de un carácter de más) son `invalid`, nunca `miss` —
+ *    de lo contrario un CP mal tecleado podría mostrarle al usuario el
+ *    mensaje de "no cubrimos tu zona" siendo falso. Esta distinción es lo
+ *    que permite al componente dar un aviso suave vs. el mensaje de fuera
+ *    de cobertura.
  *  - Una zona matchea si alguno de sus `codigosPostales` (también normalizado):
  *      · tiene 5+ dígitos y es EXACTAMENTE igual al CP, o
  *      · tiene menos de 5 dígitos y es PREFIJO del CP.
@@ -38,7 +43,7 @@ function digitsOnly(value: string | undefined | null): string {
 
 export function matchZonaByCp(cp: string, zonas: CpMatchZona[]): CpMatchResult {
   const cpDigits = digitsOnly(cp);
-  if (cpDigits.length < 5) {
+  if (cpDigits.length !== 5) {
     return { status: "invalid" };
   }
 

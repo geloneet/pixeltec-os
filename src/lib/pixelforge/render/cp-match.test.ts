@@ -45,6 +45,12 @@ describe("matchZonaByCp", () => {
     expect(matchZonaByCp("  ", zonas).status).toBe("invalid");
   });
 
+  it("devuelve 'invalid' (NUNCA 'miss') con más de 5 dígitos — un typo de un carácter no debe leerse como fuera de cobertura", () => {
+    // "483001" es "48300" (SÍ cubierto) con un dígito de más por error de tecleo.
+    expect(matchZonaByCp("483001", zonas).status).toBe("invalid");
+    expect(matchZonaByCp("999999", zonas).status).toBe("invalid");
+  });
+
   it("ignora zonas sin codigosPostales sin lanzar", () => {
     expect(() => matchZonaByCp("48300", zonas)).not.toThrow();
     // una lista de puras zonas sin CPs siempre da miss para entrada válida
