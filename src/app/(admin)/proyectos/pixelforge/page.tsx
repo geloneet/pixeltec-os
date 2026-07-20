@@ -104,9 +104,11 @@ export default async function PixelforgeListPage() {
                       <span className="truncate text-xs text-pfx-text-muted">
                         {p.clientName ?? "Cliente"}
                       </span>
-                      <span className="shrink-0 font-forge-mono text-[11px] uppercase tracking-wider text-pfx-text-muted">
-                        {station.stepLabel}
-                      </span>
+                      {p.status !== "in_progress" && (
+                        <span className="shrink-0 font-forge-mono text-[11px] uppercase tracking-wider text-pfx-text-muted">
+                          {station.stepLabel}
+                        </span>
+                      )}
                       <span className="shrink-0 font-forge-mono text-[11px] text-pfx-text-muted">
                         {formatDistanceToNow(new Date(p.updatedAt), {
                           addSuffix: true,
