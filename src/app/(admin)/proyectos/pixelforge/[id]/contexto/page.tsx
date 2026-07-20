@@ -8,6 +8,7 @@ import { getPixelforgeProjectFull } from "@/lib/db/repos/pixelforge";
 import { AddContextSourceForm } from "@/components/pixelforge/AddContextSourceForm";
 import { ContextBriefPanel } from "@/components/pixelforge/ContextBriefPanel";
 import { SealBar } from "@/components/pixelforge/SealBar";
+import { ForgeZone } from "@/components/pixelforge/forge/ForgeZone";
 import type { PixelforgeSourceType } from "@/lib/pixelforge/types";
 import type { ContextBrief } from "@/lib/pixelforge/schemas/analyze-context";
 
@@ -80,28 +81,28 @@ export default async function PixelforgeContextoPage({
       </div>
 
       <div className="mx-auto max-w-3xl">
-        <div className="rounded-xl border border-border bg-card p-5">
-          <div className="mb-3 flex items-center gap-1.5 text-sm font-medium text-foreground">
-            <Brain className="h-4 w-4 text-muted-foreground" />
+        <ForgeZone variant="elevated" className="p-5">
+          <div className="mb-3 flex items-center gap-1.5 text-sm font-medium text-pfx-text">
+            <Brain className="h-4 w-4 text-pfx-accent" aria-hidden="true" />
             Descarga mental
           </div>
           {brainDumpIsLong ? (
             <details>
-              <summary className="cursor-pointer whitespace-pre-wrap text-sm text-foreground/90">
+              <summary className="cursor-pointer whitespace-pre-wrap text-sm text-pfx-text">
                 {brainDump.slice(0, 600)}…
-                <span className="ml-1 text-xs text-cyan-400">ver todo</span>
+                <span className="ml-1 text-xs text-pfx-accent">ver todo</span>
               </summary>
-              <p className="mt-2 whitespace-pre-wrap text-sm text-foreground/90">{brainDump}</p>
+              <p className="mt-2 whitespace-pre-wrap text-sm text-pfx-text">{brainDump}</p>
             </details>
           ) : (
-            <p className="whitespace-pre-wrap text-sm text-foreground/90">{brainDump}</p>
+            <p className="whitespace-pre-wrap text-sm text-pfx-text">{brainDump}</p>
           )}
-        </div>
+        </ForgeZone>
 
-        <div className="mt-6 rounded-xl border border-border bg-card p-5">
-          <div className="mb-3 text-sm font-medium text-foreground">Fuentes de contexto</div>
+        <div className="mt-6">
+          <div className="mb-3 text-sm font-medium text-pfx-text">Fuentes de contexto</div>
           {sources.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Sin fuentes anexadas todavía</p>
+            <p className="text-sm text-pfx-text-muted">Sin fuentes anexadas todavía</p>
           ) : (
             <ul className="flex flex-col gap-3">
               {sources.map((s) => {
@@ -111,28 +112,30 @@ export default async function PixelforgeContextoPage({
                     ? `${s.content.slice(0, CONTENT_PREVIEW_LIMIT)}…`
                     : s.content;
                 return (
-                  <li key={s.id} className="rounded-md border border-border/60 bg-secondary/20 p-3">
-                    <div className="flex items-center gap-1.5">
-                      <Icon className="h-3.5 w-3.5 flex-shrink-0 text-cyan-400" />
-                      <span className="truncate text-sm font-medium text-foreground">{s.title}</span>
-                    </div>
-                    <p className="mt-1 whitespace-pre-wrap text-xs text-muted-foreground">
-                      {contentPreview}
-                    </p>
-                    {s.url && (
-                      <a
-                        href={s.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="mt-1 inline-block truncate text-xs text-cyan-400 hover:underline"
-                      >
-                        {s.url}
-                      </a>
-                    )}
-                    <p className="mt-1.5 text-[11px] text-muted-foreground/60">
-                      {s.addedByName} ·{" "}
-                      {formatDistanceToNow(new Date(s.createdAt), { addSuffix: true, locale: es })}
-                    </p>
+                  <li key={s.id}>
+                    <ForgeZone className="p-3">
+                      <div className="flex items-center gap-1.5">
+                        <Icon className="h-3.5 w-3.5 flex-shrink-0 text-pfx-accent" aria-hidden="true" />
+                        <span className="truncate text-sm font-medium text-pfx-text">{s.title}</span>
+                      </div>
+                      <p className="mt-1 whitespace-pre-wrap text-xs text-pfx-text-muted">
+                        {contentPreview}
+                      </p>
+                      {s.url && (
+                        <a
+                          href={s.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-1 inline-block truncate text-xs text-pfx-accent hover:underline"
+                        >
+                          {s.url}
+                        </a>
+                      )}
+                      <p className="mt-1.5 font-forge-mono text-[11px] text-pfx-text-muted/60">
+                        {s.addedByName} ·{" "}
+                        {formatDistanceToNow(new Date(s.createdAt), { addSuffix: true, locale: es })}
+                      </p>
+                    </ForgeZone>
                   </li>
                 );
               })}

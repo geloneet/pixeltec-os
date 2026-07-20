@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Link2, Loader2, Paperclip } from "lucide-react";
 import { addContextSourceAction } from "@/app/(admin)/proyectos/pixelforge/actions";
+import { ForgeZone } from "@/components/pixelforge/forge/ForgeZone";
 import type { PixelforgeSourceType } from "@/lib/pixelforge/types";
 import {
   Select,
@@ -31,7 +32,16 @@ const pfxSelectTriggerClass =
 const pfxSelectContentClass = "border-pfx-border bg-pfx-surface-elevated text-pfx-text";
 const pfxSelectItemClass = "text-pfx-text focus:bg-pfx-accent/10 focus:text-pfx-text";
 
-/** Formulario para anexar una fuente de contexto (estación Contexto). */
+const FIELD_LABEL_CLASS = "mb-1.5 block text-xs font-medium text-pfx-text-muted";
+
+const INPUT_CLASS =
+  "mb-3 w-full rounded-[var(--pfx-radius)] border border-pfx-border bg-pfx-surface px-3.5 py-2.5 text-sm text-pfx-text placeholder:text-pfx-text-muted/60 focus:outline-none focus:ring-2 focus:ring-pfx-accent";
+
+/**
+ * Formulario para anexar una fuente de contexto (estación Contexto, reskin
+ * PF-X2 T1). El `<select>` ya era shadcn desde X1-T3 (solo se restyleó el
+ * contenedor e inputs al idiom de forja).
+ */
 export function AddContextSourceForm({ projectId }: Props) {
   const router = useRouter();
   const [type, setType] = useState<AddableSourceType>("note");
@@ -67,16 +77,13 @@ export function AddContextSourceForm({ projectId }: Props) {
   };
 
   return (
-    <div className="rounded-xl border border-border bg-card p-5">
-      <div className="mb-3 flex items-center gap-1.5 text-sm font-medium text-foreground">
-        <Paperclip className="h-4 w-4 text-muted-foreground" />
+    <ForgeZone variant="elevated" className="p-5">
+      <div className="mb-3 flex items-center gap-1.5 text-sm font-medium text-pfx-text">
+        <Paperclip className="h-4 w-4 text-pfx-accent" aria-hidden="true" />
         Anexar fuente de contexto
       </div>
 
-      <label
-        htmlFor="context-source-type"
-        className="mb-1.5 block text-xs font-medium text-muted-foreground"
-      >
+      <label htmlFor="context-source-type" className={FIELD_LABEL_CLASS}>
         Tipo
       </label>
       <Select value={type} onValueChange={(v) => setType(v as AddableSourceType)}>
@@ -92,10 +99,7 @@ export function AddContextSourceForm({ projectId }: Props) {
         </SelectContent>
       </Select>
 
-      <label
-        htmlFor="context-source-title"
-        className="mb-1.5 block text-xs font-medium text-muted-foreground"
-      >
+      <label htmlFor="context-source-title" className={FIELD_LABEL_CLASS}>
         Título
       </label>
       <input
@@ -104,16 +108,16 @@ export function AddContextSourceForm({ projectId }: Props) {
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         placeholder="Ej. Sitio actual del cliente"
-        className="mb-3 w-full rounded-md border border-border bg-secondary/40 px-3.5 py-2.5 text-sm text-foreground placeholder-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-cyan-400/40"
+        className={INPUT_CLASS}
       />
 
       {type === "url" && (
         <>
           <label
             htmlFor="context-source-url"
-            className="mb-1.5 flex items-center gap-1 text-xs font-medium text-muted-foreground"
+            className="mb-1.5 flex items-center gap-1 text-xs font-medium text-pfx-text-muted"
           >
-            <Link2 className="h-3.5 w-3.5" />
+            <Link2 className="h-3.5 w-3.5" aria-hidden="true" />
             URL
           </label>
           <input
@@ -122,15 +126,12 @@ export function AddContextSourceForm({ projectId }: Props) {
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             placeholder="https://ejemplo.com"
-            className="mb-3 w-full rounded-md border border-border bg-secondary/40 px-3.5 py-2.5 text-sm text-foreground placeholder-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-cyan-400/40"
+            className={INPUT_CLASS}
           />
         </>
       )}
 
-      <label
-        htmlFor="context-source-content"
-        className="mb-1.5 block text-xs font-medium text-muted-foreground"
-      >
+      <label htmlFor="context-source-content" className={FIELD_LABEL_CLASS}>
         Contenido
       </label>
       <textarea
@@ -139,7 +140,7 @@ export function AddContextSourceForm({ projectId }: Props) {
         onChange={(e) => setContent(e.target.value)}
         rows={5}
         placeholder="Pega o describe el contenido de esta fuente…"
-        className="w-full resize-none rounded-md border border-border bg-secondary/40 px-3.5 py-3 text-sm text-foreground placeholder-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-cyan-400/40"
+        className={`resize-none ${INPUT_CLASS}`}
       />
 
       <div className="mt-3 flex items-center justify-end">
@@ -147,12 +148,16 @@ export function AddContextSourceForm({ projectId }: Props) {
           type="button"
           onClick={submit}
           disabled={!valid || busy}
-          className="flex items-center gap-2 rounded-md bg-cyan-500 px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-cyan-400 disabled:opacity-40"
+          className="flex items-center gap-2 rounded-[var(--pfx-radius)] bg-pfx-accent px-4 py-2 text-sm font-medium text-pfx-on-accent transition-colors hover:bg-pfx-accent-strong disabled:opacity-40"
         >
-          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+          {busy ? (
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+          ) : (
+            <Paperclip className="h-4 w-4" aria-hidden="true" />
+          )}
           Anexar fuente
         </button>
       </div>
-    </div>
+    </ForgeZone>
   );
 }
