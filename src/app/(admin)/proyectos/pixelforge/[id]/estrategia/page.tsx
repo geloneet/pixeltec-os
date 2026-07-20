@@ -48,6 +48,7 @@ export default async function PixelforgeEstrategiaPage({
           dna={dna}
           contextSealed={contextSealed}
           lastRunId={artifact.lastRunId}
+          sealedAt={sealedAtIso}
         />
       </div>
 

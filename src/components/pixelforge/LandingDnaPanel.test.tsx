@@ -231,4 +231,30 @@ describe("LandingDnaPanel", () => {
     );
     await screen.findByText(/gracias por el feedback/i);
   });
+
+  it("status sealed con sealedAt: muestra la ForgeStamp y la plancha usa el estado sealed (PF-X2 T2)", () => {
+    const { container } = render(
+      <LandingDnaPanel
+        projectId="proj-1"
+        artifactStatus="sealed"
+        dna={fixtureDna()}
+        contextSealed={true}
+        sealedAt="2026-07-18"
+      />
+    );
+    expect(screen.getByText("SELLADO · 18 jul 2026")).toBeInTheDocument();
+    expect(container.querySelector(".forge-zone--sealed")).not.toBeNull();
+  });
+
+  it("gate no cumplido (sin dna, contexto no sellado): el estado vacío usa la materialidad locked", () => {
+    const { container } = render(
+      <LandingDnaPanel
+        projectId="proj-1"
+        artifactStatus="pending"
+        dna={null}
+        contextSealed={false}
+      />
+    );
+    expect(container.querySelector(".forge-zone--locked")).not.toBeNull();
+  });
 });
