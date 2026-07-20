@@ -83,6 +83,25 @@ describe("NewPixelforgeForm — validación y botón", () => {
   });
 });
 
+describe("NewPixelforgeForm — tokens pfx en popover portaleado", () => {
+  it("el SelectContent portaleado (cliente) trae data-product=\"pixelforge\" para reactivar los tokens --pfx-* fuera del wrapper del layout", async () => {
+    render(<NewPixelforgeForm clients={clients} definitions={definitions} />);
+    fireEvent.click(screen.getByRole("combobox", { name: /^cliente$/i }));
+    const option = await screen.findByRole("option", { name: "Cliente Uno" });
+    const content = option.closest('[role="listbox"]');
+    expect(content).toHaveAttribute("data-product", "pixelforge");
+  });
+
+  it("el SelectContent portaleado (definición) también trae data-product=\"pixelforge\"", async () => {
+    render(<NewPixelforgeForm clients={clients} definitions={definitions} />);
+    await selectOption(/^cliente$/i, "Cliente Uno");
+    fireEvent.click(screen.getByRole("combobox", { name: /importar de definición/i }));
+    const option = await screen.findByRole("option", { name: "Definición A" });
+    const content = option.closest('[role="listbox"]');
+    expect(content).toHaveAttribute("data-product", "pixelforge");
+  });
+});
+
 describe("NewPixelforgeForm — filtro de definiciones por cliente", () => {
   it("solo muestra las definiciones del cliente elegido", async () => {
     render(<NewPixelforgeForm clients={clients} definitions={definitions} />);

@@ -41,6 +41,13 @@ const pfxSelectTriggerClass =
   "w-full rounded-[var(--pfx-radius)] border border-pfx-border bg-pfx-surface px-3.5 py-2.5 text-sm text-pfx-text focus:outline-none focus:ring-2 focus:ring-pfx-accent focus:ring-offset-0 data-[placeholder]:text-pfx-text-muted/70";
 const pfxSelectContentClass = "border-pfx-border bg-pfx-surface-elevated text-pfx-text";
 const pfxSelectItemClass = "text-pfx-text focus:bg-pfx-accent/10 focus:text-pfx-text";
+// `SelectContent` (Radix) renderiza vía Portal a `document.body`, FUERA del
+// wrapper `[data-product="pixelforge"]` que activa los tokens `--pfx-*`
+// (pixelforge/layout.tsx) — `pfxSelectContentClass` de arriba resolvería a
+// CSS vars indefinidas ahí (popover transparente/ilegible). El selector CSS
+// solo exige el atributo en el elemento (no que sea ESE wrapper específico),
+// así que se re-declara `data-product="pixelforge"` directo en cada
+// `SelectContent` para reactivar el scope dentro del portal.
 
 interface Draft {
   clientCrmId?: string;
@@ -160,7 +167,7 @@ export function NewPixelforgeForm({ clients, definitions }: Props) {
           <SelectTrigger id="pixelforge-client" className={pfxSelectTriggerClass}>
             <SelectValue placeholder="Selecciona un cliente" />
           </SelectTrigger>
-          <SelectContent className={pfxSelectContentClass}>
+          <SelectContent className={pfxSelectContentClass} data-product="pixelforge">
             {clients.map((c) => (
               <SelectItem key={c.crmId} value={c.crmId} className={pfxSelectItemClass}>
                 {c.name}
@@ -223,7 +230,7 @@ export function NewPixelforgeForm({ clients, definitions }: Props) {
                 <SelectTrigger id="pixelforge-definition" className={pfxSelectTriggerClass}>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className={pfxSelectContentClass}>
+                <SelectContent className={pfxSelectContentClass} data-product="pixelforge">
                   <SelectItem value={NONE_DEFINITION} className={pfxSelectItemClass}>
                     Ninguna
                   </SelectItem>

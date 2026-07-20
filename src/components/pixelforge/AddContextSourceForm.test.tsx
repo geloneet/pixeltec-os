@@ -47,6 +47,14 @@ describe("AddContextSourceForm", () => {
     expect(screen.getByPlaceholderText(/https?:\/\//i)).toBeInTheDocument();
   });
 
+  it("el SelectContent portaleado (tipo) trae data-product=\"pixelforge\" para reactivar los tokens --pfx-* fuera del wrapper del layout", async () => {
+    render(<AddContextSourceForm projectId="proj-1" />);
+    fireEvent.click(screen.getByRole("combobox", { name: /tipo/i }));
+    const option = await screen.findByRole("option", { name: "URL" });
+    const content = option.closest('[role="listbox"]');
+    expect(content).toHaveAttribute("data-product", "pixelforge");
+  });
+
   it("anexa una fuente exitosamente: llama a la action, muestra toast, limpia campos y refresca", async () => {
     addContextSourceActionMock.mockResolvedValue({ success: true, data: { id: "src-1" } });
     render(<AddContextSourceForm projectId="proj-1" />);

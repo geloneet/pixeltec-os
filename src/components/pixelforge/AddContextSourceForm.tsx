@@ -31,6 +31,13 @@ const pfxSelectTriggerClass =
   "mb-3 w-full rounded-[var(--pfx-radius)] border border-pfx-border bg-pfx-surface px-3.5 py-2.5 text-sm text-pfx-text focus:outline-none focus:ring-2 focus:ring-pfx-accent focus:ring-offset-0";
 const pfxSelectContentClass = "border-pfx-border bg-pfx-surface-elevated text-pfx-text";
 const pfxSelectItemClass = "text-pfx-text focus:bg-pfx-accent/10 focus:text-pfx-text";
+// `SelectContent` (Radix) renderiza vía Portal a `document.body`, FUERA del
+// wrapper `[data-product="pixelforge"]` que activa los tokens `--pfx-*`
+// (pixelforge/layout.tsx) — `pfxSelectContentClass` de arriba resolvería a
+// CSS vars indefinidas ahí (popover transparente/ilegible). El selector CSS
+// solo exige el atributo en el elemento (no que sea ESE wrapper específico),
+// así que se re-declara `data-product="pixelforge"` directo en el
+// `SelectContent` para reactivar el scope dentro del portal.
 
 const FIELD_LABEL_CLASS = "mb-1.5 block text-xs font-medium text-pfx-text-muted";
 
@@ -90,7 +97,7 @@ export function AddContextSourceForm({ projectId }: Props) {
         <SelectTrigger id="context-source-type" className={pfxSelectTriggerClass}>
           <SelectValue />
         </SelectTrigger>
-        <SelectContent className={pfxSelectContentClass}>
+        <SelectContent className={pfxSelectContentClass} data-product="pixelforge">
           {SOURCE_TYPE_OPTIONS.map((opt) => (
             <SelectItem key={opt.value} value={opt.value} className={pfxSelectItemClass}>
               {opt.label}
