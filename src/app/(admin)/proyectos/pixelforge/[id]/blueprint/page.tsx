@@ -64,6 +64,7 @@ export default async function PixelforgeBlueprintPage({
           decisionSealed={decisionSealed}
           directionObsolete={directionObsolete}
           lastRunId={artifact.lastRunId}
+          sealedAt={sealedAtIso}
         />
       </div>
 

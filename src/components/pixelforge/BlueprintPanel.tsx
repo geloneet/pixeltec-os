@@ -13,9 +13,11 @@ import {
   ClipboardList,
   Layers,
   Loader2,
+  Lock,
   Pencil,
   Plus,
   RefreshCw,
+  RotateCcw,
   Sparkles,
   ThumbsDown,
   ThumbsUp,
@@ -26,6 +28,9 @@ import {
   setRunDecisionAction,
 } from "@/app/(admin)/proyectos/pixelforge/actions";
 import { usePixelforgeRun } from "@/hooks/pixelforge/use-pixelforge-run";
+import { ForgeZone, type ForgeState } from "@/components/pixelforge/forge/ForgeZone";
+import { ForgeSeam } from "@/components/pixelforge/forge/ForgeSeam";
+import { ForgeStamp } from "@/components/pixelforge/forge/ForgeStamp";
 import type { PixelforgeArtifactStatus } from "@/lib/pixelforge/types";
 import type { NarrativeBlueprint } from "@/lib/pixelforge/schemas/build-narrative";
 
@@ -47,6 +52,13 @@ interface Props {
   directionObsolete?: boolean;
   /** Corrida IA más reciente asociada al draft actual — habilita los botones de decisión (👍/👎). */
   lastRunId?: string | null;
+  /**
+   * ISO del sellado (PF-X2 T4, calco de `LandingDnaPanel`/`VisualDnaPanel`) —
+   * habilita la `ForgeStamp` en la plancha de "Historia" cuando
+   * `artifactStatus === "sealed"`. Puramente presentacional: sin este prop el
+   * panel simplemente no muestra la estampa (no rompe consumidores existentes).
+   */
+  sealedAt?: string | null;
 }
 
 const ACTO_FIELDS: { key: ActoFieldKey; label: string }[] = [
@@ -56,8 +68,9 @@ const ACTO_FIELDS: { key: ActoFieldKey; label: string }[] = [
   { key: "resolucion", label: "Resolución" },
 ];
 
+/** Chip técnico (mono, DNA: "chips técnicos y números" → font-forge-mono). */
 const CHIP_CLASS =
-  "rounded-full bg-secondary/40 px-2 py-0.5 text-[11px] text-muted-foreground";
+  "rounded-full bg-[hsl(var(--pfx-border)/0.4)] px-2 py-0.5 font-forge-mono text-[11px] text-pfx-text-muted";
 
 /** Clona el blueprint completo y aplica la edición sobre la copia — nunca se manda un parche parcial al backend. */
 function cloneBlueprint(blueprint: NarrativeBlueprint): NarrativeBlueprint {
@@ -65,12 +78,30 @@ function cloneBlueprint(blueprint: NarrativeBlueprint): NarrativeBlueprint {
 }
 
 /**
- * Panel operativo del Blueprint narrativo (estación Blueprint, F6A): dispara
- * `build_narrative`, muestra el resultado (historia, actos, momentos
- * cinematográficos, notas de producción) y permite editar el borrador
- * — incluyendo reordenar actos por BOTONES (nunca drag-and-drop, ver
- * docstring de `moveActo`). Calco estructural de `VisualDnaPanel` — el
- * sellado en sí vive en `SealBar` (componente hermano).
+ * Materialidad de las planchas del blueprint según el status del artifact
+ * (docs/pixelforge/product-dna.md § Estados canónicos). `forging` se reserva
+ * a la plancha dedicada de progreso (`isGenerating`, más abajo) para no
+ * duplicar la señal de "trabajándose" en cada zona simultáneamente.
+ */
+function zoneStateForArtifact(status: PixelforgeArtifactStatus): ForgeState {
+  if (status === "sealed") return "sealed";
+  if (status === "invalidated") return "invalidated";
+  return "draft";
+}
+
+/**
+ * Panel operativo del Blueprint narrativo (estación Blueprint, F6A / reskin
+ * PF-X2 T4, la última de esta fase): dispara `build_narrative`, muestra el
+ * resultado (historia, actos, momentos cinematográficos, notas de
+ * producción) y permite editar el borrador — incluyendo reordenar actos por
+ * BOTONES (nunca drag-and-drop, ver docstring de `moveActo`). Calco
+ * estructural de `LandingDnaPanel` (X2-T2): los actos son "planchas
+ * ancladas" en secuencia — la secuencia ES el producto — por eso viven
+ * DENTRO de una sola `ForgeZone` (una veta izquierda continua atraviesa todo
+ * el bloque) separados por `ForgeSeam` horizontales, en vez de una plancha
+ * suelta por acto (evita "borde completo" repetido rompiendo la lectura de
+ * secuencia — docs/pixelforge/product-dna.md § shapeLanguage). El sellado en
+ * sí vive en `SealBar` (componente hermano).
  */
 export function BlueprintPanel({
   projectId,
@@ -79,6 +110,7 @@ export function BlueprintPanel({
   decisionSealed,
   directionObsolete,
   lastRunId,
+  sealedAt,
 }: Props) {
   const router = useRouter();
   const [runId, setRunId] = useState<string | null>(null);
@@ -120,6 +152,7 @@ export function BlueprintPanel({
   const editable = artifactStatus !== "sealed";
   const isGenerating = starting || (!!runId && handledRunRef.current !== runId);
   const canGenerate = decisionSealed;
+  const zoneState = zoneStateForArtifact(artifactStatus);
 
   const startGeneration = async () => {
     setStarting(true);
@@ -287,133 +320,176 @@ export function BlueprintPanel({
   return (
     <div className="space-y-4">
       {artifactStatus === "invalidated" && (
-        <div className="flex items-start gap-2 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2.5 text-xs text-amber-700 dark:text-amber-300">
-          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
-          Este Blueprint narrativo quedó invalidado por reapertura de una estación anterior.
-          Re-genéralo o revísalo y vuelve a sellar.
-        </div>
+        <ForgeZone state="invalidated" className="p-3">
+          <div className="flex items-start gap-2 text-xs text-pfx-warning">
+            <RotateCcw className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
+            Este Blueprint narrativo quedó invalidado por reapertura de una estación anterior.
+            Re-genéralo o revísalo y vuelve a sellar.
+          </div>
+        </ForgeZone>
       )}
 
       {directionObsolete && (
-        <div className="flex items-start gap-2 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2.5 text-xs text-amber-700 dark:text-amber-300">
-          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
+        <div className="flex items-start gap-2 rounded-[var(--pfx-radius)] border border-pfx-warning/30 bg-[hsl(var(--pfx-warning)/0.08)] px-3 py-2.5 text-xs text-pfx-warning">
+          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
           La elección quedó obsoleta — vuelve a elegir.
         </div>
       )}
 
       {isGenerating && (
-        <div className="flex items-center gap-3 rounded-xl border border-cyan-500/20 bg-card p-5">
-          <Loader2 className="h-4 w-4 flex-shrink-0 animate-spin text-cyan-400" />
-          <div className="flex-1">
-            <p className="text-sm text-foreground">{run?.currentStep ?? "Construyendo blueprint narrativo…"}</p>
-            <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-secondary/60">
-              <div
-                className="h-full rounded-full bg-cyan-400 transition-all"
-                style={{ width: `${Math.max(5, run?.progress ?? 5)}%` }}
-              />
+        <ForgeZone state="forging" variant="elevated" className="p-5">
+          <div className="flex items-center gap-3">
+            <Loader2 className="h-4 w-4 flex-shrink-0 animate-spin text-pfx-accent" aria-hidden="true" />
+            <div className="flex-1">
+              <p className="text-sm text-pfx-text">
+                {run?.currentStep ?? "Construyendo blueprint narrativo…"}
+              </p>
+              <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-[hsl(var(--pfx-border)/0.6)]">
+                <div
+                  className="h-full rounded-full bg-pfx-accent transition-all"
+                  style={{ width: `${Math.max(5, run?.progress ?? 5)}%` }}
+                />
+              </div>
             </div>
           </div>
-        </div>
+        </ForgeZone>
       )}
 
       {!isGenerating && failureMessage && (
-        <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2.5">
+        <div className="flex items-center justify-between gap-3 rounded-[var(--pfx-radius)] border border-pfx-warning/30 bg-[hsl(var(--pfx-warning)/0.08)] px-3 py-2.5">
           <div className="flex items-start gap-2">
-            <AlertCircle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-amber-400" />
-            <p className="text-xs text-amber-700 dark:text-amber-300">{failureMessage}</p>
+            <AlertCircle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-pfx-warning" aria-hidden="true" />
+            <p className="text-xs text-pfx-warning">{failureMessage}</p>
           </div>
           <button
             type="button"
             onClick={startGeneration}
-            className="flex flex-shrink-0 items-center gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-700 dark:text-amber-300 transition-colors hover:bg-amber-500/20"
+            className="flex flex-shrink-0 items-center gap-1.5 rounded-[var(--pfx-radius)] border border-pfx-warning/30 bg-[hsl(var(--pfx-warning)/0.1)] px-3 py-1.5 text-xs font-medium text-pfx-warning transition-colors hover:bg-[hsl(var(--pfx-warning)/0.2)]"
           >
-            <RefreshCw className="h-3 w-3" />
+            <RefreshCw className="h-3 w-3" aria-hidden="true" />
             Reintentar
           </button>
         </div>
       )}
 
       {!blueprint ? (
-        !isGenerating && (
-          <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border bg-card px-6 py-10 text-center">
-            <Sparkles className="h-6 w-6 text-cyan-400" />
+        !isGenerating &&
+        (canGenerate ? (
+          <ForgeZone variant="elevated" state="draft" className="px-6 py-16 text-center">
+            <Sparkles className="mx-auto mb-3 h-6 w-6 text-pfx-accent" aria-hidden="true" />
             <div>
-              <p className="text-sm font-medium text-foreground">
+              <p className="text-sm font-medium text-pfx-text">
                 Todavía no hay un blueprint narrativo para este proyecto
               </p>
-              <p className="mt-1 text-xs text-muted-foreground">{emptyStateHint}</p>
+              <p className="mt-1 text-xs text-pfx-text-muted">{emptyStateHint}</p>
             </div>
             <button
               type="button"
               onClick={startGeneration}
-              disabled={!canGenerate}
-              title={!canGenerate ? emptyStateHint : undefined}
-              className="flex items-center gap-2 rounded-md bg-cyan-500 px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-cyan-400 disabled:opacity-40"
+              className="mx-auto mt-4 flex items-center gap-2 rounded-[var(--pfx-radius)] bg-pfx-accent px-4 py-2 text-sm font-medium text-pfx-on-accent transition-colors hover:bg-pfx-accent-strong"
             >
-              <Sparkles className="h-4 w-4" />
+              <Sparkles className="h-4 w-4" aria-hidden="true" />
               Generar blueprint narrativo
             </button>
-          </div>
-        )
+          </ForgeZone>
+        ) : (
+          // locked: la generación está gateada (decisión de dirección sin
+          // sellar) — el panel explica el gate sin romper la navegación de la
+          // estación actual (docs/pixelforge/product-dna.md § Estados
+          // canónicos, "locked", uso 2; precondición real verificada en el
+          // guard de `build_narrative`, src/app/api/pixelforge/runs/route.ts).
+          <ForgeZone variant="elevated" state="locked" className="px-6 py-16 text-center">
+            <Lock className="mx-auto mb-3 h-6 w-6 text-pfx-forge-locked" aria-hidden="true" />
+            <div>
+              <p className="text-sm font-medium text-pfx-text">
+                Todavía no hay un blueprint narrativo para este proyecto
+              </p>
+              <p className="mt-1 text-xs text-pfx-text-muted">{emptyStateHint}</p>
+            </div>
+            <button
+              type="button"
+              onClick={startGeneration}
+              disabled
+              title={emptyStateHint}
+              className="mx-auto mt-4 flex items-center gap-2 rounded-[var(--pfx-radius)] bg-pfx-accent px-4 py-2 text-sm font-medium text-pfx-on-accent opacity-40"
+            >
+              <Sparkles className="h-4 w-4" aria-hidden="true" />
+              Generar blueprint narrativo
+            </button>
+          </ForgeZone>
+        ))
       ) : (
         <div className="space-y-4">
-          <div className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-cyan-500/20 bg-card p-4">
-            <div className="min-w-[200px] flex-1">
-              <div className="mb-1 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                <BookOpen className="h-3.5 w-3.5 text-cyan-400" />
-                Historia
+          <ForgeZone state={zoneState} variant="elevated" className="p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-[200px] flex-1">
+                <div className="mb-1 flex items-center gap-1.5 text-xs font-medium text-pfx-text-muted">
+                  <BookOpen className="h-3.5 w-3.5 text-pfx-accent" aria-hidden="true" />
+                  Historia
+                </div>
+                <p className="whitespace-pre-wrap text-sm text-pfx-text">{blueprint.historia}</p>
               </div>
-              <p className="whitespace-pre-wrap text-sm text-foreground">{blueprint.historia}</p>
-            </div>
 
-            {editable && !isGenerating && (
-              <div className="flex-shrink-0">
-                {!regenerateConfirming ? (
-                  <button
-                    type="button"
-                    onClick={() => setRegenerateConfirming(true)}
-                    className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-                  >
-                    <RefreshCw className="h-3.5 w-3.5" />
-                    Re-generar
-                  </button>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] text-amber-600 dark:text-amber-400">
-                      Esto reemplaza el borrador actual
-                    </span>
+              {editable && !isGenerating ? (
+                <div className="flex-shrink-0">
+                  {!regenerateConfirming ? (
                     <button
                       type="button"
-                      onClick={startGeneration}
-                      className="rounded-md bg-amber-500 px-3 py-1.5 text-xs font-medium text-black transition-colors hover:bg-amber-400"
+                      onClick={() => setRegenerateConfirming(true)}
+                      className="flex items-center gap-1.5 rounded-[var(--pfx-radius)] border border-pfx-border px-3 py-1.5 text-xs font-medium text-pfx-text-muted transition-colors hover:text-pfx-text"
                     >
-                      Confirmar
+                      <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+                      Re-generar
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => setRegenerateConfirming(false)}
-                      className="text-xs text-muted-foreground hover:text-foreground"
-                    >
-                      Cancelar
-                    </button>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] text-pfx-warning">
+                        Esto reemplaza el borrador actual
+                      </span>
+                      <button
+                        type="button"
+                        onClick={startGeneration}
+                        className="rounded-[var(--pfx-radius)] bg-pfx-warning px-3 py-1.5 text-xs font-medium text-pfx-canvas transition-colors hover:opacity-90"
+                      >
+                        Confirmar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setRegenerateConfirming(false)}
+                        className="text-xs text-pfx-text-muted hover:text-pfx-text"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                artifactStatus === "sealed" &&
+                sealedAt && (
+                  <div className="flex-shrink-0">
+                    <ForgeStamp sealedAt={sealedAt} />
                   </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          <div>
-            <div className="mb-2 flex items-center gap-1.5 text-sm font-medium text-foreground">
-              <Layers className="h-4 w-4 text-cyan-400" />
-              Actos
+                )
+              )}
             </div>
-            <div className="space-y-3">
+          </ForgeZone>
+
+          <ForgeZone state={zoneState} className="p-4">
+            <div className="mb-3 flex items-center gap-1.5 text-sm font-medium text-pfx-text">
+              <Layers className="h-4 w-4 text-pfx-accent" aria-hidden="true" />
+              Actos
+              <span className="ml-auto font-forge-mono text-xs text-pfx-text-muted">
+                {sortedActos.length}
+              </span>
+            </div>
+            <div>
               {sortedActos.map((acto, i) => {
                 const isEditingThis = editingActo === acto.orden;
                 return (
-                  <div key={acto.orden} className="rounded-xl border border-border bg-card p-4">
+                  <div key={acto.orden}>
+                    {i > 0 && <ForgeSeam className="my-3" />}
                     <div className="flex items-start justify-between gap-2">
-                      <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-cyan-500/10 text-xs font-semibold text-cyan-500">
+                      <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-[hsl(var(--pfx-border)/0.4)] font-forge-mono text-xs font-semibold text-pfx-text">
                         {acto.orden}
                       </span>
 
@@ -424,27 +500,27 @@ export function BlueprintPanel({
                             aria-label={`Subir acto ${acto.orden}`}
                             onClick={() => moveActo(acto.orden, "up")}
                             disabled={i === 0 || reordering}
-                            className="text-muted-foreground transition-colors hover:text-cyan-400 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:text-muted-foreground"
+                            className="text-pfx-text-muted transition-colors hover:text-pfx-accent disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:text-pfx-text-muted"
                           >
-                            <ChevronUp className="h-3.5 w-3.5" />
+                            <ChevronUp className="h-3.5 w-3.5" aria-hidden="true" />
                           </button>
                           <button
                             type="button"
                             aria-label={`Bajar acto ${acto.orden}`}
                             onClick={() => moveActo(acto.orden, "down")}
                             disabled={i === sortedActos.length - 1 || reordering}
-                            className="text-muted-foreground transition-colors hover:text-cyan-400 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:text-muted-foreground"
+                            className="text-pfx-text-muted transition-colors hover:text-pfx-accent disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:text-pfx-text-muted"
                           >
-                            <ChevronDown className="h-3.5 w-3.5" />
+                            <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />
                           </button>
                           {!isEditingThis && (
                             <button
                               type="button"
                               aria-label={`Editar acto ${acto.orden}`}
                               onClick={() => startEditActo(acto)}
-                              className="text-muted-foreground transition-colors hover:text-cyan-400"
+                              className="text-pfx-text-muted transition-colors hover:text-pfx-accent"
                             >
-                              <Pencil className="h-3.5 w-3.5" />
+                              <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
                             </button>
                           )}
                         </div>
@@ -455,7 +531,7 @@ export function BlueprintPanel({
                       <div className="mt-2 space-y-2">
                         {ACTO_FIELDS.map((f) => (
                           <div key={f.key}>
-                            <label className="mb-1 block text-[11px] font-medium text-muted-foreground">
+                            <label className="mb-1 block text-[11px] font-medium text-pfx-text-muted">
                               {f.label}
                             </label>
                             <textarea
@@ -464,7 +540,7 @@ export function BlueprintPanel({
                                 setEditFields((prev) => ({ ...prev, [f.key]: e.target.value }))
                               }
                               rows={2}
-                              className="w-full resize-none rounded-md border border-border bg-secondary/40 px-2 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-400/40"
+                              className="w-full resize-none rounded-[var(--pfx-radius)] border border-pfx-border bg-pfx-surface px-2 py-1.5 text-xs text-pfx-text focus:outline-none focus:ring-2 focus:ring-pfx-accent"
                             />
                           </div>
                         ))}
@@ -475,14 +551,14 @@ export function BlueprintPanel({
                             disabled={
                               savingEdit || ACTO_FIELDS.some((f) => editFields[f.key].trim().length === 0)
                             }
-                            className="rounded-md bg-cyan-500 px-2.5 py-1 text-[11px] font-medium text-black transition-colors hover:bg-cyan-400 disabled:opacity-40"
+                            className="rounded-[var(--pfx-radius)] bg-pfx-accent px-2.5 py-1 text-[11px] font-medium text-pfx-on-accent transition-colors hover:bg-pfx-accent-strong disabled:opacity-40"
                           >
                             Guardar
                           </button>
                           <button
                             type="button"
                             onClick={cancelEditActo}
-                            className="text-[11px] text-muted-foreground hover:text-foreground"
+                            className="text-[11px] text-pfx-text-muted hover:text-pfx-text"
                           >
                             Cancelar
                           </button>
@@ -491,20 +567,20 @@ export function BlueprintPanel({
                     ) : (
                       <div className="mt-2 space-y-1.5 text-xs">
                         <p>
-                          <span className="font-medium text-muted-foreground">Propósito: </span>
-                          <span className="text-foreground">{acto.proposito}</span>
+                          <span className="font-medium text-pfx-text-muted">Propósito: </span>
+                          <span className="text-pfx-text">{acto.proposito}</span>
                         </p>
                         <p>
-                          <span className="font-medium text-muted-foreground">Mensaje: </span>
-                          <span className="text-foreground">{acto.mensaje}</span>
+                          <span className="font-medium text-pfx-text-muted">Mensaje: </span>
+                          <span className="text-pfx-text">{acto.mensaje}</span>
                         </p>
                         <p>
-                          <span className="font-medium text-muted-foreground">Tensión: </span>
-                          <span className="text-foreground">{acto.tension}</span>
+                          <span className="font-medium text-pfx-text-muted">Tensión: </span>
+                          <span className="text-pfx-text">{acto.tension}</span>
                         </p>
                         <p>
-                          <span className="font-medium text-muted-foreground">Resolución: </span>
-                          <span className="text-foreground">{acto.resolucion}</span>
+                          <span className="font-medium text-pfx-text-muted">Resolución: </span>
+                          <span className="text-pfx-text">{acto.resolucion}</span>
                         </p>
                       </div>
                     )}
@@ -512,52 +588,53 @@ export function BlueprintPanel({
                 );
               })}
             </div>
-          </div>
+          </ForgeZone>
 
           {blueprint.cinematicMoments.length > 0 && (
-            <div className="rounded-xl border border-border bg-card p-4">
-              <div className="mb-3 flex items-center gap-1.5 text-sm font-medium text-foreground">
-                <Camera className="h-4 w-4 text-cyan-400" />
+            <ForgeZone state={zoneState} className="p-4">
+              <div className="mb-3 flex items-center gap-1.5 text-sm font-medium text-pfx-text">
+                <Camera className="h-4 w-4 text-pfx-accent" aria-hidden="true" />
                 Momentos cinematográficos
               </div>
-              <ul className="flex flex-col gap-3">
+              <ul className="flex flex-col">
                 {blueprint.cinematicMoments.map((m, i) => (
-                  <li key={i} className="rounded-md border border-border/60 bg-secondary/20 p-3">
+                  <li key={i}>
+                    {i > 0 && <ForgeSeam className="my-3" />}
                     <span className={CHIP_CLASS}>Acto {m.actoOrden}</span>
-                    <p className="mt-1.5 text-xs text-foreground">{m.descripcion}</p>
-                    <p className="mt-1 text-[11px] text-muted-foreground">{m.motifConnection}</p>
+                    <p className="mt-1.5 text-xs text-pfx-text">{m.descripcion}</p>
+                    <p className="mt-1 text-[11px] text-pfx-text-muted">{m.motifConnection}</p>
                   </li>
                 ))}
               </ul>
-            </div>
+            </ForgeZone>
           )}
 
-          <div className="rounded-xl border border-border bg-card p-4">
-            <div className="mb-3 flex items-center gap-1.5 text-sm font-medium text-foreground">
-              <ClipboardList className="h-4 w-4 text-cyan-400" />
+          <ForgeZone state={zoneState} className="p-4">
+            <div className="mb-3 flex items-center gap-1.5 text-sm font-medium text-pfx-text">
+              <ClipboardList className="h-4 w-4 text-pfx-accent" aria-hidden="true" />
               Notas de producción
             </div>
 
             {blueprint.notasProduccion.length === 0 ? (
-              <p className="text-xs text-muted-foreground/60">Sin notas</p>
+              <p className="text-xs text-pfx-text-muted/60">Sin notas</p>
             ) : (
-              <ul className="flex flex-col gap-2">
+              <ul className="flex flex-col">
                 {blueprint.notasProduccion.map((nota, i) => (
-                  <li
-                    key={i}
-                    className="flex items-start justify-between gap-2 rounded-md border border-border/60 bg-secondary/20 px-3 py-2 text-xs text-foreground"
-                  >
-                    <span className="whitespace-pre-wrap">{nota}</span>
-                    {editable && (
-                      <button
-                        type="button"
-                        aria-label={`Quitar nota ${i + 1}`}
-                        onClick={() => removeNote(i)}
-                        className="flex-shrink-0 text-muted-foreground transition-colors hover:text-red-400"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    )}
+                  <li key={i}>
+                    {i > 0 && <ForgeSeam className="my-3" />}
+                    <div className="flex items-start justify-between gap-2 text-xs text-pfx-text">
+                      <span className="whitespace-pre-wrap">{nota}</span>
+                      {editable && (
+                        <button
+                          type="button"
+                          aria-label={`Quitar nota ${i + 1}`}
+                          onClick={() => removeNote(i)}
+                          className="flex-shrink-0 text-pfx-text-muted transition-colors hover:text-pfx-error"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                        </button>
+                      )}
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -570,51 +647,51 @@ export function BlueprintPanel({
                   value={newNote}
                   onChange={(e) => setNewNote(e.target.value)}
                   placeholder="Agregar una nota de producción…"
-                  className="flex-1 rounded-md border border-border bg-secondary/40 px-2 py-1.5 text-xs text-foreground placeholder-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-cyan-400/40"
+                  className="flex-1 rounded-[var(--pfx-radius)] border border-pfx-border bg-pfx-surface px-2 py-1.5 text-xs text-pfx-text placeholder:text-pfx-text-muted/60 focus:outline-none focus:ring-2 focus:ring-pfx-accent"
                 />
                 <button
                   type="button"
                   onClick={addNote}
                   disabled={!newNote.trim()}
-                  className="flex flex-shrink-0 items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:text-cyan-400 disabled:opacity-40"
+                  className="flex flex-shrink-0 items-center gap-1.5 rounded-[var(--pfx-radius)] border border-pfx-border px-2.5 py-1.5 text-xs font-medium text-pfx-text transition-colors hover:text-pfx-accent disabled:opacity-40"
                 >
-                  <Plus className="h-3.5 w-3.5" />
+                  <Plus className="h-3.5 w-3.5" aria-hidden="true" />
                   Agregar
                 </button>
               </div>
             )}
-          </div>
+          </ForgeZone>
 
           {lastRunId && artifactStatus !== "sealed" && (
-            <div className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
-              {decisionGiven ? (
-                <p className="text-xs text-muted-foreground">Gracias por el feedback</p>
-              ) : (
-                <>
-                  <span className="text-xs text-muted-foreground">
-                    ¿Te sirvió este análisis?
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => submitDecision("accepted")}
-                    disabled={decisionBusy}
-                    className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-xs text-foreground transition-colors hover:border-lime-400/40 hover:text-lime-500 disabled:opacity-40"
-                  >
-                    <ThumbsUp className="h-3.5 w-3.5" />
-                    Útil
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => submitDecision("rejected")}
-                    disabled={decisionBusy}
-                    className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-xs text-foreground transition-colors hover:border-red-400/40 hover:text-red-400 disabled:opacity-40"
-                  >
-                    <ThumbsDown className="h-3.5 w-3.5" />
-                    No útil
-                  </button>
-                </>
-              )}
-            </div>
+            <ForgeZone state="draft" className="p-3">
+              <div className="flex items-center gap-3 px-1">
+                {decisionGiven ? (
+                  <p className="text-xs text-pfx-text-muted">Gracias por el feedback</p>
+                ) : (
+                  <>
+                    <span className="text-xs text-pfx-text-muted">¿Te sirvió este análisis?</span>
+                    <button
+                      type="button"
+                      onClick={() => submitDecision("accepted")}
+                      disabled={decisionBusy}
+                      className="flex items-center gap-1.5 rounded-[var(--pfx-radius)] border border-pfx-border px-2.5 py-1 text-xs text-pfx-text transition-colors hover:border-pfx-success/40 hover:text-pfx-success disabled:opacity-40"
+                    >
+                      <ThumbsUp className="h-3.5 w-3.5" aria-hidden="true" />
+                      Útil
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => submitDecision("rejected")}
+                      disabled={decisionBusy}
+                      className="flex items-center gap-1.5 rounded-[var(--pfx-radius)] border border-pfx-border px-2.5 py-1 text-xs text-pfx-text transition-colors hover:border-pfx-error/40 hover:text-pfx-error disabled:opacity-40"
+                    >
+                      <ThumbsDown className="h-3.5 w-3.5" aria-hidden="true" />
+                      No útil
+                    </button>
+                  </>
+                )}
+              </div>
+            </ForgeZone>
           )}
         </div>
       )}
