@@ -5,12 +5,13 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   AlertCircle,
-  AlertTriangle,
   Ban,
+  Lock,
   Loader2,
   Palette,
   Pencil,
   RefreshCw,
+  RotateCcw,
   Ruler,
   Shapes,
   Sparkles,
@@ -24,6 +25,9 @@ import {
   setRunDecisionAction,
 } from "@/app/(admin)/proyectos/pixelforge/actions";
 import { usePixelforgeRun } from "@/hooks/pixelforge/use-pixelforge-run";
+import { ForgeZone, type ForgeState } from "@/components/pixelforge/forge/ForgeZone";
+import { ForgeSeam } from "@/components/pixelforge/forge/ForgeSeam";
+import { ForgeStamp } from "@/components/pixelforge/forge/ForgeStamp";
 import type { PixelforgeArtifactStatus } from "@/lib/pixelforge/types";
 import type { VisualDna } from "@/lib/pixelforge/schemas/synthesize-visual-dna";
 
@@ -43,6 +47,13 @@ interface Props {
   references?: { id: string; label: string }[];
   /** Corrida IA más reciente asociada al draft actual — habilita los botones de decisión (👍/👎). */
   lastRunId?: string | null;
+  /**
+   * ISO del sellado (PF-X1 T6) — habilita la `ForgeStamp` en la plancha de
+   * "Dirección general" cuando `artifactStatus === "sealed"`. Puramente
+   * presentacional: sin este prop el panel simplemente no muestra la estampa
+   * (no rompe consumidores existentes).
+   */
+  sealedAt?: string | null;
 }
 
 const CONTRASTE_LABEL: Record<VisualDna["paleta"]["contraste"], string> = {
@@ -63,8 +74,25 @@ const PESO_LABEL: Record<VisualDna["influencias"][number]["peso"], string> = {
   alta: "Peso alto",
 };
 
+/** Chip técnico (mono, DNA: "chips técnicos y números" → font-forge-mono). */
 const CHIP_CLASS =
-  "rounded-full bg-secondary/40 px-2 py-0.5 text-[11px] text-muted-foreground";
+  "rounded-full bg-[hsl(var(--pfx-border)/0.4)] px-2 py-0.5 font-forge-mono text-[10px] text-pfx-text-muted";
+
+/** Chip de anti-patrón — mismo idiom técnico pero en ámbar (evitar). */
+const ANTI_PATTERN_CHIP_CLASS =
+  "rounded-full bg-[hsl(var(--pfx-warning)/0.12)] px-2 py-0.5 font-forge-mono text-[10px] text-pfx-warning";
+
+/**
+ * Materialidad de las planchas del DNA según el status del artifact
+ * (docs/pixelforge/product-dna.md § Estados canónicos). `forging` se reserva
+ * a la plancha dedicada de progreso (`isGenerating`, más abajo) para no
+ * duplicar la señal de "trabajándose" en cada sección simultáneamente.
+ */
+function zoneStateForArtifact(status: PixelforgeArtifactStatus): ForgeState {
+  if (status === "sealed") return "sealed";
+  if (status === "invalidated") return "invalidated";
+  return "draft";
+}
 
 /** Clona el Visual DNA completo y aplica la edición sobre la copia — nunca se manda un parche parcial al backend. */
 function cloneDna(dna: VisualDna): VisualDna {
@@ -72,14 +100,17 @@ function cloneDna(dna: VisualDna): VisualDna {
 }
 
 /**
- * Panel operativo del Visual DNA (estación Visual, F4): dispara
- * `synthesize_visual_dna`, muestra el resultado en secciones (dirección
- * general, paleta, tipografía, espaciado, motivos visuales, anti-patrones,
- * influencias) y permite editar la dirección general del borrador. Calco
- * estructural de `LandingDnaPanel` (F3) — el sellado en sí vive en `SealBar`
- * (componente hermano). A diferencia de `LandingDnaPanel`, la compuerta tiene
- * DOS condiciones (estrategia sellada Y al menos una referencia analizada),
- * ambas reflejadas en el mensaje del estado vacío.
+ * Panel operativo del Visual DNA (estación Visual, F4 / reskin PF-X1 T6):
+ * dispara `synthesize_visual_dna`, muestra el resultado en planchas de banco
+ * (dirección general, paleta, tipografía, espaciado, motivos visuales,
+ * anti-patrones, influencias) y permite editar la dirección general del
+ * borrador. El sellado en sí vive en `SealBar` (componente hermano); acá solo
+ * se refleja la materialidad (`ForgeZone` sellado + `ForgeStamp`) una vez que
+ * el artifact ya está sellado. A diferencia de `LandingDnaPanel`, la
+ * compuerta tiene DOS condiciones (estrategia sellada Y al menos una
+ * referencia analizada) — cuando no se cumplen, el estado vacío se muestra
+ * con la materialidad `locked` del DNA (el gate se explica sin romper la
+ * estación actual, igual que un segmento bloqueado del riel).
  */
 export function VisualDnaPanel({
   projectId,
@@ -89,6 +120,7 @@ export function VisualDnaPanel({
   analyzedReferenceCount,
   references,
   lastRunId,
+  sealedAt,
 }: Props) {
   const router = useRouter();
   const [runId, setRunId] = useState<string | null>(null);
@@ -122,6 +154,7 @@ export function VisualDnaPanel({
   const editable = artifactStatus !== "sealed";
   const isGenerating = starting || (!!runId && handledRunRef.current !== runId);
   const canSynthesize = strategySealed && analyzedReferenceCount > 0;
+  const zoneState = zoneStateForArtifact(artifactStatus);
 
   const startGeneration = async () => {
     setStarting(true);
@@ -210,190 +243,224 @@ export function VisualDnaPanel({
   return (
     <div className="space-y-4">
       {artifactStatus === "invalidated" && (
-        <div className="flex items-start gap-2 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2.5 text-xs text-amber-700 dark:text-amber-300">
-          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
-          Este Visual DNA quedó invalidado por reapertura de una estación anterior. Re-genéralo o
-          revísalo y vuelve a sellar.
-        </div>
+        <ForgeZone state="invalidated" className="p-3">
+          <div className="flex items-start gap-2 text-xs text-pfx-warning">
+            <RotateCcw className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
+            Este Visual DNA quedó invalidado por reapertura de una estación anterior. Re-genéralo o
+            revísalo y vuelve a sellar.
+          </div>
+        </ForgeZone>
       )}
 
       {isGenerating && (
-        <div className="flex items-center gap-3 rounded-xl border border-cyan-500/20 bg-card p-5">
-          <Loader2 className="h-4 w-4 flex-shrink-0 animate-spin text-cyan-400" />
-          <div className="flex-1">
-            <p className="text-sm text-foreground">{run?.currentStep ?? "Sintetizando Visual DNA…"}</p>
-            <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-secondary/60">
-              <div
-                className="h-full rounded-full bg-cyan-400 transition-all"
-                style={{ width: `${Math.max(5, run?.progress ?? 5)}%` }}
-              />
+        <ForgeZone state="forging" variant="elevated" className="p-5">
+          <div className="flex items-center gap-3">
+            <Loader2 className="h-4 w-4 flex-shrink-0 animate-spin text-pfx-accent" aria-hidden="true" />
+            <div className="flex-1">
+              <p className="text-sm text-pfx-text">{run?.currentStep ?? "Sintetizando Visual DNA…"}</p>
+              <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-[hsl(var(--pfx-border)/0.6)]">
+                <div
+                  className="h-full rounded-full bg-pfx-accent transition-all"
+                  style={{ width: `${Math.max(5, run?.progress ?? 5)}%` }}
+                />
+              </div>
             </div>
           </div>
-        </div>
+        </ForgeZone>
       )}
 
       {!isGenerating && failureMessage && (
-        <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2.5">
+        <div className="flex items-center justify-between gap-3 rounded-[var(--pfx-radius)] border border-pfx-warning/30 bg-[hsl(var(--pfx-warning)/0.08)] px-3 py-2.5">
           <div className="flex items-start gap-2">
-            <AlertCircle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-amber-400" />
-            <p className="text-xs text-amber-700 dark:text-amber-300">{failureMessage}</p>
+            <AlertCircle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-pfx-warning" aria-hidden="true" />
+            <p className="text-xs text-pfx-warning">{failureMessage}</p>
           </div>
           <button
             type="button"
             onClick={startGeneration}
-            className="flex flex-shrink-0 items-center gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-700 dark:text-amber-300 transition-colors hover:bg-amber-500/20"
+            className="flex flex-shrink-0 items-center gap-1.5 rounded-[var(--pfx-radius)] border border-pfx-warning/30 bg-[hsl(var(--pfx-warning)/0.1)] px-3 py-1.5 text-xs font-medium text-pfx-warning transition-colors hover:bg-[hsl(var(--pfx-warning)/0.2)]"
           >
-            <RefreshCw className="h-3 w-3" />
+            <RefreshCw className="h-3 w-3" aria-hidden="true" />
             Reintentar
           </button>
         </div>
       )}
 
       {!dna ? (
-        !isGenerating && (
-          <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border bg-card px-6 py-10 text-center">
-            <Sparkles className="h-6 w-6 text-cyan-400" />
+        !isGenerating &&
+        (canSynthesize ? (
+          <ForgeZone variant="elevated" state="draft" className="px-6 py-16 text-center">
+            <Sparkles className="mx-auto mb-3 h-6 w-6 text-pfx-accent" aria-hidden="true" />
             <div>
-              <p className="text-sm font-medium text-foreground">
+              <p className="text-sm font-medium text-pfx-text">
                 Todavía no hay un Visual DNA para este proyecto
               </p>
-              <p className="mt-1 text-xs text-muted-foreground">{emptyStateHint}</p>
+              <p className="mt-1 text-xs text-pfx-text-muted">{emptyStateHint}</p>
             </div>
             <button
               type="button"
               onClick={startGeneration}
-              disabled={!canSynthesize}
-              title={!canSynthesize ? emptyStateHint : undefined}
-              className="flex items-center gap-2 rounded-md bg-cyan-500 px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-cyan-400 disabled:opacity-40"
+              className="mx-auto mt-4 flex items-center gap-2 rounded-[var(--pfx-radius)] bg-pfx-accent px-4 py-2 text-sm font-medium text-pfx-on-accent transition-colors hover:bg-pfx-accent-strong"
             >
-              <Sparkles className="h-4 w-4" />
+              <Sparkles className="h-4 w-4" aria-hidden="true" />
               Sintetizar Visual DNA
             </button>
-          </div>
-        )
+          </ForgeZone>
+        ) : (
+          // locked: la síntesis está gateada (estrategia sin sellar o sin
+          // referencias analizadas) — el panel explica el gate sin romper la
+          // navegación de la estación actual (docs/pixelforge/product-dna.md
+          // § Estados canónicos, "locked").
+          <ForgeZone variant="elevated" state="locked" className="px-6 py-16 text-center">
+            <Lock className="mx-auto mb-3 h-6 w-6 text-pfx-forge-locked" aria-hidden="true" />
+            <div>
+              <p className="text-sm font-medium text-pfx-text">
+                Todavía no hay un Visual DNA para este proyecto
+              </p>
+              <p className="mt-1 text-xs text-pfx-text-muted">{emptyStateHint}</p>
+            </div>
+            <button
+              type="button"
+              onClick={startGeneration}
+              disabled
+              title={emptyStateHint}
+              className="mx-auto mt-4 flex items-center gap-2 rounded-[var(--pfx-radius)] bg-pfx-accent px-4 py-2 text-sm font-medium text-pfx-on-accent opacity-40"
+            >
+              <Sparkles className="h-4 w-4" aria-hidden="true" />
+              Sintetizar Visual DNA
+            </button>
+          </ForgeZone>
+        ))
       ) : (
         <div className="space-y-4">
-          <div className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-cyan-500/20 bg-card p-4">
-            <div className="min-w-[200px] flex-1">
-              <div className="mb-1 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                <Sparkles className="h-3.5 w-3.5 text-cyan-400" />
-                Dirección general
-                {editable && !editingDireccion && (
-                  <button
-                    type="button"
-                    aria-label="Editar dirección general"
-                    onClick={startEditDireccion}
-                    className="text-muted-foreground transition-colors hover:text-cyan-400"
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                  </button>
+          <ForgeZone state={zoneState} variant="elevated" className="p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-[200px] flex-1">
+                <div className="mb-1 flex items-center gap-1.5 text-xs font-medium text-pfx-text-muted">
+                  <Sparkles className="h-3.5 w-3.5 text-pfx-accent" aria-hidden="true" />
+                  Dirección general
+                  {editable && !editingDireccion && (
+                    <button
+                      type="button"
+                      aria-label="Editar dirección general"
+                      onClick={startEditDireccion}
+                      className="text-pfx-text-muted transition-colors hover:text-pfx-accent"
+                    >
+                      <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                    </button>
+                  )}
+                </div>
+
+                {editingDireccion ? (
+                  <div className="space-y-1.5">
+                    <textarea
+                      value={editText}
+                      onChange={(e) => setEditText(e.target.value)}
+                      rows={2}
+                      className="w-full resize-none rounded-[var(--pfx-radius)] border border-pfx-border bg-pfx-surface px-2 py-1.5 text-sm text-pfx-text focus:outline-none focus:ring-2 focus:ring-pfx-accent"
+                    />
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={saveEdit}
+                        disabled={savingEdit || editText.trim().length === 0}
+                        className="rounded-[var(--pfx-radius)] bg-pfx-accent px-2.5 py-1 text-[11px] font-medium text-pfx-on-accent transition-colors hover:bg-pfx-accent-strong disabled:opacity-40"
+                      >
+                        Guardar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={cancelEdit}
+                        className="text-[11px] text-pfx-text-muted hover:text-pfx-text"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-base font-semibold text-pfx-text">{dna.direccionGeneral}</p>
                 )}
               </div>
 
-              {editingDireccion ? (
-                <div className="space-y-1.5">
-                  <textarea
-                    value={editText}
-                    onChange={(e) => setEditText(e.target.value)}
-                    rows={2}
-                    className="w-full resize-none rounded-md border border-border bg-secondary/40 px-2 py-1.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-cyan-400/40"
-                  />
-                  <div className="flex items-center gap-2">
+              {editable && !isGenerating ? (
+                <div className="flex-shrink-0">
+                  {!regenerateConfirming ? (
                     <button
                       type="button"
-                      onClick={saveEdit}
-                      disabled={savingEdit || editText.trim().length === 0}
-                      className="rounded-md bg-cyan-500 px-2.5 py-1 text-[11px] font-medium text-black transition-colors hover:bg-cyan-400 disabled:opacity-40"
+                      onClick={() => setRegenerateConfirming(true)}
+                      className="flex items-center gap-1.5 rounded-[var(--pfx-radius)] border border-pfx-border px-3 py-1.5 text-xs font-medium text-pfx-text-muted transition-colors hover:text-pfx-text"
                     >
-                      Guardar
+                      <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+                      Re-generar
                     </button>
-                    <button
-                      type="button"
-                      onClick={cancelEdit}
-                      className="text-[11px] text-muted-foreground hover:text-foreground"
-                    >
-                      Cancelar
-                    </button>
-                  </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] text-pfx-warning">
+                        Esto reemplaza el borrador actual
+                      </span>
+                      <button
+                        type="button"
+                        onClick={startGeneration}
+                        className="rounded-[var(--pfx-radius)] bg-pfx-warning px-3 py-1.5 text-xs font-medium text-pfx-canvas transition-colors hover:opacity-90"
+                      >
+                        Confirmar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setRegenerateConfirming(false)}
+                        className="text-xs text-pfx-text-muted hover:text-pfx-text"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  )}
                 </div>
               ) : (
-                <p className="text-base font-semibold text-foreground">{dna.direccionGeneral}</p>
+                artifactStatus === "sealed" &&
+                sealedAt && (
+                  <div className="flex-shrink-0">
+                    <ForgeStamp sealedAt={sealedAt} />
+                  </div>
+                )
               )}
             </div>
-
-            {editable && !isGenerating && (
-              <div className="flex-shrink-0">
-                {!regenerateConfirming ? (
-                  <button
-                    type="button"
-                    onClick={() => setRegenerateConfirming(true)}
-                    className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-                  >
-                    <RefreshCw className="h-3.5 w-3.5" />
-                    Re-generar
-                  </button>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] text-amber-600 dark:text-amber-400">
-                      Esto reemplaza el borrador actual
-                    </span>
-                    <button
-                      type="button"
-                      onClick={startGeneration}
-                      className="rounded-md bg-amber-500 px-3 py-1.5 text-xs font-medium text-black transition-colors hover:bg-amber-400"
-                    >
-                      Confirmar
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setRegenerateConfirming(false)}
-                      className="text-xs text-muted-foreground hover:text-foreground"
-                    >
-                      Cancelar
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+          </ForgeZone>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="rounded-xl border border-border bg-card p-4">
-              <div className="mb-3 flex items-center gap-1.5 text-sm font-medium text-foreground">
-                <Palette className="h-4 w-4 text-cyan-400" />
+            <ForgeZone state={zoneState} className="p-4">
+              <div className="mb-3 flex items-center gap-1.5 text-sm font-medium text-pfx-text">
+                <Palette className="h-4 w-4 text-pfx-accent" aria-hidden="true" />
                 Paleta
               </div>
-              <p className="text-xs text-muted-foreground">{dna.paleta.estrategia}</p>
-              <span
-                className={`mt-2 inline-block w-fit rounded px-1.5 py-0.5 text-[10px] font-medium ${CHIP_CLASS}`}
-              >
+              <p className="text-xs text-pfx-text-muted">{dna.paleta.estrategia}</p>
+              <span className={`mt-2 inline-block w-fit ${CHIP_CLASS}`}>
                 {CONTRASTE_LABEL[dna.paleta.contraste]}
               </span>
-            </div>
+            </ForgeZone>
 
-            <div className="rounded-xl border border-border bg-card p-4">
-              <div className="mb-3 flex items-center gap-1.5 text-sm font-medium text-foreground">
-                <TypeIcon className="h-4 w-4 text-cyan-400" />
+            <ForgeZone state={zoneState} className="p-4">
+              <div className="mb-3 flex items-center gap-1.5 text-sm font-medium text-pfx-text">
+                <TypeIcon className="h-4 w-4 text-pfx-accent" aria-hidden="true" />
                 Tipografía
               </div>
-              <p className="text-[11px] font-medium text-muted-foreground">Títulos</p>
-              <p className="text-xs text-foreground">{dna.tipografia.caracterTitulos}</p>
-              <p className="mt-2 text-[11px] font-medium text-muted-foreground">Cuerpo</p>
-              <p className="text-xs text-foreground">{dna.tipografia.caracterCuerpo}</p>
-            </div>
+              <p className="text-[11px] font-medium text-pfx-text-muted">Títulos</p>
+              <p className="text-xs text-pfx-text">{dna.tipografia.caracterTitulos}</p>
+              <p className="mt-2 text-[11px] font-medium text-pfx-text-muted">Cuerpo</p>
+              <p className="text-xs text-pfx-text">{dna.tipografia.caracterCuerpo}</p>
+            </ForgeZone>
           </div>
 
-          <div className="rounded-xl border border-border bg-card p-4">
-            <div className="mb-3 flex items-center gap-1.5 text-sm font-medium text-foreground">
-              <Ruler className="h-4 w-4 text-cyan-400" />
+          <ForgeZone state={zoneState} className="p-4">
+            <div className="mb-3 flex items-center gap-1.5 text-sm font-medium text-pfx-text">
+              <Ruler className="h-4 w-4 text-pfx-accent" aria-hidden="true" />
               Espaciado
             </div>
             <span className={CHIP_CLASS}>{ESPACIADO_LABEL[dna.espaciado]}</span>
-          </div>
+          </ForgeZone>
 
-          <div className="rounded-xl border border-border bg-card p-4">
-            <div className="mb-3 flex items-center gap-1.5 text-sm font-medium text-foreground">
-              <Shapes className="h-4 w-4 text-cyan-400" />
+          <ForgeZone state={zoneState} className="p-4">
+            <div className="mb-3 flex items-center gap-1.5 text-sm font-medium text-pfx-text">
+              <Shapes className="h-4 w-4 text-pfx-accent" aria-hidden="true" />
               Motivos visuales
             </div>
             <div className="flex flex-wrap gap-1.5">
@@ -403,79 +470,77 @@ export function VisualDnaPanel({
                 </span>
               ))}
             </div>
-          </div>
+          </ForgeZone>
 
           {dna.antiPatrones.length > 0 && (
-            <div className="rounded-xl border border-amber-500/20 bg-card p-4">
-              <div className="mb-3 flex items-center gap-1.5 text-sm font-medium text-foreground">
-                <Ban className="h-4 w-4 text-amber-400" />
+            <ForgeZone state={zoneState} className="p-4">
+              <div className="mb-3 flex items-center gap-1.5 text-sm font-medium text-pfx-text">
+                <Ban className="h-4 w-4 text-pfx-warning" aria-hidden="true" />
                 Anti-patrones (evitar)
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {dna.antiPatrones.map((ap, i) => (
-                  <span
-                    key={i}
-                    className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] text-amber-700 dark:text-amber-300"
-                  >
+                  <span key={i} className={ANTI_PATTERN_CHIP_CLASS}>
                     {ap}
                   </span>
                 ))}
               </div>
-            </div>
+            </ForgeZone>
           )}
 
           {dna.influencias.length > 0 && (
-            <div className="rounded-xl border border-border bg-card p-4">
-              <div className="mb-3 flex items-center gap-1.5 text-sm font-medium text-foreground">
-                <Users className="h-4 w-4 text-cyan-400" />
+            <ForgeZone state={zoneState} className="p-4">
+              <div className="mb-3 flex items-center gap-1.5 text-sm font-medium text-pfx-text">
+                <Users className="h-4 w-4 text-pfx-accent" aria-hidden="true" />
                 Influencias
               </div>
-              <ul className="flex flex-col gap-3">
+              <ul className="flex flex-col">
                 {dna.influencias.map((inf, i) => (
-                  <li key={i} className="rounded-md border border-border/60 bg-secondary/20 p-3">
+                  <li key={i}>
+                    {i > 0 && <ForgeSeam className="my-3" />}
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-medium text-foreground">
+                      <span className="text-xs font-medium text-pfx-text">
                         {referenceLabel(inf.referenceId)}
                       </span>
                       <span className={CHIP_CLASS}>{PESO_LABEL[inf.peso]}</span>
                     </div>
-                    <p className="mt-1 text-xs text-muted-foreground">{inf.queTomar}</p>
+                    <p className="mt-1 text-xs text-pfx-text-muted">{inf.queTomar}</p>
                   </li>
                 ))}
               </ul>
-            </div>
+            </ForgeZone>
           )}
 
           {lastRunId && artifactStatus !== "sealed" && (
-            <div className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
-              {decisionGiven ? (
-                <p className="text-xs text-muted-foreground">Gracias por el feedback</p>
-              ) : (
-                <>
-                  <span className="text-xs text-muted-foreground">
-                    ¿Te sirvió este análisis?
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => submitDecision("accepted")}
-                    disabled={decisionBusy}
-                    className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-xs text-foreground transition-colors hover:border-lime-400/40 hover:text-lime-500 disabled:opacity-40"
-                  >
-                    <ThumbsUp className="h-3.5 w-3.5" />
-                    Útil
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => submitDecision("rejected")}
-                    disabled={decisionBusy}
-                    className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-xs text-foreground transition-colors hover:border-red-400/40 hover:text-red-400 disabled:opacity-40"
-                  >
-                    <ThumbsDown className="h-3.5 w-3.5" />
-                    No útil
-                  </button>
-                </>
-              )}
-            </div>
+            <ForgeZone state="draft" className="p-3">
+              <div className="flex items-center gap-3 px-1">
+                {decisionGiven ? (
+                  <p className="text-xs text-pfx-text-muted">Gracias por el feedback</p>
+                ) : (
+                  <>
+                    <span className="text-xs text-pfx-text-muted">¿Te sirvió este análisis?</span>
+                    <button
+                      type="button"
+                      onClick={() => submitDecision("accepted")}
+                      disabled={decisionBusy}
+                      className="flex items-center gap-1.5 rounded-[var(--pfx-radius)] border border-pfx-border px-2.5 py-1 text-xs text-pfx-text transition-colors hover:border-pfx-success/40 hover:text-pfx-success disabled:opacity-40"
+                    >
+                      <ThumbsUp className="h-3.5 w-3.5" aria-hidden="true" />
+                      Útil
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => submitDecision("rejected")}
+                      disabled={decisionBusy}
+                      className="flex items-center gap-1.5 rounded-[var(--pfx-radius)] border border-pfx-border px-2.5 py-1 text-xs text-pfx-text transition-colors hover:border-pfx-error/40 hover:text-pfx-error disabled:opacity-40"
+                    >
+                      <ThumbsDown className="h-3.5 w-3.5" aria-hidden="true" />
+                      No útil
+                    </button>
+                  </>
+                )}
+              </div>
+            </ForgeZone>
           )}
         </div>
       )}

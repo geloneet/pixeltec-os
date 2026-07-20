@@ -242,6 +242,34 @@ describe("VisualDnaPanel", () => {
     expect(JSON.parse(init.body)).toEqual({ projectId: "proj-1", operation: "synthesize_visual_dna" });
   });
 
+  it("status sealed con sealedAt: muestra la ForgeStamp y la plancha usa el estado sealed (PF-X1 T6)", () => {
+    const { container } = render(
+      <VisualDnaPanel
+        projectId="proj-1"
+        artifactStatus="sealed"
+        dna={fixtureDna()}
+        strategySealed={true}
+        analyzedReferenceCount={1}
+        sealedAt="2026-07-18"
+      />
+    );
+    expect(screen.getByText("SELLADO · 18 jul 2026")).toBeInTheDocument();
+    expect(container.querySelector(".forge-zone--sealed")).not.toBeNull();
+  });
+
+  it("gate no cumplido (sin dna): el estado vacío usa la materialidad locked", () => {
+    const { container } = render(
+      <VisualDnaPanel
+        projectId="proj-1"
+        artifactStatus="pending"
+        dna={null}
+        strategySealed={false}
+        analyzedReferenceCount={0}
+      />
+    );
+    expect(container.querySelector(".forge-zone--locked")).not.toBeNull();
+  });
+
   it("hay lastRunId y status !== sealed: muestra botones de decisión; tras click, muestra agradecimiento", async () => {
     setRunDecisionActionMock.mockResolvedValue({ success: true });
     render(

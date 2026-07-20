@@ -101,6 +101,36 @@ describe("SealBar", () => {
     expect(screen.getByText(/Sellado por Miguel Robles/)).toBeInTheDocument();
   });
 
+  it("sellado: la plancha usa materialidad sealed y muestra la ForgeStamp (PF-X1 T6)", () => {
+    const { container } = render(
+      <SealBar
+        projectId="proj-1"
+        artifactStatus="sealed"
+        kind="context_brief"
+        kindLabel="Context Brief"
+        canSeal={false}
+        sealedByName="Miguel Robles"
+        sealedAt="2026-07-18"
+      />
+    );
+    expect(container.querySelector(".forge-zone--sealed")).not.toBeNull();
+    expect(screen.getByText("SELLADO · 18 jul 2026")).toBeInTheDocument();
+  });
+
+  it("sin sellar: la plancha usa materialidad draft (sin ForgeStamp)", () => {
+    const { container } = render(
+      <SealBar
+        projectId="proj-1"
+        artifactStatus="pending"
+        kind="context_brief"
+        kindLabel="Context Brief"
+        canSeal={false}
+      />
+    );
+    expect(container.querySelector(".forge-zone--draft")).not.toBeNull();
+    expect(screen.queryByText(/SELLADO ·/)).not.toBeInTheDocument();
+  });
+
   it("reabrir exige razón: sin texto, el botón de confirmar está disabled y la action no se llama", async () => {
     render(
       <SealBar

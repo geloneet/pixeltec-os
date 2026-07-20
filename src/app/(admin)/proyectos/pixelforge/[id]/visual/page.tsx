@@ -75,6 +75,7 @@ export default async function PixelforgeVisualPage({
           analyzedReferenceCount={analyzedReferenceCount}
           references={mapped.map((r) => ({ id: r.id, label: r.label }))}
           lastRunId={artifact.lastRunId}
+          sealedAt={sealedAtIso}
         />
       </div>
 

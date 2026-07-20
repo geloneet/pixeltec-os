@@ -236,6 +236,31 @@ describe("ReferenceGrid", () => {
     expect(formData.get("file")).toBe(file);
   });
 
+  it("mientras analiza: la plancha de referencia usa el estado forging (veta fluyendo, PF-X1 T6)", () => {
+    let resolveFetch: (v: { ok: boolean; json: () => Promise<unknown> }) => void = () => {};
+    fetchMock.mockReturnValue(
+      new Promise((resolve) => {
+        resolveFetch = resolve;
+      })
+    );
+    const { container } = render(
+      <ReferenceGrid projectId="proj-1" references={[refUrlSemantic()]} />
+    );
+
+    fireEvent.click(screen.getByText("Analizar"));
+
+    expect(container.querySelector(".forge-zone--forging")).not.toBeNull();
+    resolveFetch({ ok: true, json: async () => ({ runId: "run-1", status: "running" }) });
+  });
+
+  it("en reposo (sin análisis en curso): la plancha de referencia usa el estado draft", () => {
+    const { container } = render(
+      <ReferenceGrid projectId="proj-1" references={[refUrlSemantic()]} />
+    );
+    expect(container.querySelector(".forge-zone--draft")).not.toBeNull();
+    expect(container.querySelector(".forge-zone--forging")).toBeNull();
+  });
+
   it("formulario Imagen: rechaza archivos > 5MB antes de llamar la action", () => {
     render(<ReferenceGrid projectId="proj-1" references={[]} />);
 
