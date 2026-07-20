@@ -78,6 +78,7 @@ export default async function PixelforgeDireccionesPage({
           directions={directionViews}
           capabilityNames={capabilityNames}
           draft={draft}
+          sealedAt={sealedAtIso}
         />
       </div>
 

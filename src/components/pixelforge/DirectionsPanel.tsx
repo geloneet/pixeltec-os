@@ -7,7 +7,9 @@ import {
   AlertCircle,
   AlertTriangle,
   Loader2,
+  Lock,
   RefreshCw,
+  RotateCcw,
   Sparkles,
   ThumbsDown,
   ThumbsUp,
@@ -26,6 +28,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ForgeZone, type ForgeState } from "@/components/pixelforge/forge/ForgeZone";
+import { ForgeStamp } from "@/components/pixelforge/forge/ForgeStamp";
 import { DirectionCard, type DirectionCardView } from "./DirectionCard";
 import type { PixelforgeArtifactStatus } from "@/lib/pixelforge/types";
 import type { DirectionDecision } from "@/lib/pixelforge/schemas/direction-decision";
@@ -42,9 +46,30 @@ interface Props {
   capabilityNames: Record<string, string>;
   /** Draft actual (sealedContent si sellado, currentDraft si no) del artifact `direction_decision`. */
   draft: DirectionDecision | null;
+  /**
+   * ISO del sellado (PF-X2 T3, calco de `VisualDnaPanel`/`LandingDnaPanel`) —
+   * habilita la `ForgeStamp` en la plancha de la leyenda cuando
+   * `artifactStatus === "sealed"`. Puramente presentacional: sin este prop el
+   * panel simplemente no muestra la estampa (no rompe consumidores existentes).
+   */
+  sealedAt?: string | null;
 }
 
 const MIN_RATIONALE_LENGTH = 10;
+
+/**
+ * Materialidad de las planchas según el status del artifact
+ * (docs/pixelforge/product-dna.md § Estados canónicos). `forging` se reserva
+ * a la plancha dedicada de progreso (`isGenerating`, más abajo) para no
+ * duplicar la señal de "trabajándose" en cada card simultáneamente — durante
+ * una regeneración de slot, las OTRAS cards no cambian de materialidad, solo
+ * el botón "Regenerar" del slot activo (prop `regenerating` de `DirectionCard`).
+ */
+function zoneStateForArtifact(status: PixelforgeArtifactStatus): ForgeState {
+  if (status === "sealed") return "sealed";
+  if (status === "invalidated") return "invalidated";
+  return "draft";
+}
 
 /**
  * `generate_directions` NUNCA persiste `lastRunId` en el artifact (a
@@ -54,6 +79,19 @@ const MIN_RATIONALE_LENGTH = 10;
  * `updateArtifactDraft`. Por eso el feedback útil/no útil de ESTE panel se
  * ata al `runId` de la corrida recién completada EN ESTA SESIÓN (estado
  * local), no a un prop persistido desde la page como en `VisualDnaPanel`.
+ *
+ * Reskin PF-X2 T3 (estación Direcciones, el caso más denso de X2): cards con
+ * paleta/scores/razones, elección + sellado. La dirección elegida usa
+ * materialidad destacada (veta cobre, ver `DirectionCard`); la sellada
+ * muestra stamp + notch. IMPORTANTE: el `<Dialog>` de elección (Radix Portal)
+ * renderiza en `document.body`, FUERA del wrapper `[data-product="pixelforge"]`
+ * que activa los tokens `--pfx-*` (`pixelforge/layout.tsx`) — cualquier
+ * `bg-pfx-*`/`text-pfx-*` dentro del diálogo resolvería a un valor de CSS var
+ * indefinido (panel invisible/transparente). Por eso el contenido del diálogo
+ * se mantiene con el tema global del admin (`bg-background`, `text-foreground`,
+ * `bg-primary`, etc. — ya portal-safe, sin branding cyan) en vez de los tokens
+ * de forja; todo lo que vive FUERA del diálogo (cards, tabla, banners) sí usa
+ * `--pfx-*` con normalidad, porque nunca sale del árbol escopado.
  */
 export function DirectionsPanel({
   projectId,
@@ -62,6 +100,7 @@ export function DirectionsPanel({
   directions,
   capabilityNames,
   draft,
+  sealedAt,
 }: Props) {
   const router = useRouter();
   const [runId, setRunId] = useState<string | null>(null);
@@ -98,6 +137,7 @@ export function DirectionsPanel({
 
   const editable = artifactStatus !== "sealed";
   const isGenerating = starting || (!!runId && handledRunRef.current !== runId);
+  const zoneState = zoneStateForArtifact(artifactStatus);
 
   // Elección obsoleta (decisión F5 #6): el draft apunta a una dirección que ya
   // no está vigente como "chosen" — una generación completa la reemplazó por
@@ -214,74 +254,115 @@ export function DirectionsPanel({
 
   return (
     <div className="space-y-4">
+      {artifactStatus === "invalidated" && (
+        <ForgeZone state="invalidated" className="p-3">
+          <div className="flex items-start gap-2 text-xs text-pfx-warning">
+            <RotateCcw className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
+            Esta decisión de dirección quedó invalidada por la reapertura de una estación anterior.
+            Revísala y vuelve a sellar.
+          </div>
+        </ForgeZone>
+      )}
+
       {obsolete && (
-        <div className="flex items-start gap-2 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2.5 text-xs text-amber-700 dark:text-amber-300">
-          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
+        <div className="flex items-start gap-2 rounded-[var(--pfx-radius)] border border-pfx-warning/30 bg-[hsl(var(--pfx-warning)/0.08)] px-3 py-2.5 text-xs text-pfx-warning">
+          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
           Elección obsoleta — la dirección elegida ya no está vigente. Vuelve a elegir.
         </div>
       )}
 
       {isGenerating && (
-        <div className="flex items-center gap-3 rounded-xl border border-cyan-500/20 bg-card p-5">
-          <Loader2 className="h-4 w-4 flex-shrink-0 animate-spin text-cyan-400" />
-          <div className="flex-1">
-            <p className="text-sm text-foreground">
-              {run?.currentStep ?? (activeSlot ? `Regenerando el slot ${activeSlot}…` : "Generando direcciones…")}
-            </p>
-            <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-secondary/60">
-              <div
-                className="h-full rounded-full bg-cyan-400 transition-all"
-                style={{ width: `${Math.max(5, run?.progress ?? 5)}%` }}
-              />
+        <ForgeZone state="forging" variant="elevated" className="p-5">
+          <div className="flex items-center gap-3">
+            <Loader2 className="h-4 w-4 flex-shrink-0 animate-spin text-pfx-accent" aria-hidden="true" />
+            <div className="flex-1">
+              <p className="text-sm text-pfx-text">
+                {run?.currentStep ?? (activeSlot ? `Regenerando el slot ${activeSlot}…` : "Generando direcciones…")}
+              </p>
+              <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-[hsl(var(--pfx-border)/0.6)]">
+                <div
+                  className="h-full rounded-full bg-pfx-accent transition-all"
+                  style={{ width: `${Math.max(5, run?.progress ?? 5)}%` }}
+                />
+              </div>
             </div>
           </div>
-        </div>
+        </ForgeZone>
       )}
 
       {!isGenerating && failureMessage && (
-        <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2.5">
+        <div className="flex items-center justify-between gap-3 rounded-[var(--pfx-radius)] border border-pfx-warning/30 bg-[hsl(var(--pfx-warning)/0.08)] px-3 py-2.5">
           <div className="flex items-start gap-2">
-            <AlertCircle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-amber-400" />
-            <p className="text-xs text-amber-700 dark:text-amber-300">{failureMessage}</p>
+            <AlertCircle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-pfx-warning" aria-hidden="true" />
+            <p className="text-xs text-pfx-warning">{failureMessage}</p>
           </div>
           <button
             type="button"
             onClick={() => startGeneration(activeSlot ?? undefined)}
-            className="flex flex-shrink-0 items-center gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-700 dark:text-amber-300 transition-colors hover:bg-amber-500/20"
+            className="flex flex-shrink-0 items-center gap-1.5 rounded-[var(--pfx-radius)] border border-pfx-warning/30 bg-[hsl(var(--pfx-warning)/0.1)] px-3 py-1.5 text-xs font-medium text-pfx-warning transition-colors hover:bg-[hsl(var(--pfx-warning)/0.2)]"
           >
-            <RefreshCw className="h-3 w-3" />
+            <RefreshCw className="h-3 w-3" aria-hidden="true" />
             Reintentar
           </button>
         </div>
       )}
 
       {directions.length === 0 ? (
-        !isGenerating && (
-          <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border bg-card px-6 py-10 text-center">
-            <Sparkles className="h-6 w-6 text-cyan-400" />
+        !isGenerating &&
+        (visualSealed ? (
+          <ForgeZone variant="elevated" state="draft" className="px-6 py-16 text-center">
+            <Sparkles className="mx-auto mb-3 h-6 w-6 text-pfx-accent" aria-hidden="true" />
             <div>
-              <p className="text-sm font-medium text-foreground">
+              <p className="text-sm font-medium text-pfx-text">
                 Todavía no hay direcciones creativas para este proyecto
               </p>
-              <p className="mt-1 text-xs text-muted-foreground">{emptyStateHint}</p>
+              <p className="mt-1 text-xs text-pfx-text-muted">{emptyStateHint}</p>
             </div>
             <button
               type="button"
               onClick={() => startGeneration()}
-              disabled={!visualSealed}
-              title={!visualSealed ? emptyStateHint : undefined}
-              className="flex items-center gap-2 rounded-md bg-cyan-500 px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-cyan-400 disabled:opacity-40"
+              className="mx-auto mt-4 flex items-center gap-2 rounded-[var(--pfx-radius)] bg-pfx-accent px-4 py-2 text-sm font-medium text-pfx-on-accent transition-colors hover:bg-pfx-accent-strong"
             >
-              <Sparkles className="h-4 w-4" />
+              <Sparkles className="h-4 w-4" aria-hidden="true" />
               Generar 3 direcciones
             </button>
-          </div>
-        )
+          </ForgeZone>
+        ) : (
+          // locked: la generación está gateada (ADN Visual sin sellar) — el
+          // panel explica el gate sin romper la navegación de la estación
+          // actual (docs/pixelforge/product-dna.md § Estados canónicos,
+          // "locked"; precondición real verificada en el guard de
+          // `generate_directions`, src/app/api/pixelforge/runs/route.ts).
+          <ForgeZone variant="elevated" state="locked" className="px-6 py-16 text-center">
+            <Lock className="mx-auto mb-3 h-6 w-6 text-pfx-forge-locked" aria-hidden="true" />
+            <div>
+              <p className="text-sm font-medium text-pfx-text">
+                Todavía no hay direcciones creativas para este proyecto
+              </p>
+              <p className="mt-1 text-xs text-pfx-text-muted">{emptyStateHint}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => startGeneration()}
+              disabled
+              title={emptyStateHint}
+              className="mx-auto mt-4 flex items-center gap-2 rounded-[var(--pfx-radius)] bg-pfx-accent px-4 py-2 text-sm font-medium text-pfx-on-accent opacity-40"
+            >
+              <Sparkles className="h-4 w-4" aria-hidden="true" />
+              Generar 3 direcciones
+            </button>
+          </ForgeZone>
+        ))
       ) : (
         <div className="space-y-4">
-          <p className="text-xs text-muted-foreground">
-            El score ordena y alerta — la elección es tuya.
-          </p>
+          <ForgeZone state={zoneState} variant="elevated" className="p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-xs text-pfx-text-muted">
+                El score ordena y alerta — la elección es tuya.
+              </p>
+              {artifactStatus === "sealed" && sealedAt && <ForgeStamp sealedAt={sealedAt} />}
+            </div>
+          </ForgeZone>
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             {sorted.map((direction) => (
@@ -294,91 +375,101 @@ export function DirectionsPanel({
                 actionsDisabled={isGenerating}
                 onRegenerate={() => startGeneration(direction.slot)}
                 onChoose={() => openChoose(direction)}
+                zoneState={zoneState}
               />
             ))}
           </div>
 
-          <div className="overflow-x-auto rounded-xl border border-border bg-card p-4">
+          <ForgeZone state={zoneState} className="overflow-x-auto p-4">
             <table className="w-full min-w-[420px] text-left text-xs">
               <thead>
-                <tr className="text-muted-foreground">
+                <tr className="text-pfx-text-muted">
                   <th className="pb-2 pr-3 font-medium">Dirección</th>
                   {sorted.map((direction) => (
-                    <th key={direction.id} className="pb-2 pr-3 font-medium text-foreground">
+                    <th key={direction.id} className="pb-2 pr-3 font-medium text-pfx-text">
                       {direction.title}
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="text-foreground">
-                <tr className="border-t border-border/60">
-                  <td className="py-1.5 pr-3 text-muted-foreground">Motif</td>
+              <tbody className="text-pfx-text">
+                <tr className="border-t border-pfx-border/60">
+                  <td className="py-1.5 pr-3 text-pfx-text-muted">Motif</td>
                   {sorted.map((direction) => (
                     <td key={direction.id} className="py-1.5 pr-3">
                       {direction.signatureMotif.nombre}
                     </td>
                   ))}
                 </tr>
-                <tr className="border-t border-border/60">
-                  <td className="py-1.5 pr-3 text-muted-foreground">Signature</td>
+                <tr className="border-t border-pfx-border/60">
+                  <td className="py-1.5 pr-3 text-pfx-text-muted">Signature</td>
                   {sorted.map((direction) => (
                     <td key={direction.id} className="py-1.5 pr-3">
                       {signatureLabel(direction)}
                     </td>
                   ))}
                 </tr>
-                <tr className="border-t border-border/60">
-                  <td className="py-1.5 pr-3 text-muted-foreground">Score total</td>
+                <tr className="border-t border-pfx-border/60">
+                  <td className="py-1.5 pr-3 text-pfx-text-muted">Score total</td>
                   {sorted.map((direction) => (
-                    <td key={direction.id} className="py-1.5 pr-3 font-semibold text-cyan-500">
+                    <td key={direction.id} className="py-1.5 pr-3 font-forge-mono font-semibold text-pfx-text">
                       {direction.scoreTotal}
                     </td>
                   ))}
                 </tr>
-                <tr className="border-t border-border/60">
-                  <td className="py-1.5 pr-3 text-muted-foreground">Riesgo genericidad</td>
+                <tr className="border-t border-pfx-border/60">
+                  <td className="py-1.5 pr-3 text-pfx-text-muted">Riesgo genericidad</td>
                   {sorted.map((direction) => (
-                    <td key={direction.id} className="py-1.5 pr-3">
+                    <td key={direction.id} className="py-1.5 pr-3 font-forge-mono">
                       {direction.scores.riesgoGenericidadIA}
                     </td>
                   ))}
                 </tr>
               </tbody>
             </table>
-          </div>
+          </ForgeZone>
 
           {runId && run?.status === "succeeded" && artifactStatus !== "sealed" && (
-            <div className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
-              {decisionGiven ? (
-                <p className="text-xs text-muted-foreground">Gracias por el feedback</p>
-              ) : (
-                <>
-                  <span className="text-xs text-muted-foreground">¿Te sirvió este resultado?</span>
-                  <button
-                    type="button"
-                    onClick={() => submitDecision("accepted")}
-                    disabled={decisionBusy}
-                    className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-xs text-foreground transition-colors hover:border-lime-400/40 hover:text-lime-500 disabled:opacity-40"
-                  >
-                    <ThumbsUp className="h-3.5 w-3.5" />
-                    Útil
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => submitDecision("rejected")}
-                    disabled={decisionBusy}
-                    className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-xs text-foreground transition-colors hover:border-red-400/40 hover:text-red-400 disabled:opacity-40"
-                  >
-                    <ThumbsDown className="h-3.5 w-3.5" />
-                    No útil
-                  </button>
-                </>
-              )}
-            </div>
+            <ForgeZone state="draft" className="p-3">
+              <div className="flex items-center gap-3 px-1">
+                {decisionGiven ? (
+                  <p className="text-xs text-pfx-text-muted">Gracias por el feedback</p>
+                ) : (
+                  <>
+                    <span className="text-xs text-pfx-text-muted">¿Te sirvió este resultado?</span>
+                    <button
+                      type="button"
+                      onClick={() => submitDecision("accepted")}
+                      disabled={decisionBusy}
+                      className="flex items-center gap-1.5 rounded-[var(--pfx-radius)] border border-pfx-border px-2.5 py-1 text-xs text-pfx-text transition-colors hover:border-pfx-success/40 hover:text-pfx-success disabled:opacity-40"
+                    >
+                      <ThumbsUp className="h-3.5 w-3.5" aria-hidden="true" />
+                      Útil
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => submitDecision("rejected")}
+                      disabled={decisionBusy}
+                      className="flex items-center gap-1.5 rounded-[var(--pfx-radius)] border border-pfx-border px-2.5 py-1 text-xs text-pfx-text transition-colors hover:border-pfx-error/40 hover:text-pfx-error disabled:opacity-40"
+                    >
+                      <ThumbsDown className="h-3.5 w-3.5" aria-hidden="true" />
+                      No útil
+                    </button>
+                  </>
+                )}
+              </div>
+            </ForgeZone>
           )}
         </div>
       )}
 
+      {/*
+        El Dialog (Radix Portal) renderiza en `document.body`, fuera del
+        wrapper `[data-product="pixelforge"]` — se mantiene con el tema
+        global del admin (portal-safe) en vez de tokens `--pfx-*` (ver
+        docstring del componente), para no arrastrar branding de forja a un
+        contenedor que no puede resolverlo.
+      */}
       <Dialog open={!!choosing} onOpenChange={(open) => !open && closeChoose()}>
         <DialogContent>
           {choosing && (
@@ -405,7 +496,7 @@ export function DirectionsPanel({
                     onChange={(e) => setRationale(e.target.value)}
                     rows={3}
                     placeholder="Explica por qué elegiste esta dirección (mínimo 10 caracteres)…"
-                    className="w-full resize-none rounded-md border border-border bg-secondary/40 px-3 py-2 text-sm text-foreground placeholder-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-cyan-400/40"
+                    className="w-full resize-none rounded-md border border-border bg-secondary/40 px-3 py-2 text-sm text-foreground placeholder-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring"
                   />
                 </div>
 
@@ -434,7 +525,7 @@ export function DirectionsPanel({
                     value={extraRisk}
                     onChange={(e) => setExtraRisk(e.target.value)}
                     placeholder="Otro riesgo que aceptas (opcional)…"
-                    className="mt-2 w-full rounded-md border border-border bg-secondary/40 px-3 py-1.5 text-xs text-foreground placeholder-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-cyan-400/40"
+                    className="mt-2 w-full rounded-md border border-border bg-secondary/40 px-3 py-1.5 text-xs text-foreground placeholder-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring"
                   />
                 </div>
 
@@ -472,9 +563,13 @@ export function DirectionsPanel({
                   type="button"
                   onClick={submitChoose}
                   disabled={!rationaleValid || choosingBusy}
-                  className="flex items-center gap-1.5 rounded-md bg-cyan-500 px-3 py-1.5 text-xs font-medium text-black transition-colors hover:bg-cyan-400 disabled:opacity-40"
+                  className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40"
                 >
-                  {choosingBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                  {choosingBusy ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+                  )}
                   Confirmar elección
                 </button>
               </DialogFooter>
