@@ -138,7 +138,9 @@ de forja usa la veta, no un icono de fuego).
 - **draft**: plancha con veta tenue en reposo; texto normal.
 - **forging** (IA generando): veta fluyendo + glow ámbar suave en el perímetro; progreso con mono.
 - **sealed**: plancha con notch de esquina + veta sólida acero + estampa `SELLADO · <fecha>` en mono; acciones de edición ocultas.
-- **locked**: contorno punteado, contenido al 55% de opacidad, icono `Lock`; clic navega pero el panel explica el gate (no se rompe la navegación actual).
+- **locked**: contorno punteado, contenido al 55% de opacidad, icono `Lock`; clic navega pero el panel explica el gate (no se rompe la navegación actual). Esta materialidad tiene DOS usos legítimos, misma forma+color en ambos:
+  1. Navegación cruzada entre estaciones (el uso original): la estación de destino aún no es alcanzable.
+  2. Gate de precondición dentro de una estación (PF-X1 T6, `VisualDnaPanel`): una acción queda bloqueada hasta cumplir un requisito, SIEMPRE acompañada de texto explicativo de qué falta. Ejemplo real: la síntesis del Visual DNA se muestra con `ForgeZone state="locked"` + `Lock` + el texto "Analiza al menos una referencia antes de sintetizar" mientras la Estrategia no está sellada o no hay referencias analizadas — el botón de acción existe pero queda `disabled` con `title` explicando el motivo. No se introduce un estado `gated` separado: la materialidad (contorno punteado, opacidad 55%, icono `Lock`) y su lectura ("esto no se puede hacer todavía, y esto es lo que falta") son idénticas en ambos casos — solo cambia si el bloqueo se resuelve navegando a otra estación o cumpliendo una condición en la misma.
 - **invalidated**: veta discontinua ámbar + aviso con `RotateCcw`.
 
 ## Stepper — "Riel de forja"

@@ -13,8 +13,9 @@ const BASE =
   "inline-flex items-center gap-1 rounded-[var(--pfx-radius)] px-1.5 py-0.5 text-[11px] font-medium";
 
 /**
- * ForgeStationBadge — reskin de `PixelforgeStatusBadge` con materialidad pfx
- * (PF-X1 T2). API y textos IDÉNTICOS al badge original (drop-in visual): mismos
+ * ForgeStationBadge — reskin del antiguo `PixelforgeStatusBadge` (borrado en
+ * PF-X2 T0, sin consumidores tras la migración de X1 T4/T5) con materialidad
+ * pfx. API y textos IDÉNTICOS al badge original (drop-in visual): mismos
  * cuatro estados y el chip de estación en `in_progress`. La materialidad sí
  * cambia al DNA de forja:
  *  - `in_progress` → cobre (`--pfx-accent`) con veta izquierda (calor activo).
@@ -22,7 +23,6 @@ const BASE =
  *  - `draft` → neutro (`--pfx-text-muted`).
  *  - el `stepLabel` va en mono (`font-forge-mono`), como metadata técnica.
  *
- * `PixelforgeStatusBadge` NO se borra aún: los consumidores migran en T4/T5.
  * Server-safe.
  */
 export function ForgeStationBadge({ status, currentStation }: Props) {
