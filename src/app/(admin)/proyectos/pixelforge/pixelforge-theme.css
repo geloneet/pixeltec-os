@@ -300,3 +300,31 @@
 [data-product="pixelforge"] .forge-seam--strong {
   background: hsl(var(--pfx-border-strong));
 }
+
+/* =========================================================================
+   StationTransition (PF-X1 T5) — crossfade CSS escopado entre estaciones.
+
+   Independiente del AnimatePresence/motion.div global del shell admin (F6B):
+   esto SOLO anima el contenido de la estación (el shell — header + riel —
+   vive fuera de este wrapper en [id]/layout.tsx y no se mueve). Se re-dispara
+   remontando el wrapper con key={pathname} (ver StationTransition.tsx).
+   ========================================================================= */
+
+[data-product="pixelforge"] .pfx-station-fade {
+  animation: pfx-station-fade 220ms ease-out;
+}
+
+@keyframes pfx-station-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-product="pixelforge"] .pfx-station-fade {
+    animation: none;
+  }
+}

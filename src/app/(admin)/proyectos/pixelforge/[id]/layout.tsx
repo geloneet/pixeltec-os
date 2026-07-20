@@ -1,10 +1,13 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { es } from "date-fns/locale";
 import { auth } from "@/lib/auth/config";
 import { getClientById } from "@/lib/db/repos/crm";
 import { getPixelforgeProjectFull } from "@/lib/db/repos/pixelforge";
-import { PixelforgeStatusBadge } from "@/components/pixelforge/PixelforgeStatusBadge";
+import { ForgeStationBadge } from "@/components/pixelforge/forge/ForgeStationBadge";
+import { StationTransition } from "@/components/pixelforge/StationTransition";
 import { StepperBar } from "@/components/pixelforge/StepperBar";
 import { PIXELFORGE_STATION_SEQUENCE, STATION_ARTIFACT } from "@/lib/pixelforge/types";
 import type { PixelforgeArtifactStatus, PixelforgeStation } from "@/lib/pixelforge/types";
@@ -43,19 +46,24 @@ export default async function PixelforgeProjectLayout({
       <header className="mx-auto w-full max-w-5xl px-4 pt-8">
         <Link
           href="/proyectos/pixelforge"
-          className="mb-3 inline-flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+          className="mb-3 inline-flex items-center gap-1.5 text-xs text-pfx-text-muted transition-colors hover:text-pfx-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pfx-accent focus-visible:ring-offset-2 focus-visible:ring-offset-pfx-canvas"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
           PixelForge
         </Link>
-        <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-xl font-semibold text-foreground">{project.title}</h1>
-          <PixelforgeStatusBadge status={project.status} currentStation={project.currentStation} />
+        <h1 className="text-2xl font-extrabold tracking-[-0.02em] text-pfx-text">
+          {project.title}
+        </h1>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <span className="text-sm text-pfx-text-muted">{client?.name ?? "Cliente"}</span>
+          <ForgeStationBadge status={project.status} currentStation={project.currentStation} />
+          <span className="font-forge-mono text-[11px] uppercase tracking-wider text-pfx-text-muted">
+            {formatDistanceToNow(new Date(project.updatedAt), { addSuffix: true, locale: es })}
+          </span>
         </div>
-        <p className="mt-1 text-sm text-muted-foreground">{client?.name ?? "Cliente"}</p>
       </header>
 
-      <div className="sticky top-0 z-10 mt-6 border-b border-border bg-background/95 py-3 backdrop-blur">
+      <div className="sticky top-0 z-10 mt-6 border-b border-pfx-border bg-pfx-canvas/95 py-3 backdrop-blur">
         <StepperBar
           projectId={project.id}
           statuses={statuses}
@@ -64,7 +72,7 @@ export default async function PixelforgeProjectLayout({
         />
       </div>
 
-      {children}
+      <StationTransition>{children}</StationTransition>
     </div>
   );
 }
