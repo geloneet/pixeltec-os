@@ -5,6 +5,7 @@ import {
   getBlockDefinition,
   getCatalogForPrompt,
   isRegisteredBlockId,
+  isSafeHref,
   type BlockId,
 } from "./blocks";
 
@@ -234,5 +235,20 @@ describe("getCatalogForPrompt", () => {
       }
     }
     expect(text.length).toBeGreaterThan(0);
+  });
+});
+
+describe("isSafeHref (exportado de forma aditiva para PF-F8 T2 QA-TE-009)", () => {
+  it("acepta rutas internas, anclas y https:// externo", () => {
+    expect(isSafeHref("/contacto")).toBe(true);
+    expect(isSafeHref("#seccion")).toBe(true);
+    expect(isSafeHref("https://pixeltec.mx")).toBe(true);
+  });
+
+  it("rechaza javascript: y esquemas protocol-relative disfrazados de ruta interna", () => {
+    expect(isSafeHref("javascript:alert(1)")).toBe(false);
+    expect(isSafeHref("//evil.com")).toBe(false);
+    expect(isSafeHref("/\\evil.com")).toBe(false);
+    expect(isSafeHref("mailto:a@b.com")).toBe(false);
   });
 });

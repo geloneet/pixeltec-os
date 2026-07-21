@@ -26,7 +26,12 @@ import type { Direccion } from "@/lib/pixelforge/schemas/generate-directions";
 /** Alias público — los designTokens de una dirección creativa (schema F5). */
 export type DesignTokens = Direccion["designTokens"];
 
-type PaletaToken = DesignTokens["paleta"][number];
+/**
+ * Exportado de forma ADITIVA (PF-F8 T2, QA): `checks/design.ts` construye
+ * fixtures/firmas de función sobre este tipo para reusar `findRoleValue` sin
+ * duplicar la forma de una entrada de paleta.
+ */
+export type PaletaToken = DesignTokens["paleta"][number];
 
 /** Quita diacríticos y baja a minúsculas — base común de slug y matching. */
 function normalize(value: string): string {
@@ -56,7 +61,12 @@ const HOSTILE_CSS_VALUE_RE = /[;{}"'\\]|url\(|[\x00-\x1f\x7f]/i;
  * valor a medias — el llamador cae al fallback neutro de ese slot, nunca
  * emite la parte hostil.
  */
-function sanitizeCssValue(value: string): string | null {
+/**
+ * Exportada de forma ADITIVA (PF-F8 T2, QA): `checks/design.ts` la reusa para
+ * detectar (QA-DI-003) qué tokens de paleta la IA propuso que terminaron
+ * descartados por hostiles — sin reimplementar la regla de sanitización.
+ */
+export function sanitizeCssValue(value: string): string | null {
   return HOSTILE_CSS_VALUE_RE.test(value) ? null : value;
 }
 
@@ -70,19 +80,32 @@ function sanitizeCssValue(value: string): string | null {
  */
 const HOSTILE_CSS_VALUE_STRIP_RE = /[;{}"'\\\x00-\x1f\x7f]|url\(/gi;
 
-/** Fallback neutro cuando, tras strippear caracteres hostiles, no queda nombre de familia utilizable. */
-const NEUTRAL_FONT_FAMILY = "sans-serif";
+/**
+ * Fallback neutro cuando, tras strippear caracteres hostiles, no queda nombre
+ * de familia utilizable. Exportado de forma ADITIVA (PF-F8 T2, QA): QA-DI-005
+ * compara contra este valor para detectar cuándo `--pf-font-display`/
+ * `--pf-font-body` degradaron a la familia genérica.
+ */
+export const NEUTRAL_FONT_FAMILY = "sans-serif";
 
 function sanitizeFontFamilyName(family: string): string {
   const stripped = family.replace(HOSTILE_CSS_VALUE_STRIP_RE, "").trim();
   return stripped.length > 0 ? stripped : NEUTRAL_FONT_FAMILY;
 }
 
-/** Último recurso de `pickRole` cuando keywords, `uso` y `fallback` son todos hostiles/ausentes. */
-const NEUTRAL_ROLE_FALLBACK = "#0f172a";
+/**
+ * Último recurso de `pickRole` cuando keywords, `uso` y `fallback` son todos
+ * hostiles/ausentes. Exportado de forma ADITIVA (PF-F8 T2, QA): QA-DI-001 lo
+ * usa para reconocer la caída al neutro final por paleta monocolor.
+ */
+export const NEUTRAL_ROLE_FALLBACK = "#0f172a";
 
-/** `Color Primario!` → `color-primario` (para el nombre de la CSS var). */
-function slugify(value: string): string {
+/**
+ * `Color Primario!` → `color-primario` (para el nombre de la CSS var).
+ * Exportada de forma ADITIVA (PF-F8 T2, QA): QA-DI-003 la reusa para nombrar
+ * el token descartado sin reimplementar el slug.
+ */
+export function slugify(value: string): string {
   return normalize(value)
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
@@ -101,8 +124,12 @@ function slugify(value: string): string {
  * matcheara y se sigue buscando). `fallback` también se sanitiza antes de
  * devolverse: si el propio fallback viene hostil (p.ej. `paleta[0].valor`
  * como fallback de `primary`), cae al neutro final.
+ *
+ * Exportada de forma ADITIVA (PF-F8 T2, QA): QA-DI-004 la reusa para saber si
+ * un rol matcheó semánticamente contra la paleta (vs. cayó al `fallback` de
+ * `pickRole`) sin duplicar la heurística de keywords.
  */
-function findRoleValue(paleta: readonly PaletaToken[], keywords: readonly string[]): string | null {
+export function findRoleValue(paleta: readonly PaletaToken[], keywords: readonly string[]): string | null {
   const matches = (text: string) => keywords.some((keyword) => normalize(text).includes(keyword));
   const safeValor = (entry: PaletaToken) => sanitizeCssValue(entry.valor);
   const byName = paleta.find((entry) => matches(entry.token) && safeValor(entry) !== null);
@@ -162,6 +189,50 @@ function fontStack(family: string): string {
   return `'${sanitizeFontFamilyName(family)}', ui-sans-serif, system-ui, sans-serif`;
 }
 
+/**
+ * Keywords/fallbacks por rol semántico y valor de `--pf-on-primary` —
+ * extraídos a constantes nombradas y exportados de forma ADITIVA (PF-F8 T2,
+ * QA): `checks/design.ts` (QA-DI-004) los reusa junto con `findRoleValue`
+ * para saber si un rol matcheó semánticamente la paleta de la IA o cayó al
+ * fallback, sin duplicar (y arriesgar divergencia de) estas listas.
+ */
+export const BG_GENERIC_KEYWORDS = [
+  "fondo",
+  "background",
+  "base",
+  "superficie",
+  "surface",
+  "papel",
+  "lienzo",
+  "claro",
+  "light",
+] as const;
+export const BG_DEFAULT_FALLBACK = "#ffffff";
+
+export const PRIMARY_KEYWORDS = ["primari", "primary", "marca", "brand", "principal"] as const;
+
+export const ACCENT_KEYWORDS = ["acent", "accent", "secundari", "secondary", "highlight", "destac", "cta"] as const;
+
+export const FG_KEYWORDS = ["texto", "text", "tinta", "ink", "cuerpo", "body", "oscuro", "dark", "contenido"] as const;
+export const FG_DEFAULT_FALLBACK = "#0f172a";
+
+export const MUTED_KEYWORDS = [
+  "muted",
+  "apagado",
+  "suave",
+  "tenue",
+  "gris",
+  "gray",
+  "grey",
+  "borde",
+  "border",
+  "neutral",
+  "sutil",
+] as const;
+export const MUTED_DEFAULT_FALLBACK = "#64748b";
+
+export const ON_PRIMARY_VALUE = "#ffffff";
+
 export function directionTokensToCssVars(tokens: DesignTokens): Record<string, string> {
   const vars: Record<string, string> = {};
 
@@ -180,10 +251,9 @@ export function directionTokensToCssVars(tokens: DesignTokens): Record<string, s
   //    resuelve PRIMERO (con prioridad para el fondo general de la página)
   //    porque el guard de colisión de `primary` depende de él.
   vars["--pf-bg"] =
-    findRoleValue(tokens.paleta, BG_GENERAL_KEYWORDS) ??
-    pickRole(tokens.paleta, ["fondo", "background", "base", "superficie", "surface", "papel", "lienzo", "claro", "light"], "#ffffff");
+    findRoleValue(tokens.paleta, BG_GENERAL_KEYWORDS) ?? pickRole(tokens.paleta, BG_GENERIC_KEYWORDS, BG_DEFAULT_FALLBACK);
 
-  let primary = pickRole(tokens.paleta, ["primari", "primary", "marca", "brand", "principal"], tokens.paleta[0].valor);
+  let primary = pickRole(tokens.paleta, PRIMARY_KEYWORDS, tokens.paleta[0].valor);
   // Guard B1: primary NUNCA puede quedar igual que bg (texto invisible —
   // stats-band, headings). Si colisionan (comparación case-insensitive, son
   // valores hex/texto de IA), se toma el siguiente candidato válido de la
@@ -196,12 +266,12 @@ export function directionTokensToCssVars(tokens: DesignTokens): Record<string, s
   }
   // `accent` usa `primary` como fallback: ya viene sanitizado (arriba), así
   // que no puede reintroducir un valor hostil.
-  const accent = pickRole(tokens.paleta, ["acent", "accent", "secundari", "secondary", "highlight", "destac", "cta"], primary);
+  const accent = pickRole(tokens.paleta, ACCENT_KEYWORDS, primary);
   vars["--pf-primary"] = primary;
   vars["--pf-accent"] = accent;
-  vars["--pf-fg"] = pickRole(tokens.paleta, ["texto", "text", "tinta", "ink", "cuerpo", "body", "oscuro", "dark", "contenido"], "#0f172a");
-  vars["--pf-muted"] = pickRole(tokens.paleta, ["muted", "apagado", "suave", "tenue", "gris", "gray", "grey", "borde", "border", "neutral", "sutil"], "#64748b");
-  vars["--pf-on-primary"] = "#ffffff";
+  vars["--pf-fg"] = pickRole(tokens.paleta, FG_KEYWORDS, FG_DEFAULT_FALLBACK);
+  vars["--pf-muted"] = pickRole(tokens.paleta, MUTED_KEYWORDS, MUTED_DEFAULT_FALLBACK);
+  vars["--pf-on-primary"] = ON_PRIMARY_VALUE;
 
   // 3. Tipografía y forma.
   vars["--pf-font-display"] = fontStack(tokens.tipografia.display);

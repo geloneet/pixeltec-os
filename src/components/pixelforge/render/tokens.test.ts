@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { directionTokensToCssVars, type DesignTokens } from "./tokens";
+import {
+  directionTokensToCssVars,
+  sanitizeCssValue,
+  findRoleValue,
+  slugify,
+  NEUTRAL_FONT_FAMILY,
+  NEUTRAL_ROLE_FALLBACK,
+  PRIMARY_KEYWORDS,
+  FG_KEYWORDS,
+  type DesignTokens,
+} from "./tokens";
 
 function fixtureTokens(overrides: Partial<DesignTokens> = {}): DesignTokens {
   return {
@@ -245,5 +255,30 @@ describe("directionTokensToCssVars — B1 gate F6A (bg general + guard primary�
     expect(vars["--pf-primary"]).not.toBe("#123456");
     // Siguiente candidato válido distinto de bg en orden de paleta.
     expect(vars["--pf-primary"]).toBe("#654321");
+  });
+});
+
+describe("exportaciones aditivas para PF-F8 T2 (QA) — sin cambiar el comportamiento existente", () => {
+  it("sanitizeCssValue rechaza valores hostiles y deja pasar los inocuos", () => {
+    expect(sanitizeCssValue("#ffffff")).toBe("#ffffff");
+    expect(sanitizeCssValue("red; background:url(x)")).toBeNull();
+  });
+
+  it("findRoleValue matchea por nombre de token antes que por uso, y respeta sanitizeCssValue", () => {
+    const paleta: DesignTokens["paleta"] = [
+      { token: "color-primario", valor: "#111111", uso: "Marca." },
+      { token: "otro", valor: "#222222", uso: "Fondo general." },
+    ];
+    expect(findRoleValue(paleta, PRIMARY_KEYWORDS)).toBe("#111111");
+    expect(findRoleValue(paleta, FG_KEYWORDS)).toBeNull();
+  });
+
+  it("slugify normaliza igual que el passthrough interno", () => {
+    expect(slugify("Verde Selección!")).toBe("verde-seleccion");
+  });
+
+  it("NEUTRAL_FONT_FAMILY/NEUTRAL_ROLE_FALLBACK exponen los mismos literales que usa el módulo", () => {
+    expect(NEUTRAL_FONT_FAMILY).toBe("sans-serif");
+    expect(NEUTRAL_ROLE_FALLBACK).toBe("#0f172a");
   });
 });

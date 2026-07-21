@@ -31,8 +31,12 @@ import { z } from "zod";
  * normaliza a `/` en el parser de URLs de los navegadores, así que
  * `/\evil.com` también termina siendo `//evil.com`). Una ruta interna real
  * nunca tiene `/` o `\` como segundo carácter.
+ *
+ * Exportada de forma ADITIVA (PF-F8 T2, QA): QA-TE-009 la reusa como defensa
+ * en profundidad sobre los `href` de un árbol YA validado — nunca
+ * reimplementa la regla.
  */
-function isSafeHref(value: string): boolean {
+export function isSafeHref(value: string): boolean {
   if (value.startsWith("/")) {
     const second = value[1];
     return second !== "/" && second !== "\\";
