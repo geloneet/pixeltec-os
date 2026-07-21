@@ -84,7 +84,11 @@ export const STATION_ARTIFACT: Record<PixelforgeStation, PixelforgeArtifactKind 
  * F4 añade agregar/quitar referencias visuales de la estación `visual`; F5
  * añade generar/regenerar/elegir direcciones creativas de la estación
  * `direcciones`; F7 añade la composición de la landing (`page_versions`) en
- * la estación `produccion`.
+ * la estación `produccion`; F8 añade el ciclo de QA de la estación `qa`
+ * (`qa_started`/`qa_finished`/`qa_failed`, la decisión humana sobre un
+ * veredicto `pass_with_warnings`, y la apertura de compuerta hacia
+ * `revision` — los emisores de `qa_gate_opened` llegan en T4, acá solo el
+ * tipo).
  */
 export type PixelforgeEventType =
   | "created"
@@ -99,7 +103,13 @@ export type PixelforgeEventType =
   | "directions_generated"
   | "direction_regenerated"
   | "direction_chosen"
-  | "page_composed";
+  | "page_composed"
+  | "qa_started"
+  | "qa_finished"
+  | "qa_failed"
+  | "qa_approved_with_warnings"
+  | "qa_rejected"
+  | "qa_gate_opened";
 
 export type PixelforgeArtifactStatus = "pending" | "in_progress" | "sealed" | "invalidated";
 
