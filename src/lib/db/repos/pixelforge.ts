@@ -1973,41 +1973,43 @@ export interface FinalizeQaRunInput {
  * resultado ya decidido. `verdict`/`scoreTotal`/etc. quedan congelados: nunca
  * se recalculan después. Devuelve `true` si ESTA llamada cerró el run.
  */
-export async function finalizeQaRun(
+export function finalizeQaRun(
   qaRunId: string,
   result: FinalizeQaRunInput
 ): Promise<boolean> {
-  const now = new Date();
-  const [run] = await db
-    .update(pixelforgeQaRuns)
-    .set({
-      status: "succeeded",
-      verdict: result.verdict,
-      scoreTotal: result.scoreTotal,
-      categoryScores: result.categoryScores,
-      summary: result.summary,
-      finishedAt: now,
-      updatedAt: now,
-    })
-    .where(and(eq(pixelforgeQaRuns.id, qaRunId), eq(pixelforgeQaRuns.status, "running")))
-    .returning({
-      projectId: pixelforgeQaRuns.projectId,
-      requestedById: pixelforgeQaRuns.requestedById,
-      requestedByName: pixelforgeQaRuns.requestedByName,
+  return db.transaction(async (tx) => {
+    const now = new Date();
+    const [run] = await tx
+      .update(pixelforgeQaRuns)
+      .set({
+        status: "succeeded",
+        verdict: result.verdict,
+        scoreTotal: result.scoreTotal,
+        categoryScores: result.categoryScores,
+        summary: result.summary,
+        finishedAt: now,
+        updatedAt: now,
+      })
+      .where(and(eq(pixelforgeQaRuns.id, qaRunId), eq(pixelforgeQaRuns.status, "running")))
+      .returning({
+        projectId: pixelforgeQaRuns.projectId,
+        requestedById: pixelforgeQaRuns.requestedById,
+        requestedByName: pixelforgeQaRuns.requestedByName,
+      });
+    if (!run) return false; // otro invocador ya lo cerró (o no estaba running) — no-op
+
+    await tx.insert(pixelforgeEvents).values({
+      projectId: run.projectId,
+      station: "qa",
+      type: "qa_finished",
+      actorId: run.requestedById,
+      actorName: run.requestedByName,
+      reason: result.verdict,
+      snapshot: { verdict: result.verdict, scoreTotal: result.scoreTotal },
     });
-  if (!run) return false; // otro invocador ya lo cerró (o no estaba running) — no-op
 
-  await db.insert(pixelforgeEvents).values({
-    projectId: run.projectId,
-    station: "qa",
-    type: "qa_finished",
-    actorId: run.requestedById,
-    actorName: run.requestedByName,
-    reason: result.verdict,
-    snapshot: { verdict: result.verdict, scoreTotal: result.scoreTotal },
+    return true;
   });
-
-  return true;
 }
 
 /**
@@ -2018,40 +2020,42 @@ export async function finalizeQaRun(
  * setup mientras seguía `queued`). Devuelve `true` si ESTA llamada cerró el
  * run.
  */
-export async function failQaRun(
+export function failQaRun(
   qaRunId: string,
   failureKind: string,
   error: string
 ): Promise<boolean> {
-  const now = new Date();
-  const [run] = await db
-    .update(pixelforgeQaRuns)
-    .set({
-      status: "failed",
-      failureKind,
-      error,
-      finishedAt: now,
-      updatedAt: now,
-    })
-    .where(and(eq(pixelforgeQaRuns.id, qaRunId), inArray(pixelforgeQaRuns.status, ["queued", "running"])))
-    .returning({
-      projectId: pixelforgeQaRuns.projectId,
-      requestedById: pixelforgeQaRuns.requestedById,
-      requestedByName: pixelforgeQaRuns.requestedByName,
+  return db.transaction(async (tx) => {
+    const now = new Date();
+    const [run] = await tx
+      .update(pixelforgeQaRuns)
+      .set({
+        status: "failed",
+        failureKind,
+        error,
+        finishedAt: now,
+        updatedAt: now,
+      })
+      .where(and(eq(pixelforgeQaRuns.id, qaRunId), inArray(pixelforgeQaRuns.status, ["queued", "running"])))
+      .returning({
+        projectId: pixelforgeQaRuns.projectId,
+        requestedById: pixelforgeQaRuns.requestedById,
+        requestedByName: pixelforgeQaRuns.requestedByName,
+      });
+    if (!run) return false;
+
+    await tx.insert(pixelforgeEvents).values({
+      projectId: run.projectId,
+      station: "qa",
+      type: "qa_failed",
+      actorId: run.requestedById,
+      actorName: run.requestedByName,
+      reason: failureKind,
+      snapshot: null,
     });
-  if (!run) return false;
 
-  await db.insert(pixelforgeEvents).values({
-    projectId: run.projectId,
-    station: "qa",
-    type: "qa_failed",
-    actorId: run.requestedById,
-    actorName: run.requestedByName,
-    reason: failureKind,
-    snapshot: null,
+    return true;
   });
-
-  return true;
 }
 
 export type QaHumanDecision = "approved" | "rejected";
