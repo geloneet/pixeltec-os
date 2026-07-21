@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/lib/auth/config";
-import { getPixelforgeProjectFull } from "@/lib/db/repos/pixelforge";
+import { getPixelforgeProjectFull, listPageVersions } from "@/lib/db/repos/pixelforge";
+import { ProductionPanel, type ProductionVersionView } from "@/components/pixelforge/ProductionPanel";
 import { PreviewFrame } from "@/components/pixelforge/render/PreviewFrame";
 
 export const metadata: Metadata = {
@@ -22,20 +23,40 @@ export default async function PixelforgeProduccionPage({
   const full = await getPixelforgeProjectFull(id, ownerId);
   if (!full) notFound();
 
+  const blueprintArtifact = full.artifacts.find((a) => a.kind === "narrative_blueprint");
+  const blueprintSealed = blueprintArtifact?.status === "sealed";
+  const blueprintSealedAt = blueprintArtifact?.sealedAt ? blueprintArtifact.sealedAt.toISOString() : null;
+
+  // `listPageVersions` alcanza para vigente + historial (orden desc, `[0]` es
+  // la vigente) — sin `tree` (jsonb potencialmente grande, sin uso acá: la
+  // preview real la sirve la ruta `/preview`, T4, no esta page). No hace
+  // falta además `getLatestPageVersion` (que sí trae el `tree` completo): el
+  // panel solo necesita metadatos, y traer el árbol completo por nada sería
+  // trabajo/tráfico de más.
+  const versionRows = await listPageVersions(id, ownerId);
+  const versions: ProductionVersionView[] = versionRows.map((v) => ({
+    id: v.id,
+    version: v.version,
+    notas: v.notas,
+    warnings: v.warnings,
+    createdByName: v.createdByName,
+    createdAt: v.createdAt.toISOString(),
+  }));
+
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 py-8">
-      <div className="mb-4 rounded-xl border border-cyan-500/20 bg-cyan-500/5 px-4 py-3">
-        <p className="text-sm font-medium text-foreground">
-          Preview del sistema de diseño (F6A)
-        </p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Esta vista renderiza un contenido de muestra con la dirección creativa del proyecto
-          para revisar los bloques y los tokens. El workspace de producción (edición de la landing
-          real) llega en F7.
-        </p>
+    <div className="mx-auto w-full max-w-5xl px-4 py-8 space-y-6">
+      <div>
+        <ProductionPanel
+          projectId={id}
+          blueprintSealed={blueprintSealed}
+          blueprintSealedAt={blueprintSealedAt}
+          versions={versions}
+        />
       </div>
 
-      <PreviewFrame projectId={full.project.id} />
+      <div>
+        <PreviewFrame projectId={full.project.id} />
+      </div>
     </div>
   );
 }
