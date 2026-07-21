@@ -11,7 +11,8 @@
  * Ver src/lib/pixelforge/types.ts para el orden canónico de estaciones y de
  * artifacts.
  */
-import { and, asc, desc, eq, ne } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, ne } from "drizzle-orm";
+import postgres from "postgres";
 import { db } from "@/lib/db";
 import { deleteObject } from "@/lib/r2/upload";
 import {
@@ -25,6 +26,8 @@ import {
   pixelforgeVisualReferences,
   pixelforgeCreativeDirections,
   pixelforgePageVersions,
+  pixelforgeQaRuns,
+  pixelforgeQaFindings,
   type PixelforgeProject,
   type PixelforgeContextSource,
   type PixelforgeArtifact,
@@ -34,6 +37,8 @@ import {
   type PixelforgeVisualReference,
   type PixelforgeCreativeDirection,
   type PixelforgePageVersion,
+  type PixelforgeQaRun,
+  type PixelforgeQaFinding,
 } from "@/lib/db/schema";
 import {
   ARTIFACT_KINDS,
@@ -1621,6 +1626,585 @@ export async function listPageVersions(
     .orderBy(desc(pixelforgePageVersions.version));
 
   return rows.map((row) => ({ ...row, warnings: row.warnings as string[] }));
+}
+
+/**
+ * Versión de página por id exacto (como `getLatestPageVersion` pero sin
+ * asumir "la vigente"). Ownership-checked (lanza si no existe/no es del
+ * owner). Null si el id no corresponde a ninguna versión de ESTE proyecto.
+ */
+export async function getPageVersionById(
+  projectId: string,
+  versionId: string,
+  ownerId: string
+): Promise<PixelforgePageVersion | null> {
+  const project = await getPixelforgeProject(projectId, ownerId);
+  if (!project) throw new Error("Proyecto no encontrado");
+
+  const [version] = await db
+    .select()
+    .from(pixelforgePageVersions)
+    .where(
+      and(
+        eq(pixelforgePageVersions.id, versionId),
+        eq(pixelforgePageVersions.projectId, projectId)
+      )
+    )
+    .limit(1);
+
+  return version ?? null;
+}
+
+// ─── QA (F8 — estación `qa`) ────────────────────────────────────────────────
+// Un QA queda atado a UNA `pixelforge_page_versions` concreta para siempre
+// (el ancla nunca cambia, aunque el proyecto siga componiendo versiones
+// nuevas). El unique parcial `pixelforge_qa_runs_active_idx` garantiza en DB
+// "un solo QA activo por proyecto" — `createQaRun` traduce su violación
+// (23505) a `QaRunAlreadyActiveError` en vez de dejar subir el error crudo de
+// Postgres. `claimQaBrowserJob`/`finishQaBrowserJob`/`updateQaRunProgress`/
+// `sweepStaleQaRuns` son INTERNAS (sin ownerId): las invoca el motor/runner
+// con un `qaRunId` ya resuelto, no directamente una action de usuario — mismo
+// criterio que `claimRun`/`finishRunRecord`/`updateRunProgress` de corridas IA
+// más arriba en este archivo.
+
+/** Error tipado para que el caller distinga "ya hay un QA activo" de cualquier otra falla de escritura. */
+export class QaRunAlreadyActiveError extends Error {
+  constructor() {
+    super("Ya hay un QA activo para este proyecto — espera a que termine o falle");
+    this.name = "QaRunAlreadyActiveError";
+  }
+}
+
+const QA_RUN_ACTIVE_CONSTRAINT = "pixelforge_qa_runs_active_idx";
+
+/**
+ * true si `err` es la violación del unique parcial "un solo QA activo por
+ * proyecto". Drizzle envuelve el `postgres.PostgresError` original en un
+ * `DrizzleQueryError` propio y lo expone en `.cause` — hay que mirar ahí, el
+ * error de nivel superior nunca trae `code`/`constraint_name`.
+ */
+function isQaRunActiveViolation(err: unknown): boolean {
+  const cause = err instanceof Error ? err.cause : undefined;
+  return (
+    cause instanceof postgres.PostgresError &&
+    cause.code === "23505" &&
+    cause.constraint_name === QA_RUN_ACTIVE_CONSTRAINT
+  );
+}
+
+export interface CreateQaRunInput {
+  pageVersionId: string;
+  catalogVersion: string;
+  scoringVersion: string;
+}
+
+export interface CreatedQaRun {
+  id: string;
+}
+
+/**
+ * Arranca un QA sobre una versión concreta de la landing: verifica ownership
+ * del proyecto y que `pageVersionId` pertenece a ESE proyecto, inserta la
+ * corrida en `queued` + evento `qa_started` (snapshot `{pageVersionId,
+ * version}` — NUNCA el árbol de la versión). Si el unique parcial rechaza el
+ * insert (ya hay un QA `queued`/`running` para este proyecto), lanza
+ * `QaRunAlreadyActiveError` en vez del 23505 crudo de Postgres.
+ */
+export function createQaRun(
+  projectId: string,
+  ownerId: string,
+  input: CreateQaRunInput,
+  actor: Actor
+): Promise<CreatedQaRun> {
+  return db.transaction(async (tx) => {
+    const [project] = await tx
+      .select({ id: pixelforgeProjects.id })
+      .from(pixelforgeProjects)
+      .where(and(eq(pixelforgeProjects.id, projectId), eq(pixelforgeProjects.ownerId, ownerId)))
+      .limit(1);
+    if (!project) throw new Error("Proyecto no encontrado");
+
+    const [pageVersion] = await tx
+      .select({ version: pixelforgePageVersions.version })
+      .from(pixelforgePageVersions)
+      .where(
+        and(
+          eq(pixelforgePageVersions.id, input.pageVersionId),
+          eq(pixelforgePageVersions.projectId, projectId)
+        )
+      )
+      .limit(1);
+    if (!pageVersion) throw new Error("Versión de la página no encontrada");
+
+    let runId: string;
+    try {
+      const [inserted] = await tx
+        .insert(pixelforgeQaRuns)
+        .values({
+          projectId,
+          pageVersionId: input.pageVersionId,
+          catalogVersion: input.catalogVersion,
+          scoringVersion: input.scoringVersion,
+          requestedById: actor.id,
+          requestedByName: actor.name,
+        })
+        .returning({ id: pixelforgeQaRuns.id });
+      runId = inserted.id;
+    } catch (err) {
+      if (isQaRunActiveViolation(err)) throw new QaRunAlreadyActiveError();
+      throw err;
+    }
+
+    await tx.insert(pixelforgeEvents).values({
+      projectId,
+      station: "qa",
+      type: "qa_started",
+      actorId: actor.id,
+      actorName: actor.name,
+      snapshot: { pageVersionId: input.pageVersionId, version: pageVersion.version },
+    });
+
+    await touchProject(tx, projectId);
+
+    return { id: runId };
+  });
+}
+
+/** El QA `queued`/`running` del proyecto, si existe. Ownership-checked. Null si no hay ninguno activo. */
+export async function getActiveQaRun(
+  projectId: string,
+  ownerId: string
+): Promise<PixelforgeQaRun | null> {
+  const project = await getPixelforgeProject(projectId, ownerId);
+  if (!project) throw new Error("Proyecto no encontrado");
+
+  const [run] = await db
+    .select()
+    .from(pixelforgeQaRuns)
+    .where(
+      and(
+        eq(pixelforgeQaRuns.projectId, projectId),
+        inArray(pixelforgeQaRuns.status, ["queued", "running"])
+      )
+    )
+    .limit(1);
+
+  return run ?? null;
+}
+
+export interface QaRunWithFindings {
+  run: PixelforgeQaRun;
+  findings: PixelforgeQaFinding[];
+}
+
+/**
+ * Corrida de QA + sus hallazgos, ownership-checked vía join a
+ * `pixelforgeProjects` (mismo patrón que `getRunForOwner`/
+ * `setRunUserDecision`). Null si no existe o no es del owner.
+ */
+export async function getQaRunWithFindings(
+  qaRunId: string,
+  ownerId: string
+): Promise<QaRunWithFindings | null> {
+  const [row] = await db
+    .select({ run: pixelforgeQaRuns })
+    .from(pixelforgeQaRuns)
+    .innerJoin(pixelforgeProjects, eq(pixelforgeQaRuns.projectId, pixelforgeProjects.id))
+    .where(and(eq(pixelforgeQaRuns.id, qaRunId), eq(pixelforgeProjects.ownerId, ownerId)))
+    .limit(1);
+  if (!row) return null;
+
+  const findings = await db
+    .select()
+    .from(pixelforgeQaFindings)
+    .where(eq(pixelforgeQaFindings.qaRunId, qaRunId))
+    .orderBy(desc(pixelforgeQaFindings.createdAt));
+
+  return { run: row.run, findings };
+}
+
+/** Metadatos de todas las corridas de QA del proyecto (SIN findings), ownership-checked. Orden desc por `createdAt`. */
+export async function listQaRunsForProject(
+  projectId: string,
+  ownerId: string
+): Promise<PixelforgeQaRun[]> {
+  const project = await getPixelforgeProject(projectId, ownerId);
+  if (!project) throw new Error("Proyecto no encontrado");
+
+  return db
+    .select()
+    .from(pixelforgeQaRuns)
+    .where(eq(pixelforgeQaRuns.projectId, projectId))
+    .orderBy(desc(pixelforgeQaRuns.createdAt));
+}
+
+export interface InsertQaFindingInput {
+  checkCode: string;
+  category: string;
+  severity: PixelforgeQaFinding["severity"];
+  blocking: boolean;
+  source: string; // 'det' | 'nav' | 'heu' | 'ia'
+  title: string;
+  description: string;
+  recommendation: string;
+  evidence?: unknown;
+  location?: unknown;
+  locationKey: string;
+}
+
+/**
+ * Batch de hallazgos de un run — INTERNA (sin ownerId, ver nota de cabecera
+ * de esta sección). Dedupe vía `onConflictDoNothing` sobre el unique
+ * `(qa_run_id, check_code, location_key)`: un check que produce el mismo
+ * hallazgo en el mismo lugar dos veces (reintento del motor, doble pasada
+ * determinista+heurística) no duplica filas. No-op si `findings` viene vacío.
+ */
+export async function insertQaFindings(
+  qaRunId: string,
+  findings: InsertQaFindingInput[]
+): Promise<void> {
+  if (findings.length === 0) return;
+
+  await db
+    .insert(pixelforgeQaFindings)
+    .values(
+      findings.map((finding) => ({
+        qaRunId,
+        checkCode: finding.checkCode,
+        category: finding.category,
+        severity: finding.severity,
+        blocking: finding.blocking,
+        source: finding.source,
+        title: finding.title,
+        description: finding.description,
+        recommendation: finding.recommendation,
+        evidence: finding.evidence ?? null,
+        location: finding.location ?? null,
+        locationKey: finding.locationKey,
+      }))
+    )
+    .onConflictDoNothing();
+}
+
+/**
+ * Reclama atómicamente el job de navegador `pending` más antiguo entre las
+ * corridas `running` (`browser_status='pending' AND status='running'`):
+ * `SELECT ... FOR UPDATE SKIP LOCKED` sobre el candidato más viejo dentro de
+ * una transacción, luego `UPDATE` a `running` + `browser_claimed_at=now()`.
+ * Calco conceptual de `claimRun` (arriba), adaptado a "elegir uno entre N"
+ * en vez de "reclamar un id conocido": `SKIP LOCKED` es lo que permite que
+ * varios workers del qa-runner (F8-T6) reclamen en paralelo sin pisarse.
+ * INTERNA — sin ownerId (la llama el runner, no un usuario). Devuelve la
+ * fila reclamada o null si no hay ningún job pendiente disponible.
+ */
+export async function claimQaBrowserJob(): Promise<PixelforgeQaRun | null> {
+  return db.transaction(async (tx) => {
+    const [candidate] = await tx
+      .select({ id: pixelforgeQaRuns.id })
+      .from(pixelforgeQaRuns)
+      .where(
+        and(eq(pixelforgeQaRuns.browserStatus, "pending"), eq(pixelforgeQaRuns.status, "running"))
+      )
+      .orderBy(asc(pixelforgeQaRuns.createdAt))
+      .limit(1)
+      .for("update", { skipLocked: true });
+    if (!candidate) return null;
+
+    const [claimed] = await tx
+      .update(pixelforgeQaRuns)
+      .set({ browserStatus: "running", browserClaimedAt: new Date(), updatedAt: new Date() })
+      .where(eq(pixelforgeQaRuns.id, candidate.id))
+      .returning();
+
+    return claimed ?? null;
+  });
+}
+
+/**
+ * Cierra el sub-estado de navegador de un job reclamado. Condicional
+ * (`browser_status='running'` → outcome): si el job ya no estaba `running`
+ * (p. ej. `sweepStaleQaRuns` ya lo marcó `timed_out`), no-op. INTERNA — sin
+ * ownerId, sin evento propio (la fase de navegador no es un estado de
+ * proyecto por sí sola; el cierre del run completo lo deciden
+ * `finalizeQaRun`/`failQaRun`).
+ */
+export async function finishQaBrowserJob(
+  qaRunId: string,
+  outcome: "succeeded" | "failed" | "timed_out",
+  engine?: unknown
+): Promise<void> {
+  await db
+    .update(pixelforgeQaRuns)
+    .set({
+      browserStatus: outcome,
+      browserFinishedAt: new Date(),
+      updatedAt: new Date(),
+      ...(engine !== undefined ? { engine } : {}),
+    })
+    .where(and(eq(pixelforgeQaRuns.id, qaRunId), eq(pixelforgeQaRuns.browserStatus, "running")));
+}
+
+/** Progreso/fase actual de una corrida de QA en curso. INTERNA — sin ownerId, mismo criterio que `updateRunProgress`. */
+export async function updateQaRunProgress(
+  qaRunId: string,
+  progress: number,
+  currentPhase: string
+): Promise<void> {
+  await db
+    .update(pixelforgeQaRuns)
+    .set({ progress, currentPhase, updatedAt: new Date() })
+    .where(eq(pixelforgeQaRuns.id, qaRunId));
+}
+
+export interface FinalizeQaRunInput {
+  verdict: NonNullable<PixelforgeQaRun["verdict"]>;
+  scoreTotal: number;
+  categoryScores: unknown;
+  summary: unknown;
+}
+
+/**
+ * Cierra una corrida de QA con éxito: UPDATE condicional
+ * `WHERE id=... AND status='running'` → `status='succeeded'`. Idempotente —
+ * si dos invocadores compiten (p. ej. reintento del orquestador), solo UNO
+ * afecta una fila y deja el evento `qa_finished`; el otro ve 0 filas
+ * afectadas y no hace nada (devuelve `false`). La lógica de QUÉ verdict
+ * computar NO vive acá (llega en T2/T4) — esta función solo persiste el
+ * resultado ya decidido. `verdict`/`scoreTotal`/etc. quedan congelados: nunca
+ * se recalculan después. Devuelve `true` si ESTA llamada cerró el run.
+ */
+export async function finalizeQaRun(
+  qaRunId: string,
+  result: FinalizeQaRunInput
+): Promise<boolean> {
+  const now = new Date();
+  const [run] = await db
+    .update(pixelforgeQaRuns)
+    .set({
+      status: "succeeded",
+      verdict: result.verdict,
+      scoreTotal: result.scoreTotal,
+      categoryScores: result.categoryScores,
+      summary: result.summary,
+      finishedAt: now,
+      updatedAt: now,
+    })
+    .where(and(eq(pixelforgeQaRuns.id, qaRunId), eq(pixelforgeQaRuns.status, "running")))
+    .returning({
+      projectId: pixelforgeQaRuns.projectId,
+      requestedById: pixelforgeQaRuns.requestedById,
+      requestedByName: pixelforgeQaRuns.requestedByName,
+    });
+  if (!run) return false; // otro invocador ya lo cerró (o no estaba running) — no-op
+
+  await db.insert(pixelforgeEvents).values({
+    projectId: run.projectId,
+    station: "qa",
+    type: "qa_finished",
+    actorId: run.requestedById,
+    actorName: run.requestedByName,
+    reason: result.verdict,
+    snapshot: { verdict: result.verdict, scoreTotal: result.scoreTotal },
+  });
+
+  return true;
+}
+
+/**
+ * Cierra una corrida de QA con falla: UPDATE condicional
+ * `WHERE id=... AND status IN ('queued','running')` → `status='failed'` —
+ * mismo patrón idempotente que `finalizeQaRun` (2 filas del estado inicial
+ * porque un run puede fallar ANTES de llegar a `running`, p. ej. un error de
+ * setup mientras seguía `queued`). Devuelve `true` si ESTA llamada cerró el
+ * run.
+ */
+export async function failQaRun(
+  qaRunId: string,
+  failureKind: string,
+  error: string
+): Promise<boolean> {
+  const now = new Date();
+  const [run] = await db
+    .update(pixelforgeQaRuns)
+    .set({
+      status: "failed",
+      failureKind,
+      error,
+      finishedAt: now,
+      updatedAt: now,
+    })
+    .where(and(eq(pixelforgeQaRuns.id, qaRunId), inArray(pixelforgeQaRuns.status, ["queued", "running"])))
+    .returning({
+      projectId: pixelforgeQaRuns.projectId,
+      requestedById: pixelforgeQaRuns.requestedById,
+      requestedByName: pixelforgeQaRuns.requestedByName,
+    });
+  if (!run) return false;
+
+  await db.insert(pixelforgeEvents).values({
+    projectId: run.projectId,
+    station: "qa",
+    type: "qa_failed",
+    actorId: run.requestedById,
+    actorName: run.requestedByName,
+    reason: failureKind,
+    snapshot: null,
+  });
+
+  return true;
+}
+
+export type QaHumanDecision = "approved" | "rejected";
+
+/**
+ * Registra la decisión humana sobre un QA `pass_with_warnings` (aprobar con
+ * reservas o rechazar). Ownership del proyecto. Solo aplica si el run está
+ * `succeeded` con `verdict='pass_with_warnings'` y SIN decisión previa
+ * (`human_decision IS NULL`) — lanza si no es elegible (mensaje distinto de
+ * "no encontrado" para no confundir 404 con "no aplica"). Evento
+ * `qa_approved_with_warnings` o `qa_rejected` según `decision`.
+ */
+export function recordQaHumanDecision(
+  qaRunId: string,
+  ownerId: string,
+  decision: QaHumanDecision,
+  reason: string,
+  actor: Actor
+): Promise<void> {
+  return db.transaction(async (tx) => {
+    const [row] = await tx
+      .select({ projectId: pixelforgeQaRuns.projectId })
+      .from(pixelforgeQaRuns)
+      .innerJoin(pixelforgeProjects, eq(pixelforgeQaRuns.projectId, pixelforgeProjects.id))
+      .where(and(eq(pixelforgeQaRuns.id, qaRunId), eq(pixelforgeProjects.ownerId, ownerId)))
+      .limit(1);
+    if (!row) throw new Error("QA no encontrado");
+
+    const now = new Date();
+    const [updated] = await tx
+      .update(pixelforgeQaRuns)
+      .set({
+        humanDecision: decision,
+        humanDecisionById: actor.id,
+        humanDecisionByName: actor.name,
+        humanDecisionAt: now,
+        humanDecisionReason: reason,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(pixelforgeQaRuns.id, qaRunId),
+          eq(pixelforgeQaRuns.status, "succeeded"),
+          eq(pixelforgeQaRuns.verdict, "pass_with_warnings"),
+          isNull(pixelforgeQaRuns.humanDecision)
+        )
+      )
+      .returning({ id: pixelforgeQaRuns.id });
+    if (!updated) {
+      throw new Error(
+        "Este QA no admite una decisión humana — debe estar succeeded con verdict pass_with_warnings y sin decisión previa"
+      );
+    }
+
+    await tx.insert(pixelforgeEvents).values({
+      projectId: row.projectId,
+      station: "qa",
+      type: decision === "approved" ? "qa_approved_with_warnings" : "qa_rejected",
+      actorId: actor.id,
+      actorName: actor.name,
+      reason,
+      snapshot: null,
+    });
+
+    await touchProject(tx, row.projectId);
+  });
+}
+
+export type QaRunStaleReason = "queued_timeout" | "browser_claim_timeout" | "running_timeout";
+
+/** Umbrales de staleness (ms) — ver docstring de `isStaleQaRun`. */
+export const QA_QUEUED_TIMEOUT_MS = 10 * 60 * 1000;
+export const QA_BROWSER_CLAIM_TIMEOUT_MS = 10 * 60 * 1000;
+export const QA_RUNNING_TIMEOUT_MS = 20 * 60 * 1000;
+
+export interface QaRunStalenessInput {
+  status: PixelforgeQaRun["status"];
+  browserStatus: PixelforgeQaRun["browserStatus"];
+  createdAt: Date;
+  browserClaimedAt: Date | null;
+}
+
+/**
+ * Función PURA (testeable sin DB, mismo patrón que
+ * `computeNextPageVersion`/`assertDirectionDecisionStillCurrent`): decide si
+ * un run de QA quedó "atorado" y debe marcarse como fallido. 3 condiciones,
+ * en orden de chequeo (la primera que aplica gana):
+ *   1. `queued` hace más de 10 min (`createdAt`) — nunca lo reclamó nadie.
+ *   2. `browser_status='running'` con `browserClaimedAt` de hace más de
+ *      10 min — el qa-runner externo se colgó o murió sin reportar.
+ *   3. `status='running'` hace más de 20 min (`createdAt`) — el run completo
+ *      se pasó de tiempo total (determinista+navegador+ia+cierre).
+ * `null` si el run está sano (o ya cerrado: `succeeded`/`failed`).
+ */
+export function isStaleQaRun(run: QaRunStalenessInput, now: Date): QaRunStaleReason | null {
+  if (run.status === "queued" && now.getTime() - run.createdAt.getTime() > QA_QUEUED_TIMEOUT_MS) {
+    return "queued_timeout";
+  }
+  if (
+    run.browserStatus === "running" &&
+    run.browserClaimedAt !== null &&
+    now.getTime() - run.browserClaimedAt.getTime() > QA_BROWSER_CLAIM_TIMEOUT_MS
+  ) {
+    return "browser_claim_timeout";
+  }
+  if (run.status === "running" && now.getTime() - run.createdAt.getTime() > QA_RUNNING_TIMEOUT_MS) {
+    return "running_timeout";
+  }
+  return null;
+}
+
+/**
+ * Barre runs de QA atorados y los cierra: `queued`/`running` candidatos se
+ * evalúan con `isStaleQaRun` (función pura de arriba); si aplica
+ * `browser_claim_timeout`, primero se marca `browser_status='timed_out'`
+ * (condicional a que siga `running` — no pisa un cierre concurrente del
+ * runner real) y luego, en TODOS los casos que aplican, se cierra el run
+ * completo vía `failQaRun` (mismo patrón idempotente: 2 invocaciones
+ * concurrentes de `sweepStaleQaRuns` no producen 2 eventos `qa_failed`).
+ * `projectId` opcional acota el barrido a un solo proyecto (usado por tests/
+ * scripts de verificación); sin él, barre TODOS los proyectos. INTERNA — la
+ * llama un cron/worker, no una action de usuario. Devuelve cuántos runs
+ * cerró ESTA llamada.
+ */
+export async function sweepStaleQaRuns(projectId?: string): Promise<number> {
+  const now = new Date();
+  const candidates = await db
+    .select()
+    .from(pixelforgeQaRuns)
+    .where(
+      and(
+        inArray(pixelforgeQaRuns.status, ["queued", "running"]),
+        projectId ? eq(pixelforgeQaRuns.projectId, projectId) : undefined
+      )
+    );
+
+  let swept = 0;
+  for (const run of candidates) {
+    const reason = isStaleQaRun(run, now);
+    if (!reason) continue;
+
+    if (reason === "browser_claim_timeout") {
+      await db
+        .update(pixelforgeQaRuns)
+        .set({ browserStatus: "timed_out", browserFinishedAt: now, updatedAt: now })
+        .where(and(eq(pixelforgeQaRuns.id, run.id), eq(pixelforgeQaRuns.browserStatus, "running")));
+    }
+
+    const closed = await failQaRun(run.id, "timeout", `QA marcado como fallido por inactividad (${reason})`);
+    if (closed) swept += 1;
+  }
+
+  return swept;
 }
 
 // ─── Helpers privados ──────────────────────────────────────────────────────

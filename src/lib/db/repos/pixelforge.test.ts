@@ -9,6 +9,10 @@ import {
   assertCombinedFromDirectionIdsValid,
   assertDirectionDecisionStillCurrent,
   computeNextPageVersion,
+  isStaleQaRun,
+  QA_BROWSER_CLAIM_TIMEOUT_MS,
+  QA_QUEUED_TIMEOUT_MS,
+  QA_RUNNING_TIMEOUT_MS,
 } from "./pixelforge";
 
 describe("assertCombinedFromDirectionIdsValid", () => {
@@ -80,5 +84,88 @@ describe("computeNextPageVersion", () => {
   it("devuelve version+1 dado el máximo actual", () => {
     expect(computeNextPageVersion({ version: 1 })).toBe(2);
     expect(computeNextPageVersion({ version: 7 })).toBe(8);
+  });
+});
+
+describe("isStaleQaRun", () => {
+  const NOW = new Date("2026-07-21T12:00:00.000Z");
+
+  function makeRun(overrides: Partial<Parameters<typeof isStaleQaRun>[0]>) {
+    return {
+      status: "running" as const,
+      browserStatus: "pending" as const,
+      createdAt: NOW,
+      browserClaimedAt: null,
+      ...overrides,
+    };
+  }
+
+  it("null si un run queued está fresco", () => {
+    const run = makeRun({
+      status: "queued",
+      createdAt: new Date(NOW.getTime() - (QA_QUEUED_TIMEOUT_MS - 1000)),
+    });
+    expect(isStaleQaRun(run, NOW)).toBeNull();
+  });
+
+  it("queued_timeout si un run queued lleva más de 10 min sin reclamarse", () => {
+    const run = makeRun({
+      status: "queued",
+      createdAt: new Date(NOW.getTime() - (QA_QUEUED_TIMEOUT_MS + 1000)),
+    });
+    expect(isStaleQaRun(run, NOW)).toBe("queued_timeout");
+  });
+
+  it("null si el navegador está running pero dentro del umbral de claim", () => {
+    const run = makeRun({
+      status: "running",
+      browserStatus: "running",
+      browserClaimedAt: new Date(NOW.getTime() - (QA_BROWSER_CLAIM_TIMEOUT_MS - 1000)),
+    });
+    expect(isStaleQaRun(run, NOW)).toBeNull();
+  });
+
+  it("browser_claim_timeout si el navegador quedó reclamado hace más de 10 min", () => {
+    const run = makeRun({
+      status: "running",
+      browserStatus: "running",
+      browserClaimedAt: new Date(NOW.getTime() - (QA_BROWSER_CLAIM_TIMEOUT_MS + 1000)),
+    });
+    expect(isStaleQaRun(run, NOW)).toBe("browser_claim_timeout");
+  });
+
+  it("running_timeout si el run entero lleva más de 20 min corriendo", () => {
+    const run = makeRun({
+      status: "running",
+      browserStatus: "succeeded",
+      createdAt: new Date(NOW.getTime() - (QA_RUNNING_TIMEOUT_MS + 1000)),
+    });
+    expect(isStaleQaRun(run, NOW)).toBe("running_timeout");
+  });
+
+  it("null si un run ya está succeeded/failed (cerrado), aunque sea viejo", () => {
+    const succeeded = makeRun({
+      status: "succeeded",
+      createdAt: new Date(NOW.getTime() - (QA_RUNNING_TIMEOUT_MS + 10_000)),
+    });
+    const failed = makeRun({
+      status: "failed",
+      createdAt: new Date(NOW.getTime() - (QA_QUEUED_TIMEOUT_MS + 10_000)),
+    });
+    expect(isStaleQaRun(succeeded, NOW)).toBeNull();
+    expect(isStaleQaRun(failed, NOW)).toBeNull();
+  });
+
+  it("queued_timeout gana si aplica antes que browser_claim_timeout (chequeo en orden)", () => {
+    // Caso defensivo: un run queued nunca debería tener browserStatus
+    // 'running', pero si pasara, la condición 1 (status==='queued') se
+    // evalúa primero y corta ahí.
+    const run = makeRun({
+      status: "queued",
+      browserStatus: "running",
+      createdAt: new Date(NOW.getTime() - (QA_QUEUED_TIMEOUT_MS + 1000)),
+      browserClaimedAt: new Date(NOW.getTime() - (QA_BROWSER_CLAIM_TIMEOUT_MS + 1000)),
+    });
+    expect(isStaleQaRun(run, NOW)).toBe("queued_timeout");
   });
 });
