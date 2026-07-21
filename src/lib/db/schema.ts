@@ -40,7 +40,7 @@ import {
   uuid,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 
 // ════════════════════════════════════════════════════════════════════════
 // Enums
@@ -1815,9 +1815,13 @@ export const pixelforgeSourceTypeEnum = pgEnum("pixelforge_source_type", [
   "url",
 ]);
 
+// "qa_screenshot" (F8) se agrega en una migración posterior via ALTER TYPE
+// ADD VALUE — ver pixelforge_qa_run_status y hermanos más abajo para el resto
+// del modelo de datos de QA.
 export const pixelforgeAssetKindEnum = pgEnum("pixelforge_asset_kind", [
   "reference_image",
   "export",
+  "qa_screenshot",
 ]);
 
 export const pixelforgeRunStatusEnum = pgEnum("pixelforge_run_status", [
@@ -1846,6 +1850,40 @@ export const pixelforgeDirectionStatusEnum = pgEnum("pixelforge_direction_status
   "candidate",
   "chosen",
   "discarded",
+]);
+
+// ── QA (F8 — estación `qa`) ─────────────────────────────────────────────────
+// `category`/`check_code` de pixelforge_qa_findings NO son enum — mismo
+// criterio que pixelforgeEvents.type: el catálogo de checks crece por fase,
+// se valida en capa TS (src/lib/pixelforge/types.ts).
+
+export const pixelforgeQaRunStatusEnum = pgEnum("pixelforge_qa_run_status", [
+  "queued",
+  "running",
+  "succeeded",
+  "failed",
+]);
+
+export const pixelforgeQaVerdictEnum = pgEnum("pixelforge_qa_verdict", [
+  "pass",
+  "pass_with_warnings",
+  "fail",
+]);
+
+export const pixelforgeQaSeverityEnum = pgEnum("pixelforge_qa_severity", [
+  "critical",
+  "major",
+  "minor",
+  "info",
+]);
+
+export const pixelforgeQaBrowserStatusEnum = pgEnum("pixelforge_qa_browser_status", [
+  "pending",
+  "running",
+  "succeeded",
+  "failed",
+  "timed_out",
+  "skipped",
 ]);
 
 export const pixelforgeProjects = pgTable(
@@ -2129,6 +2167,128 @@ export const pixelforgePageVersions = pgTable(
   ]
 );
 
+/**
+ * Corrida de QA (F8 — estación `qa`) sobre UNA `pixelforge_page_versions`
+ * concreta — el ancla queda fija para siempre, aunque el proyecto siga
+ * componiendo versiones nuevas. Cubre 3 fases in-process (`determinista` →
+ * `navegador` → `ia` → `cierre`, ver `currentPhase`): checks deterministas/
+ * heurísticos corren en el propio proceso; los de navegador los ejecuta un
+ * servicio externo (qa-runner, F8-T6) que reclama el job vía
+ * `claimQaBrowserJob` — de ahí el sub-estado `browserStatus` independiente de
+ * `status`. `verdict`/`scoreTotal`/`categoryScores`/`summary` quedan NULL
+ * hasta `finalizeQaRun` y NUNCA se recalculan después (snapshot congelado del
+ * resultado). El unique parcial `..._active_idx` garantiza en DB "un solo QA
+ * activo por proyecto" — createQaRun (repo) traduce su violación a un error
+ * tipado (`QaRunAlreadyActiveError`) en vez de dejar que el 23505 crudo suba.
+ */
+export const pixelforgeQaRuns = pgTable(
+  "pixelforge_qa_runs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => pixelforgeProjects.id, { onDelete: "cascade" }),
+    pageVersionId: uuid("page_version_id")
+      .notNull()
+      .references(() => pixelforgePageVersions.id, { onDelete: "cascade" }),
+    status: pixelforgeQaRunStatusEnum("status").notNull().default("queued"),
+    progress: integer("progress").notNull().default(0),
+    currentPhase: text("current_phase"), // 'determinista' | 'navegador' | 'ia' | 'cierre'
+    browserStatus: pixelforgeQaBrowserStatusEnum("browser_status").notNull().default("pending"),
+    browserClaimedAt: timestamp("browser_claimed_at", { withTimezone: true }),
+    browserFinishedAt: timestamp("browser_finished_at", { withTimezone: true }),
+    // NULL hasta finalizeQaRun — nunca se recalcula después de cerrado.
+    verdict: pixelforgeQaVerdictEnum("verdict"),
+    scoreTotal: integer("score_total"),
+    categoryScores: jsonb("category_scores"),
+    summary: jsonb("summary"),
+    catalogVersion: text("catalog_version").notNull(),
+    scoringVersion: text("scoring_version").notNull(),
+    engine: jsonb("engine"),
+    // Corridas IA advisory (F8-T5) — sin FK circular porque pixelforge_ai_runs
+    // ya está declarada más arriba en este archivo.
+    critiqueRunId: uuid("critique_run_id").references(() => pixelforgeAiRuns.id, {
+      onDelete: "set null",
+    }),
+    originalityRunId: uuid("originality_run_id").references(() => pixelforgeAiRuns.id, {
+      onDelete: "set null",
+    }),
+    likenessRunId: uuid("likeness_run_id").references(() => pixelforgeAiRuns.id, {
+      onDelete: "set null",
+    }),
+    // 'approved' | 'rejected' — solo aplica si verdict='pass_with_warnings'.
+    humanDecision: text("human_decision"),
+    humanDecisionById: uuid("human_decision_by_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    humanDecisionByName: text("human_decision_by_name"),
+    humanDecisionAt: timestamp("human_decision_at", { withTimezone: true }),
+    humanDecisionReason: text("human_decision_reason"),
+    // 'timeout' | 'runner_error' | 'internal'.
+    failureKind: text("failure_kind"),
+    error: text("error"),
+    // Autoría desnormalizada — nullable + FK a users con set null, igual que
+    // definition_events.actorId (L1649).
+    requestedById: uuid("requested_by_id").references(() => users.id, { onDelete: "set null" }),
+    requestedByName: text("requested_by_name").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+  },
+  (t) => [
+    index("pixelforge_qa_runs_project_idx").on(t.projectId),
+    index("pixelforge_qa_runs_page_version_idx").on(t.pageVersionId),
+    // "un solo QA activo por proyecto" — garantizado en DB, no solo en la
+    // capa de repo (createQaRun traduce el 23505 a QaRunAlreadyActiveError).
+    uniqueIndex("pixelforge_qa_runs_active_idx")
+      .on(t.projectId)
+      .where(sql`${t.status} in ('queued','running')`),
+  ]
+);
+
+/**
+ * Hallazgos de una corrida de QA. `severity`/`blocking` son un SNAPSHOT del
+ * catálogo de checks al momento del run (no se re-leen del catálogo después —
+ * si el catálogo cambia de criterio, los runs viejos conservan el juicio con
+ * el que se generaron). `source` distingue el origen: determinista (`det`),
+ * navegador (`nav`), heurístico (`heu`) o IA advisory (`ia`). El unique
+ * `(qa_run_id, check_code, location_key)` + `onConflictDoNothing` en el
+ * insert (repo) hace el dedupe: un mismo check que dispara dos veces sobre el
+ * mismo lugar (reintento del motor, doble pasada determinista+heurística) no
+ * duplica fila.
+ */
+export const pixelforgeQaFindings = pgTable(
+  "pixelforge_qa_findings",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    qaRunId: uuid("qa_run_id")
+      .notNull()
+      .references(() => pixelforgeQaRuns.id, { onDelete: "cascade" }),
+    checkCode: text("check_code").notNull(),
+    category: text("category").notNull(),
+    severity: pixelforgeQaSeverityEnum("severity").notNull(),
+    blocking: boolean("blocking").notNull(),
+    source: text("source").notNull(), // 'det' | 'nav' | 'heu' | 'ia'
+    title: text("title").notNull(),
+    description: text("description").notNull(),
+    recommendation: text("recommendation").notNull(),
+    evidence: jsonb("evidence"),
+    location: jsonb("location"),
+    locationKey: text("location_key").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("pixelforge_qa_findings_qa_run_idx").on(t.qaRunId),
+    index("pixelforge_qa_findings_qa_run_severity_idx").on(t.qaRunId, t.severity),
+    index("pixelforge_qa_findings_qa_run_category_idx").on(t.qaRunId, t.category),
+    uniqueIndex("pixelforge_qa_findings_dedupe_idx").on(
+      t.qaRunId,
+      t.checkCode,
+      t.locationKey
+    ),
+  ]
+);
+
 export const pixelforgeProjectsRelations = relations(
   pixelforgeProjects,
   ({ many, one }) => ({
@@ -2156,6 +2316,7 @@ export const pixelforgeProjectsRelations = relations(
     visualReferences: many(pixelforgeVisualReferences),
     creativeDirections: many(pixelforgeCreativeDirections),
     pageVersions: many(pixelforgePageVersions),
+    qaRuns: many(pixelforgeQaRuns),
   })
 );
 
@@ -2251,6 +2412,25 @@ export const pixelforgePageVersionsRelations = relations(
   })
 );
 
+export const pixelforgeQaRunsRelations = relations(pixelforgeQaRuns, ({ one, many }) => ({
+  project: one(pixelforgeProjects, {
+    fields: [pixelforgeQaRuns.projectId],
+    references: [pixelforgeProjects.id],
+  }),
+  pageVersion: one(pixelforgePageVersions, {
+    fields: [pixelforgeQaRuns.pageVersionId],
+    references: [pixelforgePageVersions.id],
+  }),
+  findings: many(pixelforgeQaFindings),
+}));
+
+export const pixelforgeQaFindingsRelations = relations(pixelforgeQaFindings, ({ one }) => ({
+  qaRun: one(pixelforgeQaRuns, {
+    fields: [pixelforgeQaFindings.qaRunId],
+    references: [pixelforgeQaRuns.id],
+  }),
+}));
+
 export type PixelforgeProject = typeof pixelforgeProjects.$inferSelect;
 export type NewPixelforgeProject = typeof pixelforgeProjects.$inferInsert;
 export type PixelforgeContextSource = typeof pixelforgeContextSources.$inferSelect;
@@ -2269,3 +2449,7 @@ export type PixelforgeCreativeDirection = typeof pixelforgeCreativeDirections.$i
 export type NewPixelforgeCreativeDirection = typeof pixelforgeCreativeDirections.$inferInsert;
 export type PixelforgePageVersion = typeof pixelforgePageVersions.$inferSelect;
 export type NewPixelforgePageVersion = typeof pixelforgePageVersions.$inferInsert;
+export type PixelforgeQaRun = typeof pixelforgeQaRuns.$inferSelect;
+export type NewPixelforgeQaRun = typeof pixelforgeQaRuns.$inferInsert;
+export type PixelforgeQaFinding = typeof pixelforgeQaFindings.$inferSelect;
+export type NewPixelforgeQaFinding = typeof pixelforgeQaFindings.$inferInsert;
