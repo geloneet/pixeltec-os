@@ -83,7 +83,8 @@ export const STATION_ARTIFACT: Record<PixelforgeStation, PixelforgeArtifactKind 
  * el arranque/cierre de corridas IA (repo, `src/lib/db/repos/pixelforge.ts`);
  * F4 añade agregar/quitar referencias visuales de la estación `visual`; F5
  * añade generar/regenerar/elegir direcciones creativas de la estación
- * `direcciones`.
+ * `direcciones`; F7 añade la composición de la landing (`page_versions`) en
+ * la estación `produccion`.
  */
 export type PixelforgeEventType =
   | "created"
@@ -97,7 +98,8 @@ export type PixelforgeEventType =
   | "reference_removed"
   | "directions_generated"
   | "direction_regenerated"
-  | "direction_chosen";
+  | "direction_chosen"
+  | "page_composed";
 
 export type PixelforgeArtifactStatus = "pending" | "in_progress" | "sealed" | "invalidated";
 

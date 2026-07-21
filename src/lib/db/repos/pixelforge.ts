@@ -24,6 +24,7 @@ import {
   pixelforgeAssets,
   pixelforgeVisualReferences,
   pixelforgeCreativeDirections,
+  pixelforgePageVersions,
   type PixelforgeProject,
   type PixelforgeContextSource,
   type PixelforgeArtifact,
@@ -32,6 +33,7 @@ import {
   type PixelforgeAsset,
   type PixelforgeVisualReference,
   type PixelforgeCreativeDirection,
+  type PixelforgePageVersion,
 } from "@/lib/db/schema";
 import {
   ARTIFACT_KINDS,
@@ -1469,6 +1471,156 @@ export function chooseDirection(
 
     await touchProject(tx, projectId);
   });
+}
+
+// ─── Page versions (F7 — estación `produccion`) ────────────────────────────
+
+export interface InsertPageVersionInput {
+  /** `PageTree` YA validado por `validatePageTree` (T2) — se persiste tal cual, sin re-tipar acá (zod v4 no cruza al repo). */
+  tree: unknown;
+  notas: string;
+  warnings: string[];
+}
+
+export interface InsertedPageVersion {
+  id: string;
+  version: number;
+}
+
+/**
+ * `version` de la próxima fila a insertar dado el máximo actual del proyecto
+ * (`undefined` si el proyecto todavía no tiene ninguna versión). Extraída
+ * como función pura para poder testear el cálculo sin DB (mismo patrón que
+ * `assertDirectionDecisionStillCurrent`/`assertCombinedFromDirectionIdsValid`
+ * más arriba en este archivo).
+ */
+export function computeNextPageVersion(latest: { version: number } | undefined): number {
+  return (latest?.version ?? 0) + 1;
+}
+
+/**
+ * Inserta una nueva versión de la landing compuesta. Append-only: NUNCA
+ * actualiza una fila existente, recomponer siempre crea la siguiente
+ * versión (D1/D4 de la fase — sin locks/reconcile). Ownership-checked.
+ * `version = max(version) + 1` para el proyecto, calculado DENTRO de la
+ * transacción: bloquea la fila del proyecto (`FOR UPDATE`) antes de leer el
+ * máximo actual para serializar composiciones concurrentes del mismo
+ * proyecto; el unique index `(project_id, version)` queda como red de
+ * seguridad si de todos modos hubiera una carrera (en ese caso el insert
+ * lanza por violación de constraint — no se reintenta acá, lo maneja el
+ * caller). Deja evento `page_composed` en la estación `produccion` con
+ * snapshot `{version, notas}` — NUNCA el árbol completo, para no inflar el
+ * evento con el jsonb grande. Devuelve id y version de la fila insertada.
+ */
+export function insertPageVersion(
+  projectId: string,
+  ownerId: string,
+  data: InsertPageVersionInput,
+  actor: Actor
+): Promise<InsertedPageVersion> {
+  return db.transaction(async (tx) => {
+    const [project] = await tx
+      .select({ id: pixelforgeProjects.id })
+      .from(pixelforgeProjects)
+      .where(and(eq(pixelforgeProjects.id, projectId), eq(pixelforgeProjects.ownerId, ownerId)))
+      .for("update")
+      .limit(1);
+    if (!project) throw new Error("Proyecto no encontrado");
+
+    const [latest] = await tx
+      .select({ version: pixelforgePageVersions.version })
+      .from(pixelforgePageVersions)
+      .where(eq(pixelforgePageVersions.projectId, projectId))
+      .orderBy(desc(pixelforgePageVersions.version))
+      .limit(1);
+    const version = computeNextPageVersion(latest);
+
+    const [inserted] = await tx
+      .insert(pixelforgePageVersions)
+      .values({
+        projectId,
+        version,
+        tree: data.tree,
+        notas: data.notas,
+        warnings: data.warnings,
+        createdById: actor.id,
+        createdByName: actor.name,
+      })
+      .returning({ id: pixelforgePageVersions.id, version: pixelforgePageVersions.version });
+
+    await tx.insert(pixelforgeEvents).values({
+      projectId,
+      station: "produccion",
+      type: "page_composed",
+      actorId: actor.id,
+      actorName: actor.name,
+      snapshot: { version, notas: data.notas },
+    });
+
+    await touchProject(tx, projectId);
+
+    return inserted;
+  });
+}
+
+/**
+ * Versión vigente (mayor `version`) CON el árbol completo, ownership-checked.
+ * Null si el proyecto todavía no tiene ninguna versión compuesta (pre-F7 o
+ * blueprint sellado pero aún sin componer).
+ */
+export async function getLatestPageVersion(
+  projectId: string,
+  ownerId: string
+): Promise<PixelforgePageVersion | null> {
+  const project = await getPixelforgeProject(projectId, ownerId);
+  if (!project) throw new Error("Proyecto no encontrado");
+
+  const [latest] = await db
+    .select()
+    .from(pixelforgePageVersions)
+    .where(eq(pixelforgePageVersions.projectId, projectId))
+    .orderBy(desc(pixelforgePageVersions.version))
+    .limit(1);
+
+  return latest ?? null;
+}
+
+export interface PixelforgePageVersionMeta {
+  id: string;
+  version: number;
+  notas: string;
+  warnings: string[];
+  createdByName: string;
+  createdAt: Date;
+}
+
+/**
+ * Metadatos de todas las versiones del proyecto para el historial de la
+ * estación `produccion` — SIN `tree` (evita traer el jsonb grande de todas
+ * las versiones solo para listar el historial). Ownership-checked. Orden
+ * desc por `version` (la vigente primero).
+ */
+export async function listPageVersions(
+  projectId: string,
+  ownerId: string
+): Promise<PixelforgePageVersionMeta[]> {
+  const project = await getPixelforgeProject(projectId, ownerId);
+  if (!project) throw new Error("Proyecto no encontrado");
+
+  const rows = await db
+    .select({
+      id: pixelforgePageVersions.id,
+      version: pixelforgePageVersions.version,
+      notas: pixelforgePageVersions.notas,
+      warnings: pixelforgePageVersions.warnings,
+      createdByName: pixelforgePageVersions.createdByName,
+      createdAt: pixelforgePageVersions.createdAt,
+    })
+    .from(pixelforgePageVersions)
+    .where(eq(pixelforgePageVersions.projectId, projectId))
+    .orderBy(desc(pixelforgePageVersions.version));
+
+  return rows.map((row) => ({ ...row, warnings: row.warnings as string[] }));
 }
 
 // ─── Helpers privados ──────────────────────────────────────────────────────

@@ -2090,6 +2090,45 @@ export const pixelforgeCreativeDirections = pgTable(
   ]
 );
 
+/**
+ * Versiones de la landing compuesta (F7 — estación `produccion`), append-only:
+ * cada corrida exitosa de `compose_page_tree` inserta una fila nueva, NUNCA
+ * actualiza una existente. La versión vigente = la de mayor `version` para el
+ * proyecto (calculado en el repo, no una columna `isCurrent` — evita el doble
+ * estado). `tree` es el `PageTree` YA validado por `validatePageTree` tal cual
+ * (jsonb, sin `$type` — el schema Zod vive en `src/lib/pixelforge/schemas/`,
+ * fuera de esta capa). `warnings` son los strings que devolvió esa validación
+ * para esta corrida (hoy siempre vacío — ver docstring de `validatePageTree`,
+ * se conserva el campo por estabilidad de API). SIN locks/reconcile/estados
+ * (diferido, D1 de la fase) — recomponer simplemente crea la siguiente
+ * versión.
+ */
+export const pixelforgePageVersions = pgTable(
+  "pixelforge_page_versions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => pixelforgeProjects.id, { onDelete: "cascade" }),
+    // Incremental por proyecto — la vigente es la de mayor valor. Calculado
+    // en el repo (max+1) dentro de la misma transacción que el insert; el
+    // unique index de abajo es la red de seguridad ante una carrera.
+    version: integer("version").notNull(),
+    tree: jsonb("tree").notNull(),
+    notas: text("notas").notNull(),
+    warnings: jsonb("warnings").notNull(),
+    // Autoría desnormalizada — nullable + FK a users con set null, igual que
+    // definition_events.actorId (L1649).
+    createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+    createdByName: text("created_by_name").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("pixelforge_page_versions_project_idx").on(t.projectId),
+    uniqueIndex("pixelforge_page_versions_project_version_idx").on(t.projectId, t.version),
+  ]
+);
+
 export const pixelforgeProjectsRelations = relations(
   pixelforgeProjects,
   ({ many, one }) => ({
@@ -2116,6 +2155,7 @@ export const pixelforgeProjectsRelations = relations(
     aiRuns: many(pixelforgeAiRuns),
     visualReferences: many(pixelforgeVisualReferences),
     creativeDirections: many(pixelforgeCreativeDirections),
+    pageVersions: many(pixelforgePageVersions),
   })
 );
 
@@ -2201,6 +2241,16 @@ export const pixelforgeCreativeDirectionsRelations = relations(
   })
 );
 
+export const pixelforgePageVersionsRelations = relations(
+  pixelforgePageVersions,
+  ({ one }) => ({
+    project: one(pixelforgeProjects, {
+      fields: [pixelforgePageVersions.projectId],
+      references: [pixelforgeProjects.id],
+    }),
+  })
+);
+
 export type PixelforgeProject = typeof pixelforgeProjects.$inferSelect;
 export type NewPixelforgeProject = typeof pixelforgeProjects.$inferInsert;
 export type PixelforgeContextSource = typeof pixelforgeContextSources.$inferSelect;
@@ -2217,3 +2267,5 @@ export type PixelforgeVisualReference = typeof pixelforgeVisualReferences.$infer
 export type NewPixelforgeVisualReference = typeof pixelforgeVisualReferences.$inferInsert;
 export type PixelforgeCreativeDirection = typeof pixelforgeCreativeDirections.$inferSelect;
 export type NewPixelforgeCreativeDirection = typeof pixelforgeCreativeDirections.$inferInsert;
+export type PixelforgePageVersion = typeof pixelforgePageVersions.$inferSelect;
+export type NewPixelforgePageVersion = typeof pixelforgePageVersions.$inferInsert;

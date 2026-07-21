@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 import {
   assertCombinedFromDirectionIdsValid,
   assertDirectionDecisionStillCurrent,
+  computeNextPageVersion,
 } from "./pixelforge";
 
 describe("assertCombinedFromDirectionIdsValid", () => {
@@ -68,5 +69,16 @@ describe("assertDirectionDecisionStillCurrent", () => {
     expect(() =>
       assertDirectionDecisionStillCurrent("direction-1", "direction-2")
     ).toThrow(/La elección quedó obsoleta/);
+  });
+});
+
+describe("computeNextPageVersion", () => {
+  it("devuelve 1 si el proyecto todavía no tiene ninguna versión (undefined)", () => {
+    expect(computeNextPageVersion(undefined)).toBe(1);
+  });
+
+  it("devuelve version+1 dado el máximo actual", () => {
+    expect(computeNextPageVersion({ version: 1 })).toBe(2);
+    expect(computeNextPageVersion({ version: 7 })).toBe(8);
   });
 });

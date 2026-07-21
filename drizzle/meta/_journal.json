@@ -169,6 +169,13 @@
       "when": 1784225534183,
       "tag": "0023_exotic_pride",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1784595519355,
+      "tag": "0024_kind_ender_wiggin",
+      "breakpoints": true
     }
   ]
 }
