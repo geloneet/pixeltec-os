@@ -8,19 +8,34 @@
  * `../../schemas/compose-page-tree.ts`).
  *
  * Server-only por convención: importar únicamente desde API routes / server
- * actions (el paquete "server-only" no está instalado en este repo). Calco
- * estructural de `build-narrative.v1.ts`: Landing DNA, Visual DNA y la
- * dirección elegida llegan sellados/estructurados (ya revisados y congelados
- * por un humano, o ya validados una vez por Structured Outputs) — se
- * neutralizan pero NO se envuelven en fence. La razón de la decisión de
- * dirección (`decision.rationale`) es texto libre escrito a mano, igual que
- * en `build-narrative.v1.ts` — se envuelve con `wrapUntrustedContent`. El
- * Blueprint Narrativo, aunque sellado, es un BORRADOR editable por humano
- * antes de sellarse (a diferencia del Landing/Visual DNA, que no se editan
- * campo a campo): `historia`, cada acto, cada momento cinematográfico
- * (`descripcion`/`motifConnection`) y cada nota de producción se envuelven
- * con `wrapUntrustedContent`, mismo criterio que `notas` en
- * `synthesize-visual-dna.v1.ts`.
+ * actions (el paquete "server-only" no está instalado en este repo). Landing
+ * DNA y Visual DNA llegan SELLADOS, pero — igual que el Blueprint Narrativo —
+ * son BORRADORES editables campo a campo por un humano antes de sellarse:
+ * ambos kinds están en `OPERATIVE_ARTIFACT_KIND` (`../../kind-schemas.ts`) y
+ * `updateArtifactDraftAction` (`src/app/(admin)/proyectos/pixelforge/actions.ts`)
+ * acepta un borrador completo para los dos (a diferencia de
+ * `direction_decision`, cuyo draft esa acción rechaza explícitamente). Sus
+ * campos de texto libre (`propuestaValor`, `audiencia.descripcion`,
+ * `audiencia.dolores`/`objeciones`, `tono.voz`/`atributos`, `mensajesClave`,
+ * `direccionGeneral`, `paleta.estrategia`, `tipografia.*`, `motivosVisuales`,
+ * `antiPatrones`) se envuelven con `wrapUntrustedContent`, no solo se
+ * neutralizan — los únicos valores estructurados/enum (`paleta.contraste`,
+ * `espaciado`) quedan fuera del wrap, mismo criterio que `actoOrden` en el
+ * Blueprint más abajo. La dirección elegida (`chosenDirection`) sí llega como
+ * output de IA previo (`generate_directions`) ya validado una vez por
+ * Structured Outputs, no como borrador editable a mano — se neutraliza pero
+ * NO se envuelve. La razón de la decisión de dirección (`decision.rationale`)
+ * es texto libre escrito a mano, igual que en `build-narrative.v1.ts` — se
+ * envuelve con `wrapUntrustedContent`. El Blueprint Narrativo: `historia`,
+ * cada acto, cada momento cinematográfico (`descripcion`/`motifConnection`) y
+ * cada nota de producción se envuelven con `wrapUntrustedContent`, mismo
+ * criterio que `notas` en `synthesize-visual-dna.v1.ts`.
+ *
+ * NOTA: `build-narrative.v1.ts` tiene el mismo `formatLandingDna`/
+ * `formatVisualDna` pero SOLO neutraliza (no envuelve) sus campos de texto
+ * libre — mismo gap que este archivo tenía antes de este fix. Está en prod y
+ * fuera del alcance de este cambio; queda como deuda conocida para un
+ * follow-up dedicado.
  *
  * A diferencia de `generate-directions.v1.ts` (que recibe
  * `capabilitiesCatalog` como string ya armado por el caller), esta operación
@@ -96,33 +111,63 @@ export interface ComposePageTreeRequest {
   messages: Anthropic.MessageParam[];
 }
 
-/** Mismo formateo/criterio de neutralización que `build-narrative.v1.ts` para el Landing DNA sellado. */
+/**
+ * El Landing DNA llega SELLADO, pero es un BORRADOR editable campo a campo
+ * por un humano antes de sellarse (ver nota del docstring del archivo): cada
+ * campo de texto libre se envuelve con `wrapUntrustedContent` (no solo se
+ * neutraliza). Los placeholders ("(ninguno)"/"(ninguna)") para arrays vacíos
+ * quedan fuera del wrap — no son contenido del usuario.
+ */
 function formatLandingDna(dna: LandingDna): string {
-  const formatted = [
-    `Propuesta de valor: ${dna.propuestaValor}`,
-    `Audiencia: ${dna.audiencia.descripcion}`,
-    `Dolores: ${dna.audiencia.dolores.join(", ") || "(ninguno)"}`,
-    `Objeciones: ${dna.audiencia.objeciones.join(", ") || "(ninguna)"}`,
-    `Tono de voz: ${dna.tono.voz}`,
-    `Atributos de tono: ${dna.tono.atributos.join(", ") || "(ninguno)"}`,
-    `Mensajes clave: ${dna.mensajesClave.map((m) => m.mensaje).join(" | ") || "(ninguno)"}`,
-  ].join("\n");
+  const dolores =
+    dna.audiencia.dolores.length > 0
+      ? wrapUntrustedContent("landing-audiencia-dolores", dna.audiencia.dolores.join(", "))
+      : "(ninguno)";
+  const objeciones =
+    dna.audiencia.objeciones.length > 0
+      ? wrapUntrustedContent("landing-audiencia-objeciones", dna.audiencia.objeciones.join(", "))
+      : "(ninguna)";
+  const atributos =
+    dna.tono.atributos.length > 0
+      ? wrapUntrustedContent("landing-tono-atributos", dna.tono.atributos.join(", "))
+      : "(ninguno)";
+  const mensajesClave =
+    dna.mensajesClave.length > 0
+      ? wrapUntrustedContent("landing-mensajes-clave", dna.mensajesClave.map((m) => m.mensaje).join(" | "))
+      : "(ninguno)";
 
-  return neutralizeDelimiters(formatted);
+  return [
+    `Propuesta de valor: ${wrapUntrustedContent("landing-propuesta-valor", dna.propuestaValor)}`,
+    `Audiencia: ${wrapUntrustedContent("landing-audiencia-descripcion", dna.audiencia.descripcion)}`,
+    `Dolores: ${dolores}`,
+    `Objeciones: ${objeciones}`,
+    `Tono de voz: ${wrapUntrustedContent("landing-tono-voz", dna.tono.voz)}`,
+    `Atributos de tono: ${atributos}`,
+    `Mensajes clave: ${mensajesClave}`,
+  ].join("\n");
 }
 
-/** Mismo formateo/criterio de neutralización que `build-narrative.v1.ts` para el Visual DNA sellado. */
+/**
+ * El Visual DNA llega SELLADO, pero es un BORRADOR editable campo a campo por
+ * un humano antes de sellarse (ver nota del docstring del archivo): cada
+ * campo de texto libre se envuelve con `wrapUntrustedContent`. `contraste` y
+ * `espaciado` son enums estructurados (no texto libre) y quedan fuera del
+ * wrap, mismo criterio que `actoOrden` en el Blueprint.
+ */
 function formatVisualDna(dna: VisualDna): string {
-  const formatted = [
-    `Dirección general: ${dna.direccionGeneral}`,
-    `Paleta — estrategia: ${dna.paleta.estrategia} (contraste ${dna.paleta.contraste})`,
-    `Tipografía — títulos: ${dna.tipografia.caracterTitulos}; cuerpo: ${dna.tipografia.caracterCuerpo}`,
-    `Espaciado: ${dna.espaciado}`,
-    `Motivos visuales: ${dna.motivosVisuales.join(", ")}`,
-    `Anti-patrones a evitar: ${dna.antiPatrones.join(", ") || "(ninguno)"}`,
-  ].join("\n");
+  const antiPatrones =
+    dna.antiPatrones.length > 0
+      ? wrapUntrustedContent("visual-anti-patrones", dna.antiPatrones.join(", "))
+      : "(ninguno)";
 
-  return neutralizeDelimiters(formatted);
+  return [
+    `Dirección general: ${wrapUntrustedContent("visual-direccion-general", dna.direccionGeneral)}`,
+    `Paleta — estrategia: ${wrapUntrustedContent("visual-paleta-estrategia", dna.paleta.estrategia)} (contraste ${dna.paleta.contraste})`,
+    `Tipografía — títulos: ${wrapUntrustedContent("visual-tipografia-titulos", dna.tipografia.caracterTitulos)}; cuerpo: ${wrapUntrustedContent("visual-tipografia-cuerpo", dna.tipografia.caracterCuerpo)}`,
+    `Espaciado: ${dna.espaciado}`,
+    `Motivos visuales: ${wrapUntrustedContent("visual-motivos-visuales", dna.motivosVisuales.join(", "))}`,
+    `Anti-patrones a evitar: ${antiPatrones}`,
+  ].join("\n");
 }
 
 function formatDesignTokens(tokens: Direccion["designTokens"]): string {
