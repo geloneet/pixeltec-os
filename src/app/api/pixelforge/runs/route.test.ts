@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // `route.ts` importa `@/lib/auth/config` (next-auth) — bajo Vitest (Node ESM
 // puro, sin el resolutor de módulos de Next) el propio `next-auth` rompe al
@@ -7,9 +7,34 @@ import { describe, expect, it, vi } from "vitest";
 // auth — mockeamos para poder importar el módulo sin arrastrar next-auth.
 vi.mock("@/lib/auth/config", () => ({ auth: vi.fn() }));
 
+// Mock PARCIAL (`importOriginal` conserva el resto tal cual) — el resto de
+// `ENABLED_OPERATIONS` no necesita esto (sus guards son funciones puras sobre
+// el fixture de `PixelforgeProjectFull`), pero `compose_page_tree.persistResult`
+// (F7-T3) sí llama al repo real (`insertPageVersion`, que abre una transacción
+// contra `db`) — se reemplaza solo esa función para poder testear
+// `persistResult` sin una DB real, sin tener que re-declarar el resto del
+// módulo (`createRun`/`claimRun`/etc., que ninguna prueba de este archivo
+// ejercita).
+vi.mock("@/lib/db/repos/pixelforge", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/db/repos/pixelforge")>();
+  return { ...actual, insertPageVersion: vi.fn() };
+});
+
+// Mismo criterio: `compose_page_tree.persistResult` re-valida con `validatePageTree`
+// (defensa en profundidad, D2/D4) — se mockea para testear el wiring de
+// `persistResult` (llama validatePageTree, lanza si !ok, inserta si ok) sin
+// tener que armar un PageTree real que pase TODAS las reglas del registry
+// (ya cubiertas exhaustivamente por `validate-page-tree.test.ts`).
+vi.mock("@/lib/pixelforge/registry/validate-page-tree", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/pixelforge/registry/validate-page-tree")>();
+  return { ...actual, validatePageTree: vi.fn() };
+});
+
 import { createRunSchema, resolveDomainSchema, ENABLED_OPERATIONS } from "./route";
 import type { PixelforgeArtifact, PixelforgeCreativeDirection, PixelforgeProject } from "@/lib/db/schema";
-import type { PixelforgeProjectFull } from "@/lib/db/repos/pixelforge";
+import type { PixelforgeProjectFull, InsertedPageVersion } from "@/lib/db/repos/pixelforge";
+import { insertPageVersion } from "@/lib/db/repos/pixelforge";
+import { validatePageTree } from "@/lib/pixelforge/registry/validate-page-tree";
 
 const PROJECT_ID = "11111111-1111-1111-1111-111111111111";
 const REFERENCE_ID = "22222222-2222-2222-2222-222222222222";
@@ -70,7 +95,19 @@ describe("createRunSchema", () => {
   });
 
   it("rechaza una operación no habilitada en esta fase", () => {
+    const result = createRunSchema.safeParse({ projectId: PROJECT_ID, operation: "propose_change" });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("acepta compose_page_tree (F7) sin referenceId ni slot", () => {
     const result = createRunSchema.safeParse({ projectId: PROJECT_ID, operation: "compose_page_tree" });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("rechaza slot en compose_page_tree (solo aplica a generate_directions)", () => {
+    const result = createRunSchema.safeParse({ projectId: PROJECT_ID, operation: "compose_page_tree", slot: 1 });
 
     expect(result.success).toBe(false);
   });
@@ -293,5 +330,151 @@ describe("ENABLED_OPERATIONS.build_narrative.guard", () => {
     });
 
     expect(guard(full)).toBeNull();
+  });
+});
+
+describe("ENABLED_OPERATIONS.compose_page_tree.guard (F7-T3)", () => {
+  const { guard } = ENABLED_OPERATIONS.compose_page_tree;
+
+  it("exige el Blueprint sellado antes de componer", () => {
+    const full = fixtureFull({
+      artifacts: [fixtureArtifact({ kind: "narrative_blueprint", status: "in_progress" })],
+      directions: [fixtureDirection()],
+    });
+
+    expect(guard(full)).toBe("Sella el Blueprint antes de componer la landing");
+  });
+
+  it("exige el Blueprint sellado cuando el artifact ni siquiera existe todavía", () => {
+    const full = fixtureFull({ artifacts: [], directions: [fixtureDirection()] });
+
+    expect(guard(full)).toBe("Sella el Blueprint antes de componer la landing");
+  });
+
+  it("rechaza si la elección quedó obsoleta — la dirección elegida ya no tiene status chosen (fue regenerada)", () => {
+    const full = fixtureFull({
+      project: fixtureProject({ chosenDirectionId: DIRECTION_ID }),
+      artifacts: [fixtureArtifact({ kind: "narrative_blueprint", status: "sealed" })],
+      directions: [fixtureDirection({ status: "discarded" })],
+    });
+
+    expect(guard(full)).toBe("La elección quedó obsoleta — vuelve a elegir");
+  });
+
+  it("rechaza si chosenDirectionId es null", () => {
+    const full = fixtureFull({
+      project: fixtureProject({ chosenDirectionId: null }),
+      artifacts: [fixtureArtifact({ kind: "narrative_blueprint", status: "sealed" })],
+      directions: [fixtureDirection()],
+    });
+
+    expect(guard(full)).toBe("La elección quedó obsoleta — vuelve a elegir");
+  });
+
+  it("permite arrancar cuando el Blueprint está sellado y la elección sigue vigente", () => {
+    const full = fixtureFull({
+      artifacts: [fixtureArtifact({ kind: "narrative_blueprint", status: "sealed" })],
+      directions: [fixtureDirection({ status: "chosen" })],
+    });
+
+    expect(guard(full)).toBeNull();
+  });
+
+  it("NO bloquea por versiones existentes — recomponer es una operación normal (D4); el guard nunca consulta page_versions", () => {
+    // `PixelforgeProjectFull` (el fixture completo) no trae ningún campo de versiones de página —
+    // este test deja explícito, junto al de arriba, que el mismo estado "listo para componer" sigue
+    // devolviendo null sin importar cuántas veces se haya corrido antes.
+    const full = fixtureFull({
+      artifacts: [fixtureArtifact({ kind: "narrative_blueprint", status: "sealed" })],
+      directions: [fixtureDirection({ status: "chosen" })],
+    });
+
+    expect(guard(full)).toBeNull();
+    expect(guard(full)).toBeNull();
+  });
+});
+
+describe("ENABLED_OPERATIONS.compose_page_tree.persistResult (F7-T3)", () => {
+  const { persistResult } = ENABLED_OPERATIONS.compose_page_tree;
+  const ctx = {
+    ownerId: "owner-1",
+    projectId: PROJECT_ID,
+    actor: { id: "owner-1", name: "Trabajador de prueba" },
+    runId: "run-1",
+  };
+
+  beforeEach(() => {
+    vi.mocked(insertPageVersion).mockReset();
+    vi.mocked(validatePageTree).mockReset();
+  });
+
+  it("re-valida con validatePageTree (defensa en profundidad) e inserta el output RAW cuando es válido", async () => {
+    const rawOutput = {
+      nodes: [{ nodeId: "n1", componentId: "footer-contact", variant: "default", orden: 1, propsJson: "{}" }],
+      notas: "Composición inicial",
+    };
+    vi.mocked(validatePageTree).mockReturnValue({
+      ok: true,
+      tree: { nodes: [], notas: rawOutput.notas },
+      warnings: ["aviso de fallback usado"],
+    });
+    const inserted: InsertedPageVersion = { id: "pv-1", version: 1 };
+    vi.mocked(insertPageVersion).mockResolvedValue(inserted);
+
+    await persistResult(rawOutput, ctx);
+
+    expect(validatePageTree).toHaveBeenCalledWith(rawOutput);
+    // `tree` debe ser el output RAW (con `propsJson` string) — byte-fiel a lo validado, NO el
+    // `ValidatedPageTree` transformado que devuelve `validatePageTree` (D5 necesita poder re-validar
+    // lo guardado en el preview).
+    expect(insertPageVersion).toHaveBeenCalledWith(
+      PROJECT_ID,
+      "owner-1",
+      { tree: rawOutput, notas: rawOutput.notas, warnings: ["aviso de fallback usado"] },
+      ctx.actor
+    );
+  });
+
+  it("lanza con los errores de validatePageTree cuando el output no valida — nunca inserta (marca la corrida failed)", async () => {
+    const rawOutput = { nodes: [], notas: "" };
+    vi.mocked(validatePageTree).mockReturnValue({
+      ok: false,
+      errors: ["el árbol debe cerrar con un nodo footer-contact", "el árbol tiene menos de 3 nodos"],
+    });
+
+    await expect(persistResult(rawOutput, ctx)).rejects.toThrow(
+      "el árbol debe cerrar con un nodo footer-contact | el árbol tiene menos de 3 nodos"
+    );
+    expect(insertPageVersion).not.toHaveBeenCalled();
+  });
+
+  it("una segunda corrida (recomponer) vuelve a insertar sin bloquearse — cada llamada crea una versión nueva", async () => {
+    const rawOutput = {
+      nodes: [{ nodeId: "n1", componentId: "footer-contact", variant: "default", orden: 1, propsJson: "{}" }],
+      notas: "v2",
+    };
+    vi.mocked(validatePageTree).mockReturnValue({
+      ok: true,
+      tree: { nodes: [], notas: rawOutput.notas },
+      warnings: [],
+    });
+    vi.mocked(insertPageVersion)
+      .mockResolvedValueOnce({ id: "pv-1", version: 1 })
+      .mockResolvedValueOnce({ id: "pv-2", version: 2 });
+
+    await persistResult(rawOutput, ctx);
+    await persistResult(rawOutput, ctx);
+
+    expect(insertPageVersion).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("ENABLED_OPERATIONS.compose_page_tree (metadatos)", () => {
+  it("resultRef es estático (el id/version real todavía no existe al momento de createRun)", () => {
+    expect(ENABLED_OPERATIONS.compose_page_tree.resultRef()).toBe("page_version:project");
+  });
+
+  it("domainSchema es composePageTreeDomainSchema (valor fijo, no función — a diferencia de generate_directions)", () => {
+    expect(typeof ENABLED_OPERATIONS.compose_page_tree.domainSchema).not.toBe("function");
   });
 });

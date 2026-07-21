@@ -71,6 +71,7 @@ import {
   updateReferenceAnalysis,
   replaceCreativeDirections,
   replaceCreativeDirection,
+  insertPageVersion,
   type Actor,
   type PixelforgeProjectFull,
   type VisualReferenceForAnalysis,
@@ -110,6 +111,13 @@ import {
 import { getCapabilitiesForPrompt, CAPABILITY_IDS } from "@/lib/pixelforge/registry/capabilities";
 import { buildBuildNarrativeRequest, BUILD_NARRATIVE_PROMPT_VERSION } from "@/lib/pixelforge/ai/prompts/build-narrative.v1";
 import { directionDecisionSchema } from "@/lib/pixelforge/schemas/direction-decision";
+import { narrativeBlueprintSchema } from "@/lib/pixelforge/schemas/build-narrative";
+import {
+  buildComposePageTreeRequest,
+  COMPOSE_PAGE_TREE_PROMPT_VERSION,
+} from "@/lib/pixelforge/ai/prompts/compose-page-tree.v1";
+import { composePageTreeDomainSchema } from "@/lib/pixelforge/schemas/compose-page-tree";
+import { validatePageTree } from "@/lib/pixelforge/registry/validate-page-tree";
 
 /** Contexto compartido de una corrida — común a todas las operaciones del mapa. */
 interface OperationRunCtx {
@@ -504,6 +512,112 @@ export const ENABLED_OPERATIONS = {
     domainSchema: undefined,
     promptVersion: BUILD_NARRATIVE_PROMPT_VERSION,
   },
+  compose_page_tree: {
+    loadExtra: undefined,
+    // Guard (F7-T3, calco build_narrative #1): 1) el Blueprint Narrativo debe estar sellado (fuente
+    // de la composición) — a diferencia de build_narrative, acá NO importa si ya existe una versión
+    // compuesta previa: recomponer es una operación normal por diseño (D4), siempre crea la
+    // SIGUIENTE versión (`insertPageVersion`), nunca bloquea por versiones existentes; 2) la
+    // elección de dirección debe seguir VIGENTE — mismo defensa-en-profundidad que build_narrative:
+    // con el Blueprint sellado, `chosenDirectionId` debería apuntar siempre a una dirección `chosen`
+    // vigente (invariante que garantizan `replaceCreativeDirections`/`replaceCreativeDirection` al
+    // limpiar `chosenDirectionId` ante una regeneración, y que la cascada de `reopenArtifact`
+    // garantiza transitivamente para landing_dna/visual_dna/direction_decision — si cualquiera de
+    // esos se reabre, el Blueprint queda `invalidated`, no `sealed`, y este guard ya lo rechaza en el
+    // primer check); este 3er check es defensa en profundidad (TOCTOU/estado inconsistente por un
+    // bug futuro), mismo criterio que `assertDirectionDecisionStillCurrent` en el repo.
+    guard: (full) => {
+      const blueprint = full.artifacts.find((a) => a.kind === "narrative_blueprint");
+      if (blueprint?.status !== "sealed") {
+        return "Sella el Blueprint antes de componer la landing";
+      }
+      const chosenDirectionId = full.project.chosenDirectionId;
+      const chosen = chosenDirectionId
+        ? full.directions.find((d) => d.id === chosenDirectionId && d.status === "chosen")
+        : undefined;
+      if (!chosen) {
+        return "La elección quedó obsoleta — vuelve a elegir";
+      }
+      return null;
+    },
+    buildRequest: (full) => {
+      // El guard ya garantizó que landing_dna/visual_dna/direction_decision/narrative_blueprint están
+      // sellados (transitividad de la cascada de invalidación, ver comentario del guard) y que la
+      // dirección elegida (`chosenDirectionId`) sigue vigente con status "chosen" — sealedContent y
+      // la fila de `full.directions` existen.
+      const landingDnaArtifact = full.artifacts.find((a) => a.kind === "landing_dna");
+      const sealedLandingDna = landingDnaSchema.parse(landingDnaArtifact?.sealedContent);
+      const visualDnaArtifact = full.artifacts.find((a) => a.kind === "visual_dna");
+      const sealedVisualDna = visualDnaSchema.parse(visualDnaArtifact?.sealedContent);
+      const decisionArtifact = full.artifacts.find((a) => a.kind === "direction_decision");
+      const sealedDecision = directionDecisionSchema.parse(decisionArtifact?.sealedContent);
+      const blueprintArtifact = full.artifacts.find((a) => a.kind === "narrative_blueprint");
+      const sealedBlueprint = narrativeBlueprintSchema.parse(blueprintArtifact?.sealedContent);
+      // No-null: el guard ya confirmó que existe una dirección con este id y status "chosen".
+      const chosen = full.directions.find((d) => d.id === full.project.chosenDirectionId)!;
+
+      return buildComposePageTreeRequest({
+        title: full.project.title,
+        landingDna: sealedLandingDna,
+        visualDna: sealedVisualDna,
+        decision: sealedDecision,
+        chosenDirection: {
+          title: chosen.title,
+          concept: chosen.concept,
+          // jsonb (`unknown` en Drizzle) — mismo criterio de cast que `generate_directions`/
+          // `build_narrative` arriba (el shape lo garantiza el propio `persistResult` de
+          // `generate_directions`).
+          designTokens: chosen.designTokens as Direccion["designTokens"],
+          motionDna: chosen.motionDna as Direccion["motionDna"],
+          signatureMotif: chosen.signatureMotif as Direccion["signatureMotif"],
+          signatureComponent: chosen.signatureComponent as Direccion["signatureComponent"],
+        },
+        blueprint: sealedBlueprint,
+      });
+    },
+    // Sin texto crudo — solo conteos (I3 del docstring de OperationConfig.inputSummary).
+    inputSummary: (full) => {
+      const blueprintArtifact = full.artifacts.find((a) => a.kind === "narrative_blueprint");
+      const sealedBlueprint = narrativeBlueprintSchema.parse(blueprintArtifact?.sealedContent);
+      // No-null: el guard ya confirmó que existe una dirección con este id y status "chosen".
+      const chosen = full.directions.find((d) => d.id === full.project.chosenDirectionId)!;
+      return {
+        actosCount: sealedBlueprint.actos.length,
+        cinematicMomentsCount: sealedBlueprint.cinematicMoments.length,
+        notasProduccionCount: sealedBlueprint.notasProduccion.length,
+        chosenDirectionTitleLength: chosen.title.length,
+      };
+    },
+    // Estático (mismo criterio que `generate_directions` → "directions:project"): el id/version REAL
+    // de la fila insertada no existe todavía en este punto (`resultRef` se resuelve en `createRun`,
+    // ANTES de `buildRequest`/`executeOperation`/`persistResult`, que corren fire-and-forget después
+    // de la respuesta HTTP) — no hay forma de anticipar acá qué versión nacerá.
+    resultRef: () => "page_version:project",
+    persistResult: async (output, ctx) => {
+      // Defensa en profundidad (D2/D4): el domain schema (`composePageTreeDomainSchema`) ya corrió
+      // `validatePageTree` dentro del motor (vía el retry `domain_validation` de `executeOperation`),
+      // pero el insert NUNCA debe confiar a ciegas en que ese camino no se bypasseó — se re-valida
+      // acá, justo antes de persistir, mismo criterio que "LA puerta única" del docstring de
+      // `validatePageTree`.
+      const validation = validatePageTree(output);
+      if (!validation.ok) {
+        throw new Error(validation.errors.join(" | "));
+      }
+      // `tree` guarda el output RAW (con `propsJson` como string) — byte-fiel a lo que
+      // `validatePageTree` acaba de validar, NO el `ValidatedPageTree` transformado (props ya
+      // parseadas): D5 vuelve a correr `validatePageTree(version.tree)` en el preview, y eso exige
+      // que `tree` siga teniendo la forma de `pageTreeSchema` (con `propsJson` string), no la forma
+      // ya resuelta de `ValidatedPageTree`.
+      await insertPageVersion(
+        ctx.projectId,
+        ctx.ownerId,
+        { tree: output, notas: validation.tree.notas, warnings: validation.warnings },
+        ctx.actor
+      );
+    },
+    domainSchema: composePageTreeDomainSchema,
+    promptVersion: COMPOSE_PAGE_TREE_PROMPT_VERSION,
+  },
 } satisfies Record<string, OperationConfig>;
 
 export const runtime = "nodejs";
@@ -527,6 +641,7 @@ export const createRunSchema = z
         "synthesize_visual_dna",
         "generate_directions",
         "build_narrative",
+        "compose_page_tree",
       ],
       {
         errorMap: () => ({ message: "Operación no disponible en esta fase" }),
