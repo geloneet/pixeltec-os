@@ -61,11 +61,12 @@ export const OPERATION_SPECS: Record<PixelforgeAIOperation, OperationSpec> = {
   // 24000: el smoke F5 demostró que 3 direcciones completas truncan a 12000 (max_tokens exacto, 2×).
   generate_directions: { outputSchema: creativeDirectionsSchema, promptVersion: "v1", maxTokens: 24000 },
   build_narrative: { outputSchema: narrativeBlueprintSchema, promptVersion: "v1", maxTokens: 8000 },
-  // 24000 como generate_directions: el smoke F7 (2026-07-21) truncó un árbol real
-  // en 16000 exactos (tokens_out=16000/16000, failure_kind max_tokens); el engine
-  // es streaming desde F5, así que el único costo es el tope. Two-step sigue
-  // reservado (contracts/compose-two-step.ts) si 24000 también quedara corto.
-  compose_page_tree: { outputSchema: pageTreeSchema, promptVersion: "v1", maxTokens: 24000 },
+  // 32000: el smoke F7 (2026-07-21) truncó en 16000 exactos y luego, con 24000,
+  // el MISMO proyecto compuso bien una vez y truncó la recomposición (variancia de
+  // verbosidad en props) — 32000 + reglas de concisión en el prompt son el fix v1.
+  // El engine es streaming desde F5, así que el único costo es el tope. Two-step
+  // sigue reservado (contracts/compose-two-step.ts) como escalación si reaparece.
+  compose_page_tree: { outputSchema: pageTreeSchema, promptVersion: "v1", maxTokens: 32000 },
   propose_change: { outputSchema: proposedChangeSchema, promptVersion: "v1", maxTokens: 8000 },
   critique_design: { outputSchema: designCritiqueSchema, promptVersion: "v1", maxTokens: 8000 },
   score_originality: { outputSchema: originalityScoreSchema, promptVersion: "v1", maxTokens: 6000 },
