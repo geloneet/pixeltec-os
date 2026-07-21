@@ -17,8 +17,9 @@
  * en `build-narrative.v1.ts` — se envuelve con `wrapUntrustedContent`. El
  * Blueprint Narrativo, aunque sellado, es un BORRADOR editable por humano
  * antes de sellarse (a diferencia del Landing/Visual DNA, que no se editan
- * campo a campo): `historia`, cada acto y cada nota de producción se
- * envuelven con `wrapUntrustedContent`, mismo criterio que `notas` en
+ * campo a campo): `historia`, cada acto, cada momento cinematográfico
+ * (`descripcion`/`motifConnection`) y cada nota de producción se envuelven
+ * con `wrapUntrustedContent`, mismo criterio que `notas` en
  * `synthesize-visual-dna.v1.ts`.
  *
  * A diferencia de `generate-directions.v1.ts` (que recibe
@@ -210,10 +211,15 @@ function formatDecision(decision: DirectionDecision): string {
 /**
  * El Blueprint Narrativo llega SELLADO, pero — a diferencia del Landing/Visual
  * DNA — es un borrador editable campo a campo por un humano antes de sellarse
- * (`historia`, cada acto, cada nota de producción): se envuelven con
- * `wrapUntrustedContent`, mismo criterio que `notas` en
- * `synthesize-visual-dna.v1.ts`. `cinematicMoments` es contenido generado por
- * `build_narrative` sin edición de campo adicional — se neutraliza sin envolver.
+ * (`historia`, cada acto, cada momento cinematográfico, cada nota de
+ * producción): se envuelven con `wrapUntrustedContent`, mismo criterio que
+ * `notas` en `synthesize-visual-dna.v1.ts`. `cinematicMoments` llega dentro
+ * del mismo Blueprint que valida `updateArtifactDraftAction`
+ * (`src/app/(admin)/proyectos/pixelforge/actions.ts`) contra
+ * `narrativeBlueprintSchema` COMPLETO, sin lock a nivel de campo — su
+ * `descripcion` y `motifConnection` son, en el boundary de persistencia, tan
+ * editables a mano como `historia` o cualquier acto, así que se envuelven
+ * igual (no solo se neutralizan).
  */
 function formatBlueprint(blueprint: NarrativeBlueprint): string {
   const historiaWrapped = wrapUntrustedContent("blueprint-historia", blueprint.historia);
@@ -232,11 +238,19 @@ function formatBlueprint(blueprint: NarrativeBlueprint): string {
 
   const cinematicMomentsFormatted =
     blueprint.cinematicMoments.length > 0
-      ? neutralizeDelimiters(
-          blueprint.cinematicMoments
-            .map((m) => `- Acto ${m.actoOrden}: ${m.descripcion} (conexión con el motif: ${m.motifConnection})`)
-            .join("\n")
-        )
+      ? blueprint.cinematicMoments
+          .map((m, i) => {
+            const descripcionWrapped = wrapUntrustedContent(
+              `blueprint-momento-${i + 1}-descripcion`,
+              m.descripcion
+            );
+            const motifConnectionWrapped = wrapUntrustedContent(
+              `blueprint-momento-${i + 1}-motif-connection`,
+              m.motifConnection
+            );
+            return `- Acto ${m.actoOrden}: ${descripcionWrapped} (conexión con el motif: ${motifConnectionWrapped})`;
+          })
+          .join("\n")
       : "(sin momentos cinematográficos)";
 
   const notasProduccionFormatted =

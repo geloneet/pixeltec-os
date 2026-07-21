@@ -135,3 +135,78 @@ describe("composePageTreeDomainSchema — árbol inválido (D2: vuelca los error
     expect(result.success).toBe(false);
   });
 });
+
+describe("composePageTreeDomainSchema — reglas propias del composer (D-F7-T2: 3-14 nodos, footer-contact al final)", () => {
+  it("un árbol de 15 nodos (por encima del máximo de 14) produce el issue de conteo de nodos", () => {
+    const tree = validTree();
+    const extraNodes = Array.from({ length: 12 }, (_, i) =>
+      node({
+        nodeId: `features-extra-${i + 1}`,
+        componentId: "feature-grid",
+        variant: "3-col",
+        orden: i + 4,
+        propsJson: JSON.stringify(FEATURE_GRID_PROPS),
+      })
+    );
+    tree.nodes = [
+      tree.nodes[0],
+      tree.nodes[1],
+      ...extraNodes,
+      node({ nodeId: "footer-1", componentId: "footer-contact", variant: "default", orden: 16, propsJson: JSON.stringify(FOOTER_CONTACT_PROPS) }),
+    ];
+    expect(tree.nodes.length).toBe(15);
+
+    const result = composePageTreeDomainSchema.safeParse(tree);
+    expect(result.success).toBe(false);
+    if (result.success) throw new Error("expected success:false");
+    expect(
+      result.error.issues.some((issue) => issue.message.includes("no puede exceder 14 nodos (tiene 15)"))
+    ).toBe(true);
+  });
+
+  it("un árbol sin footer-contact produce el issue de footer-contact faltante", () => {
+    const tree = validTree();
+    tree.nodes = tree.nodes.filter((n) => n.componentId !== "footer-contact");
+
+    const result = composePageTreeDomainSchema.safeParse(tree);
+    expect(result.success).toBe(false);
+    if (result.success) throw new Error("expected success:false");
+    expect(
+      result.error.issues.some((issue) => issue.message.includes("El árbol debe cerrar con un nodo footer-contact"))
+    ).toBe(true);
+  });
+
+  it("footer-contact en medio del árbol (no el orden más alto) produce el issue de 'debe ser el último nodo'", () => {
+    const tree = validTree();
+    tree.nodes = [
+      node({ nodeId: "hero-1", componentId: "hero-split", variant: "media-right", orden: 1, propsJson: JSON.stringify(HERO_SPLIT_PROPS) }),
+      node({ nodeId: "footer-1", componentId: "footer-contact", variant: "default", orden: 2, propsJson: JSON.stringify(FOOTER_CONTACT_PROPS) }),
+      node({ nodeId: "features-1", componentId: "feature-grid", variant: "3-col", orden: 3, propsJson: JSON.stringify(FEATURE_GRID_PROPS) }),
+    ];
+
+    const result = composePageTreeDomainSchema.safeParse(tree);
+    expect(result.success).toBe(false);
+    if (result.success) throw new Error("expected success:false");
+    expect(
+      result.error.issues.some((issue) =>
+        issue.message.includes("footer-contact debe ser el último nodo (orden más alto)")
+      )
+    ).toBe(true);
+  });
+
+  it("dos nodos footer-contact producen el issue de 'solo puede haber uno'", () => {
+    const tree = validTree();
+    tree.nodes = [
+      node({ nodeId: "hero-1", componentId: "hero-split", variant: "media-right", orden: 1, propsJson: JSON.stringify(HERO_SPLIT_PROPS) }),
+      node({ nodeId: "footer-1", componentId: "footer-contact", variant: "default", orden: 2, propsJson: JSON.stringify(FOOTER_CONTACT_PROPS) }),
+      node({ nodeId: "footer-2", componentId: "footer-contact", variant: "default", orden: 3, propsJson: JSON.stringify(FOOTER_CONTACT_PROPS) }),
+    ];
+
+    const result = composePageTreeDomainSchema.safeParse(tree);
+    expect(result.success).toBe(false);
+    if (result.success) throw new Error("expected success:false");
+    expect(
+      result.error.issues.some((issue) => issue.message.includes("Solo puede haber un nodo footer-contact"))
+    ).toBe(true);
+  });
+});

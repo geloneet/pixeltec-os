@@ -27,6 +27,12 @@
  * cuerpos de función (`validatePageTree` internamente, y el callback de
  * `superRefine` acá) que corren en tiempo de parseo, no de import, cuando
  * ambos módulos ya terminaron de evaluarse.
+ *
+ * `checkComposerRules` (debajo, dentro de `composePageTreeDomainSchema`):
+ * enforcea las reglas de SALIDA del composer que el SYSTEM_PROMPT mandata
+ * pero que nada validaba ("3-14 nodos", "footer-contact al final") —
+ * deliberadamente NO en `pageTreeSchema` (que debe seguir aceptando el
+ * fixture de preview de 16 nodos, ver `fixtures/preview-tree.ts`).
  */
 import { z } from "zod/v4";
 import { validatePageTree } from "../registry/validate-page-tree";
@@ -84,6 +90,59 @@ export const pageTreeSchema = z
   });
 export type PageTree = z.infer<typeof pageTreeSchema>;
 
+/** Máximo de nodos que el composer puede producir (regla del SYSTEM_PROMPT de `compose-page-tree.v1.ts`, no del contrato general del árbol). */
+const MAX_COMPOSER_NODES = 14;
+
+/** `componentId` que el SYSTEM_PROMPT exige como cierre obligatorio del árbol. */
+const FOOTER_CONTACT_COMPONENT_ID = "footer-contact";
+
+/**
+ * Reglas específicas de SALIDA del composer ("3-14 nodos", "footer-contact al
+ * final") que el SYSTEM_PROMPT de `compose-page-tree.v1.ts` mandata pero que
+ * nada enforceaba — sin esto, una violación del modelo pasaba el schema y el
+ * retry `domain_validation` de `executeOperation` (`ai/run.ts`) nunca se
+ * disparaba. Viven AQUÍ (en el domain schema del composer) y NO en
+ * `pageTreeSchema`/`validatePageTree`: son reglas de este output concreto,
+ * no del contrato general del árbol — que otros consumidores (p.ej. el
+ * fixture de preview en `fixtures/preview-tree.ts`, con 16 nodos, validado
+ * directamente por `validatePageTree` en runtime, no por este domain schema)
+ * siguen necesitando aceptar sin el límite de 14 nodos.
+ */
+function checkComposerRules(tree: PageTree, ctx: z.RefinementCtx): void {
+  if (tree.nodes.length > MAX_COMPOSER_NODES) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["nodes"],
+      message: `El árbol del composer no puede exceder 14 nodos (tiene ${tree.nodes.length})`,
+    });
+  }
+
+  const footerNodes = tree.nodes.filter((node) => node.componentId === FOOTER_CONTACT_COMPONENT_ID);
+
+  if (footerNodes.length === 0) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["nodes"],
+      message: "El árbol debe cerrar con un nodo footer-contact",
+    });
+  } else if (footerNodes.length > 1) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["nodes"],
+      message: `Solo puede haber un nodo footer-contact en el árbol (hay ${footerNodes.length})`,
+    });
+  } else {
+    const maxOrden = Math.max(...tree.nodes.map((node) => node.orden));
+    if (footerNodes[0]?.orden !== maxOrden) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["nodes"],
+        message: "footer-contact debe ser el último nodo (orden más alto)",
+      });
+    }
+  }
+}
+
 /**
  * Wrapper de dominio (D2) — parsea con `pageTreeSchema` (forma, incluido el
  * superRefine de `nodeId` únicos de arriba) y, si eso pasa, corre
@@ -94,7 +153,9 @@ export type PageTree = z.infer<typeof pageTreeSchema>;
  * de la respuesta del modelo (`ai/run.ts`) — nunca con el resultado ya
  * parseado por `outputSchema` — así que este wrapper debe (y puede) volver a
  * parsear la forma desde cero, exactamente como hace
- * `buildCreativeDirectionsDomainSchema`.
+ * `buildCreativeDirectionsDomainSchema`. También corre `checkComposerRules`
+ * (arriba) para las reglas de "3-14 nodos"/"footer-contact al final" propias
+ * de este output.
  */
 export const composePageTreeDomainSchema = pageTreeSchema.superRefine((tree, ctx) => {
   const validation = validatePageTree(tree);
@@ -103,4 +164,6 @@ export const composePageTreeDomainSchema = pageTreeSchema.superRefine((tree, ctx
       ctx.addIssue({ code: "custom", path: [], message });
     }
   }
+
+  checkComposerRules(tree, ctx);
 });
