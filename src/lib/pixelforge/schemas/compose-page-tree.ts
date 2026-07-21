@@ -5,8 +5,31 @@
  * aquí — este schema solo garantiza la forma del árbol y la coreografía.
  * El superRefine (nodeIds únicos) se aplica directamente sobre el schema
  * registrado, igual que build-narrative.
+ *
+ * `composePageTreeDomainSchema` (D2, F7-T2): wrapper de DOMINIO que ejecuta
+ * `validatePageTree` (LA puerta única, `../registry/validate-page-tree`)
+ * dentro de un `superRefine` y vuelca cada uno de sus `errors` como un issue
+ * — así el retry `domain_validation` de `executeOperation` (`ai/run.ts`)
+ * le devuelve al modelo, gratis, los errores CONCRETOS del registry
+ * (componentId desconocido, variant inválida, propsJson malformado, props
+ * que violan el propsSchema, targetSlot fuera de editableSlots, intensity 3
+ * sin allowsCinematic, más de 3 nodos cinematográficos, orden duplicado,
+ * reglas de capability) en vez de un genérico "salida inválida". Vive junto
+ * a `pageTreeSchema` (no en `registry/`) siguiendo el mismo patrón que
+ * `buildCreativeDirectionsDomainSchema` en `generate-directions.ts` — que ya
+ * importa de `../registry/capabilities` — así que `schemas/` dependiendo de
+ * `registry/` para un refine de dominio no es nuevo en este repo.
+ *
+ * Nota sobre el import circular aparente: `registry/validate-page-tree.ts`
+ * importa `pageTreeSchema` de ESTE archivo, y este archivo importa
+ * `validatePageTree` de ese módulo — es seguro porque ninguno de los dos usa
+ * el import del otro en su nivel superior (module top-level), solo dentro de
+ * cuerpos de función (`validatePageTree` internamente, y el callback de
+ * `superRefine` acá) que corren en tiempo de parseo, no de import, cuando
+ * ambos módulos ya terminaron de evaluarse.
  */
 import { z } from "zod/v4";
+import { validatePageTree } from "../registry/validate-page-tree";
 
 const motionSequenceSchema = z.object({
   behaviorId: z.string().min(1).describe("Id de un comportamiento de motion REGISTRADO en el registry de behaviors seguros."),
@@ -60,3 +83,24 @@ export const pageTreeSchema = z
     });
   });
 export type PageTree = z.infer<typeof pageTreeSchema>;
+
+/**
+ * Wrapper de dominio (D2) — parsea con `pageTreeSchema` (forma, incluido el
+ * superRefine de `nodeId` únicos de arriba) y, si eso pasa, corre
+ * `validatePageTree` sobre el árbol ya parseado (re-ejecuta
+ * `pageTreeSchema.safeParse` internamente — idempotente, el árbol ya es
+ * válido en forma) y vuelca cada string de `errors` como un issue de zod.
+ * `executeOperation` llama `domainSchema.safeParse(json)` con el JSON crudo
+ * de la respuesta del modelo (`ai/run.ts`) — nunca con el resultado ya
+ * parseado por `outputSchema` — así que este wrapper debe (y puede) volver a
+ * parsear la forma desde cero, exactamente como hace
+ * `buildCreativeDirectionsDomainSchema`.
+ */
+export const composePageTreeDomainSchema = pageTreeSchema.superRefine((tree, ctx) => {
+  const validation = validatePageTree(tree);
+  if (!validation.ok) {
+    for (const message of validation.errors) {
+      ctx.addIssue({ code: "custom", path: [], message });
+    }
+  }
+});
