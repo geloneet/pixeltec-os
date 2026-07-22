@@ -178,11 +178,19 @@ async function runAdvisoryOperation(params: RunAdvisoryOperationParams): Promise
     const claimed = await claimRun(runId);
     if (!claimed) return; // defensivo — recién creado en `queued`, no debería pasar.
 
+    // `ctx` con `runId` (BUG-1 smoke F8): `attachQaAdvisoryRuns` ya seteó el FK advisory
+    // de esta operación al `runId` que se está ejecutando ANTES de llegar acá — el guard
+    // necesita saber cuál es ese `runId` para distinguir "el FK apunta a este run" (acepta)
+    // de "el FK apunta a otro run" (rechaza, duplicado). El `ctx` externo del scope de
+    // `launchQaAdvisoryRuns` no lo lleva (se arma antes de que exista ningún `runId`), así
+    // que se arma acá, local a esta operación.
+    const runCtx: AdvisoryOperationCtx = { ...ctx, runId };
+
     // Re-carga fresca (mismo criterio que al calcular el `inputSummary` de arriba, pero justo antes de
     // ejecutar — defensa contra una carrera donde el qa_run cambió de estado entre `attachQaAdvisoryRuns`
     // y este punto, p.ej. `sweepStaleQaRuns` lo marcó `failed` mientras esto esperaba en la cola de eventos).
-    const extra = await config.loadExtra(full, ctx);
-    const guardError = config.guard(full, ctx, extra);
+    const extra = await config.loadExtra(full, runCtx);
+    const guardError = config.guard(full, runCtx, extra);
     if (guardError) {
       await finishAndFinalize(runId, qaRunId, {
         status: "failed",
@@ -194,17 +202,18 @@ async function runAdvisoryOperation(params: RunAdvisoryOperationParams): Promise
       return;
     }
 
-    const { system, messages } = config.buildRequest(full, ctx, extra);
+    const { system, messages } = config.buildRequest(full, runCtx, extra);
 
     // Variable intermedia (no un literal inline) a propósito: `persistResult` de las 3 operaciones
     // acepta `AdvisoryOperationCtx` (solo lo que usan), pero el chequeo de excess properties de TS
-    // rechazaría un objeto LITERAL con `projectId`/`actor`/`runId` de más — pasando por una `const`
+    // rechazaría un objeto LITERAL con `projectId`/`actor` de más — pasando por una `const`
     // ya tipada eso deja de aplicar (mismo objeto en runtime, solo evita el chequeo de literal fresco).
+    // Parte de `runCtx` (ya trae `runId`) en vez de `ctx` — mismo `runId` que vio el guard.
     const persistCtx: AdvisoryOperationCtx & { projectId: string; actor: Actor; runId: string } = {
-      ...ctx,
+      ...runCtx,
+      runId,
       projectId: full.project.id,
       actor,
-      runId,
     };
 
     await executeOperation({

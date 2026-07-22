@@ -209,6 +209,48 @@ describe("launchQaAdvisoryRuns — atomicidad de los 3 FKs", () => {
   });
 });
 
+describe("launchQaAdvisoryRuns — BUG-1 (smoke F8): el guard recibe el runId del lanzamiento interno", () => {
+  // Regresión: antes de este fix, `runAdvisoryOperation` invocaba `config.guard`/`config.loadExtra`
+  // con el `ctx` externo (sin `runId`) — el guard REAL (`makeGuard`, ver `advisory-operations.test.ts`)
+  // entonces veía el FK ya seteado por `attachQaAdvisoryRuns` y rechazaba siempre. Este test no
+  // reimplementa esa lógica (guard sigue mockeado, como el resto de esta suite de orquestación) —
+  // verifica el contrato que la vuelve posible: que el `ctx` con el que se invoca `guard`/`loadExtra`
+  // trae `runId` == el run que efectivamente se está ejecutando para esa operación.
+  it("guard y loadExtra de cada operación reciben ctx.runId == el runId atado a esa operación", async () => {
+    vi.mocked(getQaRunById).mockResolvedValue(fixtureQaRun());
+    vi.mocked(getPixelforgeProjectFull).mockResolvedValue(fixtureFull());
+    vi.mocked(attachQaAdvisoryRuns).mockResolvedValue({
+      critiqueRunId: "run-critique",
+      originalityRunId: "run-originality",
+      likenessRunId: "run-likeness",
+    });
+    vi.mocked(claimRun).mockResolvedValue(true);
+    vi.mocked(executeOperation).mockResolvedValue({ output: {} });
+
+    await launchQaAdvisoryRuns({ qaRunId: "qa-1", projectId: "project-1" });
+
+    await vi.waitFor(() => expect(executeOperation).toHaveBeenCalledTimes(3));
+
+    expect(critiqueDesignOperation.guard).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ runId: "run-critique" }),
+      expect.anything()
+    );
+    expect(scoreOriginalityOperation.guard).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ runId: "run-originality" }),
+      expect.anything()
+    );
+    expect(detectAiLikenessOperation.guard).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ runId: "run-likeness" }),
+      expect.anything()
+    );
+    // `loadExtra` (releído fresco justo antes del guard, ver docstring) debe ver el mismo `runId`.
+    expect(critiqueDesignOperation.loadExtra).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ runId: "run-critique" }));
+  });
+});
+
 describe("launchQaAdvisoryRuns — finishRun→finalize, incluso con la operación fallida", () => {
   it("guard rechaza → cierra el ai_run failed y de todos modos intenta finalizeQaRunOrchestrated", async () => {
     vi.mocked(getQaRunById).mockResolvedValue(fixtureQaRun());

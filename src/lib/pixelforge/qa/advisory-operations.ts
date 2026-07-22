@@ -44,12 +44,23 @@ import { buildCritiqueDesignRequest, CRITIQUE_DESIGN_PROMPT_VERSION } from "../a
 import { buildScoreOriginalityRequest, SCORE_ORIGINALITY_PROMPT_VERSION } from "../ai/prompts/score-originality.v1";
 import { buildDetectAiLikenessRequest, DETECT_AI_LIKENESS_PROMPT_VERSION } from "../ai/prompts/detect-ai-likeness.v1";
 
-/** `OperationRunCtx` de `route.ts` + `qaRunId` (requerido para estas 3 operaciones, análogo a `referenceId` de `analyze_reference`). */
+/**
+ * `OperationRunCtx` de `route.ts` + `qaRunId` (requerido para estas 3
+ * operaciones, análogo a `referenceId` de `analyze_reference`) + `runId`
+ * (BUG-1 smoke F8): el run en ejecución cuyo `guard` está evaluando esta
+ * llamada — `undefined` en el camino público (`route.ts` construye `opCtx`
+ * ANTES de que exista un `runId`, ver ese handler), seteado por
+ * `advisory.ts::runAdvisoryOperation` en el camino interno (el único que SÍ
+ * conoce el `runId` en ejecución antes de invocar el guard). `makeGuard`
+ * usa este campo para distinguir "el FK apunta a ESTE run" (lanzamiento
+ * interno legítimo, acepta) de "el FK apunta a OTRO run" (duplicado, rechaza).
+ */
 export interface AdvisoryOperationCtx {
   referenceId?: string;
   ownerId: string;
   slot?: number;
   qaRunId?: string;
+  runId?: string;
 }
 
 export interface LoadedAdvisoryContext {
@@ -81,20 +92,25 @@ export async function loadAdvisoryContext(
 /**
  * Guard compartido por las 3 operaciones: exige un `qa_run` `running` para
  * este proyecto (409 "No hay un QA en curso para este proyecto" si no lo
- * hay) Y que el FK advisory correspondiente de ESE `qa_run` siga vacío — si
- * ya está seteado, esta operación ya se lanzó para este run (evita crear un
- * `ai_run` huérfano, nunca referenciado por ningún FK, ante una segunda
- * invocación directa por HTTP).
+ * hay) Y que el FK advisory correspondiente de ESE `qa_run` o bien siga
+ * vacío, o bien apunte AL RUN QUE SE ESTÁ EJECUTANDO (`ctx.runId`) — no
+ * basta con mirar si el FK está seteado: `attachQaAdvisoryRuns` YA lo setea
+ * al run legítimo antes de que `advisory.ts::runAdvisoryOperation` llegue a
+ * invocar este guard (BUG-1 smoke F8), así que "FK !== null" por sí solo
+ * autobloquea siempre el lanzamiento interno real. El rechazo es solo
+ * cuando el FK apunta a OTRO run — eso sí es el caso que el guard nació
+ * para frenar: una segunda invocación directa por HTTP creando un `ai_run`
+ * huérfano, nunca referenciado por ningún FK.
  */
 function makeGuard(fkField: "critiqueRunId" | "originalityRunId" | "likenessRunId", label: string) {
   return (full: PixelforgeProjectFull, ctx: AdvisoryOperationCtx, extra: unknown): string | null => {
     void full;
-    void ctx;
     const loaded = extra as LoadedAdvisoryContext | null;
     if (!loaded || loaded.qaRun.status !== "running") {
       return "No hay un QA en curso para este proyecto";
     }
-    if (loaded.qaRun[fkField] !== null) {
+    const fk = loaded.qaRun[fkField];
+    if (fk !== null && fk !== ctx.runId) {
       return `${label} ya se lanzó para este QA`;
     }
     return null;

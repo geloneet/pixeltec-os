@@ -87,9 +87,24 @@ describe.each([
     expect(guard(DUMMY_FULL, CTX, loaded)).toBeNull();
   });
 
-  it("rechaza si el FK de esta operación ya está seteado (ya se lanzó para este QA)", () => {
+  it("rechaza si el FK de esta operación ya está seteado y ctx no trae runId (camino público, duplicado)", () => {
     const loaded = fixtureLoaded({ status: "running", [fkField]: "run-existente" });
     expect(guard(DUMMY_FULL, CTX, loaded)).toBe(`${label} ya se lanzó para este QA`);
+  });
+
+  // BUG-1 (smoke F8): `attachQaAdvisoryRuns` ya setea el FK al run que se va a ejecutar
+  // ANTES de que el guard corra — el guard debe distinguir "el FK apunta a ESTE run" de
+  // "apunta a OTRO run", no solo mirar si está seteado.
+  it("acepta cuando el FK apunta al run en ejecución (ctx.runId === FK) — lanzamiento interno legítimo", () => {
+    const loaded = fixtureLoaded({ status: "running", [fkField]: "run-en-curso" });
+    const ctxConRunId: AdvisoryOperationCtx = { ...CTX, runId: "run-en-curso" };
+    expect(guard(DUMMY_FULL, ctxConRunId, loaded)).toBeNull();
+  });
+
+  it("rechaza cuando el FK apunta a OTRO run (ctx.runId !== FK) — duplicado real", () => {
+    const loaded = fixtureLoaded({ status: "running", [fkField]: "run-existente" });
+    const ctxConRunId: AdvisoryOperationCtx = { ...CTX, runId: "otro-run-distinto" };
+    expect(guard(DUMMY_FULL, ctxConRunId, loaded)).toBe(`${label} ya se lanzó para este QA`);
   });
 });
 
