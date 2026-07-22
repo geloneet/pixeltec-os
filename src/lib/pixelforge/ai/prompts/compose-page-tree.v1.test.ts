@@ -225,6 +225,23 @@ describe("buildComposePageTreeRequest — decisión de Signature Component (D3)"
   });
 });
 
+describe("buildComposePageTreeRequest — anclas internas retiradas del contrato de hrefs (QA-TE-005)", () => {
+  it("el system prompt ya NO propone anclas '#' como href permitido y las prohíbe explícitamente", () => {
+    const request = buildComposePageTreeRequest({
+      title: "x",
+      landingDna: LANDING_DNA,
+      visualDna: VISUAL_DNA,
+      decision: DECISION,
+      chosenDirection: CHOSEN_DIRECTION_CAPABILITY,
+      blueprint: BLUEPRINT,
+    });
+
+    expect(request.system).not.toContain('anclas que empiecen con "#"');
+    expect(request.system).toMatch(/anclas internas "#"/);
+    expect(request.system).toMatch(/JAMÁS[^.]*anclas internas/);
+  });
+});
+
 describe("buildComposePageTreeRequest — neutraliza intentos de inyección", () => {
   it("neutraliza el esquema de delimitadores dentro del Landing DNA (borrador editable por humano) y lo envuelve", () => {
     const request = buildComposePageTreeRequest({

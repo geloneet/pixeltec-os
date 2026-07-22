@@ -97,9 +97,33 @@ const MAX_COMPOSER_NODES = 14;
 const FOOTER_CONTACT_COMPONENT_ID = "footer-contact";
 
 /**
+ * Recorre un valor de props ya parseado y devuelve todo string bajo una key
+ * `href` que sea ancla interna (`#...`). Las anclas están prohibidas en la
+ * SALIDA del composer (QA-TE-005): ningún block certificado del PageRenderer
+ * emite `id=`, así que un href `#x` jamás resuelve. La prohibición vive AQUÍ
+ * y NO en `isSafeHref`/`hrefSchema` (`registry/blocks.ts`): el contrato
+ * general del árbol sigue aceptando `#` para que las page_versions ya
+ * almacenadas que traigan anclas sigan renderizando (link inerte que QA
+ * señala), mientras el composer deja de producir nuevas. El soporte real de
+ * navegación interna (ids por sección + contrato renderer↔composer) queda
+ * como capacidad futura.
+ */
+function collectAnchorHrefs(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.flatMap(collectAnchorHrefs);
+  }
+  if (value !== null && typeof value === "object") {
+    return Object.entries(value).flatMap(([key, child]) =>
+      key === "href" && typeof child === "string" && child.startsWith("#") ? [child] : collectAnchorHrefs(child)
+    );
+  }
+  return [];
+}
+
+/**
  * Reglas específicas de SALIDA del composer ("3-14 nodos", "footer-contact al
- * final") que el SYSTEM_PROMPT de `compose-page-tree.v1.ts` mandata pero que
- * nada enforceaba — sin esto, una violación del modelo pasaba el schema y el
+ * final", sin anclas internas `#`) que el SYSTEM_PROMPT de
+ * `compose-page-tree.v1.ts` mandata pero que nada enforceaba — sin esto, una violación del modelo pasaba el schema y el
  * retry `domain_validation` de `executeOperation` (`ai/run.ts`) nunca se
  * disparaba. Viven AQUÍ (en el domain schema del composer) y NO en
  * `pageTreeSchema`/`validatePageTree`: son reglas de este output concreto,
@@ -109,6 +133,22 @@ const FOOTER_CONTACT_COMPONENT_ID = "footer-contact";
  * siguen necesitando aceptar sin el límite de 14 nodos.
  */
 function checkComposerRules(tree: PageTree, ctx: z.RefinementCtx): void {
+  tree.nodes.forEach((node, i) => {
+    let props: unknown;
+    try {
+      props = JSON.parse(node.propsJson);
+    } catch {
+      return; // propsJson malformado ya lo reporta validatePageTree con su mensaje propio
+    }
+    for (const anchor of collectAnchorHrefs(props)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["nodes", i, "propsJson"],
+        message: `El nodo "${node.nodeId}" usa el href de ancla interna "${anchor}" — las anclas "#" están prohibidas: ningún block emite id= y nunca resuelven. Usa una ruta interna "/..." o una URL "https://...", o quita el enlace.`,
+      });
+    }
+  });
+
   if (tree.nodes.length > MAX_COMPOSER_NODES) {
     ctx.addIssue({
       code: "custom",

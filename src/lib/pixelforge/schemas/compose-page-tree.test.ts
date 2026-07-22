@@ -136,6 +136,73 @@ describe("composePageTreeDomainSchema — árbol inválido (D2: vuelca los error
   });
 });
 
+describe("composePageTreeDomainSchema — anclas internas prohibidas (QA-TE-005: ningún block emite id=, nunca resuelven)", () => {
+  it("un href de ancla interna '#' en props de primer nivel produce el issue nombrando el nodo y el href", () => {
+    const tree = validTree();
+    tree.nodes[0] = node({
+      nodeId: "hero-1",
+      componentId: "hero-split",
+      variant: "media-right",
+      orden: 1,
+      propsJson: JSON.stringify({ ...HERO_SPLIT_PROPS, cta: { label: "Solicitar servicio", href: "#contacto" } }),
+    });
+
+    const result = composePageTreeDomainSchema.safeParse(tree);
+    expect(result.success).toBe(false);
+    if (result.success) throw new Error("expected success:false");
+    expect(
+      result.error.issues.some(
+        (issue) =>
+          issue.message.includes("hero-1") && issue.message.includes("#contacto") && /ancla/i.test(issue.message)
+      )
+    ).toBe(true);
+  });
+
+  it("un href de ancla interna '#' anidado en un array (links del footer) también se rechaza", () => {
+    const tree = validTree();
+    tree.nodes[2] = node({
+      nodeId: "footer-1",
+      componentId: "footer-contact",
+      variant: "default",
+      orden: 3,
+      propsJson: JSON.stringify({
+        ...FOOTER_CONTACT_PROPS,
+        links: [
+          { label: "Aviso de privacidad", href: "/privacidad" },
+          { label: "Volver arriba", href: "#top" },
+        ],
+      }),
+    });
+
+    const result = composePageTreeDomainSchema.safeParse(tree);
+    expect(result.success).toBe(false);
+    if (result.success) throw new Error("expected success:false");
+    expect(
+      result.error.issues.some((issue) => issue.message.includes("footer-1") && issue.message.includes("#top"))
+    ).toBe(true);
+  });
+
+  it("hrefs '/' internos y 'https://' externos siguen aceptándose (solo se retira '#')", () => {
+    const tree = validTree();
+    tree.nodes[2] = node({
+      nodeId: "footer-1",
+      componentId: "footer-contact",
+      variant: "default",
+      orden: 3,
+      propsJson: JSON.stringify({
+        ...FOOTER_CONTACT_PROPS,
+        links: [
+          { label: "Aviso de privacidad", href: "/privacidad" },
+          { label: "Facebook", href: "https://facebook.com/pixeltec" },
+        ],
+      }),
+    });
+
+    const result = composePageTreeDomainSchema.safeParse(tree);
+    expect(result.success).toBe(true);
+  });
+});
+
 describe("composePageTreeDomainSchema — reglas propias del composer (D-F7-T2: 3-14 nodos, footer-contact al final)", () => {
   it("un árbol de 15 nodos (por encima del máximo de 14) produce el issue de conteo de nodos", () => {
     const tree = validTree();

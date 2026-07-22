@@ -25,6 +25,13 @@ import { z } from "zod";
  * etc.). Es el único punto de la validación de hrefs — cualquier campo href
  * nuevo debe reusar esta misma constante, no reimplementar la regla.
  *
+ * Nota (QA-TE-005): el `#` sigue siendo RENDER-safe aquí (las page_versions
+ * ya almacenadas con anclas deben seguir renderizando, como link inerte que
+ * QA señala), pero el COMPOSER ya no lo acepta ni lo propone — la
+ * prohibición vive en `checkComposerRules` (`schemas/compose-page-tree.ts`)
+ * y en su SYSTEM_PROMPT. Navegación interna real = capacidad futura con
+ * contrato explícito de ids renderer↔composer.
+ *
  * `value.startsWith("/")` NO basta para "ruta interna": `"//evil.com"` y
  * `"/\evil.com"` también empiezan con `/`, y el navegador los resuelve como
  * URLs PROTOCOL-RELATIVE (`//evil.com` → `https://evil.com`, y `\` se
