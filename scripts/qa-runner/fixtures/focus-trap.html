@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>fixture: trampa de foco (QA-AX-002)</title>
+</head>
+<body>
+  <main>
+    <div data-pf-node="n1" data-pf-component="cta-banner">
+      <h1>Sección con trampa de foco real</h1>
+      <button id="a">Control A (atrapa el foco)</button>
+      <button id="b">Control B (nunca alcanzable)</button>
+      <button id="c">Control C (nunca alcanzable)</button>
+    </div>
+  </main>
+  <footer>pie de página</footer>
+  <script>
+    // Keydown que reenfoca: al presionar Tab con foco en A, se cancela el
+    // avance nativo y se vuelve a enfocar A — el foco JAMÁS avanza a B/C.
+    document.getElementById("a").addEventListener("keydown", (event) => {
+      if (event.key === "Tab") {
+        event.preventDefault();
+        document.getElementById("a").focus();
+      }
+    });
+  </script>
+</body>
+</html>

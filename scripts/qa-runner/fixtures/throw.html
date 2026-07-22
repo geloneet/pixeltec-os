@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>fixture: error de runtime (QA-TE-001)</title>
+</head>
+<body>
+  <main>
+    <div data-pf-node="n1" data-pf-component="hero-split">
+      <h1>Sección con error de JavaScript</h1>
+      <p>Esta página lanza un error de runtime al cargar.</p>
+    </div>
+  </main>
+  <footer>pie de página</footer>
+  <script>
+    window.addEventListener("load", () => {
+      // Referencia a una función inexistente — dispara un `pageerror` real,
+      // sin ningún patrón de hidratación (QA-TE-002 no debe disparar acá).
+      funcionQueNoExiste();
+    });
+  </script>
+</body>
+</html>

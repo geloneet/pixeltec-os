@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>fixture: deadlock de motion (QA-MO-001)</title>
+</head>
+<body>
+  <main>
+    <div data-pf-node="n1" data-pf-component="feature-grid">
+      <h1>Sección con item de motion atascado</h1>
+      <div data-pf-motion-item style="opacity: 0;">Este item nunca se revela (simula el deadlock real de F6B).</div>
+    </div>
+  </main>
+  <footer>pie de página</footer>
+</body>
+</html>

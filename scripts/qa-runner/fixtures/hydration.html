@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>fixture: mismatch de hidratación simulado (QA-TE-002)</title>
+</head>
+<body>
+  <main>
+    <div data-pf-node="n1" data-pf-component="hero-split">
+      <h1>Sección con hidratación simulada</h1>
+      <p>Esta página no lanza ningún error de runtime — solo imprime en consola el MISMO patrón que React 15 usa para reportar un mismatch de hidratación.</p>
+    </div>
+  </main>
+  <footer>pie de página</footer>
+  <script>
+    // Ningún throw acá (QA-TE-001 no debe disparar) — solo el patrón de
+    // consola que `HYDRATION_ERROR_PATTERNS` (checks/technical.ts) detecta.
+    console.error(
+      'Warning: Text content did not match. Server: "A" Client: "B"'
+    );
+  </script>
+</body>
+</html>

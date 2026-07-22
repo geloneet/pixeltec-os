@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>fixture: página sana de control (0 findings de los checks bajo prueba)</title>
+</head>
+<body>
+  <main>
+    <div data-pf-node="n1" data-pf-component="hero-split">
+      <h1>Sección sana — nada roto a propósito</h1>
+      <p>Texto de relleno con buen contraste (negro sobre blanco).</p>
+      <img
+        src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+        alt="pixel de prueba"
+        width="1"
+        height="1"
+      />
+      <div data-pf-motion-item style="opacity: 1;">Este item ya está revelado (sin deadlock).</div>
+      <span data-pf-motion-count="120+">120+</span>
+      <button id="a">Control A</button>
+      <button id="b">Control B</button>
+      <button id="c">Control C</button>
+    </div>
+  </main>
+  <footer>pie de página</footer>
+</body>
+</html>
