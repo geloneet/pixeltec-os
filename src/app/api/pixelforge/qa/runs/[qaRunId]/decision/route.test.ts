@@ -55,6 +55,10 @@ beforeEach(() => {
   authMock.mockResolvedValue({ user: { id: OWNER_ID, name: "Miguel" } });
   (getQaRunWithFindings as ReturnType<typeof vi.fn>).mockResolvedValue(makeExisting());
   (getLatestPageVersion as ReturnType<typeof vi.fn>).mockResolvedValue({ id: PAGE_VERSION_ID });
+  // Default: el gate SIEMPRE abre — mismo shape que devuelve el repo real
+  // desde que `openQaGate` pasó de `Promise<void>` a `Promise<OpenQaGateResult>`
+  // (review final PF-F8, finding 1). El test de la carrera lo pisa.
+  (openQaGate as ReturnType<typeof vi.fn>).mockResolvedValue({ opened: true });
 });
 
 describe("POST /api/pixelforge/qa/runs/:qaRunId/decision", () => {
@@ -112,6 +116,22 @@ describe("POST /api/pixelforge/qa/runs/:qaRunId/decision", () => {
       name: "Miguel",
     });
     expect(openQaGate).toHaveBeenCalledWith(PROJECT_ID, QA_RUN_ID, { id: OWNER_ID, name: "Miguel" });
+  });
+
+  it("409 si openQaGate detecta stale-version DENTRO de su tx pese al chequeo temprano (review final PF-F8, finding 1)", async () => {
+    // El chequeo temprano de arriba (línea `getLatestPageVersion`) es UX, no
+    // la garantía — simula la carrera real: una versión nueva aterriza justo
+    // DESPUÉS de ese chequeo pero ANTES de la tx de openQaGate.
+    (openQaGate as ReturnType<typeof vi.fn>).mockResolvedValue({ opened: false, reason: "stale-version" });
+
+    const res = await POST(makeRequest({ decision: "approved", reason: "razón suficiente" }), makeParams());
+    const body = await res.json();
+
+    expect(res.status).toBe(409);
+    expect(body.error).toMatch(/versión anterior/);
+    // La decisión humana YA se registró (sigue siendo un hecho real) — lo
+    // que no ocurrió fue el avance de estación.
+    expect(recordQaHumanDecision).toHaveBeenCalled();
   });
 
   it("rejected → registra la decisión y NO abre la compuerta", async () => {

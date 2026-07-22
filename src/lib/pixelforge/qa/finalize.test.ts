@@ -156,6 +156,12 @@ beforeEach(() => {
   getQaFindingsForRunMock.mockResolvedValue([]);
   getAiRunStatusesMock.mockResolvedValue(new Map());
   finalizeQaRunMock.mockResolvedValue(true);
+  // Default: el gate SIEMPRE abre — mismo shape que devuelve el repo real
+  // desde que `openQaGate` pasó de `Promise<void>` a `Promise<OpenQaGateResult>`
+  // (review final PF-F8, finding 1). Los tests que quieran la carrera
+  // angosta (stale-version detectada DENTRO de la tx pese a que
+  // `isStaleVersion` dio `false` acá) lo pisan explícitamente.
+  openQaGateMock.mockResolvedValue({ opened: true });
 });
 
 describe("finalizeQaRunOrchestrated — no-op", () => {
@@ -365,6 +371,31 @@ describe("finalizeQaRunOrchestrated — gate automático solo si la versión sig
       expect.arrayContaining([expect.objectContaining({ checkCode: "QA-ST-004" })])
     );
     expect(openQaGateMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("finalizeQaRunOrchestrated — openQaGate detecta stale-version DENTRO de su tx (review final PF-F8, finding 1)", () => {
+  it("gate devuelve {opened:false, reason:'stale-version'} pese a isStaleVersion=false acá → no revienta, deja rastro por consola", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    getQaRunByIdMock.mockResolvedValue(makeRun({ browserStatus: "succeeded" }));
+    getPageVersionInternalMock.mockResolvedValue(makePageVersion({ version: 2 }));
+    getLatestPageVersionNumberMock.mockResolvedValue(2); // acá NO parece stale...
+    getQaFindingsForRunMock.mockResolvedValue([]);
+    // ...pero la tx real de openQaGate, un instante después, ya ve una v3
+    // (carrera con compose_page_tree) y se niega a abrir.
+    openQaGateMock.mockResolvedValue({ opened: false, reason: "stale-version" });
+
+    await expect(finalizeQaRunOrchestrated(QA_RUN_ID)).resolves.toBeUndefined();
+
+    expect(finalizeQaRunMock).toHaveBeenCalledTimes(1);
+    const [, result] = finalizeQaRunMock.mock.calls[0]!;
+    expect(result.verdict).toBe("pass");
+    // El summary ya se persistió con isStaleVersion=false — no se reescribe.
+    expect(result.summary.gateSkippedStaleVersion).toBeUndefined();
+    expect(openQaGateMock).toHaveBeenCalledWith(PROJECT_ID, QA_RUN_ID, { id: "user-1", name: "Miguel" });
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("gate no abierto"), expect.any(Object));
+
+    warnSpy.mockRestore();
   });
 });
 

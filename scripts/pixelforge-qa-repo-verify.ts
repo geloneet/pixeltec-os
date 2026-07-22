@@ -6,7 +6,7 @@
  * repo (`./drizzle`, 0000–0025) con el migrador programático de
  * `drizzle-orm/postgres-js`, siembra un par de proyectos mínimos, y ejercita
  * el repo (`src/lib/db/repos/pixelforge.ts`) contra la DB real para verificar
- * 4 propiedades que NO se pueden probar con vitest puro (no hay infra de
+ * 6 propiedades que NO se pueden probar con vitest puro (no hay infra de
  * tests contra DB real en este repo — ver `pixelforge.test.ts`):
  *
  *   1. Unique parcial "un solo QA activo por proyecto": el 2do `createQaRun`
@@ -28,6 +28,14 @@
  *      no-op (`null`); quedan EXACTAMENTE 3 `pixelforge_ai_runs` en total
  *      (nunca 6) y las 3 FKs del `qa_run` apuntan a los ids que devolvió la
  *      ganadora — cero huérfanos ejecutando contra Anthropic.
+ *   6. `openQaGate` cierra la ventana TOCTOU real (review final PF-F8,
+ *      finding 1): un `qa_run` con verdict `pass` sobre v1, con una v2 que
+ *      aterriza (simulando `compose_page_tree`, F7) ANTES de invocar
+ *      `openQaGate` — el gate NO avanza `current_station`, NO inserta el
+ *      evento `qa_gate_opened`, y devuelve `{opened:false,
+ *      reason:'stale-version'}`; antes de este fix, el `IN
+ *      ('produccion','qa')` de `openQaGate` no veía esta carrera y avanzaba
+ *      igual a `revision` sobre una versión que nunca pasó QA.
  *
  * IMPORTANTE — trampa de imports: el cliente de `@/lib/db` es un singleton
  * que lee `process.env.DATABASE_URL` en el momento en que el MÓDULO se
@@ -381,6 +389,70 @@ async function main(): Promise<void> {
       attachWins.length === 1 && advisoryRunsForRunD.length === 3 && fksMatchWinner,
       `ganadores: ${attachWins.length}, ai_runs creados: ${advisoryRunsForRunD.length}, ` +
         `FKs coinciden con ganadora: ${fksMatchWinner}`
+    );
+
+    console.log(
+      "\n── 6. openQaGate: carrera real con Postgres — v2 aterriza ANTES de la tx (review final PF-F8, finding 1) ──"
+    );
+    const fixtureE = await createFixture();
+    // openQaGate exige current_station IN ('produccion','qa') — createFixture
+    // deja el proyecto en su default ('contexto'), así que se fuerza acá,
+    // igual que haría el flujo real al llegar a la estación de QA.
+    await db
+      .update(schema.pixelforgeProjects)
+      .set({ currentStation: "qa" })
+      .where(eq(schema.pixelforgeProjects.id, fixtureE.projectId));
+
+    const runE = await repo.createQaRun(
+      fixtureE.projectId,
+      fixtureE.ownerId,
+      { pageVersionId: fixtureE.pageVersionId, catalogVersion: "v1", scoringVersion: "v1" },
+      fixtureE.actor
+    );
+    await repo.finalizeQaRun(runE.id, {
+      verdict: "pass",
+      scoreTotal: 95,
+      categoryScores: { accesibilidad: 95 },
+      summary: { ok: true },
+    });
+
+    // La carrera: una v2 aterriza (compose_page_tree, F7) JUSTO ANTES de que
+    // se invoque openQaGate sobre el qa_run que evaluó v1.
+    await db.insert(schema.pixelforgePageVersions).values({
+      projectId: fixtureE.projectId,
+      version: 2,
+      tree: {},
+      notas: "",
+      warnings: [],
+      createdByName: fixtureE.actor.name,
+    });
+
+    const staleGateResult = await repo.openQaGate(fixtureE.projectId, runE.id, fixtureE.actor);
+
+    const [projectAfterStaleGate] = await db
+      .select({ currentStation: schema.pixelforgeProjects.currentStation })
+      .from(schema.pixelforgeProjects)
+      .where(eq(schema.pixelforgeProjects.id, fixtureE.projectId));
+
+    const gateOpenedEventsAfterStale = await db
+      .select()
+      .from(schema.pixelforgeEvents)
+      .where(
+        and(
+          eq(schema.pixelforgeEvents.projectId, fixtureE.projectId),
+          eq(schema.pixelforgeEvents.type, "qa_gate_opened")
+        )
+      );
+
+    check(
+      "openQaGate sobre un qa_run pass cuya versión (v1) dejó de ser vigente (v2 aterrizó ANTES de la llamada) " +
+        "NO avanza current_station, NO inserta qa_gate_opened, y devuelve {opened:false, reason:'stale-version'}",
+      staleGateResult.opened === false &&
+        staleGateResult.reason === "stale-version" &&
+        projectAfterStaleGate.currentStation === "qa" &&
+        gateOpenedEventsAfterStale.length === 0,
+      `opened=${staleGateResult.opened}, reason=${staleGateResult.reason}, ` +
+        `currentStation=${projectAfterStaleGate.currentStation}, eventos qa_gate_opened=${gateOpenedEventsAfterStale.length}`
     );
 
     await db.$client.end();

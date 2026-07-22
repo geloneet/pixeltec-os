@@ -2369,6 +2369,36 @@ export interface QaGateActor {
   name: string;
 }
 
+/** Resultado de {@link openQaGate} — reemplaza el `Promise<void>` original (review final PF-F8, finding 1): el llamador necesita distinguir POR QUÉ no se abrió, no solo que no pasó nada. */
+export interface OpenQaGateResult {
+  opened: boolean;
+  /**
+   * Presente únicamente cuando `opened` es `false` Y la causa fue que la
+   * `page_version` evaluada por este `qa_run` dejó de ser la vigente del
+   * proyecto (releído DENTRO de la tx — ver docstring de la función).
+   * Ausente en la otra causa posible de `opened:false` (el proyecto ya
+   * avanzó más allá de `produccion`/`qa`, o ya está en `revision`): ningún
+   * llamador reacciona distinto a esa segunda causa hoy, así que no se
+   * modela con un valor propio.
+   */
+  reason?: "stale-version";
+}
+
+/**
+ * Criterio puro de "¿la versión que evaluó este qa_run dejó de ser la
+ * vigente?" — extraído de `openQaGate` (mismo criterio que
+ * `hasAdvisoryRunsAttached`/`isStaleQaRun` en este archivo: la decisión se
+ * separa de la query de DB para poder testearla sin infra de DB). `null` en
+ * `latestVersion` significa "el proyecto no tiene NINGUNA page_version" —no
+ * debería pasar dentro de la tx de `openQaGate` (el propio `qa_run` referencia
+ * una), pero se trata como "no stale" para no bloquear el gate por un dato
+ * ausente/anómalo — mismo criterio que usa `buildStaleVersionFinding` con su
+ * `?? pageVersion.version`.
+ */
+export function isQaGateVersionStale(evaluatedVersion: number, latestVersion: number | null): boolean {
+  return latestVersion !== null && latestVersion !== evaluatedVersion;
+}
+
 /**
  * Abre la compuerta hacia la estación `revision`: evento `qa_gate_opened`
  * (snapshot `{qaRunId, verdict, pageVersionId, version}` — NUNCA
@@ -2376,13 +2406,48 @@ export interface QaGateActor {
  * current_station='revision' WHERE id=... AND current_station IN
  * ('produccion','qa')` (el `IN` es la compuerta real: no retrocede si el
  * proyecto ya avanzó más allá, ni la abre dos veces si ya está en
- * `revision`). La invoca `finalizeQaRunOrchestrated` (verdict `pass`) y la
- * ruta de decisión humana (verdict `pass_with_warnings` aprobado). Lanza si
- * `qaRunId` no existe o su `pageVersionId` no resuelve (no debería pasar:
- * ambos son invariantes de FK NOT NULL).
+ * `revision`). El evento SOLO se inserta si ese UPDATE afectó 1 fila (finding
+ * 2, review final PF-F8) — antes se insertaba incondicionalmente, duplicando
+ * `qa_gate_opened` si el proyecto ya había pasado de estación.
+ *
+ * Guard TOCTOU (finding 1, review final PF-F8): antes de tocar nada, releída
+ * DENTRO de esta misma tx —bajo el lock de la fila de proyecto que toma
+ * abajo, mismo recurso que bloquea `insertPageVersion`— la versión vigente
+ * del proyecto. Si ya no coincide con la `page_version` que evaluó este
+ * `qa_run`, la función NO abre el gate (ni evento ni UPDATE) y devuelve
+ * `{opened: false, reason: 'stale-version'}`. Esto cierra la ventana real:
+ * antes, `finalize.ts` y `decision/route.ts` verificaban la vigencia FUERA de
+ * esta transacción, dejando un hueco donde un `compose_page_tree` (F7) podía
+ * aterrizar una versión nueva ENTRE ese chequeo externo y esta llamada,
+ * avanzando el proyecto a `revision` sobre una versión que nunca pasó QA. El
+ * lock de la fila de proyecto (`.for("update")`, calco de `insertPageVersion`)
+ * es lo que hace la relectura confiable: si `insertPageVersion` está
+ * insertando una versión nueva EN ESTE MOMENTO, ambas tx compiten por el
+ * mismo lock y se serializan — cualquiera que gane, la relectura de abajo ve
+ * el estado post-lock consistente, nunca un estado a mitad de camino.
+ *
+ * La invoca `finalizeQaRunOrchestrated` (verdict `pass`) y la ruta de
+ * decisión humana (verdict `pass_with_warnings` aprobado) — ambas pueden
+ * seguir haciendo su propio chequeo de vigencia FUERA de la tx como UX
+ * temprana (evitar trabajo/dar un 409 rápido), pero la garantía real vive
+ * acá, no ahí. Lanza si `qaRunId` no existe o su `pageVersionId` no resuelve
+ * (no debería pasar: ambos son invariantes de FK NOT NULL), o si `projectId`
+ * no resuelve a un proyecto existente.
  */
-export function openQaGate(projectId: string, qaRunId: string, actor: QaGateActor): Promise<void> {
+export function openQaGate(projectId: string, qaRunId: string, actor: QaGateActor): Promise<OpenQaGateResult> {
   return db.transaction(async (tx) => {
+    // Lock de la fila de proyecto — MISMO recurso que `insertPageVersion`
+    // bloquea con su propio `.for("update")` (ver docstring de arriba): esto
+    // es lo que serializa esta función contra una composición concurrente de
+    // una versión nueva, en vez de solo esperar tener suerte con el timing.
+    const [project] = await tx
+      .select({ id: pixelforgeProjects.id })
+      .from(pixelforgeProjects)
+      .where(eq(pixelforgeProjects.id, projectId))
+      .for("update")
+      .limit(1);
+    if (!project) throw new Error("Proyecto no encontrado");
+
     const [row] = await tx
       .select({
         verdict: pixelforgeQaRuns.verdict,
@@ -2395,6 +2460,36 @@ export function openQaGate(projectId: string, qaRunId: string, actor: QaGateActo
       .limit(1);
     if (!row) throw new Error("QA no encontrado");
 
+    // Relectura de la versión vigente, FRESCA dentro de esta tx y bajo el
+    // lock de arriba — la única fuente de verdad real de si este qa_run
+    // sigue aplicando (no lo que el llamador haya visto antes de invocar
+    // esta función).
+    const [latest] = await tx
+      .select({ version: pixelforgePageVersions.version })
+      .from(pixelforgePageVersions)
+      .where(eq(pixelforgePageVersions.projectId, projectId))
+      .orderBy(desc(pixelforgePageVersions.version))
+      .limit(1);
+    if (isQaGateVersionStale(row.version, latest?.version ?? null)) {
+      return { opened: false, reason: "stale-version" };
+    }
+
+    const updated = await tx
+      .update(pixelforgeProjects)
+      .set({ currentStation: "revision", updatedAt: new Date() })
+      .where(
+        and(eq(pixelforgeProjects.id, projectId), inArray(pixelforgeProjects.currentStation, ["produccion", "qa"]))
+      )
+      .returning({ id: pixelforgeProjects.id });
+    if (updated.length === 0) {
+      // El proyecto ya avanzó más allá de produccion/qa, o ya está en
+      // revision — mismo criterio que el `IN` de siempre, pero ahora sin
+      // insertar el evento de abajo (finding 2): antes se insertaba igual,
+      // duplicando `qa_gate_opened` si alguien reinvocaba esto sobre un
+      // proyecto que ya había pasado de estación.
+      return { opened: false };
+    }
+
     await tx.insert(pixelforgeEvents).values({
       projectId,
       station: "qa",
@@ -2404,12 +2499,7 @@ export function openQaGate(projectId: string, qaRunId: string, actor: QaGateActo
       snapshot: { qaRunId, verdict: row.verdict, pageVersionId: row.pageVersionId, version: row.version },
     });
 
-    await tx
-      .update(pixelforgeProjects)
-      .set({ currentStation: "revision", updatedAt: new Date() })
-      .where(
-        and(eq(pixelforgeProjects.id, projectId), inArray(pixelforgeProjects.currentStation, ["produccion", "qa"]))
-      );
+    return { opened: true };
   });
 }
 

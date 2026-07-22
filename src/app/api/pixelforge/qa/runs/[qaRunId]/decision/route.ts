@@ -11,6 +11,16 @@
  * aprobar/rechazar sobre una versión vieja ya no tiene sentido (la landing
  * real que se publicaría es otra). 409 con mensaje es-MX si no coincide.
  *
+ * Este chequeo es UX temprana, NO la única defensa (review final PF-F8,
+ * finding 1): corre FUERA de cualquier transacción, así que una versión
+ * nueva podría aterrizar ENTRE este chequeo y la llamada a `openQaGate` de
+ * abajo. La garantía real vive ahora DENTRO de `openQaGate` (relee la
+ * versión vigente bajo lock) — si esa relectura también encuentra la versión
+ * stale, `openQaGate` devuelve `{opened:false, reason:'stale-version'}` y
+ * esta ruta responde el mismo 409, aunque `recordQaHumanDecision` ya haya
+ * registrado la decisión humana (esa decisión sigue siendo un hecho real:
+ * la persona aprobó ESE run: lo que no ocurre es el avance de estación).
+ *
  * Si `decision==='approved'`, abre la compuerta hacia `revision`
  * (`openQaGate`) — mismo mecanismo que usa `finalizeQaRunOrchestrated` para
  * un veredicto `pass` directo. Si `decision==='rejected'`, NO se abre
@@ -77,7 +87,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ qaR
     }
 
     if (decision === "approved") {
-      await openQaGate(existing.run.projectId, parsedId.data, actor);
+      const gateResult = await openQaGate(existing.run.projectId, parsedId.data, actor);
+      if (!gateResult.opened && gateResult.reason === "stale-version") {
+        return fail("El QA aprobado corresponde a una versión anterior; re-ejecuta QA", 409);
+      }
     }
 
     return NextResponse.json({ ok: true });

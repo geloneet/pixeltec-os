@@ -10,6 +10,7 @@ import {
   assertDirectionDecisionStillCurrent,
   computeNextPageVersion,
   hasAdvisoryRunsAttached,
+  isQaGateVersionStale,
   isStaleQaRun,
   QA_BROWSER_CLAIM_TIMEOUT_MS,
   QA_BROWSER_PENDING_TIMEOUT_MS,
@@ -243,5 +244,28 @@ describe("hasAdvisoryRunsAttached", () => {
         likenessRunId: "run-3",
       })
     ).toBe(true);
+  });
+});
+
+describe("isQaGateVersionStale", () => {
+  // Criterio real de `openQaGate` (review final PF-F8, finding 1): decide si
+  // el gate debe abrirse comparando la versión que evaluó el qa_run contra
+  // la vigente RELEÍDA dentro de la misma tx (bajo lock) — acá se prueba
+  // solo la comparación pura, sin DB.
+
+  it("false si la versión evaluada sigue siendo la vigente (mismo número) — abre el gate", () => {
+    expect(isQaGateVersionStale(2, 2)).toBe(false);
+  });
+
+  it("true si la vigente avanzó más allá de la evaluada — NO abre el gate (versión obsoleta)", () => {
+    expect(isQaGateVersionStale(2, 3)).toBe(true);
+  });
+
+  it("true incluso si la vigente 'retrocedió' respecto de la evaluada (cualquier discrepancia es stale, no solo hacia adelante)", () => {
+    expect(isQaGateVersionStale(3, 2)).toBe(true);
+  });
+
+  it("false si no hay ninguna versión vigente (latestVersion null) — anómalo, se trata como no-stale (mismo criterio que buildStaleVersionFinding)", () => {
+    expect(isQaGateVersionStale(1, null)).toBe(false);
   });
 });

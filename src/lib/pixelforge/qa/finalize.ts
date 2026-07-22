@@ -43,6 +43,19 @@
  * (`gateSkippedStaleVersion: true`) solo en ese caso, para no inflar el JSON
  * persistido en el caso mayoritario (pass + versión vigente).
  *
+ * IMPORTANTE (review final PF-F8, finding 1): este `isStaleVersion` es una
+ * verificación de UX/costo temprana, NO la garantía real — corre FUERA de
+ * cualquier transacción, así que un `compose_page_tree` podría aterrizar una
+ * versión nueva justo DESPUÉS de este chequeo pero ANTES de que `openQaGate`
+ * tome su lock. La garantía real ahora vive DENTRO de `openQaGate` (relee la
+ * versión vigente bajo `.for("update")` sobre la fila de proyecto — mismo
+ * recurso que bloquea `insertPageVersion`). Por eso se sigue usando el
+ * resultado de `openQaGate` acá abajo: si devuelve `{opened:false,
+ * reason:'stale-version'}` pese a que `isStaleVersion` dio `false`, fue esa
+ * carrera angosta — se deja rastro por consola (el `summary` ya se persistió
+ * y no se reescribe retroactivamente, best-effort, mismo criterio que el
+ * catch de más abajo).
+ *
  * `treeUsesCapabilities`/`checksSkipped` de fase 1 (que corrió in-process en
  * el POST, potencialmente en un request HTTP totalmente distinto al que
  * ejecuta este cierre) NO se persisten en ninguna columna nueva — se
@@ -197,7 +210,20 @@ export async function finalizeQaRunOrchestrated(qaRunId: string): Promise<void> 
     });
 
     if (closed && scoreResult.verdict === "pass" && !isStaleVersion) {
-      await openQaGate(run.projectId, qaRunId, { id: run.requestedById, name: run.requestedByName });
+      const gateResult = await openQaGate(run.projectId, qaRunId, {
+        id: run.requestedById,
+        name: run.requestedByName,
+      });
+      if (!gateResult.opened && gateResult.reason === "stale-version") {
+        // Carrera real (ver docstring del módulo): la versión pasó a stale
+        // ENTRE el chequeo de `isStaleVersion` de arriba y el lock que toma
+        // `openQaGate` — ventana angosta pero real. El run ya cerró
+        // succeeded/pass; no hay nada que revertir, solo dejar rastro.
+        console.warn(
+          "[pixelforge/qa finalize] gate no abierto: la versión evaluada dejó de ser vigente justo antes de openQaGate",
+          { qaRunId, projectId: run.projectId }
+        );
+      }
     }
   } catch (err) {
     console.error("[pixelforge/qa finalize]", err);
