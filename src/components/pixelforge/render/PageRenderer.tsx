@@ -28,6 +28,11 @@
  *  - Un `componentId` sin componente en el mapa correspondiente (block o
  *    capability aún no implementado, o id fuera de catálogo) degrada a un
  *    placeholder neutro, no a un crash.
+ *  - Cada nodo (block o capability, resuelto o placeholder) queda envuelto en
+ *    un `<div data-pf-node={nodeId} data-pf-component={componentId}>` (PF-F8
+ *    T3): superficie DOM ADITIVA que el qa-runner (T6, Playwright) usa para
+ *    localizar secciones — no toca estructura/clases/orden del contenido que
+ *    ya se renderizaba dentro.
  */
 import type { CSSProperties } from "react";
 import type { ValidatedPageTree } from "@/lib/pixelforge/registry/validate-page-tree";
@@ -83,29 +88,36 @@ export function PageRenderer({ tree, tokens, motionDna }: PageRendererProps) {
                 );
               })();
         return (
-          <SectionErrorBoundary key={node.nodeId} componentId={node.componentId}>
-            {block ? (
-              block
-            ) : (
-              <section
-                className="pf-block pf-block-missing w-full"
-                style={{
-                  backgroundColor: "var(--pf-bg)",
-                  color: "var(--pf-muted)",
-                  fontFamily: "var(--pf-font-body)",
-                  paddingBlock: "calc(var(--pf-space) * 2)",
-                  paddingInline: "calc(var(--pf-space) * 2)",
-                }}
-              >
-                <div
-                  className="mx-auto w-full max-w-3xl text-center"
-                  style={{ padding: "calc(var(--pf-space) * 1.5)", borderRadius: "var(--pf-radius)", border: "1px dashed var(--pf-muted)" }}
+          // Wrapper ADITIVO por nodo (PF-F8 T3): `data-pf-node`/
+          // `data-pf-component` son la superficie DOM que el qa-runner
+          // (T6, Playwright) usa para localizar secciones — no cambia
+          // estructura/clases/orden de lo que ya renderizaba cada nodo,
+          // solo añade este contenedor con los dos atributos.
+          <div key={node.nodeId} data-pf-node={node.nodeId} data-pf-component={node.componentId}>
+            <SectionErrorBoundary componentId={node.componentId}>
+              {block ? (
+                block
+              ) : (
+                <section
+                  className="pf-block pf-block-missing w-full"
+                  style={{
+                    backgroundColor: "var(--pf-bg)",
+                    color: "var(--pf-muted)",
+                    fontFamily: "var(--pf-font-body)",
+                    paddingBlock: "calc(var(--pf-space) * 2)",
+                    paddingInline: "calc(var(--pf-space) * 2)",
+                  }}
                 >
-                  Componente “{node.componentId}” aún no disponible.
-                </div>
-              </section>
-            )}
-          </SectionErrorBoundary>
+                  <div
+                    className="mx-auto w-full max-w-3xl text-center"
+                    style={{ padding: "calc(var(--pf-space) * 1.5)", borderRadius: "var(--pf-radius)", border: "1px dashed var(--pf-muted)" }}
+                  >
+                    Componente “{node.componentId}” aún no disponible.
+                  </div>
+                </section>
+              )}
+            </SectionErrorBoundary>
+          </div>
         );
       })}
     </div>

@@ -53,6 +53,75 @@ function tree(nodes: ValidatedPageTree["nodes"]): ValidatedPageTree {
   return { nodes, notas: "fixture" };
 }
 
+describe("PageRenderer — superficie DOM de QA (PF-F8 T3)", () => {
+  it("cada nodo lleva data-pf-node/data-pf-component (block y capability), sin tocar clases/orden existentes", () => {
+    const { container } = render(
+      <PageRenderer
+        tokens={TOKENS}
+        tree={tree([
+          {
+            nodeId: "hero-1",
+            componentId: "hero-split",
+            kind: "block",
+            variant: "media-right",
+            orden: 1,
+            props: {
+              titulo: "Título",
+              subtitulo: "Sub",
+              cta: { label: "CTA", href: "/" },
+              mediaAlt: "media",
+              badges: [],
+            },
+          },
+          {
+            nodeId: "proceso-1",
+            componentId: "process-visualizer-v1",
+            kind: "capability",
+            variant: "default",
+            orden: 2,
+            props: {
+              pasos: [{ titulo: "A", descripcion: "a" }, { titulo: "B", descripcion: "b" }],
+            },
+          },
+        ])}
+      />
+    );
+    const heroWrapper = container.querySelector('[data-pf-node="hero-1"]');
+    expect(heroWrapper).not.toBeNull();
+    expect(heroWrapper).toHaveAttribute("data-pf-component", "hero-split");
+    // El wrapper es ADITIVO: la clase del block real sigue existiendo, sin
+    // importar cuántos niveles de anidamiento tenga el atributo.
+    expect(heroWrapper?.querySelector(".pf-hero-split")).not.toBeNull();
+
+    const capWrapper = container.querySelector('[data-pf-node="proceso-1"]');
+    expect(capWrapper).not.toBeNull();
+    expect(capWrapper).toHaveAttribute("data-pf-component", "process-visualizer-v1");
+    expect(capWrapper?.querySelector('[role="tablist"]')).not.toBeNull();
+  });
+
+  it("el placeholder de un componentId sin componente también lleva data-pf-node/data-pf-component", () => {
+    const { container } = render(
+      <PageRenderer
+        tokens={TOKENS}
+        tree={tree([
+          {
+            nodeId: "fantasma-1",
+            componentId: "bloque-inexistente" as ValidatedPageTree["nodes"][number]["componentId"],
+            kind: "block",
+            variant: "default",
+            orden: 1,
+            props: {},
+          },
+        ])}
+      />
+    );
+    const wrapper = container.querySelector('[data-pf-node="fantasma-1"]');
+    expect(wrapper).not.toBeNull();
+    expect(wrapper).toHaveAttribute("data-pf-component", "bloque-inexistente");
+    expect(screen.getByText(/aún no disponible/)).toBeInTheDocument();
+  });
+});
+
 describe("PageRenderer", () => {
   it("aplica las vars --pf-* de la dirección en el wrapper raíz", () => {
     const { container } = render(
