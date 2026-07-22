@@ -321,6 +321,53 @@ describe("finalizeQaRunOrchestrated — QA-ST-004 (versión obsoleta)", () => {
   });
 });
 
+describe("finalizeQaRunOrchestrated — gate automático solo si la versión sigue vigente (review PF-F8 T4)", () => {
+  it("verdict 'pass' + versión vigente → abre el gate (comportamiento previo intacto)", async () => {
+    getQaRunByIdMock.mockResolvedValue(makeRun({ browserStatus: "succeeded" }));
+    getPageVersionInternalMock.mockResolvedValue(makePageVersion({ version: 2 }));
+    getLatestPageVersionNumberMock.mockResolvedValue(2);
+    getQaFindingsForRunMock.mockResolvedValue([]);
+
+    await finalizeQaRunOrchestrated(QA_RUN_ID);
+
+    expect(finalizeQaRunMock).toHaveBeenCalledTimes(1);
+    const [, result] = finalizeQaRunMock.mock.calls[0]!;
+    expect(result.verdict).toBe("pass");
+    expect(result.summary.gateSkippedStaleVersion).toBeUndefined();
+    expect(openQaGateMock).toHaveBeenCalledWith(PROJECT_ID, QA_RUN_ID, { id: "user-1", name: "Miguel" });
+  });
+
+  it("verdict 'pass' + versión obsoleta → NO abre el gate, pero el run cierra igual con el veredicto intacto", async () => {
+    getQaRunByIdMock.mockResolvedValue(makeRun({ browserStatus: "succeeded" }));
+    getPageVersionInternalMock.mockResolvedValue(makePageVersion({ version: 3 }));
+    getLatestPageVersionNumberMock.mockResolvedValue(4); // vigente avanzó mientras corría el QA
+    getQaFindingsForRunMock.mockResolvedValue([]);
+
+    await finalizeQaRunOrchestrated(QA_RUN_ID);
+
+    expect(finalizeQaRunMock).toHaveBeenCalledTimes(1);
+    const [, result] = finalizeQaRunMock.mock.calls[0]!;
+    expect(result.verdict).toBe("pass"); // el veredicto/score NO cambian — solo se omite el gate.
+    expect(result.summary.gateSkippedStaleVersion).toBe(true);
+    expect(openQaGateMock).not.toHaveBeenCalled();
+  });
+
+  it("verdict 'pass' + versión obsoleta → el finding QA-ST-004 sigue insertándose", async () => {
+    getQaRunByIdMock.mockResolvedValue(makeRun({ browserStatus: "succeeded" }));
+    getPageVersionInternalMock.mockResolvedValue(makePageVersion({ version: 3 }));
+    getLatestPageVersionNumberMock.mockResolvedValue(4);
+    getQaFindingsForRunMock.mockResolvedValue([]);
+
+    await finalizeQaRunOrchestrated(QA_RUN_ID);
+
+    expect(insertQaFindingsMock).toHaveBeenCalledWith(
+      QA_RUN_ID,
+      expect.arrayContaining([expect.objectContaining({ checkCode: "QA-ST-004" })])
+    );
+    expect(openQaGateMock).not.toHaveBeenCalled();
+  });
+});
+
 describe("finalizeQaRunOrchestrated — nunca deja el run colgado", () => {
   it("una excepción inesperada cierra el run vía failQaRun('internal')", async () => {
     getQaRunByIdMock.mockResolvedValue(makeRun({ browserStatus: "succeeded" }));

@@ -28,7 +28,20 @@
  * sin la fase de navegador completa). Si es `succeeded`/`skipped`, se computa
  * el veredicto (`computeQaScore`, T2) y se cierra `succeeded` (vía
  * `finalizeQaRun`); si el veredicto es `pass` Y este invocador ganó el
- * cierre, se abre la compuerta (`openQaGate`) hacia `revision`.
+ * cierre Y la versión evaluada SIGUE siendo la vigente del proyecto, se abre
+ * la compuerta (`openQaGate`) hacia `revision`.
+ *
+ * Restricción del plan: "el gate solo honra QA de la versión vigente". La
+ * ruta de decisión humana (`decision/route.ts`) ya la aplica devolviendo 409
+ * si `getLatestPageVersion(...).id !== run.pageVersionId`. Este camino
+ * automático reusa el `latestVersionNumber` que YA se cargó para el finding
+ * QA-ST-004 (mismo dato, comparación numérica `pageVersion.version ===
+ * latestVersionNumber` en vez de por id — equivalente para este propósito,
+ * evita una segunda consulta) — si el QA evaluó v3 y la vigente pasó a ser
+ * v4 mientras corría, el run cierra igual (verdict/score intactos) pero el
+ * gate se omite; se deja rastro barato en el resumen
+ * (`gateSkippedStaleVersion: true`) solo en ese caso, para no inflar el JSON
+ * persistido en el caso mayoritario (pass + versión vigente).
  *
  * `treeUsesCapabilities`/`checksSkipped` de fase 1 (que corrió in-process en
  * el POST, potencialmente en un request HTTP totalmente distinto al que
@@ -77,6 +90,15 @@ export interface QaRunSummary {
   advisoryIncomplete: boolean;
   /** Códigos de check no evaluados: los que la fase 1 saltó (árbol inválido / sin dirección / designTokens malformados) + TODOS los códigos `nav` si `browser_status==='skipped'`. */
   checksSkipped: string[];
+  /**
+   * `true` únicamente cuando el veredicto fue `pass` pero la versión
+   * evaluada dejó de ser la vigente antes de este cierre (carrera con una
+   * edición/nueva versión mientras el QA corría) — el gate NO se abrió a
+   * pesar del pass. Ausente (`undefined`) en cualquier otro caso: no se
+   * persiste `false` explícito para no inflar el JSON en el caso mayoritario
+   * (pass con versión vigente, o cualquier verdict distinto de `pass`).
+   */
+  gateSkippedStaleVersion?: boolean;
 }
 
 export async function finalizeQaRunOrchestrated(qaRunId: string): Promise<void> {
@@ -125,6 +147,13 @@ export async function finalizeQaRunOrchestrated(qaRunId: string): Promise<void> 
     if (staleFinding) {
       await insertQaFindings(qaRunId, [staleFinding]);
     }
+    // Mismo dato ya cargado arriba para ST-004, reusado acá para decidir el
+    // gate (ver docstring del módulo): `latestVersionNumber === null` (no
+    // debería pasar — implica que el proyecto no tiene NINGUNA versión, pero
+    // el run que estamos cerrando referencia una — se trata como "no stale"
+    // para no bloquear el gate por un dato ausente/anómalo, igual que hace
+    // `buildStaleVersionFinding` con el `?? pageVersion.version` de arriba).
+    const isStaleVersion = latestVersionNumber !== null && latestVersionNumber !== pageVersion.version;
 
     const chosenDirection = await getChosenDirectionForProject(run.projectId);
     const recompute = runDeterministicChecks({
@@ -156,6 +185,9 @@ export async function finalizeQaRunOrchestrated(qaRunId: string): Promise<void> 
     }
 
     const summary: QaRunSummary = { severityCounts, advisoryIncomplete, checksSkipped };
+    if (scoreResult.verdict === "pass" && isStaleVersion) {
+      summary.gateSkippedStaleVersion = true;
+    }
 
     const closed = await finalizeQaRun(qaRunId, {
       verdict: scoreResult.verdict,
@@ -164,7 +196,7 @@ export async function finalizeQaRunOrchestrated(qaRunId: string): Promise<void> 
       summary,
     });
 
-    if (closed && scoreResult.verdict === "pass") {
+    if (closed && scoreResult.verdict === "pass" && !isStaleVersion) {
       await openQaGate(run.projectId, qaRunId, { id: run.requestedById, name: run.requestedByName });
     }
   } catch (err) {
