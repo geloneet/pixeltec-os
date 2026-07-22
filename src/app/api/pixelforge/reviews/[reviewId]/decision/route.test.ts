@@ -76,6 +76,12 @@ describe("POST /api/pixelforge/reviews/:reviewId/decision", () => {
       expect(approveReview).not.toHaveBeenCalled();
     });
 
+    it("400 si reason es solo espacios en blanco (whitespace-only)", async () => {
+      const res = await POST(makeRequest({ action: "approve", reason: "     " }), makeParams());
+      expect(res.status).toBe(400);
+      expect(approveReview).not.toHaveBeenCalled();
+    });
+
     it("400 si un risk trae rationale demasiado corta", async () => {
       const res = await POST(
         makeRequest({
@@ -86,6 +92,19 @@ describe("POST /api/pixelforge/reviews/:reviewId/decision", () => {
         makeParams()
       );
       expect(res.status).toBe(400);
+    });
+
+    it("400 si un risk trae rationale que es solo espacios en blanco (whitespace-only)", async () => {
+      const res = await POST(
+        makeRequest({
+          action: "approve",
+          reason: "se acepta el riesgo menor",
+          risks: [{ findingId: FINDING_ID, rationale: "     " }],
+        }),
+        makeParams()
+      );
+      expect(res.status).toBe(400);
+      expect(approveReview).not.toHaveBeenCalled();
     });
 
     it("400 si un risk trae findingId no-uuid", async () => {
@@ -197,6 +216,15 @@ describe("POST /api/pixelforge/reviews/:reviewId/decision", () => {
       expect(res.status).toBe(400);
     });
 
+    it("400 si reason es solo espacios en blanco (whitespace-only)", async () => {
+      const res = await POST(
+        makeRequest({ action: "request_changes", changeKind: "estructura", reason: "     " }),
+        makeParams()
+      );
+      expect(res.status).toBe(400);
+      expect(requestChanges).not.toHaveBeenCalled();
+    });
+
     it("404 si la revisión no existe o no es del owner", async () => {
       (requestChanges as ReturnType<typeof vi.fn>).mockRejectedValue(new ReviewNotFoundError("Revisión no encontrada"));
       const res = await POST(
@@ -268,6 +296,12 @@ describe("POST /api/pixelforge/reviews/:reviewId/decision", () => {
   describe("action=cancel", () => {
     it("400 si reason es demasiado corta", async () => {
       const res = await POST(makeRequest({ action: "cancel", reason: "no" }), makeParams());
+      expect(res.status).toBe(400);
+      expect(cancelReview).not.toHaveBeenCalled();
+    });
+
+    it("400 si reason es solo espacios en blanco (whitespace-only)", async () => {
+      const res = await POST(makeRequest({ action: "cancel", reason: "     " }), makeParams());
       expect(res.status).toBe(400);
       expect(cancelReview).not.toHaveBeenCalled();
     });

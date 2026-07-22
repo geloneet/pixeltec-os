@@ -44,12 +44,12 @@ const reviewIdSchema = z.string().uuid("Revisión inválida");
 
 const riskSchema = z.object({
   findingId: z.string().uuid("Finding inválido"),
-  rationale: z.string().min(5, "La justificación del riesgo debe tener al menos 5 caracteres"),
+  rationale: z.string().trim().min(5, "La justificación del riesgo debe tener al menos 5 caracteres"),
 });
 
 const approveSchema = z.object({
   action: z.literal("approve"),
-  reason: z.string().min(5, "La razón debe tener al menos 5 caracteres"),
+  reason: z.string().trim().min(5, "La razón debe tener al menos 5 caracteres"),
   risks: z.array(riskSchema).default([]),
 });
 
@@ -60,12 +60,12 @@ const requestChangesSchema = z.object({
     { errorMap: () => ({ message: "Tipo de cambio inválido" }) }
   ),
   contentTarget: z.enum(["contexto", "estrategia", "blueprint"]).optional(),
-  reason: z.string().min(5, "La razón debe tener al menos 5 caracteres"),
+  reason: z.string().trim().min(5, "La razón debe tener al menos 5 caracteres"),
 });
 
 const cancelSchema = z.object({
   action: z.literal("cancel"),
-  reason: z.string().min(5, "La razón debe tener al menos 5 caracteres"),
+  reason: z.string().trim().min(5, "La razón debe tener al menos 5 caracteres"),
 });
 
 const decisionBodySchema = z.discriminatedUnion("action", [approveSchema, requestChangesSchema, cancelSchema]);
