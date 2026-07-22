@@ -151,8 +151,11 @@ function pickRole(paleta: readonly PaletaToken[], keywords: readonly string[], f
  * Estas frases se buscan primero; sólo si ninguna aparece se cae a las
  * keywords genéricas de fondo. (Se matchea sobre texto normalizado sin
  * acentos: "página" → "pagina".)
+ *
+ * Exportada de forma ADITIVA (PF-F8 T2, QA): QA-DI-004 la reusa junto con
+ * `BG_GENERIC_KEYWORDS` para saber si el rol `bg` matcheó semánticamente.
  */
-const BG_GENERAL_KEYWORDS = [
+export const BG_GENERAL_KEYWORDS = [
   "fondo general",
   "fondo de pagina",
   "fondo de la pagina",
