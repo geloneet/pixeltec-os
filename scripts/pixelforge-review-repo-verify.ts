@@ -7,7 +7,7 @@
  * contenedor `pf-f9-t3-db` — NUNCA toca la DB de dev/prod 5437), aplica TODAS
  * las migraciones (`./drizzle`, 0000–0026) con el migrador de
  * `drizzle-orm/postgres-js`, siembra fixtures mínimos y ejercita el repo
- * (`src/lib/db/repos/pixelforge.ts`) contra la DB real. 14 checks numerados
+ * (`src/lib/db/repos/pixelforge.ts`) contra la DB real. 15 checks numerados
  * con evidencia impresa.
  *
  * Trampa de imports (igual que pixelforge-qa-repo-verify.ts): `@/lib/db` es un
@@ -652,6 +652,94 @@ async function main(): Promise<void> {
       "DELETE proyecto arrastra sus reviews y comments (cascada)",
       reviews14.length === 0 && comments14.length === 0,
       `reviews=${reviews14.length}, comments=${comments14.length}`
+    );
+
+    // ── 15. Carrera TOCTOU: approveReview vs addReviewComment(blocking) ───────
+    // Carrera REPRODUCIDA en el review de PF-F9 T3: sin lock en
+    // addReviewComment, un comentario blocking+open podía colarse ENTRE el
+    // conteo de blockers de approveReview (paso 7, ve 0) y su CAS, dejando
+    // 'approved' + comentario blocking && open (estado PROHIBIDO por el GO).
+    // Se lanzan ambas en PARALELO (Promise.allSettled, 2 corridas concurrentes
+    // que van a conexiones distintas del pool → compiten por el FOR UPDATE del
+    // proyecto) con jitter, N iteraciones. Invariante duro por iteración: NUNCA
+    // (status='approved' AND existe comentario blocking open). Los 3 desenlaces
+    // legales: (a) comment antes → approve falla por blockers; (b) approve antes
+    // → comment falla por guard in_review; (c) comment falla por otra razón
+    // legítima (p.ej. serialización).
+    console.log("\n── 15. Carrera approveReview vs addReviewComment(blocking) → NUNCA approved+blocking-open ──");
+    const ITERS_15 = 25;
+    const jitter = () => new Promise((r) => setTimeout(r, Math.floor(Math.random() * 4)));
+    let violated15 = 0;
+    let bugBoth15 = 0;
+    let aCommentFirst15 = 0; // comment gana, approve falla por blockers
+    let bApproveFirst15 = 0; // approve gana, comment falla por guard in_review
+    let cOtherLegit15 = 0; // comment falla por otra razón legítima
+    let unclassified15 = 0;
+    for (let i = 0; i < ITERS_15; i += 1) {
+      const fx15 = await createFixture(REAL_TREE);
+      await seedQaRun(fx15, fx15.pageVersionId, "pass");
+      const review15 = await repo.openReview(fx15.projectId, fx15.ownerId, fx15.actor);
+      const settled = await Promise.allSettled([
+        (async () => {
+          await jitter();
+          return repo.approveReview(review15.id, fx15.ownerId, { reason: `aprobar carrera ${i}`, risks: [] }, fx15.actor);
+        })(),
+        (async () => {
+          await jitter();
+          return repo.addReviewComment(
+            review15.id,
+            fx15.ownerId,
+            { anchorType: "general", body: `bloqueo en carrera ${i}`, blocking: true },
+            fx15.actor
+          );
+        })(),
+      ]);
+      const approveOk = settled[0].status === "fulfilled";
+      const commentOk = settled[1].status === "fulfilled";
+      const commentErr =
+        settled[1].status === "rejected"
+          ? (settled[1].reason as Error)?.message ?? String(settled[1].reason)
+          : "";
+      const approveErr =
+        settled[0].status === "rejected"
+          ? (settled[0].reason as Error)?.message ?? String(settled[0].reason)
+          : "";
+
+      // Invariante duro releído de la DB: jamás approved + blocking open.
+      const [rv] = await db
+        .select({ status: schema.pixelforgeReviews.status })
+        .from(schema.pixelforgeReviews)
+        .where(eq(schema.pixelforgeReviews.id, review15.id))
+        .limit(1);
+      const blockingOpen = await db
+        .select({ id: schema.pixelforgeReviewComments.id })
+        .from(schema.pixelforgeReviewComments)
+        .where(
+          and(
+            eq(schema.pixelforgeReviewComments.projectId, fx15.projectId),
+            eq(schema.pixelforgeReviewComments.blocking, true),
+            eq(schema.pixelforgeReviewComments.status, "open")
+          )
+        );
+      if (rv.status === "approved" && blockingOpen.length > 0) violated15 += 1;
+
+      // Clasificación de desenlaces.
+      if (approveOk && commentOk) {
+        bugBoth15 += 1; // ambos ganaron → produciría el estado prohibido.
+      } else if (commentOk && !approveOk && /bloqueante/i.test(approveErr)) {
+        aCommentFirst15 += 1;
+      } else if (approveOk && !commentOk && /revisi[oó]n abierta/i.test(commentErr)) {
+        bApproveFirst15 += 1;
+      } else if (!commentOk) {
+        cOtherLegit15 += 1;
+      } else {
+        unclassified15 += 1;
+      }
+    }
+    check(
+      "carrera approve/comment(blocking) × 25: NUNCA approved+blocking-open; todos los desenlaces legales",
+      violated15 === 0 && bugBoth15 === 0 && unclassified15 === 0,
+      `violaciones=${violated15}, bugAmbosGanaron=${bugBoth15}, desenlaces: a(commentFirst→approveBlocked)=${aCommentFirst15}, b(approveFirst→commentInReview)=${bApproveFirst15}, c(commentFallaOtra)=${cOtherLegit15}, sinClasificar=${unclassified15}`
     );
 
     await db.$client.end();

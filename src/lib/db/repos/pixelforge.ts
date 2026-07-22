@@ -3047,12 +3047,25 @@ export interface AddReviewCommentInput {
 }
 
 /**
- * Agrega un comentario a una revisión ABIERTA (`in_review`). Sin lock de
- * proyecto — no toca estado de estaciones. Ownership vía review→project.
- * Valida el ancla server-side: `section` exige que `nodeId` exista en el
- * `tree` de la page_version anclada; `finding` exige que el finding exista Y
- * pertenezca al `qaRunId` anclado (ESCOPADO — nunca un finding de otro run);
- * `general` exige `nodeId`/`findingId` nulos.
+ * Agrega un comentario a una revisión ABIERTA (`in_review`). Ownership vía
+ * review→project. Valida el ancla server-side: `section` exige que `nodeId`
+ * exista en el `tree` de la page_version anclada; `finding` exige que el
+ * finding exista Y pertenezca al `qaRunId` anclado (ESCOPADO — nunca un finding
+ * de otro run); `general` exige `nodeId`/`findingId` nulos.
+ *
+ * TOCTOU (carrera reproducida — verify check 15): toma `SELECT ... FOR UPDATE`
+ * sobre la fila de proyecto (mismo recurso que bloquean `approveReview` paso 7,
+ * `resolveReviewComment`, `openQaGate` e `insertPageVersion`) ANTES de validar,
+ * y RELEE el `status` de la review bajo ese lock. Sin el lock, un
+ * `addReviewComment(blocking=true)` podía colarse ENTRE el conteo de blockers
+ * de `approveReview` (paso 7, ve 0) y su CAS (la review sigue `in_review`),
+ * dejando `approved` + un comentario `blocking && open` — estado PROHIBIDO por
+ * el GO. Con el lock la carrera tiene solo desenlaces legales: o el comentario
+ * entra ANTES y `approveReview` lo cuenta en su paso 7 (falla por blockers), o
+ * entra DESPUÉS del commit del approve y el guard `in_review` de abajo lo
+ * rechaza. Se toma el lock SIEMPRE (no solo cuando `blocking=true`): comentar
+ * es de baja frecuencia y serializar uniforme es más simple de razonar que un
+ * lock condicional.
  */
 export function addReviewComment(
   reviewId: string,
@@ -3070,7 +3083,28 @@ export function addReviewComment(
     if (!row) throw new Error("Revisión no encontrada");
     const review = row.review;
 
-    if (review.status !== "in_review") {
+    // Lock de la fila de proyecto — MISMO recurso que bloquean approveReview
+    // (paso 7, conteo de blockers), resolveReviewComment, openQaGate e
+    // insertPageVersion. Se toma ANTES de validar/insertar para serializar
+    // contra approveReview y cerrar el TOCTOU descrito en el docstring.
+    await tx
+      .select({ id: pixelforgeProjects.id })
+      .from(pixelforgeProjects)
+      .where(eq(pixelforgeProjects.id, review.projectId))
+      .for("update")
+      .limit(1);
+
+    // Relectura del `status` DESPUÉS del lock — el `review` de arriba se leyó
+    // FUERA del lock y puede estar rancio (un approve/supersede pudo commitear
+    // entre esa lectura y la toma del lock). Este guard bajo lock es la
+    // garantía dura: si approve ya ganó, la review ya no está `in_review` y el
+    // comentario se rechaza en vez de aterrizar sobre una review aprobada.
+    const [fresh] = await tx
+      .select({ status: pixelforgeReviews.status })
+      .from(pixelforgeReviews)
+      .where(eq(pixelforgeReviews.id, reviewId))
+      .limit(1);
+    if (!fresh || fresh.status !== "in_review") {
       throw new Error("Solo se puede comentar en una revisión abierta");
     }
     if (!input.body || input.body.trim() === "") {
@@ -3156,6 +3190,13 @@ export interface ResolveReviewCommentInput {
  * Se permite resolver aunque la review ya NO esté `in_review` — los
  * bloqueantes viejos deben poder cerrarse en cualquier momento. `reason`
  * trim ≥5 se valida aquí (no solo en la route).
+ *
+ * Lock de proyecto: toma `SELECT ... FOR UPDATE` sobre la fila de proyecto
+ * ANTES del CAS. El GO verbatim de PF-F9 lo exige explícitamente al "resolver
+ * comentarios bloqueantes"; serializa con `approveReview` (que cuenta los
+ * blockers `open` bajo el MISMO lock en su paso 7) y con `addReviewComment`, de
+ * modo que "resolver un blocker" y "aprobar" no se pisen — approve nunca ve un
+ * blocker a mitad de resolución.
  */
 export function resolveReviewComment(
   commentId: string,
@@ -3171,6 +3212,16 @@ export function resolveReviewComment(
       .where(and(eq(pixelforgeReviewComments.id, commentId), eq(pixelforgeProjects.ownerId, ownerId)))
       .limit(1);
     if (!row) throw new Error("Comentario no encontrado");
+
+    // Lock de la fila de proyecto ANTES del CAS — el GO de PF-F9 lo exige al
+    // resolver bloqueantes; serializa con approveReview (paso 7) y
+    // addReviewComment sobre el mismo recurso (ver docstring).
+    await tx
+      .select({ id: pixelforgeProjects.id })
+      .from(pixelforgeProjects)
+      .where(eq(pixelforgeProjects.id, row.projectId))
+      .for("update")
+      .limit(1);
 
     if (resolution.reason.trim().length < 5) {
       throw new Error("La razón de resolución es demasiado corta (mínimo 5 caracteres)");
