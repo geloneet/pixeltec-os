@@ -106,7 +106,14 @@ export function checkVI008(tree: ValidatedPageTree): QaFindingInput[] {
 
 // ─── QA-VI-009 — ítems bajo el mínimo por block ─────────────────────────────
 
-/** QA-VI-009 — un block de lista/grid (`MIN_ITEMS_BY_BLOCK` en `catalog.ts`) con menos ítems que su mínimo recomendado. */
+/**
+ * QA-VI-009 — un block de lista/grid (`MIN_ITEMS_BY_BLOCK` en `catalog.ts`)
+ * con menos ítems que su mínimo recomendado. Hoy los `propsSchema` del
+ * registry ya garantizan mínimos de ítems ≥ a los umbrales de
+ * `MIN_ITEMS_BY_BLOCK`, por lo que este check es inalcanzable en el pipeline
+ * actual; se conserva deliberadamente como red independiente por si el
+ * registry relaja sus mínimos (QA no asume invariantes de otras capas).
+ */
 export function checkVI009(tree: ValidatedPageTree): QaFindingInput[] {
   const findings: QaFindingInput[] = [];
 

@@ -75,6 +75,11 @@ export function checkST002(tree: ValidatedPageTree): QaFindingInput[] {
   const findings: QaFindingInput[] = [];
   const nodeCount = tree.nodes.length;
 
+  // nodeCount < MIN_COMPOSER_NODES: hoy el pageTreeSchema del registry ya
+  // garantiza un mínimo de nodos ≥ MIN_COMPOSER_NODES, por lo que esta rama
+  // es inalcanzable en el pipeline actual; se conserva deliberadamente como
+  // red independiente por si el registry relaja sus mínimos (QA no asume
+  // invariantes de otras capas).
   if (nodeCount < MIN_COMPOSER_NODES || nodeCount > MAX_COMPOSER_NODES) {
     findings.push(
       buildST002Finding(

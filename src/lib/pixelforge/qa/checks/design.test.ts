@@ -46,6 +46,72 @@ describe("QA-DI-001 — colisión B1 (paleta monocolor cae al mismo neutro que b
   });
 });
 
+describe("QA-DI-001 — comparación semántica de color (parseCssColor, no string)", () => {
+  it("primary en rgb() y bg en hex largo del MISMO color colisionan aunque el string difiera", () => {
+    const tokens = baseTokens({
+      paleta: [
+        { token: "color-fondo", valor: "#0f172a", uso: "Fondo general de la landing." },
+        { token: "color-texto", valor: "#ffffff", uso: "Texto principal del cuerpo." },
+        { token: "color-primario", valor: "rgb(15,23,42)", uso: "Color de marca para CTAs." },
+        { token: "color-acento", valor: "#334155", uso: "Acento secundario." },
+        { token: "color-muted", valor: "#475569", uso: "Texto secundario, bordes." },
+      ],
+    });
+
+    const findings = findingsFor("QA-DI-001", checkDesignTokens(tokens));
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.description).toContain("--pf-primary");
+  });
+
+  it("fg en hex corto (#fff) y bg en hex largo (#ffffff) del MISMO color colisionan", () => {
+    const tokens = baseTokens({
+      paleta: [
+        { token: "color-fondo", valor: "#ffffff", uso: "Fondo general de la landing." },
+        { token: "color-texto", valor: "#fff", uso: "Texto principal del cuerpo." },
+        { token: "color-primario", valor: "#1e3a8a", uso: "Color de marca para CTAs." },
+        { token: "color-acento", valor: "#334155", uso: "Acento secundario." },
+        { token: "color-muted", valor: "#475569", uso: "Texto secundario, bordes." },
+      ],
+    });
+
+    const findings = findingsFor("QA-DI-001", checkDesignTokens(tokens));
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.description).toContain("--pf-fg");
+  });
+
+  it("primary en hsl() equivalente al bg en hex colisiona", () => {
+    // hsl(222.2, 47.4%, 11.2%) == #0f172a exacto (mismo color, distinta representación).
+    const tokens = baseTokens({
+      paleta: [
+        { token: "color-fondo", valor: "#0f172a", uso: "Fondo general de la landing." },
+        { token: "color-texto", valor: "#ffffff", uso: "Texto principal del cuerpo." },
+        { token: "color-primario", valor: "hsl(222.2, 47.4%, 11.2%)", uso: "Color de marca para CTAs." },
+        { token: "color-acento", valor: "#334155", uso: "Acento secundario." },
+        { token: "color-muted", valor: "#475569", uso: "Texto secundario, bordes." },
+      ],
+    });
+
+    const findings = findingsFor("QA-DI-001", checkDesignTokens(tokens));
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.description).toContain("--pf-primary");
+  });
+
+  it("colores distintos pero cercanos (no idénticos en RGB) NO colisionan", () => {
+    const tokens = baseTokens({
+      paleta: [
+        { token: "color-fondo", valor: "#0f172a", uso: "Fondo general de la landing." },
+        { token: "color-texto", valor: "#ffffff", uso: "Texto principal del cuerpo." },
+        { token: "color-primario", valor: "rgb(16, 24, 43)", uso: "Color de marca para CTAs." },
+        { token: "color-acento", valor: "#334155", uso: "Acento secundario." },
+        { token: "color-muted", valor: "#475569", uso: "Texto secundario, bordes." },
+      ],
+    });
+
+    const findings = findingsFor("QA-DI-001", checkDesignTokens(tokens));
+    expect(findings).toHaveLength(0);
+  });
+});
+
 describe("QA-DI-002 — contraste WCAG server-side", () => {
   it("fg/bg con ratio < 3.0 produce major Y blocking=true", () => {
     const tokens = baseTokens({

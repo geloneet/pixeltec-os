@@ -19,7 +19,7 @@ import {
   FG_KEYWORDS,
   type DesignTokens,
 } from "@/components/pixelforge/render/tokens";
-import { contrastRatio } from "../contrast";
+import { contrastRatio, parseCssColor } from "../contrast";
 import { buildLocationKey } from "../location-key";
 import type { QaFindingInput } from "../catalog";
 
@@ -28,18 +28,36 @@ function normalizeColorForCompare(value: string): string {
 }
 
 /**
+ * `true` si `a` y `b` son el MISMO color. Si ambos son parseables por
+ * `parseCssColor` (contrast.ts), compara por componentes RGB parseados —
+ * así "#0f172a" y "rgb(15,23,42)" (mismo color, formatos distintos) se
+ * detectan como colisión. Si cualquiera no es parseable (named colors,
+ * gradientes, etc.), cae al fallback de comparación por string normalizado
+ * (trim+lowercase) — nunca peor que la comparación anterior.
+ */
+function colorsMatch(a: string, b: string): boolean {
+  const parsedA = parseCssColor(a);
+  const parsedB = parseCssColor(b);
+  if (parsedA && parsedB) {
+    return parsedA.r === parsedB.r && parsedA.g === parsedB.g && parsedA.b === parsedB.b;
+  }
+  return normalizeColorForCompare(a) === normalizeColorForCompare(b);
+}
+
+/**
  * QA-DI-001 — Colisión B1: `--pf-primary`≡`--pf-bg` o `--pf-fg`≡`--pf-bg`
- * (comparación normalizada). `directionTokensToCssVars` ya trae un guard
- * contra la colisión de `primary` (F6A #5, gate B1) que prueba el siguiente
- * candidato de la paleta; este check re-verifica el resultado FINAL porque,
- * si la paleta entera es monocolor, ese guard puede terminar cayendo al
- * mismo neutro que usa `bg` — una colisión real que sí debe reportarse.
+ * (comparación semántica por color parseado, ver `colorsMatch`).
+ * `directionTokensToCssVars` ya trae un guard contra la colisión de
+ * `primary` (F6A #5, gate B1) que prueba el siguiente candidato de la
+ * paleta; este check re-verifica el resultado FINAL porque, si la paleta
+ * entera es monocolor, ese guard puede terminar cayendo al mismo neutro que
+ * usa `bg` — una colisión real que sí debe reportarse.
  */
 function checkDI001(vars: Record<string, string>): QaFindingInput[] {
-  const bg = normalizeColorForCompare(vars["--pf-bg"] ?? "");
+  const bg = vars["--pf-bg"] ?? "";
   const collidedRoles: string[] = [];
-  if (normalizeColorForCompare(vars["--pf-primary"] ?? "") === bg) collidedRoles.push("--pf-primary");
-  if (normalizeColorForCompare(vars["--pf-fg"] ?? "") === bg) collidedRoles.push("--pf-fg");
+  if (colorsMatch(vars["--pf-primary"] ?? "", bg)) collidedRoles.push("--pf-primary");
+  if (colorsMatch(vars["--pf-fg"] ?? "", bg)) collidedRoles.push("--pf-fg");
   if (collidedRoles.length === 0) return [];
 
   const location = { selectorHash: "color-collision" };
