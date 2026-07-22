@@ -5,7 +5,8 @@ import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { auth } from "@/lib/auth/config";
 import { getClientById } from "@/lib/db/repos/crm";
-import { getPixelforgeProjectFull } from "@/lib/db/repos/pixelforge";
+import { getPixelforgeProjectFull, listPageVersions, listQaRunsForProject } from "@/lib/db/repos/pixelforge";
+import { computeQaGateState, qaRailStatus } from "@/lib/pixelforge/qa/gate-state";
 import { ForgeStationBadge } from "@/components/pixelforge/forge/ForgeStationBadge";
 import { StationTransition } from "@/components/pixelforge/StationTransition";
 import { StepperBar } from "@/components/pixelforge/StepperBar";
@@ -38,6 +39,23 @@ export default async function PixelforgeProjectLayout({
       return [station, artifact?.status ?? "pending"];
     })
   ) as Record<PixelforgeStation, PixelforgeArtifactStatus>;
+
+  // PF-F8 T7 (aditivo): `qa` no sella un artifact (STATION_ARTIFACT.qa===null,
+  // así que el default de arriba siempre es "pending") — el riel de esta
+  // estación en cambio refleja el GATE hacia `revision`, vía el mismo helper
+  // puro que usa `qa/page.tsx` (`gate-state.ts`, T7): `sealed` si el gate está
+  // abierto para la vigente, `invalidated` si hay un temple viejo que lo
+  // habría abierto pero la vigente ya no tiene QA cerrado. En cualquier otro
+  // caso se deja el default calculado arriba ("pending") — NO se toca la
+  // derivación de las demás estaciones.
+  const [qaVersionRows, qaRunRows] = await Promise.all([
+    listPageVersions(id, ownerId),
+    listQaRunsForProject(id, ownerId),
+  ]);
+  const currentPageVersionId = qaVersionRows[0]?.id ?? null;
+  const qaGate = computeQaGateState(qaRunRows, currentPageVersionId);
+  const qaRail = qaRailStatus(qaGate);
+  if (qaRail) statuses.qa = qaRail;
 
   const completed = project.status === "completed" || project.status === "approved";
 
