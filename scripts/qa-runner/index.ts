@@ -33,6 +33,7 @@ import type { PixelforgeQaRun } from "@/lib/db/schema";
 import { finalizeQaRunOrchestrated } from "@/lib/pixelforge/qa/finalize";
 import { signQaPreviewToken } from "@/lib/pixelforge/qa/preview-token";
 import { loadQaRunnerEnv, type QaRunnerEnv } from "./env";
+import { touchHeartbeat } from "./heartbeat";
 import { buildQaPreviewUrl } from "./url";
 import { originOf } from "./security";
 import { runQaBrowserJob } from "./run-job";
@@ -174,6 +175,7 @@ async function runJobSafely(job: PixelforgeQaRun, env: QaRunnerEnv): Promise<voi
 async function loop(env: QaRunnerEnv): Promise<void> {
   console.log("[qa-runner] loop arrancado — poll cada", POLL_INTERVAL_MS, "ms.");
   while (!shuttingDown) {
+    touchHeartbeat();
     let job: PixelforgeQaRun | null = null;
     try {
       job = await claimQaBrowserJob();

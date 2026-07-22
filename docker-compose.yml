@@ -74,6 +74,17 @@ services:
   # alcanza `db` y `app:3000`, sin puertos publicados, sin `web-network`
   # (el allowlist de egress del propio runner es defensa en profundidad —
   # esto es la primera capa: ni siquiera puede alcanzar el resto del VPS).
+  # Hardening (cierre F8): esto es infraestructura de ejecución sensible — un
+  # navegador automatizado procesando páginas generadas por IA. Capas:
+  # usuario no-root (pwuser, el de la imagen oficial de Playwright), rootfs
+  # de solo lectura (Chromium escribe únicamente en los tmpfs de /tmp y
+  # /home/pwuser; screenshots van a R2 desde memoria), cero capabilities
+  # (chromium corre --no-sandbox, no necesita ninguna), sin escalada de
+  # privilegios, límites de memoria/CPU/procesos, e init para cosechar los
+  # procesos hijos del browser-por-job. El healthcheck valida FRESCURA del
+  # heartbeat que el loop toca en cada poll (scripts/qa-runner/heartbeat.ts)
+  # — detecta loop colgado, no solo proceso vivo; umbral 360s > JOB_TIMEOUT
+  # de 4 min (durante un job legítimo el loop no itera).
   qa-runner:
     build:
       context: .
@@ -81,6 +92,25 @@ services:
       target: qa-runner
     container_name: pixeltec-os-qa-runner
     restart: unless-stopped
+    init: true
+    user: pwuser
+    read_only: true
+    tmpfs:
+      - /tmp:size=512m
+      - /home/pwuser:size=64m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 2g
+    cpus: 1.5
+    pids_limit: 512
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /tmp/qa-runner-heartbeat && [ $$(($$(date +%s) - $$(date -r /tmp/qa-runner-heartbeat +%s))) -lt 360 ]"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     env_file:
       - .env.production
     depends_on:
