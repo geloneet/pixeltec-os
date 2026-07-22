@@ -1886,6 +1886,29 @@ export const pixelforgeQaBrowserStatusEnum = pgEnum("pixelforge_qa_browser_statu
   "skipped",
 ]);
 
+// ── Revisión (F9 — estación `revision`) ─────────────────────────────────────
+
+export const pixelforgeReviewStatusEnum = pgEnum("pixelforge_review_status", [
+  "in_review",
+  "changes_requested",
+  "approved",
+  "superseded",
+  "cancelled",
+]);
+
+export const pixelforgeCommentAnchorEnum = pgEnum("pixelforge_comment_anchor", [
+  "general",
+  "section",
+  "finding",
+]);
+
+export const pixelforgeCommentStatusEnum = pgEnum("pixelforge_comment_status", [
+  "open",
+  "resolved",
+  "dismissed",
+  "superseded",
+]);
+
 export const pixelforgeProjects = pgTable(
   "pixelforge_projects",
   {
@@ -2289,6 +2312,134 @@ export const pixelforgeQaFindings = pgTable(
   ]
 );
 
+/**
+ * Revisión humana (F9 — estación `revision`) sobre UNA `pixelforge_qa_runs`
+ * concreta. Cada "ronda" (`roundNumber`, incremental por proyecto) abre
+ * exactamente una revisión — el unique parcial `..._active_idx` garantiza en
+ * DB "una sola revisión `in_review` por proyecto", mismo criterio que
+ * `pixelforge_qa_runs_active_idx` (F8). `verdictSnapshot`/`scoreSnapshot` son
+ * un SNAPSHOT del veredicto de `qaRunId` al abrir la revisión (no se
+ * recalculan si el QA cambiara — no debería, un QA cerrado es inmutable).
+ * `treeHash` (formato `sha256:<hex64>`, serialización canónica — helper en
+ * T2) ancla la revisión al árbol EXACTO revisado, para detectar composiciones
+ * nuevas que dejan la ronda `superseded`.
+ *
+ * `qaRunId` usa `onDelete: "cascade"` (no `restrict`): un QA run solo muere
+ * por cascada del proyecto (`pixelforge_projects` → `pixelforge_qa_runs`), y
+ * si `pixelforge_reviews.qa_run_id` fuera `restrict`, el `DELETE` de un
+ * proyecto podría reventar según el orden interno en que Postgres resuelve
+ * las cascadas concurrentes (gotcha conocido, demostrado por el script de
+ * validación de T1) — `cascade` deja que el borrado del proyecto arrastre
+ * limpio review → qa_run sin importar el orden.
+ *
+ * `targetStation`/`requestReason` solo aplican con `status='changes_requested'`;
+ * `targetStation` NULL en ese caso significa bloqueo técnico (no vuelve a una
+ * estación de producción concreta, requiere intervención fuera del flujo).
+ * `acceptedRisks` es un documento completo (array de `{ findingId, qaRunId,
+ * checkCode, severity, rationale, acceptedById, acceptedByName, acceptedAt }`)
+ * escrito SOLO al aprobar — congela qué hallazgos no bloqueantes se
+ * aceptaron conscientemente, para auditoría futura.
+ */
+export const pixelforgeReviews = pgTable(
+  "pixelforge_reviews",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => pixelforgeProjects.id, { onDelete: "cascade" }),
+    pageVersionId: uuid("page_version_id")
+      .notNull()
+      .references(() => pixelforgePageVersions.id, { onDelete: "cascade" }),
+    qaRunId: uuid("qa_run_id")
+      .notNull()
+      .references(() => pixelforgeQaRuns.id, { onDelete: "cascade" }),
+    roundNumber: integer("round_number").notNull(),
+    status: pixelforgeReviewStatusEnum("status").notNull().default("in_review"),
+    verdictSnapshot: pixelforgeQaVerdictEnum("verdict_snapshot").notNull(),
+    scoreSnapshot: integer("score_snapshot").notNull(),
+    treeHash: text("tree_hash").notNull(),
+    // Solo con status='changes_requested' — null también = bloqueo técnico.
+    targetStation: pixelforgeStationEnum("target_station"),
+    requestReason: text("request_reason"),
+    // Documento completo escrito SOLO al aprobar (ver docstring de arriba).
+    acceptedRisks: jsonb("accepted_risks"),
+    approvedById: uuid("approved_by_id").references(() => users.id, { onDelete: "set null" }),
+    approvedByName: text("approved_by_name"),
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
+    approvalReason: text("approval_reason"),
+    // Autoría desnormalizada — nullable + FK a users con set null, igual que
+    // definition_events.actorId (L1649).
+    openedById: uuid("opened_by_id").references(() => users.id, { onDelete: "set null" }),
+    openedByName: text("opened_by_name").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    closedAt: timestamp("closed_at", { withTimezone: true }),
+  },
+  (t) => [
+    index("pixelforge_reviews_project_idx").on(t.projectId),
+    index("pixelforge_reviews_page_version_idx").on(t.pageVersionId),
+    // "una sola revisión activa por proyecto" — mismo criterio en DB que
+    // pixelforge_qa_runs_active_idx (F8).
+    uniqueIndex("pixelforge_reviews_active_idx")
+      .on(t.projectId)
+      .where(sql`${t.status} = 'in_review'`),
+    uniqueIndex("pixelforge_reviews_project_round_idx").on(t.projectId, t.roundNumber),
+  ]
+);
+
+/**
+ * Comentario de una revisión (F9). `projectId` va DESNORMALIZADO (además del
+ * join natural vía `reviewId` → `pixelforge_reviews.project_id`) para que el
+ * guard "¿hay bloqueantes abiertos en este proyecto?" (`countOpenBlockingComments`)
+ * resuelva con un solo índice parcial en vez de un doble join contra
+ * `pixelforge_reviews` en cada chequeo — se consulta en el camino caliente de
+ * aprobar una revisión.
+ *
+ * `anchorType` distingue dónde vive el comentario: `general` (la revisión
+ * completa, sin ancla), `section` (un nodo del árbol vía `nodeId`, texto libre
+ * que apunta a un id del `tree` de la page_version) o `finding` (un hallazgo
+ * de QA concreto vía `findingId`). `nodeId`/`findingId` son mutuamente
+ * exclusivos con el resto según `anchorType` — se valida en capa de repo, no
+ * en DB (mismo criterio que otros campos condicionales del módulo, p.ej.
+ * `pixelforge_qa_runs.human_decision`).
+ */
+export const pixelforgeReviewComments = pgTable(
+  "pixelforge_review_comments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    reviewId: uuid("review_id")
+      .notNull()
+      .references(() => pixelforgeReviews.id, { onDelete: "cascade" }),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => pixelforgeProjects.id, { onDelete: "cascade" }),
+    anchorType: pixelforgeCommentAnchorEnum("anchor_type").notNull(),
+    nodeId: text("node_id"), // solo anchor 'section'
+    findingId: uuid("finding_id").references(() => pixelforgeQaFindings.id, {
+      onDelete: "set null",
+    }), // solo anchor 'finding'
+    body: text("body").notNull(),
+    blocking: boolean("blocking").notNull().default(false),
+    status: pixelforgeCommentStatusEnum("status").notNull().default("open"),
+    authorId: uuid("author_id").references(() => users.id, { onDelete: "set null" }),
+    authorName: text("author_name").notNull(),
+    resolvedById: uuid("resolved_by_id").references(() => users.id, { onDelete: "set null" }),
+    resolvedByName: text("resolved_by_name"),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    resolutionReason: text("resolution_reason"),
+    resolutionEvidence: jsonb("resolution_evidence"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("pixelforge_review_comments_review_idx").on(t.reviewId),
+    index("pixelforge_review_comments_project_status_idx").on(t.projectId, t.status),
+    // Parcial NO único — puede haber varios bloqueantes abiertos a la vez.
+    index("pixelforge_review_comments_blocking_open_idx")
+      .on(t.projectId)
+      .where(sql`${t.blocking} = true and ${t.status} = 'open'`),
+  ]
+);
+
 export const pixelforgeProjectsRelations = relations(
   pixelforgeProjects,
   ({ many, one }) => ({
@@ -2317,6 +2468,8 @@ export const pixelforgeProjectsRelations = relations(
     creativeDirections: many(pixelforgeCreativeDirections),
     pageVersions: many(pixelforgePageVersions),
     qaRuns: many(pixelforgeQaRuns),
+    reviews: many(pixelforgeReviews),
+    reviewComments: many(pixelforgeReviewComments),
   })
 );
 
@@ -2422,6 +2575,7 @@ export const pixelforgeQaRunsRelations = relations(pixelforgeQaRuns, ({ one, man
     references: [pixelforgePageVersions.id],
   }),
   findings: many(pixelforgeQaFindings),
+  reviews: many(pixelforgeReviews),
 }));
 
 export const pixelforgeQaFindingsRelations = relations(pixelforgeQaFindings, ({ one }) => ({
@@ -2430,6 +2584,40 @@ export const pixelforgeQaFindingsRelations = relations(pixelforgeQaFindings, ({ 
     references: [pixelforgeQaRuns.id],
   }),
 }));
+
+export const pixelforgeReviewsRelations = relations(pixelforgeReviews, ({ one, many }) => ({
+  project: one(pixelforgeProjects, {
+    fields: [pixelforgeReviews.projectId],
+    references: [pixelforgeProjects.id],
+  }),
+  pageVersion: one(pixelforgePageVersions, {
+    fields: [pixelforgeReviews.pageVersionId],
+    references: [pixelforgePageVersions.id],
+  }),
+  qaRun: one(pixelforgeQaRuns, {
+    fields: [pixelforgeReviews.qaRunId],
+    references: [pixelforgeQaRuns.id],
+  }),
+  comments: many(pixelforgeReviewComments),
+}));
+
+export const pixelforgeReviewCommentsRelations = relations(
+  pixelforgeReviewComments,
+  ({ one }) => ({
+    review: one(pixelforgeReviews, {
+      fields: [pixelforgeReviewComments.reviewId],
+      references: [pixelforgeReviews.id],
+    }),
+    project: one(pixelforgeProjects, {
+      fields: [pixelforgeReviewComments.projectId],
+      references: [pixelforgeProjects.id],
+    }),
+    finding: one(pixelforgeQaFindings, {
+      fields: [pixelforgeReviewComments.findingId],
+      references: [pixelforgeQaFindings.id],
+    }),
+  })
+);
 
 export type PixelforgeProject = typeof pixelforgeProjects.$inferSelect;
 export type NewPixelforgeProject = typeof pixelforgeProjects.$inferInsert;
@@ -2453,3 +2641,7 @@ export type PixelforgeQaRun = typeof pixelforgeQaRuns.$inferSelect;
 export type NewPixelforgeQaRun = typeof pixelforgeQaRuns.$inferInsert;
 export type PixelforgeQaFinding = typeof pixelforgeQaFindings.$inferSelect;
 export type NewPixelforgeQaFinding = typeof pixelforgeQaFindings.$inferInsert;
+export type PixelforgeReview = typeof pixelforgeReviews.$inferSelect;
+export type NewPixelforgeReview = typeof pixelforgeReviews.$inferInsert;
+export type PixelforgeReviewComment = typeof pixelforgeReviewComments.$inferSelect;
+export type NewPixelforgeReviewComment = typeof pixelforgeReviewComments.$inferInsert;

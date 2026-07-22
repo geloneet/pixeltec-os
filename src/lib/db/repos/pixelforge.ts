@@ -28,6 +28,8 @@ import {
   pixelforgePageVersions,
   pixelforgeQaRuns,
   pixelforgeQaFindings,
+  pixelforgeReviews,
+  pixelforgeReviewComments,
   type PixelforgeProject,
   type PixelforgeContextSource,
   type PixelforgeArtifact,
@@ -39,6 +41,8 @@ import {
   type PixelforgePageVersion,
   type PixelforgeQaRun,
   type PixelforgeQaFinding,
+  type PixelforgeReview,
+  type PixelforgeReviewComment,
 } from "@/lib/db/schema";
 import {
   ARTIFACT_KINDS,
@@ -2712,6 +2716,117 @@ export async function insertQaScreenshotAsset(
     .returning({ id: pixelforgeAssets.id });
 
   return asset.id;
+}
+
+// ─── Revisión (F9 — estación `revision`) ───────────────────────────────────
+// T1 solo sienta la lectura ownership-checked sobre `pixelforge_reviews`/
+// `pixelforge_review_comments` (la escritura — abrir revisión, comentar,
+// aprobar/rechazar — llega en tasks posteriores de F9). Mismo calco IDOR que
+// la sección QA (F8): `getPixelforgeProject`/join a `pixelforgeProjects` para
+// validar ownership, `countOpenBlockingComments` queda INTERNA (sin ownerId)
+// porque la invoca el guard de aprobación con un `projectId` ya resuelto
+// desde una revisión ownership-checked, no directamente una action de
+// usuario — mismo criterio que `claimQaBrowserJob`/`getProjectOwnerIdInternal`.
+
+/** Todas las revisiones del proyecto (SIN comentarios), ownership-checked. Orden desc por `roundNumber`. */
+export async function listReviewsForProject(
+  projectId: string,
+  ownerId: string
+): Promise<PixelforgeReview[]> {
+  const project = await getPixelforgeProject(projectId, ownerId);
+  if (!project) throw new Error("Proyecto no encontrado");
+
+  return db
+    .select()
+    .from(pixelforgeReviews)
+    .where(eq(pixelforgeReviews.projectId, projectId))
+    .orderBy(desc(pixelforgeReviews.roundNumber));
+}
+
+/** La revisión `in_review` del proyecto, si existe. Ownership-checked. Null si no hay ninguna activa. */
+export async function getActiveReview(
+  projectId: string,
+  ownerId: string
+): Promise<PixelforgeReview | null> {
+  const project = await getPixelforgeProject(projectId, ownerId);
+  if (!project) throw new Error("Proyecto no encontrado");
+
+  const [review] = await db
+    .select()
+    .from(pixelforgeReviews)
+    .where(and(eq(pixelforgeReviews.projectId, projectId), eq(pixelforgeReviews.status, "in_review")))
+    .limit(1);
+
+  return review ?? null;
+}
+
+export interface ReviewWithComments {
+  review: PixelforgeReview;
+  comments: PixelforgeReviewComment[];
+}
+
+/**
+ * Revisión + sus comentarios, ownership-checked vía join a
+ * `pixelforgeProjects` (mismo patrón que `getQaRunWithFindings`). Null si no
+ * existe o no es del owner. Comentarios en orden asc por `createdAt`
+ * (cronológico — a diferencia de los findings de QA, que van desc).
+ */
+export async function getReviewWithComments(
+  reviewId: string,
+  ownerId: string
+): Promise<ReviewWithComments | null> {
+  const [row] = await db
+    .select({ review: pixelforgeReviews })
+    .from(pixelforgeReviews)
+    .innerJoin(pixelforgeProjects, eq(pixelforgeReviews.projectId, pixelforgeProjects.id))
+    .where(and(eq(pixelforgeReviews.id, reviewId), eq(pixelforgeProjects.ownerId, ownerId)))
+    .limit(1);
+  if (!row) return null;
+
+  const comments = await db
+    .select()
+    .from(pixelforgeReviewComments)
+    .where(eq(pixelforgeReviewComments.reviewId, reviewId))
+    .orderBy(asc(pixelforgeReviewComments.createdAt));
+
+  return { review: row.review, comments };
+}
+
+/** Todos los comentarios del proyecto (de cualquier revisión), ownership-checked. Orden asc por `createdAt`. */
+export async function listCommentsForProject(
+  projectId: string,
+  ownerId: string
+): Promise<PixelforgeReviewComment[]> {
+  const project = await getPixelforgeProject(projectId, ownerId);
+  if (!project) throw new Error("Proyecto no encontrado");
+
+  return db
+    .select()
+    .from(pixelforgeReviewComments)
+    .where(eq(pixelforgeReviewComments.projectId, projectId))
+    .orderBy(asc(pixelforgeReviewComments.createdAt));
+}
+
+/**
+ * Cuántos comentarios bloqueantes siguen `open` en el proyecto — INTERNA (sin
+ * ownerId, ver nota de cabecera de esta sección): la usa el guard de
+ * aprobación de una revisión ya resuelta por id/ownership, no una action de
+ * usuario directa. Se apoya en `pixelforge_review_comments_blocking_open_idx`
+ * (parcial `blocking = true and status = 'open'`) para resolver con un solo
+ * índice, gracias al `projectId` desnormalizado en la tabla.
+ */
+export async function countOpenBlockingComments(projectId: string): Promise<number> {
+  const rows = await db
+    .select({ id: pixelforgeReviewComments.id })
+    .from(pixelforgeReviewComments)
+    .where(
+      and(
+        eq(pixelforgeReviewComments.projectId, projectId),
+        eq(pixelforgeReviewComments.blocking, true),
+        eq(pixelforgeReviewComments.status, "open")
+      )
+    );
+  return rows.length;
 }
 
 // ─── Helpers privados ──────────────────────────────────────────────────────

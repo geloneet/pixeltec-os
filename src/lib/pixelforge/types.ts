@@ -109,7 +109,15 @@ export type PixelforgeEventType =
   | "qa_failed"
   | "qa_approved_with_warnings"
   | "qa_rejected"
-  | "qa_gate_opened";
+  | "qa_gate_opened"
+  | "review_opened"
+  | "comment_added"
+  | "comment_resolved"
+  | "changes_requested"
+  | "risk_accepted"
+  | "approval_granted"
+  | "approval_superseded"
+  | "review_cancelled";
 
 export type PixelforgeArtifactStatus = "pending" | "in_progress" | "sealed" | "invalidated";
 

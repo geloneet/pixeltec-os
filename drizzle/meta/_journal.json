@@ -183,6 +183,13 @@
       "when": 1784675850349,
       "tag": "0025_cute_maggott",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1784750751686,
+      "tag": "0026_flawless_cassandra_nova",
+      "breakpoints": true
     }
   ]
 }
