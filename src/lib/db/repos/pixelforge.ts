@@ -2413,6 +2413,99 @@ export function openQaGate(projectId: string, qaRunId: string, actor: QaGateActo
   });
 }
 
+/** Semilla de una de las 3 corridas advisory — lo que `attachQaAdvisoryRuns` necesita para insertar su `pixelforge_ai_runs`. */
+export interface AdvisoryRunSeed {
+  operation: PixelforgeAIOperation;
+  model: string;
+  promptVersion: string;
+  inputSummary: unknown;
+}
+
+export interface AttachQaAdvisoryRunsInput {
+  projectId: string;
+  actor: Actor;
+  critique: AdvisoryRunSeed;
+  originality: AdvisoryRunSeed;
+  likeness: AdvisoryRunSeed;
+}
+
+export interface AttachedQaAdvisoryRuns {
+  critiqueRunId: string;
+  originalityRunId: string;
+  likenessRunId: string;
+}
+
+/**
+ * Crea los 3 `ai_runs` (`queued`) de la fase advisory de un `qa_run` Y setea
+ * sus FKs (`critique_run_id`/`originality_run_id`/`likeness_run_id`) EN UNA
+ * MISMA transacción — los 3 FKs nunca quedan parcialmente seteados (F8-T5:
+ * T4 lo dejó como pregunta abierta, esta función es la respuesta). Idempotente:
+ * si CUALQUIER FK advisory ya está seteado (releído FRESCO dentro de esta
+ * misma tx, no un valor que el caller pudo haber visto antes de invocarla),
+ * es no-op y devuelve `null` — protege contra doble lanzamiento si
+ * `launchQaAdvisoryRuns` (`src/lib/pixelforge/qa/advisory.ts`) se invocara dos
+ * veces (p.ej. un reintento del POST que la dispara). `resultRef` de cada
+ * `ai_run` queda `qa_run:<qaRunId>` (no un artifact — el resultado vive como
+ * findings de este run de QA, ver `qa/advisory-operations.ts`).
+ *
+ * INTERNA (sin ownerId) — mismo criterio que el resto de la sección de
+ * orquestación de QA (`startQaRunPhase1`/`getQaRunById`/etc.): la invoca
+ * `launchQaAdvisoryRuns`, nunca directamente una action de usuario. Sin
+ * evento `pixelforge_events` propio (a diferencia de `createRun`) — mismo
+ * criterio que `claimQaBrowserJob`/`updateQaRunProgress`: es orquestación
+ * interna del motor de QA, no una acción que un actor humano disparó
+ * directamente.
+ */
+export function attachQaAdvisoryRuns(
+  qaRunId: string,
+  input: AttachQaAdvisoryRunsInput
+): Promise<AttachedQaAdvisoryRuns | null> {
+  return db.transaction(async (tx) => {
+    const [run] = await tx
+      .select({
+        critiqueRunId: pixelforgeQaRuns.critiqueRunId,
+        originalityRunId: pixelforgeQaRuns.originalityRunId,
+        likenessRunId: pixelforgeQaRuns.likenessRunId,
+      })
+      .from(pixelforgeQaRuns)
+      .where(eq(pixelforgeQaRuns.id, qaRunId))
+      .limit(1);
+    if (!run) return null;
+    if (run.critiqueRunId !== null || run.originalityRunId !== null || run.likenessRunId !== null) {
+      return null; // ya lanzada — no-op idempotente.
+    }
+
+    async function insertAdvisoryRun(seed: AdvisoryRunSeed): Promise<string> {
+      const [inserted] = await tx
+        .insert(pixelforgeAiRuns)
+        .values({
+          projectId: input.projectId,
+          operation: seed.operation,
+          status: "queued",
+          model: seed.model,
+          promptVersion: seed.promptVersion,
+          inputSummary: seed.inputSummary,
+          resultRef: `qa_run:${qaRunId}`,
+          requestedById: input.actor.id,
+          requestedByName: input.actor.name,
+        })
+        .returning({ id: pixelforgeAiRuns.id });
+      return inserted.id;
+    }
+
+    const critiqueRunId = await insertAdvisoryRun(input.critique);
+    const originalityRunId = await insertAdvisoryRun(input.originality);
+    const likenessRunId = await insertAdvisoryRun(input.likeness);
+
+    await tx
+      .update(pixelforgeQaRuns)
+      .set({ critiqueRunId, originalityRunId, likenessRunId, updatedAt: new Date() })
+      .where(eq(pixelforgeQaRuns.id, qaRunId));
+
+    return { critiqueRunId, originalityRunId, likenessRunId };
+  });
+}
+
 // ─── Helpers privados ──────────────────────────────────────────────────────
 
 async function touchProject(tx: Tx, projectId: string) {
