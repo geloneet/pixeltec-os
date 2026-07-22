@@ -15,6 +15,9 @@ vi.mock("@/lib/db/repos/pixelforge", async (importOriginal) => {
 
 import { POST } from "./route";
 import { getReviewWithComments, resolveReviewComment, ReviewConflictError } from "@/lib/db/repos/pixelforge";
+// (ReviewNotFoundError/ReviewRuleError no se necesitan mockeados acá — el
+// guard IDOR anterior al repo de escritura ya produce el 404, y el 409 solo
+// se ejerce con ReviewConflictError.)
 
 const OWNER_ID = "owner-1";
 const REVIEW_ID = "22222222-2222-2222-2222-222222222222";
@@ -103,6 +106,15 @@ describe("POST /api/pixelforge/reviews/:reviewId/comments/:commentId/resolution"
     const body = await res.json();
     expect(res.status).toBe(409);
     expect(body.error).toMatch(/ya no está abierto/);
+  });
+
+  it("500 sin filtrar el mensaje si resolveReviewComment lanza un error no reconocido", async () => {
+    (resolveReviewComment as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("detalle interno de postgres"));
+    const res = await POST(makeRequest({ finalStatus: "resolved", reason: "se corrigió" }), makeParams());
+    const body = await res.json();
+    expect(res.status).toBe(500);
+    expect(body.error).toBe("Error inesperado");
+    expect(JSON.stringify(body)).not.toMatch(/detalle interno/);
   });
 
   it("200 feliz: resuelve el comentario con el actor de la sesión (nunca del body)", async () => {

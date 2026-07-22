@@ -5,12 +5,13 @@
  * `db.transaction` + lock de proyecto + **CAS** sobre `status='in_review'`.
  * El body se discrimina por `action` (`z.discriminatedUnion`).
  *
- * Mismo molde que `qa/runs/[qaRunId]/decision/route.ts`: auth → 401; zod →
- * 400 (incluye `action` desconocida); "Revisión no encontrada" → 404;
- * `ReviewConflictError` (CAS perdido) y cualquier otro error de negocio
- * (gate/hash/versión/riesgos/bloqueantes/contentTarget faltante) → 409 con
- * el mensaje del repo. Sin `revalidatePath` tras la decisión — el cliente
- * hace `router.refresh()` (mismo patrón que QA).
+ * Mismo molde que `qa/runs/route.ts` (L114-117): mapeo por `instanceof` —
+ * `ReviewNotFoundError` ("Revisión no encontrada") → 404;
+ * `ReviewConflictError` (CAS perdido) y `ReviewRuleError` (gate/hash/versión/
+ * riesgos/bloqueantes/contentTarget faltante) → 409 con el mensaje del repo;
+ * cualquier otro error se re-lanza al catch global → 500 "Error inesperado"
+ * sin exponer su mensaje (PF-F9 T4 fix). Sin `revalidatePath` tras la
+ * decisión — el cliente hace `router.refresh()` (mismo patrón que QA).
  */
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -19,6 +20,8 @@ import {
   approveReview,
   requestChanges,
   cancelReview,
+  ReviewNotFoundError,
+  ReviewRuleError,
   ReviewConflictError,
   type Actor,
 } from "@/lib/db/repos/pixelforge";
@@ -27,12 +30,14 @@ function fail(error: string, status: number) {
   return NextResponse.json({ ok: false, error }, { status });
 }
 
-const NOT_FOUND_MESSAGES = new Set(["Revisión no encontrada"]);
-
-function failFromError(err: unknown, fallback: string) {
-  if (err instanceof ReviewConflictError) return fail(err.message, 409);
-  const message = err instanceof Error ? err.message : fallback;
-  return fail(message, NOT_FOUND_MESSAGES.has(message) ? 404 : 409);
+/**
+ * Mapeo por `instanceof` — nunca por mensaje. Cualquier error no reconocido
+ * se re-lanza para que lo atrape el catch global → 500 genérico.
+ */
+function failFromError(err: unknown): NextResponse {
+  if (err instanceof ReviewNotFoundError) return fail(err.message, 404);
+  if (err instanceof ReviewConflictError || err instanceof ReviewRuleError) return fail(err.message, 409);
+  throw err;
 }
 
 const reviewIdSchema = z.string().uuid("Revisión inválida");
@@ -101,7 +106,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ rev
         await cancelReview(parsedId.data, ownerId, input.reason, actor);
       }
     } catch (err) {
-      return failFromError(err, "No se pudo completar la decisión");
+      return failFromError(err);
     }
 
     return NextResponse.json({ ok: true });

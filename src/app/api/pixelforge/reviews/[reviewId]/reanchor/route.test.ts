@@ -13,7 +13,7 @@ vi.mock("@/lib/db/repos/pixelforge", async (importOriginal) => {
 });
 
 import { POST } from "./route";
-import { reanchorReview, ReviewConflictError } from "@/lib/db/repos/pixelforge";
+import { reanchorReview, ReviewNotFoundError, ReviewRuleError, ReviewConflictError } from "@/lib/db/repos/pixelforge";
 
 const OWNER_ID = "owner-1";
 const REVIEW_ID = "22222222-2222-2222-2222-222222222222";
@@ -47,20 +47,20 @@ describe("POST /api/pixelforge/reviews/:reviewId/reanchor", () => {
   });
 
   it("404 si la revisión no existe o no es del owner", async () => {
-    (reanchorReview as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("Revisión no encontrada"));
+    (reanchorReview as ReturnType<typeof vi.fn>).mockRejectedValue(new ReviewNotFoundError("Revisión no encontrada"));
     const res = await POST(makeRequest(), makeParams());
     expect(res.status).toBe(404);
   });
 
   it("409 si la revisión no está abierta", async () => {
-    (reanchorReview as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("La revisión no está abierta"));
+    (reanchorReview as ReturnType<typeof vi.fn>).mockRejectedValue(new ReviewRuleError("La revisión no está abierta"));
     const res = await POST(makeRequest(), makeParams());
     expect(res.status).toBe(409);
   });
 
   it("409 si no hay un QA cerrado más reciente que abra la compuerta", async () => {
     (reanchorReview as ReturnType<typeof vi.fn>).mockRejectedValue(
-      new Error("El QA más reciente no abre la compuerta; re-ejecuta QA o solicita cambios")
+      new ReviewRuleError("El QA más reciente no abre la compuerta; re-ejecuta QA o solicita cambios")
     );
     const res = await POST(makeRequest(), makeParams());
     expect(res.status).toBe(409);
@@ -72,6 +72,15 @@ describe("POST /api/pixelforge/reviews/:reviewId/reanchor", () => {
     );
     const res = await POST(makeRequest(), makeParams());
     expect(res.status).toBe(409);
+  });
+
+  it("500 sin filtrar el mensaje si reanchorReview lanza un error no reconocido", async () => {
+    (reanchorReview as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("detalle interno de postgres"));
+    const res = await POST(makeRequest(), makeParams());
+    const body = await res.json();
+    expect(res.status).toBe(500);
+    expect(body.error).toBe("Error inesperado");
+    expect(JSON.stringify(body)).not.toMatch(/detalle interno/);
   });
 
   it("200 feliz: re-ancla con el actor de la sesión", async () => {

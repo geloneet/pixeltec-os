@@ -2785,7 +2785,7 @@ export async function listReviewsForProject(
   ownerId: string
 ): Promise<PixelforgeReview[]> {
   const project = await getPixelforgeProject(projectId, ownerId);
-  if (!project) throw new Error("Proyecto no encontrado");
+  if (!project) throw new ReviewNotFoundError("Proyecto no encontrado");
 
   return db
     .select()
@@ -2800,7 +2800,7 @@ export async function getActiveReview(
   ownerId: string
 ): Promise<PixelforgeReview | null> {
   const project = await getPixelforgeProject(projectId, ownerId);
-  if (!project) throw new Error("Proyecto no encontrado");
+  if (!project) throw new ReviewNotFoundError("Proyecto no encontrado");
 
   const [review] = await db
     .select()
@@ -2849,7 +2849,7 @@ export async function listCommentsForProject(
   ownerId: string
 ): Promise<PixelforgeReviewComment[]> {
   const project = await getPixelforgeProject(projectId, ownerId);
-  if (!project) throw new Error("Proyecto no encontrado");
+  if (!project) throw new ReviewNotFoundError("Proyecto no encontrado");
 
   return db
     .select()
@@ -2904,6 +2904,37 @@ export class ReviewConflictError extends Error {
   }
 }
 
+/**
+ * Error tipado de "no encontrado"/IDOR sobre proyecto, revisión o comentario
+ * — mismo criterio que un `getX(...)` ownership-checked que devuelve `null` en
+ * otras secciones del repo, pero acá el dato lo necesita el resto de la
+ * función (no puede simplemente devolver `null`). La capa de route lo mapea a
+ * 404 SIN exponer el mensaje crudo de ningún error no reconocido (fallback
+ * seguro: cualquier `Error` que no sea esta clase, `ReviewRuleError` o
+ * `ReviewConflictError` sube al catch global → 500 genérico).
+ */
+export class ReviewNotFoundError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ReviewNotFoundError";
+  }
+}
+
+/**
+ * Error tipado de violación de regla de negocio sobre una revisión (gate de
+ * QA cerrado, ancla inválida, razón demasiado corta, revisión no abierta,
+ * bloqueantes sin resolver, riesgos inválidos, etc.) — se distingue de un
+ * error de infraestructura/desconocido (Postgres crudo, conexión caída) para
+ * que la capa de route lo mapee a 409 con su mensaje es-ES, en vez de dejar
+ * pasar cualquier `Error` no reconocido con detalle interno hacia el cliente.
+ */
+export class ReviewRuleError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ReviewRuleError";
+  }
+}
+
 /** Mensaje es-ES accionable para un gate de QA cerrado (por qué no se puede abrir revisión). */
 function reviewGateClosedMessage(reason: QaGateClosedReason | null): string {
   switch (reason) {
@@ -2951,7 +2982,7 @@ export function openReview(projectId: string, ownerId: string, actor: Actor): Pr
       .where(and(eq(pixelforgeProjects.id, projectId), eq(pixelforgeProjects.ownerId, ownerId)))
       .for("update")
       .limit(1);
-    if (!project) throw new Error("Proyecto no encontrado");
+    if (!project) throw new ReviewNotFoundError("Proyecto no encontrado");
 
     // (2) versión vigente (max version).
     const [vigente] = await tx
@@ -2960,7 +2991,7 @@ export function openReview(projectId: string, ownerId: string, actor: Actor): Pr
       .where(eq(pixelforgePageVersions.projectId, projectId))
       .orderBy(desc(pixelforgePageVersions.version))
       .limit(1);
-    if (!vigente) throw new Error("No hay versión que revisar");
+    if (!vigente) throw new ReviewRuleError("No hay versión que revisar");
 
     // (3) gate de QA sobre la vigente.
     const runs = await tx
@@ -2970,11 +3001,11 @@ export function openReview(projectId: string, ownerId: string, actor: Actor): Pr
       .orderBy(desc(pixelforgeQaRuns.createdAt));
     const gate = computeQaGateState(runs, vigente.id);
     if (!gate.open || !gate.currentVersionRun) {
-      throw new Error(reviewGateClosedMessage(gate.reason));
+      throw new ReviewRuleError(reviewGateClosedMessage(gate.reason));
     }
     const run = gate.currentVersionRun;
     if (run.verdict === null || run.scoreTotal === null) {
-      throw new Error("El QA anclado no tiene veredicto resuelto");
+      throw new ReviewRuleError("El QA anclado no tiene veredicto resuelto");
     }
 
     // (4) sin review activa (el unique parcial es la red).
@@ -2983,7 +3014,7 @@ export function openReview(projectId: string, ownerId: string, actor: Actor): Pr
       .from(pixelforgeReviews)
       .where(and(eq(pixelforgeReviews.projectId, projectId), eq(pixelforgeReviews.status, "in_review")))
       .limit(1);
-    if (active) throw new Error("Ya hay una revisión activa para este proyecto");
+    if (active) throw new ReviewRuleError("Ya hay una revisión activa para este proyecto");
 
     // (5) roundNumber = max(round_number) + 1 (bajo el lock).
     const [lastRound] = await tx
@@ -3080,7 +3111,7 @@ export function addReviewComment(
       .innerJoin(pixelforgeProjects, eq(pixelforgeReviews.projectId, pixelforgeProjects.id))
       .where(and(eq(pixelforgeReviews.id, reviewId), eq(pixelforgeProjects.ownerId, ownerId)))
       .limit(1);
-    if (!row) throw new Error("Revisión no encontrada");
+    if (!row) throw new ReviewNotFoundError("Revisión no encontrada");
     const review = row.review;
 
     // Lock de la fila de proyecto — MISMO recurso que bloquean approveReview
@@ -3105,29 +3136,32 @@ export function addReviewComment(
       .where(eq(pixelforgeReviews.id, reviewId))
       .limit(1);
     if (!fresh || fresh.status !== "in_review") {
-      throw new Error("Solo se puede comentar en una revisión abierta");
+      throw new ReviewRuleError("Solo se puede comentar en una revisión abierta");
     }
     if (!input.body || input.body.trim() === "") {
-      throw new Error("El comentario no puede estar vacío");
+      throw new ReviewRuleError("El comentario no puede estar vacío");
     }
 
     if (input.anchorType === "general") {
       if (input.nodeId != null || input.findingId != null) {
-        throw new Error("Un comentario general no puede llevar nodeId ni findingId");
+        throw new ReviewRuleError("Un comentario general no puede llevar nodeId ni findingId");
       }
     } else if (input.anchorType === "section") {
-      if (!input.nodeId) throw new Error("El comentario de sección requiere nodeId");
+      if (!input.nodeId) throw new ReviewRuleError("El comentario de sección requiere nodeId");
       const [pv] = await tx
         .select({ tree: pixelforgePageVersions.tree })
         .from(pixelforgePageVersions)
         .where(eq(pixelforgePageVersions.id, review.pageVersionId))
         .limit(1);
-      if (!pv) throw new Error("Versión anclada no encontrada");
+      // Anomalía de datos (no user-facing esperable), no un caso de "recurso
+      // no encontrado" propio del usuario — mismo criterio de status (409)
+      // que ya tenía antes de esta clasificación.
+      if (!pv) throw new ReviewRuleError("Versión anclada no encontrada");
       if (!treeHasNode(pv.tree, input.nodeId)) {
-        throw new Error(`El nodo "${input.nodeId}" no existe en la versión anclada`);
+        throw new ReviewRuleError(`El nodo "${input.nodeId}" no existe en la versión anclada`);
       }
     } else {
-      if (!input.findingId) throw new Error("El comentario de finding requiere findingId");
+      if (!input.findingId) throw new ReviewRuleError("El comentario de finding requiere findingId");
       const [finding] = await tx
         .select({ id: pixelforgeQaFindings.id })
         .from(pixelforgeQaFindings)
@@ -3139,7 +3173,7 @@ export function addReviewComment(
         )
         .limit(1);
       if (!finding) {
-        throw new Error(`El finding "${input.findingId}" no pertenece al QA anclado de esta revisión`);
+        throw new ReviewRuleError(`El finding "${input.findingId}" no pertenece al QA anclado de esta revisión`);
       }
     }
 
@@ -3211,7 +3245,7 @@ export function resolveReviewComment(
       .innerJoin(pixelforgeProjects, eq(pixelforgeReviewComments.projectId, pixelforgeProjects.id))
       .where(and(eq(pixelforgeReviewComments.id, commentId), eq(pixelforgeProjects.ownerId, ownerId)))
       .limit(1);
-    if (!row) throw new Error("Comentario no encontrado");
+    if (!row) throw new ReviewNotFoundError("Comentario no encontrado");
 
     // Lock de la fila de proyecto ANTES del CAS — el GO de PF-F9 lo exige al
     // resolver bloqueantes; serializa con approveReview (paso 7) y
@@ -3224,7 +3258,7 @@ export function resolveReviewComment(
       .limit(1);
 
     if (resolution.reason.trim().length < 5) {
-      throw new Error("La razón de resolución es demasiado corta (mínimo 5 caracteres)");
+      throw new ReviewRuleError("La razón de resolución es demasiado corta (mínimo 5 caracteres)");
     }
 
     const now = new Date();
@@ -3283,11 +3317,11 @@ export function requestChanges(
       .innerJoin(pixelforgeProjects, eq(pixelforgeReviews.projectId, pixelforgeProjects.id))
       .where(and(eq(pixelforgeReviews.id, reviewId), eq(pixelforgeProjects.ownerId, ownerId)))
       .limit(1);
-    if (!row) throw new Error("Revisión no encontrada");
+    if (!row) throw new ReviewNotFoundError("Revisión no encontrada");
     const review = row.review;
 
     if (input.reason.trim().length < 5) {
-      throw new Error("La razón del cambio es demasiado corta (mínimo 5 caracteres)");
+      throw new ReviewRuleError("La razón del cambio es demasiado corta (mínimo 5 caracteres)");
     }
 
     // Lock del proyecto — serializa contra recompose/approve concurrente.
@@ -3298,8 +3332,18 @@ export function requestChanges(
       .for("update")
       .limit(1);
 
-    // Mapa cerrado server-side — lanza en input inválido (p.ej. 'contenido' sin contentTarget).
-    const target = resolveChangeTarget(input.changeKind, input.contentTarget);
+    // Mapa cerrado server-side — lanza en input inválido (p.ej. 'contenido' sin
+    // contentTarget). `resolveChangeTarget` es un módulo puro (target-station.ts)
+    // que no conoce las clases de error de este repo (evita el import circular
+    // repo↔target-station); se re-envuelve acá su `Error` genérico como
+    // `ReviewRuleError` — es una violación de regla de negocio alcanzable por
+    // input de usuario (falta `contentTarget`), no un error de infraestructura.
+    let target: ReturnType<typeof resolveChangeTarget>;
+    try {
+      target = resolveChangeTarget(input.changeKind, input.contentTarget);
+    } catch (err) {
+      throw new ReviewRuleError(err instanceof Error ? err.message : "Tipo de cambio inválido");
+    }
 
     const now = new Date();
 
@@ -3401,7 +3445,7 @@ export function approveReview(
       .innerJoin(pixelforgeProjects, eq(pixelforgeReviews.projectId, pixelforgeProjects.id))
       .where(and(eq(pixelforgeReviews.id, reviewId), eq(pixelforgeProjects.ownerId, ownerId)))
       .limit(1);
-    if (!row) throw new Error("Revisión no encontrada");
+    if (!row) throw new ReviewNotFoundError("Revisión no encontrada");
     const review = row.review;
 
     // Lock del proyecto — serializa contra recompose (supersede) y doble-approve.
@@ -3413,11 +3457,11 @@ export function approveReview(
       .limit(1);
 
     if (input.reason.trim().length < 5) {
-      throw new Error("La razón de aprobación es demasiado corta (mínimo 5 caracteres)");
+      throw new ReviewRuleError("La razón de aprobación es demasiado corta (mínimo 5 caracteres)");
     }
 
     // 2. review in_review (el CAS final es la garantía dura).
-    if (review.status !== "in_review") throw new Error("La revisión no está abierta");
+    if (review.status !== "in_review") throw new ReviewRuleError("La revisión no está abierta");
 
     // 3. versión vigente (releída bajo lock) === review.pageVersionId.
     const [vigente] = await tx
@@ -3431,7 +3475,7 @@ export function approveReview(
       .orderBy(desc(pixelforgePageVersions.version))
       .limit(1);
     if (!vigente || vigente.id !== review.pageVersionId) {
-      throw new Error("La versión vigente cambió desde que se abrió la revisión; re-ancla o reabre la revisión");
+      throw new ReviewRuleError("La versión vigente cambió desde que se abrió la revisión; re-ancla o reabre la revisión");
     }
 
     // 4. qa_run anclado válido.
@@ -3441,7 +3485,7 @@ export function approveReview(
       .where(eq(pixelforgeQaRuns.id, review.qaRunId))
       .limit(1);
     if (!run || run.pageVersionId !== review.pageVersionId || run.status !== "succeeded" || run.verdict === null) {
-      throw new Error("El QA anclado ya no es válido para aprobar esta revisión");
+      throw new ReviewRuleError("El QA anclado ya no es válido para aprobar esta revisión");
     }
 
     // 5. el anclado es el ÚLTIMO cerrado de esa versión Y abre la compuerta.
@@ -3457,15 +3501,15 @@ export function approveReview(
       .orderBy(desc(pixelforgeQaRuns.createdAt));
     const latestClosed = runsForVersion.find((r) => r.status === "succeeded" && r.verdict !== null);
     if (!latestClosed || latestClosed.id !== run.id) {
-      throw new Error("Hay un QA más reciente sobre esta versión; re-ancla la revisión al QA vigente");
+      throw new ReviewRuleError("Hay un QA más reciente sobre esta versión; re-ancla la revisión al QA vigente");
     }
     if (!wouldRunOpenGate({ verdict: run.verdict, humanDecision: run.humanDecision })) {
-      throw new Error("El QA anclado no abre la compuerta; re-ejecuta QA o solicita cambios");
+      throw new ReviewRuleError("El QA anclado no abre la compuerta; re-ejecuta QA o solicita cambios");
     }
 
     // 6. hash del árbol (releído en la tx).
     if (!treeHashMatches(vigente.tree, review.treeHash)) {
-      throw new Error("El contenido de la versión cambió desde que se abrió la revisión (hash no coincide)");
+      throw new ReviewRuleError("El contenido de la versión cambió desde que se abrió la revisión (hash no coincide)");
     }
 
     // 7. cero comentarios bloqueantes abiertos del proyecto (bajo tx).
@@ -3480,7 +3524,7 @@ export function approveReview(
         )
       );
     if (blockingOpen.length > 0) {
-      throw new Error(
+      throw new ReviewRuleError(
         `No se puede aprobar: quedan ${blockingOpen.length} comentario(s) bloqueante(s) sin resolver`
       );
     }
@@ -3495,7 +3539,7 @@ export function approveReview(
     const entries: AcceptedRiskEntry[] = [];
     for (const risk of input.risks) {
       const f = findingsById.get(risk.findingId);
-      if (!f) throw new Error(`El finding "${risk.findingId}" no existe en el QA anclado`);
+      if (!f) throw new ReviewRuleError(`El finding "${risk.findingId}" no existe en el QA anclado`);
       entries.push({
         findingId: f.id,
         qaRunId: run.id,
@@ -3519,7 +3563,7 @@ export function approveReview(
       findings: findingLikes,
       entries,
     });
-    if (!validation.ok) throw new Error(validation.error);
+    if (!validation.ok) throw new ReviewRuleError(validation.error);
 
     // 9. CAS.
     const now = new Date();
@@ -3589,11 +3633,11 @@ export function cancelReview(
       .innerJoin(pixelforgeProjects, eq(pixelforgeReviews.projectId, pixelforgeProjects.id))
       .where(and(eq(pixelforgeReviews.id, reviewId), eq(pixelforgeProjects.ownerId, ownerId)))
       .limit(1);
-    if (!row) throw new Error("Revisión no encontrada");
+    if (!row) throw new ReviewNotFoundError("Revisión no encontrada");
     const review = row.review;
 
     if (reason.trim().length < 5) {
-      throw new Error("La razón de cancelación es demasiado corta (mínimo 5 caracteres)");
+      throw new ReviewRuleError("La razón de cancelación es demasiado corta (mínimo 5 caracteres)");
     }
 
     const now = new Date();
@@ -3631,7 +3675,7 @@ export function reanchorReview(reviewId: string, ownerId: string, actor: Actor):
       .innerJoin(pixelforgeProjects, eq(pixelforgeReviews.projectId, pixelforgeProjects.id))
       .where(and(eq(pixelforgeReviews.id, reviewId), eq(pixelforgeProjects.ownerId, ownerId)))
       .limit(1);
-    if (!row) throw new Error("Revisión no encontrada");
+    if (!row) throw new ReviewNotFoundError("Revisión no encontrada");
     const review = row.review;
 
     await tx
@@ -3641,7 +3685,7 @@ export function reanchorReview(reviewId: string, ownerId: string, actor: Actor):
       .for("update")
       .limit(1);
 
-    if (review.status !== "in_review") throw new Error("La revisión no está abierta");
+    if (review.status !== "in_review") throw new ReviewRuleError("La revisión no está abierta");
 
     const runsForVersion = await tx
       .select()
@@ -3649,15 +3693,15 @@ export function reanchorReview(reviewId: string, ownerId: string, actor: Actor):
       .where(eq(pixelforgeQaRuns.pageVersionId, review.pageVersionId))
       .orderBy(desc(pixelforgeQaRuns.createdAt));
     const latestClosed = runsForVersion.find((r) => r.status === "succeeded" && r.verdict !== null);
-    if (!latestClosed) throw new Error("No hay un QA cerrado sobre la versión de esta revisión");
+    if (!latestClosed) throw new ReviewRuleError("No hay un QA cerrado sobre la versión de esta revisión");
     if (latestClosed.id === review.qaRunId) {
-      throw new Error("La revisión ya está anclada al QA más reciente de su versión");
+      throw new ReviewRuleError("La revisión ya está anclada al QA más reciente de su versión");
     }
     if (!wouldRunOpenGate({ verdict: latestClosed.verdict, humanDecision: latestClosed.humanDecision })) {
-      throw new Error("El QA más reciente no abre la compuerta; re-ejecuta QA o solicita cambios");
+      throw new ReviewRuleError("El QA más reciente no abre la compuerta; re-ejecuta QA o solicita cambios");
     }
     if (latestClosed.verdict === null || latestClosed.scoreTotal === null) {
-      throw new Error("El QA más reciente no tiene veredicto resuelto");
+      throw new ReviewRuleError("El QA más reciente no tiene veredicto resuelto");
     }
 
     const now = new Date();

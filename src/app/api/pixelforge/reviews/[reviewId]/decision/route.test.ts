@@ -19,6 +19,8 @@ import {
   approveReview,
   requestChanges,
   cancelReview,
+  ReviewNotFoundError,
+  ReviewRuleError,
   ReviewConflictError,
 } from "@/lib/db/repos/pixelforge";
 
@@ -99,14 +101,14 @@ describe("POST /api/pixelforge/reviews/:reviewId/decision", () => {
     });
 
     it("404 si la revisión no existe o no es del owner", async () => {
-      (approveReview as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("Revisión no encontrada"));
+      (approveReview as ReturnType<typeof vi.fn>).mockRejectedValue(new ReviewNotFoundError("Revisión no encontrada"));
       const res = await POST(makeRequest({ action: "approve", reason: "se ve bien" }), makeParams());
       expect(res.status).toBe(404);
     });
 
     it("409 si quedan comentarios bloqueantes abiertos", async () => {
       (approveReview as ReturnType<typeof vi.fn>).mockRejectedValue(
-        new Error("No se puede aprobar: quedan 2 comentario(s) bloqueante(s) sin resolver")
+        new ReviewRuleError("No se puede aprobar: quedan 2 comentario(s) bloqueante(s) sin resolver")
       );
       const res = await POST(makeRequest({ action: "approve", reason: "se ve bien" }), makeParams());
       const body = await res.json();
@@ -116,7 +118,7 @@ describe("POST /api/pixelforge/reviews/:reviewId/decision", () => {
 
     it("409 si riesgos aceptados son inválidos", async () => {
       (approveReview as ReturnType<typeof vi.fn>).mockRejectedValue(
-        new Error("El finding no existe en el QA anclado")
+        new ReviewRuleError("El finding no existe en el QA anclado")
       );
       const res = await POST(makeRequest({ action: "approve", reason: "se ve bien" }), makeParams());
       expect(res.status).toBe(409);
@@ -128,6 +130,15 @@ describe("POST /api/pixelforge/reviews/:reviewId/decision", () => {
       );
       const res = await POST(makeRequest({ action: "approve", reason: "se ve bien" }), makeParams());
       expect(res.status).toBe(409);
+    });
+
+    it("500 sin filtrar el mensaje si approveReview lanza un error no reconocido", async () => {
+      (approveReview as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("detalle interno de postgres"));
+      const res = await POST(makeRequest({ action: "approve", reason: "se ve bien" }), makeParams());
+      const body = await res.json();
+      expect(res.status).toBe(500);
+      expect(body.error).toBe("Error inesperado");
+      expect(JSON.stringify(body)).not.toMatch(/detalle interno/);
     });
 
     it("200 feliz: risks default [] y actor de la sesión (nunca del body)", async () => {
@@ -187,7 +198,7 @@ describe("POST /api/pixelforge/reviews/:reviewId/decision", () => {
     });
 
     it("404 si la revisión no existe o no es del owner", async () => {
-      (requestChanges as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("Revisión no encontrada"));
+      (requestChanges as ReturnType<typeof vi.fn>).mockRejectedValue(new ReviewNotFoundError("Revisión no encontrada"));
       const res = await POST(
         makeRequest({ action: "request_changes", changeKind: "estructura", reason: "hay que ajustar" }),
         makeParams()
@@ -197,7 +208,7 @@ describe("POST /api/pixelforge/reviews/:reviewId/decision", () => {
 
     it("409 si contentTarget falta para changeKind='contenido'", async () => {
       (requestChanges as ReturnType<typeof vi.fn>).mockRejectedValue(
-        new Error("resolveChangeTarget: el cambio de tipo 'contenido' requiere `contentTarget`")
+        new ReviewRuleError("resolveChangeTarget: el cambio de tipo 'contenido' requiere `contentTarget`")
       );
       const res = await POST(
         makeRequest({ action: "request_changes", changeKind: "contenido", reason: "hay que ajustar" }),
@@ -215,6 +226,18 @@ describe("POST /api/pixelforge/reviews/:reviewId/decision", () => {
         makeParams()
       );
       expect(res.status).toBe(409);
+    });
+
+    it("500 sin filtrar el mensaje si requestChanges lanza un error no reconocido", async () => {
+      (requestChanges as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("detalle interno de postgres"));
+      const res = await POST(
+        makeRequest({ action: "request_changes", changeKind: "estructura", reason: "hay que ajustar" }),
+        makeParams()
+      );
+      const body = await res.json();
+      expect(res.status).toBe(500);
+      expect(body.error).toBe("Error inesperado");
+      expect(JSON.stringify(body)).not.toMatch(/detalle interno/);
     });
 
     it("200 feliz: pasa changeKind/contentTarget/reason y el actor de la sesión", async () => {
@@ -250,7 +273,7 @@ describe("POST /api/pixelforge/reviews/:reviewId/decision", () => {
     });
 
     it("404 si la revisión no existe o no es del owner", async () => {
-      (cancelReview as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("Revisión no encontrada"));
+      (cancelReview as ReturnType<typeof vi.fn>).mockRejectedValue(new ReviewNotFoundError("Revisión no encontrada"));
       const res = await POST(makeRequest({ action: "cancel", reason: "ya no aplica" }), makeParams());
       expect(res.status).toBe(404);
     });
@@ -261,6 +284,15 @@ describe("POST /api/pixelforge/reviews/:reviewId/decision", () => {
       );
       const res = await POST(makeRequest({ action: "cancel", reason: "ya no aplica" }), makeParams());
       expect(res.status).toBe(409);
+    });
+
+    it("500 sin filtrar el mensaje si cancelReview lanza un error no reconocido", async () => {
+      (cancelReview as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("detalle interno de postgres"));
+      const res = await POST(makeRequest({ action: "cancel", reason: "ya no aplica" }), makeParams());
+      const body = await res.json();
+      expect(res.status).toBe(500);
+      expect(body.error).toBe("Error inesperado");
+      expect(JSON.stringify(body)).not.toMatch(/detalle interno/);
     });
 
     it("200 feliz: cancela con el actor de la sesión (nunca del body)", async () => {

@@ -50,6 +50,15 @@ describe("GET /api/pixelforge/reviews/:reviewId", () => {
     expect(res.status).toBe(404);
   });
 
+  it("500 sin filtrar el mensaje si getReviewWithComments lanza un error no reconocido", async () => {
+    (getReviewWithComments as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("detalle interno de postgres"));
+    const res = await GET(makeRequest(), makeParams());
+    const body = await res.json();
+    expect(res.status).toBe(500);
+    expect(body.error).toBe("Error inesperado");
+    expect(JSON.stringify(body)).not.toMatch(/detalle interno/);
+  });
+
   it("200: devuelve review + comments", async () => {
     const review = { id: REVIEW_ID, status: "in_review" };
     const comments = [{ id: "comentario-1" }];

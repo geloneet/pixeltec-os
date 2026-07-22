@@ -4,28 +4,45 @@
  * (`openReview`, T3). GET — lista las revisiones del proyecto
  * (`listReviewsForProject`, T3), orden desc por `roundNumber`.
  *
- * Mismo molde que `src/app/api/pixelforge/qa/runs/[qaRunId]/decision/route.ts`:
- * auth → 401; zod → 400; errores de negocio del repo → 409 con su mensaje
- * es-ES; "Proyecto no encontrado" → 404; catch global → 500. A diferencia de
- * `qa/runs/route.ts` (que hace el chequeo de ownership por separado antes de
- * listar), acá tanto `openReview` como `listReviewsForProject` YA validan
- * ownership internamente y lanzan "Proyecto no encontrado" ellos mismos — el
- * handler solo mapea ese mensaje a 404 en el catch, sin una consulta extra.
+ * Mismo molde que `src/app/api/pixelforge/qa/runs/route.ts` (L114-117): mapeo
+ * por `instanceof` — `ReviewNotFoundError` → 404; `ReviewRuleError`/
+ * `ReviewConflictError` → 409 con su mensaje es-ES; CUALQUIER OTRO error
+ * (Postgres crudo, conexión caída, etc.) NO se mapea acá — se re-lanza y cae
+ * al catch global de la función, que responde 500 "Error inesperado" SIN
+ * exponer el mensaje interno al navegador (PF-F9 T4 fix, Important del
+ * review: el fallback anterior por mensaje devolvía 409 + `err.message` para
+ * cualquier `Error` no reconocido). A diferencia de `qa/runs/route.ts` (que
+ * hace el chequeo de ownership por separado antes de listar), acá tanto
+ * `openReview` como `listReviewsForProject` YA validan ownership internamente
+ * y lanzan `ReviewNotFoundError("Proyecto no encontrado")` ellos mismos — el
+ * handler solo mapea esa clase a 404, sin una consulta extra.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth/config";
-import { openReview, listReviewsForProject, type Actor } from "@/lib/db/repos/pixelforge";
+import {
+  openReview,
+  listReviewsForProject,
+  ReviewNotFoundError,
+  ReviewRuleError,
+  ReviewConflictError,
+  type Actor,
+} from "@/lib/db/repos/pixelforge";
 
 function fail(error: string, status: number) {
   return NextResponse.json({ ok: false, error }, { status });
 }
 
-const NOT_FOUND_MESSAGES = new Set(["Proyecto no encontrado"]);
-
-function failFromError(err: unknown, fallback: string) {
-  const message = err instanceof Error ? err.message : fallback;
-  return fail(message, NOT_FOUND_MESSAGES.has(message) ? 404 : 409);
+/**
+ * Mapeo por `instanceof` — nunca por mensaje. Cualquier error no reconocido
+ * (ni `ReviewNotFoundError` ni `ReviewRuleError`/`ReviewConflictError`) se
+ * re-lanza para que lo atrape el catch global → 500 genérico, sin filtrar su
+ * mensaje interno al cliente.
+ */
+function failFromError(err: unknown): NextResponse {
+  if (err instanceof ReviewNotFoundError) return fail(err.message, 404);
+  if (err instanceof ReviewRuleError || err instanceof ReviewConflictError) return fail(err.message, 409);
+  throw err;
 }
 
 const openReviewSchema = z.object({
@@ -52,7 +69,7 @@ export async function POST(req: NextRequest) {
     try {
       review = await openReview(projectId, ownerId, actor);
     } catch (err) {
-      return failFromError(err, "No se pudo abrir la revisión");
+      return failFromError(err);
     }
 
     return NextResponse.json({ ok: true, review });
@@ -80,7 +97,7 @@ export async function GET(req: NextRequest) {
     try {
       reviews = await listReviewsForProject(projectId, ownerId);
     } catch (err) {
-      return failFromError(err, "No se pudieron listar las revisiones");
+      return failFromError(err);
     }
 
     return NextResponse.json({ reviews });

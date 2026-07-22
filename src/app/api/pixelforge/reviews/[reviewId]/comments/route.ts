@@ -7,20 +7,20 @@
  * nodo/finding, ownership del finding al `qa_run` anclado) bajo lock, esto
  * solo evita un roundtrip inútil con anclas obviamente mal formadas.
  *
- * Mismo molde que `qa/runs/[qaRunId]/decision/route.ts`: auth → 401; zod →
- * 400; "Revisión no encontrada" → 404; resto de errores de negocio (ancla
- * inválida, revisión no abierta) → 409 con el mensaje del repo.
+ * Mismo molde que `qa/runs/route.ts` (L114-117): mapeo por `instanceof` —
+ * `ReviewNotFoundError` ("Revisión no encontrada") → 404; `ReviewRuleError`
+ * (ancla inválida, revisión no abierta) → 409 con el mensaje del repo;
+ * cualquier otro error se re-lanza al catch global → 500 "Error inesperado"
+ * sin exponer su mensaje (PF-F9 T4 fix).
  */
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth/config";
-import { addReviewComment, type Actor } from "@/lib/db/repos/pixelforge";
+import { addReviewComment, ReviewNotFoundError, ReviewRuleError, type Actor } from "@/lib/db/repos/pixelforge";
 
 function fail(error: string, status: number) {
   return NextResponse.json({ ok: false, error }, { status });
 }
-
-const NOT_FOUND_MESSAGES = new Set(["Revisión no encontrada"]);
 
 const reviewIdSchema = z.string().uuid("Revisión inválida");
 
@@ -90,8 +90,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ rev
         actor
       );
     } catch (err) {
-      const message = err instanceof Error ? err.message : "No se pudo agregar el comentario";
-      return fail(message, NOT_FOUND_MESSAGES.has(message) ? 404 : 409);
+      if (err instanceof ReviewNotFoundError) return fail(err.message, 404);
+      if (err instanceof ReviewRuleError) return fail(err.message, 409);
+      throw err;
     }
 
     return NextResponse.json({ ok: true, comment });

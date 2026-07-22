@@ -14,7 +14,12 @@ vi.mock("@/lib/db/repos/pixelforge", async (importOriginal) => {
 });
 
 import { POST, GET } from "./route";
-import { openReview, listReviewsForProject } from "@/lib/db/repos/pixelforge";
+import {
+  openReview,
+  listReviewsForProject,
+  ReviewNotFoundError,
+  ReviewRuleError,
+} from "@/lib/db/repos/pixelforge";
 
 const OWNER_ID = "owner-1";
 const PROJECT_ID = "11111111-1111-1111-1111-111111111111";
@@ -51,15 +56,15 @@ describe("POST /api/pixelforge/reviews", () => {
     expect(openReview).not.toHaveBeenCalled();
   });
 
-  it("404 si el proyecto no es del owner (openReview lanza 'Proyecto no encontrado')", async () => {
-    (openReview as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("Proyecto no encontrado"));
+  it("404 si el proyecto no es del owner (openReview lanza ReviewNotFoundError)", async () => {
+    (openReview as ReturnType<typeof vi.fn>).mockRejectedValue(new ReviewNotFoundError("Proyecto no encontrado"));
     const res = await POST(makePostRequest({ projectId: PROJECT_ID }));
     expect(res.status).toBe(404);
   });
 
-  it("409 si el gate de QA no está abierto (error de negocio)", async () => {
+  it("409 si el gate de QA no está abierto (ReviewRuleError)", async () => {
     (openReview as ReturnType<typeof vi.fn>).mockRejectedValue(
-      new Error("La versión vigente todavía no pasó QA; no se puede abrir revisión.")
+      new ReviewRuleError("La versión vigente todavía no pasó QA; no se puede abrir revisión.")
     );
     const res = await POST(makePostRequest({ projectId: PROJECT_ID }));
     const body = await res.json();
@@ -67,12 +72,21 @@ describe("POST /api/pixelforge/reviews", () => {
     expect(body.error).toMatch(/no pasó QA/);
   });
 
-  it("409 si ya hay una revisión activa", async () => {
+  it("409 si ya hay una revisión activa (ReviewRuleError)", async () => {
     (openReview as ReturnType<typeof vi.fn>).mockRejectedValue(
-      new Error("Ya hay una revisión activa para este proyecto")
+      new ReviewRuleError("Ya hay una revisión activa para este proyecto")
     );
     const res = await POST(makePostRequest({ projectId: PROJECT_ID }));
     expect(res.status).toBe(409);
+  });
+
+  it("500 sin filtrar el mensaje si openReview lanza un error no reconocido", async () => {
+    (openReview as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("detalle interno de postgres"));
+    const res = await POST(makePostRequest({ projectId: PROJECT_ID }));
+    const body = await res.json();
+    expect(res.status).toBe(500);
+    expect(body.error).toBe("Error inesperado");
+    expect(JSON.stringify(body)).not.toMatch(/detalle interno/);
   });
 
   it("200 feliz: abre la revisión con el actor de la sesión (nunca del body)", async () => {
@@ -102,10 +116,21 @@ describe("GET /api/pixelforge/reviews", () => {
     expect(res.status).toBe(400);
   });
 
-  it("404 si el proyecto no es del owner (listReviewsForProject lanza 'Proyecto no encontrado')", async () => {
-    (listReviewsForProject as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("Proyecto no encontrado"));
+  it("404 si el proyecto no es del owner (listReviewsForProject lanza ReviewNotFoundError)", async () => {
+    (listReviewsForProject as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new ReviewNotFoundError("Proyecto no encontrado")
+    );
     const res = await GET(makeGetRequest(PROJECT_ID));
     expect(res.status).toBe(404);
+  });
+
+  it("500 sin filtrar el mensaje si listReviewsForProject lanza un error no reconocido", async () => {
+    (listReviewsForProject as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("detalle interno de postgres"));
+    const res = await GET(makeGetRequest(PROJECT_ID));
+    const body = await res.json();
+    expect(res.status).toBe(500);
+    expect(body.error).toBe("Error inesperado");
+    expect(JSON.stringify(body)).not.toMatch(/detalle interno/);
   });
 
   it("200: lista las revisiones del proyecto", async () => {

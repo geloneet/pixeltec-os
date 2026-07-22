@@ -9,9 +9,15 @@
  * revisión no existe o el comentario no está en su lista → 404, sin tocar el
  * repo de escritura ni su firma.
  *
- * Mismo molde que `qa/runs/[qaRunId]/decision/route.ts`: auth → 401; zod →
- * 400; not found → 404; `ReviewConflictError` (CAS perdido) → 409 con el
- * mensaje del repo.
+ * Mismo molde que `qa/runs/route.ts` (L114-117): mapeo por `instanceof` —
+ * `ReviewConflictError` (CAS perdido) → 409 con el mensaje del repo;
+ * cualquier otro error de `resolveReviewComment` se re-lanza al catch global
+ * → 500 "Error inesperado" sin exponer su mensaje (PF-F9 T4 fix). El
+ * "Comentario no encontrado" propio de `resolveReviewComment` (ahora
+ * `ReviewNotFoundError`) nunca debería alcanzar este catch en la práctica —
+ * el guard IDOR de abajo (`getReviewWithComments` + `.some`) ya lo descarta
+ * ANTES de llamar al repo de escritura — pero se mapea igual por completitud
+ * y defensa en profundidad.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -19,6 +25,8 @@ import { auth } from "@/lib/auth/config";
 import {
   getReviewWithComments,
   resolveReviewComment,
+  ReviewNotFoundError,
+  ReviewRuleError,
   ReviewConflictError,
   type Actor,
 } from "@/lib/db/repos/pixelforge";
@@ -76,10 +84,9 @@ export async function POST(
     try {
       await resolveReviewComment(parsedCommentId.data, ownerId, { finalStatus, reason, evidence }, actor);
     } catch (err) {
-      if (err instanceof ReviewConflictError) return fail(err.message, 409);
-      const message = err instanceof Error ? err.message : "No se pudo resolver el comentario";
-      if (message === "Comentario no encontrado") return fail(message, 404);
-      return fail(message, 409);
+      if (err instanceof ReviewNotFoundError) return fail(err.message, 404);
+      if (err instanceof ReviewConflictError || err instanceof ReviewRuleError) return fail(err.message, 409);
+      throw err;
     }
 
     return NextResponse.json({ ok: true });

@@ -13,7 +13,7 @@ vi.mock("@/lib/db/repos/pixelforge", async (importOriginal) => {
 });
 
 import { POST } from "./route";
-import { addReviewComment } from "@/lib/db/repos/pixelforge";
+import { addReviewComment, ReviewNotFoundError, ReviewRuleError } from "@/lib/db/repos/pixelforge";
 
 const OWNER_ID = "owner-1";
 const REVIEW_ID = "22222222-2222-2222-2222-222222222222";
@@ -118,7 +118,9 @@ describe("POST /api/pixelforge/reviews/:reviewId/comments", () => {
   });
 
   it("404 si la revisión no existe o no es del owner", async () => {
-    (addReviewComment as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("Revisión no encontrada"));
+    (addReviewComment as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new ReviewNotFoundError("Revisión no encontrada")
+    );
     const res = await POST(
       makeRequest({ anchorType: "general", body: "un comentario", blocking: false }),
       makeParams()
@@ -128,7 +130,7 @@ describe("POST /api/pixelforge/reviews/:reviewId/comments", () => {
 
   it("409 si la revisión ya no está abierta", async () => {
     (addReviewComment as ReturnType<typeof vi.fn>).mockRejectedValue(
-      new Error("Solo se puede comentar en una revisión abierta")
+      new ReviewRuleError("Solo se puede comentar en una revisión abierta")
     );
     const res = await POST(
       makeRequest({ anchorType: "general", body: "un comentario", blocking: false }),
@@ -139,13 +141,25 @@ describe("POST /api/pixelforge/reviews/:reviewId/comments", () => {
 
   it("409 si el nodeId no existe en el árbol anclado", async () => {
     (addReviewComment as ReturnType<typeof vi.fn>).mockRejectedValue(
-      new Error('El nodo "hero-x" no existe en la versión anclada')
+      new ReviewRuleError('El nodo "hero-x" no existe en la versión anclada')
     );
     const res = await POST(
       makeRequest({ anchorType: "section", nodeId: "hero-x", body: "comentario", blocking: false }),
       makeParams()
     );
     expect(res.status).toBe(409);
+  });
+
+  it("500 sin filtrar el mensaje si addReviewComment lanza un error no reconocido", async () => {
+    (addReviewComment as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("detalle interno de postgres"));
+    const res = await POST(
+      makeRequest({ anchorType: "general", body: "un comentario", blocking: false }),
+      makeParams()
+    );
+    const body = await res.json();
+    expect(res.status).toBe(500);
+    expect(body.error).toBe("Error inesperado");
+    expect(JSON.stringify(body)).not.toMatch(/detalle interno/);
   });
 
   it("200 feliz: agrega el comentario con el actor de la sesión (nunca del body)", async () => {
