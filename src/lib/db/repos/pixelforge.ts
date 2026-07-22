@@ -2124,11 +2124,28 @@ export function recordQaHumanDecision(
   });
 }
 
-export type QaRunStaleReason = "queued_timeout" | "browser_claim_timeout" | "running_timeout";
+export type QaRunStaleReason =
+  | "queued_timeout"
+  | "browser_claim_timeout"
+  | "browser_pending_timeout"
+  | "running_timeout";
 
 /** Umbrales de staleness (ms) — ver docstring de `isStaleQaRun`. */
 export const QA_QUEUED_TIMEOUT_MS = 10 * 60 * 1000;
 export const QA_BROWSER_CLAIM_TIMEOUT_MS = 10 * 60 * 1000;
+/**
+ * PF-F8 T4 (aditivo): un run que terminó la fase 1 (`browser_status` nace/
+ * queda `pending`, ver `updateQaRunProgress(qaRunId, 35, 'navegador')` en el
+ * POST) pero que NINGÚN qa-runner (F8-T6, todavía no existe) reclama nunca —
+ * `browser_claim_timeout` de abajo NO cubre este caso: esa condición exige
+ * `browserStatus==='running'` (ya reclamado); un job que se queda `pending`
+ * para siempre no la dispara nunca y solo lo atraparía `running_timeout` a
+ * los 20 min. Mismo umbral de 10 min que `browser_claim_timeout`, medido
+ * desde `updatedAt` (que `updateQaRunProgress` tocó al anunciar la fase
+ * `navegador` — el punto de referencia natural de "cuánto lleva esperando un
+ * runner").
+ */
+export const QA_BROWSER_PENDING_TIMEOUT_MS = 10 * 60 * 1000;
 export const QA_RUNNING_TIMEOUT_MS = 20 * 60 * 1000;
 
 export interface QaRunStalenessInput {
@@ -2136,17 +2153,22 @@ export interface QaRunStalenessInput {
   browserStatus: PixelforgeQaRun["browserStatus"];
   createdAt: Date;
   browserClaimedAt: Date | null;
+  updatedAt: Date;
 }
 
 /**
  * Función PURA (testeable sin DB, mismo patrón que
  * `computeNextPageVersion`/`assertDirectionDecisionStillCurrent`): decide si
- * un run de QA quedó "atorado" y debe marcarse como fallido. 3 condiciones,
+ * un run de QA quedó "atorado" y debe marcarse como fallido. 4 condiciones,
  * en orden de chequeo (la primera que aplica gana):
  *   1. `queued` hace más de 10 min (`createdAt`) — nunca lo reclamó nadie.
  *   2. `browser_status='running'` con `browserClaimedAt` de hace más de
  *      10 min — el qa-runner externo se colgó o murió sin reportar.
- *   3. `status='running'` hace más de 20 min (`createdAt`) — el run completo
+ *   3. `browser_status='pending'` con `updatedAt` de hace más de 10 min
+ *      (`status='running'`) — PF-F8 T4: ningún qa-runner reclamó el job
+ *      nunca (ver docstring de `QA_BROWSER_PENDING_TIMEOUT_MS`); sin este
+ *      chequeo el run quedaría esperando hasta `running_timeout` (20 min).
+ *   4. `status='running'` hace más de 20 min (`createdAt`) — el run completo
  *      se pasó de tiempo total (determinista+navegador+ia+cierre).
  * `null` si el run está sano (o ya cerrado: `succeeded`/`failed`).
  */
@@ -2160,6 +2182,13 @@ export function isStaleQaRun(run: QaRunStalenessInput, now: Date): QaRunStaleRea
     now.getTime() - run.browserClaimedAt.getTime() > QA_BROWSER_CLAIM_TIMEOUT_MS
   ) {
     return "browser_claim_timeout";
+  }
+  if (
+    run.status === "running" &&
+    run.browserStatus === "pending" &&
+    now.getTime() - run.updatedAt.getTime() > QA_BROWSER_PENDING_TIMEOUT_MS
+  ) {
+    return "browser_pending_timeout";
   }
   if (run.status === "running" && now.getTime() - run.createdAt.getTime() > QA_RUNNING_TIMEOUT_MS) {
     return "running_timeout";
@@ -2202,6 +2231,14 @@ export async function sweepStaleQaRuns(projectId?: string): Promise<number> {
         .update(pixelforgeQaRuns)
         .set({ browserStatus: "timed_out", browserFinishedAt: now, updatedAt: now })
         .where(and(eq(pixelforgeQaRuns.id, run.id), eq(pixelforgeQaRuns.browserStatus, "running")));
+    } else if (reason === "browser_pending_timeout") {
+      // Mismo criterio que `browser_claim_timeout` arriba (condicional al
+      // browserStatus que disparó la staleness — no pisa un claim real que
+      // haya llegado justo entre `isStaleQaRun` y este UPDATE).
+      await db
+        .update(pixelforgeQaRuns)
+        .set({ browserStatus: "timed_out", browserFinishedAt: now, updatedAt: now })
+        .where(and(eq(pixelforgeQaRuns.id, run.id), eq(pixelforgeQaRuns.browserStatus, "pending")));
     }
 
     const closed = await failQaRun(run.id, "timeout", `QA marcado como fallido por inactividad (${reason})`);
@@ -2209,6 +2246,171 @@ export async function sweepStaleQaRuns(projectId?: string): Promise<number> {
   }
 
   return swept;
+}
+
+// ─── QA — orquestación (F8-T4) ──────────────────────────────────────────────
+// Todo lo de abajo es INTERNO (sin ownerId, mismo criterio que
+// `claimQaBrowserJob`/`updateQaRunProgress`/`sweepStaleQaRuns` arriba): lo
+// invoca el POST de arranque, `finalizeQaRunOrchestrated`
+// (`src/lib/pixelforge/qa/finalize.ts`) o la ruta de decisión humana — nunca
+// directamente con un `ownerId` sin resolver. La verificación de ownership ya
+// ocurrió en la ruta que resolvió el `qaRunId`/`projectId` antes de llegar
+// acá.
+
+/**
+ * Transiciona un QA de `queued` a `running` y marca el `currentPhase` inicial
+ * — lo llama UNA vez el fire-and-forget del POST que dispara la fase 1
+ * (determinista+heurística). A diferencia de `claimRun` (corridas IA), un
+ * `qa_run` no tiene varios workers compitiendo por reclamarlo (el propio POST
+ * lo dispara inline, ya protegido por el unique parcial "un solo QA activo
+ * por proyecto") — por eso esto no devuelve un booleano de "gané el claim":
+ * el WHERE condicional a `status='queued'` es solo defensa en profundidad, no
+ * un mecanismo de concurrencia real.
+ */
+export async function startQaRunPhase1(qaRunId: string): Promise<void> {
+  await db
+    .update(pixelforgeQaRuns)
+    .set({ status: "running", currentPhase: "determinista", updatedAt: new Date() })
+    .where(and(eq(pixelforgeQaRuns.id, qaRunId), eq(pixelforgeQaRuns.status, "queued")));
+}
+
+/** Corrida de QA por id, SIN ownership check. `null` si no existe. */
+export async function getQaRunById(qaRunId: string): Promise<PixelforgeQaRun | null> {
+  const [run] = await db.select().from(pixelforgeQaRuns).where(eq(pixelforgeQaRuns.id, qaRunId)).limit(1);
+  return run ?? null;
+}
+
+/** Hallazgos de una corrida de QA, SIN ownership check. Orden desc por `createdAt` (mismo orden que `getQaRunWithFindings`). */
+export async function getQaFindingsForRun(qaRunId: string): Promise<PixelforgeQaFinding[]> {
+  return db
+    .select()
+    .from(pixelforgeQaFindings)
+    .where(eq(pixelforgeQaFindings.qaRunId, qaRunId))
+    .orderBy(desc(pixelforgeQaFindings.createdAt));
+}
+
+/** Versión de página por id, SIN ownership check (`getPageVersionById` exige projectId+ownerId — esta variante la usa `finalizeQaRunOrchestrated`, que corre server-internal sin ninguno de los dos). `null` si no existe. */
+export async function getPageVersionInternal(pageVersionId: string): Promise<PixelforgePageVersion | null> {
+  const [version] = await db
+    .select()
+    .from(pixelforgePageVersions)
+    .where(eq(pixelforgePageVersions.id, pageVersionId))
+    .limit(1);
+  return version ?? null;
+}
+
+/** `version` más alta del proyecto (solo el número, SIN el árbol ni ownership check) — la usa `finalizeQaRunOrchestrated` para decidir si la versión evaluada por un QA quedó obsoleta (`buildStaleVersionFinding`, T2). `null` si el proyecto no tiene ninguna versión. */
+export async function getLatestPageVersionNumber(projectId: string): Promise<number | null> {
+  const [latest] = await db
+    .select({ version: pixelforgePageVersions.version })
+    .from(pixelforgePageVersions)
+    .where(eq(pixelforgePageVersions.projectId, projectId))
+    .orderBy(desc(pixelforgePageVersions.version))
+    .limit(1);
+  return latest?.version ?? null;
+}
+
+/** Forma mínima de la dirección `chosen` de un proyecto que necesita `runDeterministicChecks` (T2). */
+export interface ChosenDirectionForQa {
+  designTokens: unknown;
+  motionDna: unknown;
+  status: PixelforgeCreativeDirection["status"];
+}
+
+/**
+ * Dirección `chosen` ACTUAL del proyecto (vía `projects.chosenDirectionId`),
+ * SIN ownership check. La usa `finalizeQaRunOrchestrated` para recalcular
+ * barato `checksSkipped`/`treeUsesCapabilities` (`runDeterministicChecks`,
+ * T2) al cerrar un run — nota: si el usuario cambia de dirección elegida
+ * MIENTRAS un QA está en curso (ventana angosta, no protegida por lock), este
+ * recompute puede ver una dirección distinta a la que vio la fase 1; no
+ * afecta el veredicto/score real (ya persistidos en fase 1), solo la
+ * metadata informativa del cierre. `null` si el proyecto no existe o no
+ * tiene ninguna dirección elegida.
+ */
+export async function getChosenDirectionForProject(projectId: string): Promise<ChosenDirectionForQa | null> {
+  const [project] = await db
+    .select({ chosenDirectionId: pixelforgeProjects.chosenDirectionId })
+    .from(pixelforgeProjects)
+    .where(eq(pixelforgeProjects.id, projectId))
+    .limit(1);
+  if (!project?.chosenDirectionId) return null;
+
+  const [direction] = await db
+    .select({
+      designTokens: pixelforgeCreativeDirections.designTokens,
+      motionDna: pixelforgeCreativeDirections.motionDna,
+      status: pixelforgeCreativeDirections.status,
+    })
+    .from(pixelforgeCreativeDirections)
+    .where(eq(pixelforgeCreativeDirections.id, project.chosenDirectionId))
+    .limit(1);
+  return direction ?? null;
+}
+
+/**
+ * Status de un lote de corridas IA por id (`Map<id, status>`), SIN ownership
+ * check — la usa `finalizeQaRunOrchestrated` para saber si las 3 corridas
+ * advisory (`critiqueRunId`/`originalityRunId`/`likenessRunId`, T5) ya
+ * terminaron. `[]` de entrada devuelve un Map vacío sin tocar la DB.
+ */
+export async function getAiRunStatuses(runIds: string[]): Promise<Map<string, PixelforgeAiRun["status"]>> {
+  if (runIds.length === 0) return new Map();
+  const rows = await db
+    .select({ id: pixelforgeAiRuns.id, status: pixelforgeAiRuns.status })
+    .from(pixelforgeAiRuns)
+    .where(inArray(pixelforgeAiRuns.id, runIds));
+  return new Map(rows.map((row) => [row.id, row.status]));
+}
+
+/** Actor laxo para `openQaGate` — `id` puede ser `null` (el `requestedById` original del run puede haberse limpiado por `onDelete: set null` si el usuario fue borrado); cualquier `Actor` real (`id: string`) satisface esto igual. */
+export interface QaGateActor {
+  id: string | null;
+  name: string;
+}
+
+/**
+ * Abre la compuerta hacia la estación `revision`: evento `qa_gate_opened`
+ * (snapshot `{qaRunId, verdict, pageVersionId, version}` — NUNCA
+ * tree/findings completos) + `UPDATE pixelforge_projects SET
+ * current_station='revision' WHERE id=... AND current_station IN
+ * ('produccion','qa')` (el `IN` es la compuerta real: no retrocede si el
+ * proyecto ya avanzó más allá, ni la abre dos veces si ya está en
+ * `revision`). La invoca `finalizeQaRunOrchestrated` (verdict `pass`) y la
+ * ruta de decisión humana (verdict `pass_with_warnings` aprobado). Lanza si
+ * `qaRunId` no existe o su `pageVersionId` no resuelve (no debería pasar:
+ * ambos son invariantes de FK NOT NULL).
+ */
+export function openQaGate(projectId: string, qaRunId: string, actor: QaGateActor): Promise<void> {
+  return db.transaction(async (tx) => {
+    const [row] = await tx
+      .select({
+        verdict: pixelforgeQaRuns.verdict,
+        pageVersionId: pixelforgeQaRuns.pageVersionId,
+        version: pixelforgePageVersions.version,
+      })
+      .from(pixelforgeQaRuns)
+      .innerJoin(pixelforgePageVersions, eq(pixelforgeQaRuns.pageVersionId, pixelforgePageVersions.id))
+      .where(eq(pixelforgeQaRuns.id, qaRunId))
+      .limit(1);
+    if (!row) throw new Error("QA no encontrado");
+
+    await tx.insert(pixelforgeEvents).values({
+      projectId,
+      station: "qa",
+      type: "qa_gate_opened",
+      actorId: actor.id,
+      actorName: actor.name,
+      snapshot: { qaRunId, verdict: row.verdict, pageVersionId: row.pageVersionId, version: row.version },
+    });
+
+    await tx
+      .update(pixelforgeProjects)
+      .set({ currentStation: "revision", updatedAt: new Date() })
+      .where(
+        and(eq(pixelforgeProjects.id, projectId), inArray(pixelforgeProjects.currentStation, ["produccion", "qa"]))
+      );
+  });
 }
 
 // ─── Helpers privados ──────────────────────────────────────────────────────

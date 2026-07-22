@@ -11,6 +11,7 @@ import {
   computeNextPageVersion,
   isStaleQaRun,
   QA_BROWSER_CLAIM_TIMEOUT_MS,
+  QA_BROWSER_PENDING_TIMEOUT_MS,
   QA_QUEUED_TIMEOUT_MS,
   QA_RUNNING_TIMEOUT_MS,
 } from "./pixelforge";
@@ -96,6 +97,7 @@ describe("isStaleQaRun", () => {
       browserStatus: "pending" as const,
       createdAt: NOW,
       browserClaimedAt: null,
+      updatedAt: NOW,
       ...overrides,
     };
   }
@@ -132,6 +134,22 @@ describe("isStaleQaRun", () => {
       browserClaimedAt: new Date(NOW.getTime() - (QA_BROWSER_CLAIM_TIMEOUT_MS + 1000)),
     });
     expect(isStaleQaRun(run, NOW)).toBe("browser_claim_timeout");
+  });
+
+  it("null si el navegador está pending pero dentro del umbral (updatedAt reciente)", () => {
+    const run = makeRun({
+      browserStatus: "pending",
+      updatedAt: new Date(NOW.getTime() - (QA_BROWSER_PENDING_TIMEOUT_MS - 1000)),
+    });
+    expect(isStaleQaRun(run, NOW)).toBeNull();
+  });
+
+  it("browser_pending_timeout si ningún runner reclamó el job en más de 10 min (updatedAt viejo)", () => {
+    const run = makeRun({
+      browserStatus: "pending",
+      updatedAt: new Date(NOW.getTime() - (QA_BROWSER_PENDING_TIMEOUT_MS + 1000)),
+    });
+    expect(isStaleQaRun(run, NOW)).toBe("browser_pending_timeout");
   });
 
   it("running_timeout si el run entero lleva más de 20 min corriendo", () => {
