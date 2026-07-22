@@ -14,7 +14,13 @@
 export interface QaRunnerEnv {
   databaseUrl: string;
   previewTokenSecret: string;
-  /** p.ej. `http://app:3000` — origin interno del preview, SIN trailing slash. */
+  /**
+   * p.ej. `http://pixeltec-os:3000` — origin interno del preview, SIN
+   * trailing slash. JAMÁS `http://app:3000`: el hostname `app` matchea la
+   * entrada HSTS-preload del TLD `.app` embebida en Chromium (fuerza https
+   * → net::ERR_SSL_PROTOCOL_ERROR contra HTTP plano, sin flag para
+   * apagarlo). Ver .env.production.example.
+   */
   appBaseUrl: string;
   r2Endpoint: string;
   r2AccessKeyId: string;
