@@ -21,6 +21,13 @@
  *   4. `insertQaFindings` deduplica: el mismo hallazgo exacto
  *      (mismo `qaRunId`+`checkCode`+`locationKey`) insertado 2 veces deja
  *      UNA sola fila (`onConflictDoNothing` sobre el unique del catálogo).
+ *   5. `attachQaAdvisoryRuns` bajo concurrencia real (review PF-F8 T5): 2
+ *      invocaciones concurrentes sobre el MISMO `qa_run` (`running`, sin FKs
+ *      advisory) — vía `SELECT ... FOR UPDATE` + UPDATE final condicionado a
+ *      rowcount, exactamente UNA gana (devuelve los 3 ids) y la otra es un
+ *      no-op (`null`); quedan EXACTAMENTE 3 `pixelforge_ai_runs` en total
+ *      (nunca 6) y las 3 FKs del `qa_run` apuntan a los ids que devolvió la
+ *      ganadora — cero huérfanos ejecutando contra Anthropic.
  *
  * IMPORTANTE — trampa de imports: el cliente de `@/lib/db` es un singleton
  * que lee `process.env.DATABASE_URL` en el momento en que el MÓDULO se
@@ -307,6 +314,73 @@ async function main(): Promise<void> {
       "insertQaFindings con duplicado exacto deja 1 sola fila (dedupe)",
       findingsForRun.length === 1,
       `filas encontradas: ${findingsForRun.length}`
+    );
+
+    console.log("\n── 5. attachQaAdvisoryRuns bajo concurrencia (2 invocaciones, mismo qa_run) ──");
+    const fixtureD = await createFixture();
+    const runD = await repo.createQaRun(
+      fixtureD.projectId,
+      fixtureD.ownerId,
+      { pageVersionId: fixtureD.pageVersionId, catalogVersion: "v1", scoringVersion: "v1" },
+      fixtureD.actor
+    );
+    // El UPDATE final de attachQaAdvisoryRuns exige status='running' — igual
+    // que la sección 2, simula el paso a 'running' que hará el motor.
+    await db
+      .update(schema.pixelforgeQaRuns)
+      .set({ status: "running" })
+      .where(eq(schema.pixelforgeQaRuns.id, runD.id));
+
+    function makeAdvisorySeed(tag: string): PixelforgeRepoModule.AdvisoryRunSeed {
+      return {
+        operation: "critique_design",
+        model: "test-model",
+        promptVersion: "v1",
+        inputSummary: { tag },
+      };
+    }
+    const attachInput = (tag: string): PixelforgeRepoModule.AttachQaAdvisoryRunsInput => ({
+      projectId: fixtureD.projectId,
+      actor: fixtureD.actor,
+      critique: makeAdvisorySeed(`critique-${tag}`),
+      originality: makeAdvisorySeed(`originality-${tag}`),
+      likeness: makeAdvisorySeed(`likeness-${tag}`),
+    });
+
+    const [attachFirst, attachSecond] = await Promise.all([
+      repo.attachQaAdvisoryRuns(runD.id, attachInput("first")),
+      repo.attachQaAdvisoryRuns(runD.id, attachInput("second")),
+    ]);
+    const attachWins = [attachFirst, attachSecond].filter((r) => r !== null);
+
+    const advisoryRunsForRunD = await db
+      .select({ id: schema.pixelforgeAiRuns.id })
+      .from(schema.pixelforgeAiRuns)
+      .where(eq(schema.pixelforgeAiRuns.resultRef, `qa_run:${runD.id}`));
+
+    const [qaRunDRow] = await db
+      .select({
+        critiqueRunId: schema.pixelforgeQaRuns.critiqueRunId,
+        originalityRunId: schema.pixelforgeQaRuns.originalityRunId,
+        likenessRunId: schema.pixelforgeQaRuns.likenessRunId,
+      })
+      .from(schema.pixelforgeQaRuns)
+      .where(eq(schema.pixelforgeQaRuns.id, runD.id));
+
+    const winner = attachWins[0];
+    const fksMatchWinner =
+      attachWins.length === 1 &&
+      winner !== null &&
+      qaRunDRow.critiqueRunId === winner.critiqueRunId &&
+      qaRunDRow.originalityRunId === winner.originalityRunId &&
+      qaRunDRow.likenessRunId === winner.likenessRunId;
+
+    check(
+      "attachQaAdvisoryRuns concurrentes: exactamente 1 gana, quedan exactamente 3 ai_runs " +
+        "en total (no 6) y las 3 FKs del qa_run apuntan a los ids de la ganadora",
+      attachWins.length === 1 && advisoryRunsForRunD.length === 3 && fksMatchWinner,
+      `ganadores: ${attachWins.length}, ai_runs creados: ${advisoryRunsForRunD.length}, ` +
+        `FKs coinciden con ganadora: ${fksMatchWinner}`
     );
 
     await db.$client.end();

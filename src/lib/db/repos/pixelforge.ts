@@ -2436,6 +2436,31 @@ export interface AttachedQaAdvisoryRuns {
 }
 
 /**
+ * Sentinel interno para abortar la transacción de `attachQaAdvisoryRuns`
+ * cuando el UPDATE final del doble cinturón (ver más abajo) afecta 0 filas.
+ * Lanzarlo dentro de `db.transaction` fuerza el rollback de los 3 inserts ya
+ * hechos; se atrapa FUERA de la transacción (nunca se propaga al caller) para
+ * que la función siga devolviendo el mismo shape de no-op idempotente
+ * (`null`) en vez de un error — el caller no puede distinguir "ya lanzada
+ * por mí" de "ya lanzada por otro", y no debería tener que hacerlo.
+ */
+class AttachQaAdvisoryRunsRaceLostError extends Error {}
+
+/**
+ * true si el `qa_run` ya tiene cualquiera de los 3 FKs advisory seteado — el
+ * criterio de no-op idempotente de `attachQaAdvisoryRuns`, extraído a función
+ * pura para poder testearlo sin DB (mismo patrón que `isStaleQaRun`/
+ * `assertDirectionDecisionStillCurrent` en este archivo).
+ */
+export function hasAdvisoryRunsAttached(run: {
+  critiqueRunId: string | null;
+  originalityRunId: string | null;
+  likenessRunId: string | null;
+}): boolean {
+  return run.critiqueRunId !== null || run.originalityRunId !== null || run.likenessRunId !== null;
+}
+
+/**
  * Crea los 3 `ai_runs` (`queued`) de la fase advisory de un `qa_run` Y setea
  * sus FKs (`critique_run_id`/`originality_run_id`/`likeness_run_id`) EN UNA
  * MISMA transacción — los 3 FKs nunca quedan parcialmente seteados (F8-T5:
@@ -2448,6 +2473,25 @@ export interface AttachedQaAdvisoryRuns {
  * `ai_run` queda `qa_run:<qaRunId>` (no un artifact — el resultado vive como
  * findings de este run de QA, ver `qa/advisory-operations.ts`).
  *
+ * Doble cinturón contra la carrera de dos invocaciones concurrentes (revisión
+ * PF-F8 T5): un SELECT simple + UPDATE incondicional dejaría que ambas
+ * invocaciones leyeran los 3 FKs en null, insertaran sus propios 6 `ai_runs`
+ * (3 huérfanos ejecutando contra Anthropic para nada) y se pisaran el FK
+ * final con quien terminara último.
+ * 1. El SELECT inicial usa `.for("update")` (calco de `insertPageVersion`):
+ *    bloquea la fila del `qa_run` hasta que esta tx termine, así una segunda
+ *    invocación concurrente espera y, al re-leer, ya ve los FKs seteados por
+ *    la primera (no-op vía el chequeo de abajo).
+ * 2. El UPDATE final igual se condiciona (`id` + `status='running'` + los 3
+ *    FKs `IS NULL`) y se verifica el rowcount: si afecta 0 filas —alguien más
+ *    ganó la carrera, o el `qa_run` ya no está `running`— se lanza el
+ *    sentinel de arriba para revertir los 3 inserts (nunca quedan `ai_runs`
+ *    huérfanos) y la función devuelve `null`.
+ * El (2) es cinturón, no el mecanismo principal: bajo el lock de (1) nunca
+ * debería afectar 0 filas en la práctica, pero cubre isolation levels menos
+ * estrictos o cualquier cambio futuro que quite el lock sin notar esta
+ * dependencia.
+ *
  * INTERNA (sin ownerId) — mismo criterio que el resto de la sección de
  * orquestación de QA (`startQaRunPhase1`/`getQaRunById`/etc.): la invoca
  * `launchQaAdvisoryRuns`, nunca directamente una action de usuario. Sin
@@ -2456,54 +2500,72 @@ export interface AttachedQaAdvisoryRuns {
  * interna del motor de QA, no una acción que un actor humano disparó
  * directamente.
  */
-export function attachQaAdvisoryRuns(
+export async function attachQaAdvisoryRuns(
   qaRunId: string,
   input: AttachQaAdvisoryRunsInput
 ): Promise<AttachedQaAdvisoryRuns | null> {
-  return db.transaction(async (tx) => {
-    const [run] = await tx
-      .select({
-        critiqueRunId: pixelforgeQaRuns.critiqueRunId,
-        originalityRunId: pixelforgeQaRuns.originalityRunId,
-        likenessRunId: pixelforgeQaRuns.likenessRunId,
-      })
-      .from(pixelforgeQaRuns)
-      .where(eq(pixelforgeQaRuns.id, qaRunId))
-      .limit(1);
-    if (!run) return null;
-    if (run.critiqueRunId !== null || run.originalityRunId !== null || run.likenessRunId !== null) {
-      return null; // ya lanzada — no-op idempotente.
-    }
-
-    async function insertAdvisoryRun(seed: AdvisoryRunSeed): Promise<string> {
-      const [inserted] = await tx
-        .insert(pixelforgeAiRuns)
-        .values({
-          projectId: input.projectId,
-          operation: seed.operation,
-          status: "queued",
-          model: seed.model,
-          promptVersion: seed.promptVersion,
-          inputSummary: seed.inputSummary,
-          resultRef: `qa_run:${qaRunId}`,
-          requestedById: input.actor.id,
-          requestedByName: input.actor.name,
+  try {
+    return await db.transaction(async (tx) => {
+      const [run] = await tx
+        .select({
+          critiqueRunId: pixelforgeQaRuns.critiqueRunId,
+          originalityRunId: pixelforgeQaRuns.originalityRunId,
+          likenessRunId: pixelforgeQaRuns.likenessRunId,
         })
-        .returning({ id: pixelforgeAiRuns.id });
-      return inserted.id;
-    }
+        .from(pixelforgeQaRuns)
+        .where(eq(pixelforgeQaRuns.id, qaRunId))
+        .for("update")
+        .limit(1);
+      if (!run) return null;
+      if (hasAdvisoryRunsAttached(run)) {
+        return null; // ya lanzada — no-op idempotente.
+      }
 
-    const critiqueRunId = await insertAdvisoryRun(input.critique);
-    const originalityRunId = await insertAdvisoryRun(input.originality);
-    const likenessRunId = await insertAdvisoryRun(input.likeness);
+      async function insertAdvisoryRun(seed: AdvisoryRunSeed): Promise<string> {
+        const [inserted] = await tx
+          .insert(pixelforgeAiRuns)
+          .values({
+            projectId: input.projectId,
+            operation: seed.operation,
+            status: "queued",
+            model: seed.model,
+            promptVersion: seed.promptVersion,
+            inputSummary: seed.inputSummary,
+            resultRef: `qa_run:${qaRunId}`,
+            requestedById: input.actor.id,
+            requestedByName: input.actor.name,
+          })
+          .returning({ id: pixelforgeAiRuns.id });
+        return inserted.id;
+      }
 
-    await tx
-      .update(pixelforgeQaRuns)
-      .set({ critiqueRunId, originalityRunId, likenessRunId, updatedAt: new Date() })
-      .where(eq(pixelforgeQaRuns.id, qaRunId));
+      const critiqueRunId = await insertAdvisoryRun(input.critique);
+      const originalityRunId = await insertAdvisoryRun(input.originality);
+      const likenessRunId = await insertAdvisoryRun(input.likeness);
 
-    return { critiqueRunId, originalityRunId, likenessRunId };
-  });
+      const updated = await tx
+        .update(pixelforgeQaRuns)
+        .set({ critiqueRunId, originalityRunId, likenessRunId, updatedAt: new Date() })
+        .where(
+          and(
+            eq(pixelforgeQaRuns.id, qaRunId),
+            eq(pixelforgeQaRuns.status, "running"),
+            isNull(pixelforgeQaRuns.critiqueRunId),
+            isNull(pixelforgeQaRuns.originalityRunId),
+            isNull(pixelforgeQaRuns.likenessRunId)
+          )
+        )
+        .returning({ id: pixelforgeQaRuns.id });
+      if (updated.length === 0) {
+        throw new AttachQaAdvisoryRunsRaceLostError();
+      }
+
+      return { critiqueRunId, originalityRunId, likenessRunId };
+    });
+  } catch (err) {
+    if (err instanceof AttachQaAdvisoryRunsRaceLostError) return null;
+    throw err;
+  }
 }
 
 // ─── Helpers privados ──────────────────────────────────────────────────────

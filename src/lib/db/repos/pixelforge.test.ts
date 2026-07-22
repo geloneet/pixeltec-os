@@ -9,6 +9,7 @@ import {
   assertCombinedFromDirectionIdsValid,
   assertDirectionDecisionStillCurrent,
   computeNextPageVersion,
+  hasAdvisoryRunsAttached,
   isStaleQaRun,
   QA_BROWSER_CLAIM_TIMEOUT_MS,
   QA_BROWSER_PENDING_TIMEOUT_MS,
@@ -185,5 +186,62 @@ describe("isStaleQaRun", () => {
       browserClaimedAt: new Date(NOW.getTime() - (QA_BROWSER_CLAIM_TIMEOUT_MS + 1000)),
     });
     expect(isStaleQaRun(run, NOW)).toBe("queued_timeout");
+  });
+});
+
+describe("hasAdvisoryRunsAttached", () => {
+  // Criterio de no-op idempotente de `attachQaAdvisoryRuns` (review PF-F8 T5):
+  // si CUALQUIERA de los 3 FKs advisory ya está seteado, la corrida advisory
+  // ya fue lanzada (por esta invocación o por otra que ganó una carrera
+  // concurrente) — no hay que insertar los 3 `ai_runs` de nuevo.
+
+  it("false si los 3 FKs advisory están en null (todavía no se lanzó nada)", () => {
+    expect(
+      hasAdvisoryRunsAttached({
+        critiqueRunId: null,
+        originalityRunId: null,
+        likenessRunId: null,
+      })
+    ).toBe(false);
+  });
+
+  it("true si solo critiqueRunId está seteado", () => {
+    expect(
+      hasAdvisoryRunsAttached({
+        critiqueRunId: "run-1",
+        originalityRunId: null,
+        likenessRunId: null,
+      })
+    ).toBe(true);
+  });
+
+  it("true si solo originalityRunId está seteado", () => {
+    expect(
+      hasAdvisoryRunsAttached({
+        critiqueRunId: null,
+        originalityRunId: "run-2",
+        likenessRunId: null,
+      })
+    ).toBe(true);
+  });
+
+  it("true si solo likenessRunId está seteado", () => {
+    expect(
+      hasAdvisoryRunsAttached({
+        critiqueRunId: null,
+        originalityRunId: null,
+        likenessRunId: "run-3",
+      })
+    ).toBe(true);
+  });
+
+  it("true si los 3 FKs advisory están seteados (ya lanzada por completo)", () => {
+    expect(
+      hasAdvisoryRunsAttached({
+        critiqueRunId: "run-1",
+        originalityRunId: "run-2",
+        likenessRunId: "run-3",
+      })
+    ).toBe(true);
   });
 });
