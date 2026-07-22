@@ -118,6 +118,11 @@ import {
 } from "@/lib/pixelforge/ai/prompts/compose-page-tree.v1";
 import { composePageTreeDomainSchema } from "@/lib/pixelforge/schemas/compose-page-tree";
 import { validatePageTree } from "@/lib/pixelforge/registry/validate-page-tree";
+import {
+  critiqueDesignOperation,
+  scoreOriginalityOperation,
+  detectAiLikenessOperation,
+} from "@/lib/pixelforge/qa/advisory-operations";
 
 /** Contexto compartido de una corrida — común a todas las operaciones del mapa. */
 interface OperationRunCtx {
@@ -125,6 +130,14 @@ interface OperationRunCtx {
   ownerId: string;
   /** Solo `generate_directions`: si viene, regenera ESE slot; si no, genera las 3 direcciones completas. */
   slot?: number;
+  /**
+   * Solo las 3 operaciones IA advisory de QA (`critique_design`/
+   * `score_originality`/`detect_ai_likeness`, F8-T5): a qué `qa_run`
+   * pertenece el resultado — análogo a `referenceId` para
+   * `analyze_reference`. El `superRefine` de `createRunSchema` (debajo) lo
+   * exige solo para esas 3 operaciones.
+   */
+  qaRunId?: string;
 }
 
 /** Tipo real de `domainSchema` en `executeOperation` (`z.ZodTypeAny | undefined`, `zod/v4`) — se deriva de la firma en vez de importar `zod/v4` acá (reservado a `src/lib/pixelforge/schemas/`, ver ese docstring). */
@@ -618,6 +631,16 @@ export const ENABLED_OPERATIONS = {
     domainSchema: composePageTreeDomainSchema,
     promptVersion: COMPOSE_PAGE_TREE_PROMPT_VERSION,
   },
+  // Las 3 operaciones IA advisory de QA (F8-T5, checks QA-IA-001/002/003):
+  // guard/buildRequest/inputSummary/resultRef/persistResult/domainSchema
+  // viven en `qa/advisory-operations.ts` (módulo compartido, no en este route
+  // file) — el camino REAL por el que corren es `launchQaAdvisoryRuns`
+  // (`qa/advisory.ts`), invocado internamente al arrancar un `qa_run`; su
+  // registro acá es aditivo/defensivo (permite invocarlas también por HTTP
+  // directo, aunque hoy no haya UI que lo haga).
+  critique_design: critiqueDesignOperation,
+  score_originality: scoreOriginalityOperation,
+  detect_ai_likeness: detectAiLikenessOperation,
 } satisfies Record<string, OperationConfig>;
 
 export const runtime = "nodejs";
@@ -642,6 +665,9 @@ export const createRunSchema = z
         "generate_directions",
         "build_narrative",
         "compose_page_tree",
+        "critique_design",
+        "score_originality",
+        "detect_ai_likeness",
       ],
       {
         errorMap: () => ({ message: "Operación no disponible en esta fase" }),
@@ -653,6 +679,9 @@ export const createRunSchema = z
     // Solo `generate_directions` lo usa — si viene, regenera ESE slot; si no, genera las 3 direcciones
     // completas. Ver el `superRefine` debajo (solo válido junto a `generate_directions`).
     slot: z.number().int().min(1).max(3).optional(),
+    // Solo las 3 operaciones IA advisory de QA (F8-T5) — a qué `qa_run` pertenece el resultado. Ver el
+    // `superRefine` debajo (mismo criterio que `referenceId` para `analyze_reference`).
+    qaRunId: z.string().uuid("QA inválido").optional(),
   })
   .superRefine((data, ctx) => {
     if (data.operation === "analyze_reference" && !data.referenceId) {
@@ -667,6 +696,24 @@ export const createRunSchema = z
         code: z.ZodIssueCode.custom,
         path: ["slot"],
         message: "slot solo aplica a generate_directions",
+      });
+    }
+    const QA_ADVISORY_OPERATIONS = ["critique_design", "score_originality", "detect_ai_likeness"] as const;
+    if ((QA_ADVISORY_OPERATIONS as readonly string[]).includes(data.operation) && !data.qaRunId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["qaRunId"],
+        message: "Falta qaRunId para esta operación IA advisory de QA",
+      });
+    }
+    if (
+      data.qaRunId !== undefined &&
+      !(QA_ADVISORY_OPERATIONS as readonly string[]).includes(data.operation)
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["qaRunId"],
+        message: "qaRunId solo aplica a las operaciones IA advisory de QA",
       });
     }
   });
@@ -706,9 +753,9 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) {
       return fail(parsed.error.errors[0]?.message ?? "Petición inválida", 400);
     }
-    const { projectId, operation, referenceId, slot } = parsed.data;
+    const { projectId, operation, referenceId, slot, qaRunId } = parsed.data;
     const opConfig = ENABLED_OPERATIONS[operation];
-    const opCtx: OperationRunCtx = { referenceId, ownerId, slot };
+    const opCtx: OperationRunCtx = { referenceId, ownerId, slot, qaRunId };
 
     // I3: validar ANTES de crear la corrida — si no hay API key configurada, `getPixelforgeAnthropic()`
     // (llamado más abajo, ya en background) lanzaría igual, pero para entonces ya habríamos creado

@@ -39,6 +39,7 @@ import { validatePageTree } from "@/lib/pixelforge/registry/validate-page-tree";
 const PROJECT_ID = "11111111-1111-1111-1111-111111111111";
 const REFERENCE_ID = "22222222-2222-2222-2222-222222222222";
 const DIRECTION_ID = "44444444-4444-4444-4444-444444444444";
+const QA_RUN_ID = "55555555-5555-5555-5555-555555555555";
 
 describe("createRunSchema", () => {
   it("rechaza analyze_reference sin referenceId", () => {
@@ -162,6 +163,47 @@ describe("createRunSchema", () => {
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error.issues.some((issue) => issue.path.join(".") === "slot")).toBe(true);
+    }
+  });
+
+  // ─── PF-F8 T5: las 3 operaciones IA advisory de QA (critique_design/score_originality/detect_ai_likeness) ───
+
+  it("acepta critique_design/score_originality/detect_ai_likeness con qaRunId (F8-T5)", () => {
+    for (const operation of ["critique_design", "score_originality", "detect_ai_likeness"] as const) {
+      const result = createRunSchema.safeParse({ projectId: PROJECT_ID, operation, qaRunId: QA_RUN_ID });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.qaRunId).toBe(QA_RUN_ID);
+      }
+    }
+  });
+
+  it("rechaza critique_design/score_originality/detect_ai_likeness sin qaRunId", () => {
+    for (const operation of ["critique_design", "score_originality", "detect_ai_likeness"] as const) {
+      const result = createRunSchema.safeParse({ projectId: PROJECT_ID, operation });
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.issues.some((issue) => issue.path.join(".") === "qaRunId")).toBe(true);
+      }
+    }
+  });
+
+  it("rechaza qaRunId mal formado (no uuid) en una operación IA advisory de QA", () => {
+    const result = createRunSchema.safeParse({
+      projectId: PROJECT_ID,
+      operation: "critique_design",
+      qaRunId: "no-es-un-uuid",
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("rechaza qaRunId en una operación que no es IA advisory de QA", () => {
+    const result = createRunSchema.safeParse({ projectId: PROJECT_ID, operation: "compose_page_tree", qaRunId: QA_RUN_ID });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues.some((issue) => issue.path.join(".") === "qaRunId")).toBe(true);
     }
   });
 });
@@ -476,5 +518,32 @@ describe("ENABLED_OPERATIONS.compose_page_tree (metadatos)", () => {
 
   it("domainSchema es composePageTreeDomainSchema (valor fijo, no función — a diferencia de generate_directions)", () => {
     expect(typeof ENABLED_OPERATIONS.compose_page_tree.domainSchema).not.toBe("function");
+  });
+});
+
+describe("ENABLED_OPERATIONS — las 3 operaciones IA advisory de QA están registradas (F8-T5)", () => {
+  it("critique_design/score_originality/detect_ai_likeness resuelven qa_run:<qaRunId> como resultRef", () => {
+    expect(ENABLED_OPERATIONS.critique_design.resultRef({ ownerId: "owner-1", qaRunId: QA_RUN_ID })).toBe(
+      `qa_run:${QA_RUN_ID}`
+    );
+    expect(ENABLED_OPERATIONS.score_originality.resultRef({ ownerId: "owner-1", qaRunId: QA_RUN_ID })).toBe(
+      `qa_run:${QA_RUN_ID}`
+    );
+    expect(ENABLED_OPERATIONS.detect_ai_likeness.resultRef({ ownerId: "owner-1", qaRunId: QA_RUN_ID })).toBe(
+      `qa_run:${QA_RUN_ID}`
+    );
+  });
+
+  it("guard de las 3 rechaza sin qa_run en curso (extra null — sin loadExtra resuelto)", () => {
+    const full = fixtureFull();
+    expect(ENABLED_OPERATIONS.critique_design.guard(full, { ownerId: "owner-1" }, null)).toBe(
+      "No hay un QA en curso para este proyecto"
+    );
+    expect(ENABLED_OPERATIONS.score_originality.guard(full, { ownerId: "owner-1" }, null)).toBe(
+      "No hay un QA en curso para este proyecto"
+    );
+    expect(ENABLED_OPERATIONS.detect_ai_likeness.guard(full, { ownerId: "owner-1" }, null)).toBe(
+      "No hay un QA en curso para este proyecto"
+    );
   });
 });
