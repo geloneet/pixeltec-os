@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>fixture: intenta abrir un WebSocket a un host externo (debe bloquearse, cero egress)</title>
+</head>
+<body>
+  <main>
+    <div data-pf-node="n1" data-pf-component="hero-split">
+      <h1>Sección sana — igual que control.html, más un intento de WebSocket externo</h1>
+      <p>Texto de relleno con buen contraste (negro sobre blanco).</p>
+      <img
+        src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+        alt="pixel de prueba"
+        width="1"
+        height="1"
+      />
+      <div data-pf-motion-item style="opacity: 1;">Este item ya está revelado (sin deadlock).</div>
+      <span data-pf-motion-count="120+">120+</span>
+      <button id="a">Control A</button>
+      <button id="b">Control B</button>
+      <button id="c">Control C</button>
+    </div>
+  </main>
+  <footer>pie de página</footer>
+  <script>
+    // Host EXTERNO al origin del fixture server (127.0.0.1:5799) — puerto 1,
+    // reservado, nunca hay nada escuchando ahí. Con el gate de WebSocket
+    // instalado (page.routeWebSocket), Playwright mockea este socket y lo
+    // cierra sin abrir jamás una conexión TCP real: cero egress. Sin el
+    // gate, esto intentaría conectar de verdad al puerto 1 del loopback.
+    window.__pfWsClosed = false;
+    window.__pfWsOpened = false;
+    try {
+      var ws = new WebSocket("ws://127.0.0.1:1/");
+      ws.addEventListener("open", function () {
+        window.__pfWsOpened = true;
+      });
+      ws.addEventListener("close", function () {
+        window.__pfWsClosed = true;
+      });
+      ws.addEventListener("error", function () {
+        // Esperado si el socket se cierra/bloquea — no es un pageerror.
+      });
+    } catch (err) {
+      window.__pfWsClosed = true; // el constructor lanzó — igual cuenta como "sin egress".
+    }
+  </script>
+</body>
+</html>

@@ -6,6 +6,15 @@
  * propio contexto, así el allowlist de egress (`route-guard.ts`) y los
  * listeners (`collectors.ts`) quedan aislados por pasada.
  *
+ * Cero egress (req. 14) tiene 3 gates, TODOS instalados/configurados en cada
+ * pasada, ninguno opcional: (1) `installEgressAllowlist` sobre HTTP vía
+ * `page.route`; (2) `installWebSocketBlock` sobre WebSockets vía
+ * `page.routeWebSocket` — `page.route` NO ve el handshake `ws(s)://`
+ * (hallazgo de review, PF-F8 T6); (3) `serviceWorkers: 'block'` en CADA
+ * `browser.newContext` — un service worker registrado por la página podría
+ * seguir haciendo fetch en segundo plano fuera del ciclo de vida de la
+ * request normal.
+ *
  * Orden dentro del pass de viewport (importa para QA-MO-005, ver
  * `checks/motion.ts`): primero los checks de layout/tipografía (estado
  * "recién cargado", antes de que la animación de entrada del CTA se
@@ -18,7 +27,7 @@
  */
 import type { Browser } from "playwright";
 import { QA_VIEWPORTS } from "./viewports";
-import { installEgressAllowlist } from "./route-guard";
+import { installEgressAllowlist, installWebSocketBlock } from "./route-guard";
 import { attachNetworkCollector } from "./collectors";
 import type { QaFindingInput } from "@/lib/pixelforge/qa/catalog";
 import {
@@ -74,10 +83,24 @@ async function runViewportPass(
   screenshotCtx: ScreenshotContext,
   viewport: (typeof QA_VIEWPORTS)[number]
 ): Promise<{ findings: QaFindingInput[]; screenshot: FullPageScreenshotRef }> {
-  const context = await browser.newContext({ viewport: { width: viewport.width, height: viewport.height } });
+  const context = await browser.newContext({
+    viewport: { width: viewport.width, height: viewport.height },
+    serviceWorkers: "block",
+  });
   const page = await context.newPage();
-  await installEgressAllowlist(page, allowedOrigin);
   const collector = attachNetworkCollector(page, allowedOrigin);
+  await installEgressAllowlist(page, allowedOrigin);
+  // `route.abort()` (gate HTTP) dispara `requestfailed` solo automáticamente;
+  // cerrar un `WebSocketRoute` no dispara nada en la page, así que el
+  // intento bloqueado se registra a mano en el MISMO canal que alimenta
+  // QA-TE-003 (`checks/technical.ts`).
+  await installWebSocketBlock(page, (event) => {
+    collector.requestFailures.push({
+      url: event.url,
+      sameOrigin: false,
+      detail: `WebSocket bloqueado por política de egress (${event.reason})`,
+    });
+  });
 
   const response = await page.goto(previewUrl, { waitUntil: "load", timeout: NAV_TIMEOUT_MS });
   await page.waitForTimeout(INITIAL_SETTLE_MS);
@@ -130,9 +153,11 @@ async function runReducedMotionPass(
 ): Promise<QaFindingInput[]> {
   const context = await browser.newContext({
     viewport: { width: DESKTOP_VIEWPORT.width, height: DESKTOP_VIEWPORT.height },
+    serviceWorkers: "block",
   });
   const page = await context.newPage();
   await installEgressAllowlist(page, allowedOrigin);
+  await installWebSocketBlock(page);
   await page.goto(previewUrl, { waitUntil: "load", timeout: NAV_TIMEOUT_MS });
   await page.waitForTimeout(REDUCED_MOTION_SETTLE_MS);
 
@@ -149,9 +174,11 @@ async function runNoJsPass(browser: Browser, previewUrl: string, allowedOrigin: 
   const context = await browser.newContext({
     viewport: { width: DESKTOP_VIEWPORT.width, height: DESKTOP_VIEWPORT.height },
     javaScriptEnabled: false,
+    serviceWorkers: "block",
   });
   const page = await context.newPage();
   await installEgressAllowlist(page, allowedOrigin);
+  await installWebSocketBlock(page);
   await page.goto(previewUrl, { waitUntil: "load", timeout: NAV_TIMEOUT_MS });
 
   const findings: QaFindingInput[] = [];

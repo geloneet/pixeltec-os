@@ -13,18 +13,28 @@
  *   QA-TE-002 (hydration.html), QA-MO-001 (motion-stuck.html), QA-AX-002
  *   (focus-trap.html), QA-MO-003 (count-frozen.html), control.html (ninguno).
  *
+ * Además (fuera de la lista FIXTURES, gate propio — review PF-F8 T6, req. 14
+ * "cero egress"): `websocket-egress.html` abre un `new WebSocket(...)` hacia
+ * un host EXTERNO al origin del fixture server. Con los 2 gates instalados
+ * (`installEgressAllowlist` + `installWebSocketBlock`, `route-guard.ts`) el
+ * WebSocket debe quedar bloqueado (mockeado y cerrado, cero conexión TCP
+ * real) Y el intento debe quedar registrado como bloqueado — sin que eso
+ * afecte a los demás checks corridos sobre la MISMA página (deben comportarse
+ * como control.html: ningún código de la lista bajo prueba dispara).
+ *
  * Uso local:
  *   npx playwright install chromium   (una sola vez)
  *   npx tsx scripts/qa-runner/selftest.ts
  *
- * Exit 0 si los 9 fixtures cumplen su expectativa; exit 1 si alguno falla
- * (imprime el detalle de qué código faltó o sobró).
+ * Exit 0 si los 9 fixtures + el check de WebSocket cumplen su expectativa;
+ * exit 1 si alguno falla (imprime el detalle de qué código faltó o sobró).
  */
 import http from "node:http";
 import { createReadStream, existsSync } from "node:fs";
 import path from "node:path";
 import { chromium, type Browser } from "playwright";
 import { attachNetworkCollector } from "./collectors";
+import { installEgressAllowlist, installWebSocketBlock, type BlockedRequestEvent } from "./route-guard";
 import { checkDocumentOverflow, checkBrokenImages } from "./checks/visual";
 import { checkAxeViolations, checkKeyboardTrap } from "./checks/axe";
 import { checkPageErrorsAndHydration } from "./checks/technical";
@@ -103,10 +113,85 @@ async function runChecksAgainstFixture(browser: Browser, origin: string, file: s
   return codes;
 }
 
+/**
+ * Gate dedicado del review PF-F8 T6 (req. 14, "cero egress"): abre
+ * `websocket-egress.html` (un `new WebSocket('ws://127.0.0.1:1/')` — host
+ * EXTERNO al origin del fixture server) con `installEgressAllowlist` +
+ * `installWebSocketBlock` instalados, igual que `run-job.ts`. Verifica 3
+ * cosas: (1) el WebSocket del navegador NUNCA reporta `open` (si el gate
+ * fallara, el intento de conexión real al puerto 1 tardaría o abriría); (2)
+ * el intento queda registrado como bloqueado (mismo canal que
+ * `NetworkCollector.requestFailures`, que alimenta QA-TE-003); (3) los demás
+ * checks sobre la MISMA página no se ven afectados — deben comportarse como
+ * `control.html` (ningún código de la lista bajo prueba dispara).
+ */
+async function runWebSocketEgressFixture(browser: Browser, origin: string): Promise<{ ok: boolean; detail: string }> {
+  const context = await browser.newContext({ viewport: VIEWPORT, serviceWorkers: "block" });
+  const page = await context.newPage();
+  const collector = attachNetworkCollector(page, origin);
+  const blocked: BlockedRequestEvent[] = [];
+
+  await installEgressAllowlist(page, origin);
+  await installWebSocketBlock(page, (event) => {
+    blocked.push(event);
+    collector.requestFailures.push({
+      url: event.url,
+      sameOrigin: false,
+      detail: `WebSocket bloqueado por política de egress (${event.reason})`,
+    });
+  });
+
+  await page.goto(`${origin}/websocket-egress.html`, { waitUntil: "load", timeout: 15_000 });
+  await page.waitForTimeout(300);
+
+  const wsClosed = await page.evaluate(
+    () => (window as unknown as { __pfWsClosed?: boolean }).__pfWsClosed === true
+  );
+  const wsOpened = await page.evaluate(
+    () => (window as unknown as { __pfWsOpened?: boolean }).__pfWsOpened === true
+  );
+
+  const codes = new Set<string>();
+  const record = (findings: { checkCode: string }[]) => findings.forEach((f) => codes.add(f.checkCode));
+  record(await checkDocumentOverflow(page, "mobile"));
+  record(await checkBrokenImages(page, "mobile"));
+  record(await checkAxeViolations(page, "mobile"));
+  record(checkPageErrorsAndHydration(collector, "mobile"));
+  await scrollThroughSections(page);
+  record(await checkMotionDeadlock(page, "mobile"));
+  record(await checkCountUpSettled(page, "mobile"));
+  record(await checkKeyboardTrap(page, "mobile"));
+
+  await context.close();
+
+  const problems: string[] = [];
+  if (wsOpened) problems.push("el WebSocket llegó a reportar 'open' — el gate no lo bloqueó");
+  if (!wsClosed) problems.push("el WebSocket nunca reportó close/constructor-throw — sin evidencia de bloqueo");
+  if (blocked.length !== 1) {
+    problems.push(`se esperaba exactamente 1 intento de WebSocket bloqueado registrado, hubo ${blocked.length}`);
+  }
+  if (blocked.length > 0 && blocked[0].reason !== "websocket-blocked-all") {
+    problems.push(`reason inesperado: ${blocked[0].reason}`);
+  }
+  for (const code of codes) {
+    problems.push(`disparó ${code} inesperadamente (el gate de WebSocket no debe afectar a los demás checks)`);
+  }
+
+  const ok = problems.length === 0;
+  return {
+    ok,
+    detail:
+      `websocket-egress.html — wsClosed=${wsClosed} wsOpened=${wsOpened} ` +
+      `intentosBloqueados=${blocked.length} códigos=[${[...codes].join(", ") || "ninguno"}]` +
+      `${problems.length ? " — " + problems.join("; ") : ""}`,
+  };
+}
+
 async function main(): Promise<void> {
   const { server, origin } = await startStaticServer();
   const browser = await chromium.launch();
 
+  const total = FIXTURES.length + 1;
   let failedCount = 0;
   try {
     for (const fixture of FIXTURES) {
@@ -132,16 +217,20 @@ async function main(): Promise<void> {
         }`
       );
     }
+
+    const wsResult = await runWebSocketEgressFixture(browser, origin);
+    if (!wsResult.ok) failedCount++;
+    console.log(`${wsResult.ok ? "✅" : "❌"} ${wsResult.detail}`);
   } finally {
     await browser.close();
     await new Promise<void>((resolve) => server.close(() => resolve()));
   }
 
   if (failedCount > 0) {
-    console.error(`\nSELFTEST FALLÓ: ${failedCount}/${FIXTURES.length} fixture(s) no cumplieron su expectativa.`);
+    console.error(`\nSELFTEST FALLÓ: ${failedCount}/${total} fixture(s) no cumplieron su expectativa.`);
     process.exit(1);
   }
-  console.log(`\nSELFTEST OK: ${FIXTURES.length}/${FIXTURES.length} fixtures cumplieron su expectativa.`);
+  console.log(`\nSELFTEST OK: ${total}/${total} fixtures cumplieron su expectativa.`);
 }
 
 main().catch((err) => {
