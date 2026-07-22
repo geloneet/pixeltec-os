@@ -2568,6 +2568,62 @@ export async function attachQaAdvisoryRuns(
   }
 }
 
+/**
+ * `ownerId` de un proyecto por id, SIN ownership check (INTERNA — mismo
+ * criterio que `getPageVersionInternal`/`claimQaBrowserJob`): la usa el
+ * qa-runner (F8-T6) para construir el payload de `signQaPreviewToken`, que
+ * necesita la identidad de ownership completa del proyecto, no solo el
+ * `requestedById` de quien encoló el QA (que en teoría coincide, pero el
+ * runner no debe asumirlo — lee la fuente real). `null` si el proyecto no
+ * existe.
+ */
+export async function getProjectOwnerIdInternal(projectId: string): Promise<string | null> {
+  const [project] = await db
+    .select({ ownerId: pixelforgeProjects.ownerId })
+    .from(pixelforgeProjects)
+    .where(eq(pixelforgeProjects.id, projectId))
+    .limit(1);
+  return project?.ownerId ?? null;
+}
+
+export interface InsertQaScreenshotAssetInput {
+  url: string;
+  r2Key: string;
+  contentType: string;
+  sizeBytes: number;
+}
+
+/**
+ * Registra en `pixelforge_assets` (kind `qa_screenshot`) una captura YA
+ * subida a R2 por el qa-runner (F8-T6). INTERNA — sin ownerId/Actor de sesión
+ * (calco de `claimQaBrowserJob`/`finishQaBrowserJob`: la invoca el runner, no
+ * una action de usuario); `uploadedById` queda `null` (no hay un `users.id`
+ * real detrás de un proceso automatizado) y `uploadedByName` fijo
+ * `"qa-runner"` — mismo patrón desnormalizado que el resto de `pixelforge_assets`,
+ * sin FK opcional huérfana. Devuelve el id del asset para
+ * `evidence.screenshotAssetId` en los findings que lo referencien.
+ */
+export async function insertQaScreenshotAsset(
+  projectId: string,
+  input: InsertQaScreenshotAssetInput
+): Promise<string> {
+  const [asset] = await db
+    .insert(pixelforgeAssets)
+    .values({
+      projectId,
+      kind: "qa_screenshot",
+      url: input.url,
+      r2Key: input.r2Key,
+      contentType: input.contentType,
+      sizeBytes: input.sizeBytes,
+      uploadedById: null,
+      uploadedByName: "qa-runner",
+    })
+    .returning({ id: pixelforgeAssets.id });
+
+  return asset.id;
+}
+
 // ─── Helpers privados ──────────────────────────────────────────────────────
 
 async function touchProject(tx: Tx, projectId: string) {
