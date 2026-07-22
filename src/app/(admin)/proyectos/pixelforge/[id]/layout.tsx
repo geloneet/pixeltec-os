@@ -5,8 +5,14 @@ import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { auth } from "@/lib/auth/config";
 import { getClientById } from "@/lib/db/repos/crm";
-import { getPixelforgeProjectFull, listPageVersions, listQaRunsForProject } from "@/lib/db/repos/pixelforge";
+import {
+  getPixelforgeProjectFull,
+  listPageVersions,
+  listQaRunsForProject,
+  listReviewsForProject,
+} from "@/lib/db/repos/pixelforge";
 import { computeQaGateState, qaRailStatus } from "@/lib/pixelforge/qa/gate-state";
+import { isReleaseReady } from "@/lib/pixelforge/review/stage";
 import { ForgeStationBadge } from "@/components/pixelforge/forge/ForgeStationBadge";
 import { StationTransition } from "@/components/pixelforge/StationTransition";
 import { StepperBar } from "@/components/pixelforge/StepperBar";
@@ -48,14 +54,26 @@ export default async function PixelforgeProjectLayout({
   // habría abierto pero la vigente ya no tiene QA cerrado. En cualquier otro
   // caso se deja el default calculado arriba ("pending") — NO se toca la
   // derivación de las demás estaciones.
-  const [qaVersionRows, qaRunRows] = await Promise.all([
+  const [qaVersionRows, qaRunRows, reviewRows] = await Promise.all([
     listPageVersions(id, ownerId),
     listQaRunsForProject(id, ownerId),
+    listReviewsForProject(id, ownerId),
   ]);
   const currentPageVersionId = qaVersionRows[0]?.id ?? null;
   const qaGate = computeQaGateState(qaRunRows, currentPageVersionId);
   const qaRail = qaRailStatus(qaGate);
   if (qaRail) statuses.qa = qaRail;
+
+  // PF-F9 T5 (aditivo): `revision` tampoco sella un artifact
+  // (STATION_ARTIFACT.revision===null, default "pending" arriba) — el riel
+  // de esta estación refleja `releaseReady` (`review/stage.ts`, T2): la
+  // ronda `in_review` si hay, si no la de `roundNumber` máximo (mismo
+  // criterio que `ReviewStationPanel`/`revision/page.tsx`). NO se toca la
+  // derivación de las demás estaciones.
+  const activeOrLatestReview = reviewRows.find((r) => r.status === "in_review") ?? reviewRows[0] ?? null;
+  if (isReleaseReady(activeOrLatestReview, currentPageVersionId)) {
+    statuses.revision = "sealed";
+  }
 
   const completed = project.status === "completed" || project.status === "approved";
 
