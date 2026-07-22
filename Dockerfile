@@ -33,6 +33,21 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
+# Stage 3b: qa-runner — servicio Playwright de QA de navegador (PixelForge
+# F8-T6). Base OFICIAL de Microsoft con Chromium + deps de sistema YA
+# instaladas — el PIN de versión (v1.61.1) debe coincidir EXACTO con la
+# versión de `playwright` fijada en `package.json` (devDependencies), o el
+# navegador embebido en la imagen no calza con el cliente Node que lo maneja.
+# `npx tsx` (ya en devDependencies) resuelve los paths `@/` de tsconfig.json
+# igual que `scripts/pixelforge-schema-smoke.ts` — sin paso de build propio.
+FROM mcr.microsoft.com/playwright:v1.61.1-noble AS qa-runner
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY package.json tsconfig.json ./
+COPY src ./src
+COPY scripts ./scripts
+CMD ["npx", "tsx", "scripts/qa-runner/index.ts"]
+
 # Stage 4: Production runner
 FROM node:20-alpine AS runner
 WORKDIR /app

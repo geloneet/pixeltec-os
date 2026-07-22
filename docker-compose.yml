@@ -68,6 +68,27 @@ services:
       timeout: 5s
       retries: 10
 
+  # qa-runner: servicio Playwright de QA de navegador de PixelForge (F8-T6).
+  # Corre SIEMPRE que `app` corre (NO es un profile "tools" — Miguel
+  # re-ejecuta QA desde la estación sin pasos manuales). Red SOLO interna:
+  # alcanza `db` y `app:3000`, sin puertos publicados, sin `web-network`
+  # (el allowlist de egress del propio runner es defensa en profundidad —
+  # esto es la primera capa: ni siquiera puede alcanzar el resto del VPS).
+  qa-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: qa-runner
+    container_name: pixeltec-os-qa-runner
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - pixeltec-os-internal
+
   # ── Tools (bajo demanda: docker compose --profile tools run --rm <servicio>) ──
   migrator:
     build:
