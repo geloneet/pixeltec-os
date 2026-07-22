@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { toast } from "sonner";
 import {
   AlertCircle,
@@ -19,6 +20,8 @@ import { setRunDecisionAction } from "@/app/(admin)/proyectos/pixelforge/actions
 import { usePixelforgeRun } from "@/hooks/pixelforge/use-pixelforge-run";
 import { ForgeZone } from "@/components/pixelforge/forge/ForgeZone";
 import { ForgeSeam } from "@/components/pixelforge/forge/ForgeSeam";
+import { getStationMeta } from "@/lib/pixelforge/station-meta";
+import type { PixelforgeStation } from "@/lib/pixelforge/types";
 
 /** Vista (definida acá, no en el repo — mismo criterio que `DirectionCardView` en `DirectionCard.tsx`) de una fila de `pixelforge_page_versions`, con `createdAt` YA serializado a ISO por la page (mismo patrón que `sealedAt` en `BlueprintPanel`/`DirectionsPanel`: los `Date` de Drizzle se convierten a ISO ANTES de cruzar al client component). */
 export interface ProductionVersionView {
@@ -29,6 +32,19 @@ export interface ProductionVersionView {
   createdByName: string;
   /** ISO. */
   createdAt: string;
+}
+
+/**
+ * Vista mínima (F9 T6 — visibilidad cross-estación, SOLO lectura) de la
+ * revisión de `roundNumber` más alto del proyecto, YA filtrada a
+ * `status === "changes_requested"` por `produccion/page.tsx` — este panel
+ * nunca ve el resto del ciclo de revisión (eso vive en la estación Revisión).
+ */
+export interface ProductionChangesRequestedReviewView {
+  roundNumber: number;
+  requestReason: string | null;
+  /** `null` = bloqueo técnico (mismo criterio que `pixelforge_reviews.targetStation`). */
+  targetStation: PixelforgeStation | null;
 }
 
 interface Props {
@@ -43,6 +59,15 @@ interface Props {
   blueprintSealedAt: string | null;
   /** Todas las versiones del proyecto, orden desc por `version` (la vigente es `versions[0]`) — tal como las devuelve `listPageVersions`. */
   versions: ProductionVersionView[];
+  /**
+   * La revisión MÁS RECIENTE del proyecto, solo si quedó `changes_requested`
+   * (F9 T6), o `null`. Opcional (default `null`) para no tocar los call
+   * sites existentes de este panel (banner ADITIVO) — al recomponer, la
+   * nueva `page_version` deja `superseded` la review anterior (T3, ya
+   * implementado), así que en el siguiente render (`router.refresh()`)
+   * `produccion/page.tsx` ya no la pasa y el banner desaparece solo.
+   */
+  latestChangesRequestedReview?: ProductionChangesRequestedReviewView | null;
 }
 
 /** Chip técnico (mono, DNA: "chips técnicos y números" → font-forge-mono). */
@@ -101,7 +126,13 @@ function formatVersionDate(iso: string): string {
  *    migración/repo nuevos fuera del alcance de D6; se acepta la misma
  *    limitación que `DirectionsPanel` ya documenta para el caso gemelo.
  */
-export function ProductionPanel({ projectId, blueprintSealed, blueprintSealedAt, versions }: Props) {
+export function ProductionPanel({
+  projectId,
+  blueprintSealed,
+  blueprintSealedAt,
+  versions,
+  latestChangesRequestedReview = null,
+}: Props) {
   const router = useRouter();
   const [runId, setRunId] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
@@ -189,6 +220,36 @@ export function ProductionPanel({ projectId, blueprintSealed, blueprintSealedAt,
 
   return (
     <div className="space-y-4">
+      {latestChangesRequestedReview && (
+        <ForgeZone state="invalidated" className="p-3">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="flex items-start gap-2 text-xs text-pfx-warning">
+              <RotateCcw className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
+              <div>
+                <p>
+                  Cambios solicitados en la ronda {latestChangesRequestedReview.roundNumber}
+                  {latestChangesRequestedReview.requestReason
+                    ? `: ${latestChangesRequestedReview.requestReason}`
+                    : ""}
+                </p>
+                <p className="mt-1">
+                  Destino:{" "}
+                  {latestChangesRequestedReview.targetStation
+                    ? getStationMeta(latestChangesRequestedReview.targetStation).stepLabel
+                    : "bloqueo técnico"}
+                </p>
+              </div>
+            </div>
+            <Link
+              href={`/proyectos/pixelforge/${projectId}/revision`}
+              className="flex-shrink-0 text-xs font-medium text-pfx-warning hover:underline"
+            >
+              Ir a Revisión
+            </Link>
+          </div>
+        </ForgeZone>
+      )}
+
       {isGenerating && (
         <ForgeZone state="forging" variant="elevated" className="p-5">
           <div className="flex items-center gap-3">

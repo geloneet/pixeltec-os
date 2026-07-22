@@ -7,6 +7,7 @@ import {
   listQaRunsForProject,
   getActiveQaRun,
   getQaRunWithFindings,
+  getActiveReview,
 } from "@/lib/db/repos/pixelforge";
 import { computeQaGateState } from "@/lib/pixelforge/qa/gate-state";
 import { QaStationPanel, type QaFindingView, type QaRunView } from "@/components/pixelforge/QaStationPanel";
@@ -29,10 +30,14 @@ export default async function PixelforgeQaPage({
   const full = await getPixelforgeProjectFull(id, ownerId);
   if (!full) notFound();
 
-  const [versionRows, runRows, activeRun] = await Promise.all([
+  const [versionRows, runRows, activeRun, activeReviewRow] = await Promise.all([
     listPageVersions(id, ownerId),
     listQaRunsForProject(id, ownerId),
     getActiveQaRun(id, ownerId),
+    // Visibilidad cross-estación (F9 T6, SOLO lectura): si hay una ronda de
+    // revisión abierta, QA lo muestra con un banner informativo — la
+    // decisión en sí vive en la estación Revisión, esto no toca gate/findings.
+    getActiveReview(id, ownerId),
   ]);
 
   // Vigente = mayor `version` (orden desc de `listPageVersions`, `[0]`) — mismo criterio que `ProductionPanel`/`produccion/page.tsx`.
@@ -104,6 +109,7 @@ export default async function PixelforgeQaPage({
         runs={runs}
         currentRunFindings={currentRunFindings}
         screenshotUrlByAssetId={screenshotUrlByAssetId}
+        activeReview={activeReviewRow ? { roundNumber: activeReviewRow.roundNumber } : null}
       />
     </div>
   );

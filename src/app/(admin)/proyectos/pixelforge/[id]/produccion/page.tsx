@@ -1,8 +1,12 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/lib/auth/config";
-import { getPixelforgeProjectFull, listPageVersions } from "@/lib/db/repos/pixelforge";
-import { ProductionPanel, type ProductionVersionView } from "@/components/pixelforge/ProductionPanel";
+import { getPixelforgeProjectFull, listPageVersions, listReviewsForProject } from "@/lib/db/repos/pixelforge";
+import {
+  ProductionPanel,
+  type ProductionChangesRequestedReviewView,
+  type ProductionVersionView,
+} from "@/components/pixelforge/ProductionPanel";
 import { PreviewFrame } from "@/components/pixelforge/render/PreviewFrame";
 
 export const metadata: Metadata = {
@@ -33,7 +37,14 @@ export default async function PixelforgeProduccionPage({
   // falta además `getLatestPageVersion` (que sí trae el `tree` completo): el
   // panel solo necesita metadatos, y traer el árbol completo por nada sería
   // trabajo/tráfico de más.
-  const versionRows = await listPageVersions(id, ownerId);
+  //
+  // Visibilidad cross-estación (F9 T6, SOLO lectura): `listReviewsForProject`
+  // ya llega desc por `roundNumber` (mismo criterio que `activeOrLatestReview`
+  // en `revision/page.tsx`), así que `[0]` es la MÁS RECIENTE.
+  const [versionRows, reviewRows] = await Promise.all([
+    listPageVersions(id, ownerId),
+    listReviewsForProject(id, ownerId),
+  ]);
   const versions: ProductionVersionView[] = versionRows.map((v) => ({
     id: v.id,
     version: v.version,
@@ -43,6 +54,19 @@ export default async function PixelforgeProduccionPage({
     createdAt: v.createdAt.toISOString(),
   }));
 
+  // Solo se muestra si la más reciente quedó `changes_requested` — al
+  // recomponer, la nueva `page_version` la deja `superseded` (T3), así que
+  // esto vuelve a `null` sin ningún cambio adicional acá.
+  const latestReview = reviewRows[0] ?? null;
+  const latestChangesRequestedReview: ProductionChangesRequestedReviewView | null =
+    latestReview && latestReview.status === "changes_requested"
+      ? {
+          roundNumber: latestReview.roundNumber,
+          requestReason: latestReview.requestReason,
+          targetStation: latestReview.targetStation,
+        }
+      : null;
+
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-8 space-y-6">
       <div>
@@ -51,6 +75,7 @@ export default async function PixelforgeProduccionPage({
           blueprintSealed={blueprintSealed}
           blueprintSealedAt={blueprintSealedAt}
           versions={versions}
+          latestChangesRequestedReview={latestChangesRequestedReview}
         />
       </div>
 

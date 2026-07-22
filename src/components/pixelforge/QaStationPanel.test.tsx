@@ -325,4 +325,48 @@ describe("QaStationPanel", () => {
     );
     expect(screen.getByText(/este temple corresponde a v1; la vigente es v2/i)).toBeInTheDocument();
   });
+
+  describe("banner de revisión abierta (T6 — visibilidad cross-estación)", () => {
+    it("sin activeReview: el banner no aparece", () => {
+      usePixelforgeQaRunMock.mockReturnValue(defaultHookReturn());
+      const run = runFixture();
+      render(
+        <QaStationPanel
+          projectId="proj-1"
+          currentPageVersion={{ id: "ver-2", version: 2 }}
+          initialActiveRunId={null}
+          runs={[run]}
+          currentRunFindings={[]}
+          screenshotUrlByAssetId={{}}
+          activeReview={null}
+        />
+      );
+      expect(screen.queryByText(/de revisión abierta/i)).not.toBeInTheDocument();
+    });
+
+    it("con activeReview: banner con el número de ronda + link a Revisión, sin tocar el resto del panel", () => {
+      usePixelforgeQaRunMock.mockReturnValue(defaultHookReturn());
+      const run = runFixture({ verdict: "pass", scoreTotal: 77 });
+      render(
+        <QaStationPanel
+          projectId="proj-1"
+          currentPageVersion={{ id: "ver-2", version: 2 }}
+          initialActiveRunId={null}
+          runs={[run]}
+          currentRunFindings={[]}
+          screenshotUrlByAssetId={{}}
+          activeReview={{ roundNumber: 2 }}
+        />
+      );
+      expect(screen.getByText(/ronda 2 de revisión abierta/i)).toBeInTheDocument();
+      const link = screen.getByText(/ir a revisión/i).closest("a");
+      expect(link).toHaveAttribute("href", "/proyectos/pixelforge/proj-1/revision");
+
+      // El resto del panel (cabecera QA) sigue intacto — mismas afirmaciones
+      // que el test de cabecera existente.
+      expect(screen.getByText("TEMPLADA")).toBeInTheDocument();
+      expect(screen.getByText("v2")).toBeInTheDocument();
+      expect(screen.getByText("77")).toBeInTheDocument();
+    });
+  });
 });

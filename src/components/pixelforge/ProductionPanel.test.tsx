@@ -302,4 +302,59 @@ describe("ProductionPanel", () => {
     expect(screen.queryByText("Útil")).not.toBeInTheDocument();
     expect(screen.queryByText("No útil")).not.toBeInTheDocument();
   });
+
+  describe("banner de cambios solicitados (T6 — visibilidad cross-estación)", () => {
+    it("sin latestChangesRequestedReview: el banner no aparece", () => {
+      render(
+        <ProductionPanel
+          projectId="proj-1"
+          blueprintSealed={true}
+          blueprintSealedAt="2026-07-01T00:00:00.000Z"
+          versions={[versionFixture()]}
+          latestChangesRequestedReview={null}
+        />
+      );
+      expect(screen.queryByText(/cambios solicitados/i)).not.toBeInTheDocument();
+    });
+
+    it("con review changes_requested: banner con ronda, razón, destino legible y link a Revisión", () => {
+      render(
+        <ProductionPanel
+          projectId="proj-1"
+          blueprintSealed={true}
+          blueprintSealedAt="2026-07-01T00:00:00.000Z"
+          versions={[versionFixture()]}
+          latestChangesRequestedReview={{
+            roundNumber: 3,
+            requestReason: "El hero no refleja la propuesta de valor sellada.",
+            targetStation: "qa",
+          }}
+        />
+      );
+      expect(screen.getByText(/cambios solicitados en la ronda 3/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/el hero no refleja la propuesta de valor sellada\./i)
+      ).toBeInTheDocument();
+      expect(screen.getByText(/destino: qa/i)).toBeInTheDocument();
+      const link = screen.getByText(/ir a revisión/i).closest("a");
+      expect(link).toHaveAttribute("href", "/proyectos/pixelforge/proj-1/revision");
+    });
+
+    it("targetStation null: el destino se lee 'bloqueo técnico'", () => {
+      render(
+        <ProductionPanel
+          projectId="proj-1"
+          blueprintSealed={true}
+          blueprintSealedAt="2026-07-01T00:00:00.000Z"
+          versions={[versionFixture()]}
+          latestChangesRequestedReview={{
+            roundNumber: 1,
+            requestReason: "El bug de overflow persiste en móvil.",
+            targetStation: null,
+          }}
+        />
+      );
+      expect(screen.getByText(/bloqueo técnico/i)).toBeInTheDocument();
+    });
+  });
 });

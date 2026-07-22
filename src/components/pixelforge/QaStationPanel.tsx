@@ -107,6 +107,15 @@ interface Props {
   currentRunFindings: QaFindingView[];
   /** `assetId → url` de los `pixelforge_assets` kind `qa_screenshot` del proyecto — resuelto en `qa/page.tsx` desde `getPixelforgeProjectFull().assets` (mismo patrón in-memory-join que `visual/page.tsx` usa para `visualReferences`), sin tocar el backend. */
   screenshotUrlByAssetId: Record<string, string>;
+  /**
+   * La revisión `in_review` del proyecto (F9 T6 — visibilidad cross-estación,
+   * SOLO lectura), o `null` si no hay ninguna abierta. `qa/page.tsx` la
+   * resuelve con `getActiveReview` (ya ownership-checked, T1) y solo cruza el
+   * `roundNumber` — el resto del ciclo de revisión vive en la estación
+   * Revisión, no acá. Opcional (default `null`) para no tocar los call sites
+   * existentes de este panel (banner ADITIVO).
+   */
+  activeReview?: { roundNumber: number } | null;
 }
 
 const SEVERITIES: QaFindingView["severity"][] = ["critical", "major", "minor", "info"];
@@ -247,6 +256,7 @@ export function QaStationPanel({
   runs,
   currentRunFindings,
   screenshotUrlByAssetId,
+  activeReview = null,
 }: Props) {
   const router = useRouter();
 
@@ -459,6 +469,22 @@ export function QaStationPanel({
 
   return (
     <div className="space-y-4">
+      {activeReview && (
+        <ForgeZone variant="surface" className="p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-pfx-text">
+              Ronda {activeReview.roundNumber} de revisión abierta — la decisión vive en la estación Revisión
+            </p>
+            <Link
+              href={`/proyectos/pixelforge/${projectId}/revision`}
+              className="flex-shrink-0 text-xs font-medium text-pfx-accent hover:underline"
+            >
+              Ir a Revisión
+            </Link>
+          </div>
+        </ForgeZone>
+      )}
+
       {gate.obsolete && current === null && gate.latestClosedRun && (
         <div className="flex items-start gap-2 rounded-[var(--pfx-radius)] border border-pfx-warning/30 bg-[hsl(var(--pfx-warning)/0.08)] px-3 py-2.5 text-xs text-pfx-warning">
           <RotateCcw className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
