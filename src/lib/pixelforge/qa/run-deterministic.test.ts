@@ -65,6 +65,36 @@ describe("runDeterministicChecks — árbol válido + dirección chosen limpia",
     expect(result.findings).toEqual([]);
     expect(result.checksSkipped).toEqual([]);
   });
+
+  // PF-F8 T4 — extensión aditiva: `treeUsesCapabilities`.
+  it("treeUsesCapabilities es false si el árbol no usa ninguna capability", () => {
+    const result = runDeterministicChecks({ tree: VALID_TREE, chosenDirection: CHOSEN_DIRECTION });
+    expect(result.treeUsesCapabilities).toBe(false);
+  });
+
+  it("treeUsesCapabilities es true si el árbol tiene al menos un nodo capability", () => {
+    const treeWithCapability = {
+      notas: "fixture con capability",
+      nodes: [
+        ...VALID_TREE.nodes.slice(0, 2),
+        {
+          nodeId: "cap-1",
+          componentId: "coverage-map-v1",
+          variant: "default",
+          orden: 3,
+          propsJson: JSON.stringify({ zonas: [{ nombre: "Puerto Vallarta", poligonoOrRadio: "10km desde el centro" }] }),
+        },
+        { ...VALID_TREE.nodes[2], orden: 4 },
+      ],
+    };
+    const result = runDeterministicChecks({ tree: treeWithCapability, chosenDirection: CHOSEN_DIRECTION });
+    expect(result.treeUsesCapabilities).toBe(true);
+  });
+
+  it("treeUsesCapabilities es false si el árbol no validó (no hay forma de saberlo)", () => {
+    const result = runDeterministicChecks({ tree: { nodes: [], notas: "" }, chosenDirection: CHOSEN_DIRECTION });
+    expect(result.treeUsesCapabilities).toBe(false);
+  });
 });
 
 describe("runDeterministicChecks — árbol inválido", () => {

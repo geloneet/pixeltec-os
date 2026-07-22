@@ -232,6 +232,50 @@ describe("checkMO006 — secuencia estimada demasiado larga / cinematográficos 
     const t = tree([node({ nodeId: "n1" })]);
     expect(checkMO006(t)).toEqual([]);
   });
+
+  // PF-F8 T4 — extensión aditiva: `motionDna` opcional usa el ritmo real en
+  // vez de siempre estimar con el ritmo neutro "moderado".
+  it("motionDna.ritmo='lento' empuja una secuencia borderline (bajo presupuesto en ritmo neutro) por encima del presupuesto", () => {
+    const t = tree([
+      node({
+        nodeId: "n1",
+        componentId: "cta-banner",
+        choreography: {
+          narrativePurpose: "x",
+          motifConnection: "x",
+          reducedMotionFallback: "x",
+          sequences: [
+            { behaviorId: "wipe-reveal", targetSlot: "titulo", trigger: "in-view", order: 9, durationToken: "slow", delayStrategy: "semantic", intensity: 3 },
+          ],
+        },
+      }),
+    ]);
+    // Con ritmo neutro (sin motionDna) NO supera el presupuesto.
+    expect(checkMO006(t).some((f) => f.description.includes("delay+duración"))).toBe(false);
+    // Con el ritmo real "lento" (factor 1.25), sí.
+    expect(checkMO006(t, { ritmo: "lento" }).some((f) => f.description.includes("delay+duración"))).toBe(true);
+  });
+
+  it("motionDna.ritmo='rapido' evita que una secuencia que excede el presupuesto en ritmo neutro lo siga excediendo", () => {
+    const t = tree([
+      node({
+        nodeId: "n1",
+        componentId: "cta-banner",
+        choreography: {
+          narrativePurpose: "x",
+          motifConnection: "x",
+          reducedMotionFallback: "x",
+          sequences: [
+            { behaviorId: "wipe-reveal", targetSlot: "titulo", trigger: "in-view", order: 13, durationToken: "slow", delayStrategy: "semantic", intensity: 3 },
+          ],
+        },
+      }),
+    ]);
+    // Con ritmo neutro (sin motionDna) SÍ supera el presupuesto.
+    expect(checkMO006(t).some((f) => f.description.includes("delay+duración"))).toBe(true);
+    // Con el ritmo real "rapido" (factor 0.8), deja de superarlo.
+    expect(checkMO006(t, { ritmo: "rapido" }).some((f) => f.description.includes("delay+duración"))).toBe(false);
+  });
 });
 
 describe("checkCA001 — datos mínimos de una capability", () => {

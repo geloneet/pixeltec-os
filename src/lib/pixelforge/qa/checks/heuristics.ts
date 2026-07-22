@@ -13,7 +13,7 @@ import type { ValidatedPageTree, ValidatedPageNode } from "@/lib/pixelforge/regi
 import { isSafeHref } from "@/lib/pixelforge/registry/blocks";
 import { SIGNATURE_CAPABILITIES } from "@/lib/pixelforge/registry/capabilities";
 import { isRegisteredBlockId } from "@/lib/pixelforge/registry/blocks";
-import { DURATION_MS_BY_TOKEN, RHYTHM_FACTOR, DEFAULT_RITMO, DELAY_INDEX_ORDER_MS, DELAY_CHILD_STAGGER_BASE_MS, DELAY_DISTANCE_ORDER_MS, DELAY_DISTANCE_BASE_MS, DELAY_SEMANTIC_BASE_MS, DELAY_SEMANTIC_ORDER_MS } from "@/components/pixelforge/render/motion/resolve";
+import { DURATION_MS_BY_TOKEN, RHYTHM_FACTOR, DEFAULT_RITMO, DELAY_INDEX_ORDER_MS, DELAY_CHILD_STAGGER_BASE_MS, DELAY_DISTANCE_ORDER_MS, DELAY_DISTANCE_BASE_MS, DELAY_SEMANTIC_BASE_MS, DELAY_SEMANTIC_ORDER_MS, type MotionDnaInput } from "@/components/pixelforge/render/motion/resolve";
 import { buildLocationKey } from "../location-key";
 import {
   HERO_TITLE_MAX_CHARS,
@@ -203,12 +203,10 @@ export function checkMO004(tree: ValidatedPageTree): QaFindingInput[] {
 /**
  * Estimación de delay en ms — misma fórmula que `resolveDelayMs`
  * (`render/motion/resolve.ts`, no exportada), reconstruida aquí SOLO con las
- * constantes exportadas de ese módulo (fuente única de los números). Usa
- * SIEMPRE el ritmo por defecto (`DEFAULT_RITMO`, factor 1.0): el contrato de
- * `DeterministicChecksInput` (T2, brief F8) no incluye el `motionDna` real de
- * la dirección elegida (solo `designTokens`), así que esta es una estimación
- * con el ritmo neutro — una heurística conservadora, no el valor exacto que
- * vería el visitante si la dirección usa un ritmo lento/rápido.
+ * constantes exportadas de ese módulo (fuente única de los números). El
+ * `rhythmFactor` que recibe viene de `checkMO006`: ritmo real de la dirección
+ * si `motionDna` llegó (PF-F8 T4, extensión aditiva), o el ritmo neutro
+ * (`DEFAULT_RITMO`, factor 1.0) si no — ver docstring de `checkMO006`.
  */
 function estimateDelayMs(
   strategy: "none" | "index" | "distance" | "semantic",
@@ -262,10 +260,23 @@ function buildMO006ContiguousFinding(nodeIds: readonly string[]): QaFindingInput
   };
 }
 
-/** QA-MO-006 — duración+delay estimados por sequence >2.5s, O más de `MAX_CONTIGUOUS_CINEMATIC_NODES` nodos cinematográficos consecutivos (ordenados por `orden`). */
-export function checkMO006(tree: ValidatedPageTree): QaFindingInput[] {
+/**
+ * QA-MO-006 — duración+delay estimados por sequence >2.5s, O más de
+ * `MAX_CONTIGUOUS_CINEMATIC_NODES` nodos cinematográficos consecutivos
+ * (ordenados por `orden`). `motionDna` es OPCIONAL (PF-F8 T4, extensión
+ * aditiva de `DeterministicChecksInput`, T2): si llega, usa
+ * `motionDna.ritmo` real de la dirección elegida para el `rhythmFactor` —
+ * mismo default (`motionDna?.ritmo ?? DEFAULT_RITMO`, y `RHYTHM_FACTOR[ritmo]
+ * ?? RHYTHM_FACTOR[DEFAULT_RITMO]` si el valor no es una clave válida) que
+ * usa el resolver real (`resolveChoreography`, `render/motion/resolve.ts`) —
+ * así la estimación deja de asumir SIEMPRE el ritmo neutro cuando el dato
+ * está disponible. Si `motionDna` no llega (o es `undefined`), el
+ * comportamiento es IDÉNTICO al de antes de esta extensión.
+ */
+export function checkMO006(tree: ValidatedPageTree, motionDna?: MotionDnaInput): QaFindingInput[] {
   const findings: QaFindingInput[] = [];
-  const rhythmFactor = RHYTHM_FACTOR[DEFAULT_RITMO];
+  const ritmo = motionDna?.ritmo ?? DEFAULT_RITMO;
+  const rhythmFactor = RHYTHM_FACTOR[ritmo] ?? RHYTHM_FACTOR[DEFAULT_RITMO];
   const childStaggerMs = Math.round(DELAY_CHILD_STAGGER_BASE_MS * rhythmFactor);
 
   for (const node of tree.nodes) {
