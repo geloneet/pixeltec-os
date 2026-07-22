@@ -272,6 +272,9 @@ describe("ReviewStationPanel — cabecera", () => {
     expect(screen.getByText(/templada con reservas/i)).toBeInTheDocument();
     expect(screen.getByText("77")).toBeInTheDocument();
     expect(screen.getByText("v2")).toBeInTheDocument();
+    // f-crit es blocking+critical (cuenta 1 vez como bloqueante), f-major/f-minor cuentan como advertencias.
+    expect(screen.getByText(/1 bloqueantes/i)).toBeInTheDocument();
+    expect(screen.getByText(/2 advertencias/i)).toBeInTheDocument();
     const previewLink = screen.getByRole("link", { name: /abrir preview/i });
     expect(previewLink).toHaveAttribute("href", "/proyectos/pixelforge/proj-1/preview");
     expect(previewLink).toHaveAttribute("target", "_blank");
@@ -538,6 +541,120 @@ describe("ReviewStationPanel — solicitar cambios", () => {
       contentTarget: "contexto",
       reason: "Falta el contexto del cliente",
     });
+  });
+
+  it("razón corta deshabilita Confirmar solicitud", async () => {
+    renderPendingRequest();
+    fireEvent.click(screen.getByRole("combobox", { name: /tipo de cambio/i }));
+    fireEvent.click(await screen.findByRole("option", { name: /composición/i }));
+
+    const confirmBtn = screen.getByRole("button", { name: /confirmar solicitud/i });
+    expect(confirmBtn).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText(/razón del cambio/i), { target: { value: "abc" } });
+    expect(confirmBtn).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText(/razón del cambio/i), {
+      target: { value: "Cambiar la composición del hero" },
+    });
+    expect(confirmBtn).not.toBeDisabled();
+  });
+});
+
+describe("ReviewStationPanel — cancelar revisión", () => {
+  function renderPendingCancel() {
+    renderPanel({
+      runs: [runFixture({ verdict: "pass" })],
+      reviews: [reviewFixture({ status: "in_review", verdictSnapshot: "pass" })],
+    });
+    fireEvent.click(screen.getByRole("button", { name: /cancelar revisión/i }));
+  }
+
+  it("razón corta deshabilita Confirmar cancelación", () => {
+    renderPendingCancel();
+    const confirmBtn = screen.getByRole("button", { name: /confirmar cancelación/i });
+    expect(confirmBtn).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText(/^razón$/i), { target: { value: "abc" } });
+    expect(confirmBtn).toBeDisabled();
+  });
+
+  it("razón válida postea el body exacto de cancel y refresca", async () => {
+    fetchMock.mockResolvedValue({ ok: true, status: 200, json: async () => ({ ok: true }) });
+    renderPendingCancel();
+
+    fireEvent.change(screen.getByLabelText(/^razón$/i), { target: { value: "Ya no es necesaria" } });
+    const confirmBtn = screen.getByRole("button", { name: /confirmar cancelación/i });
+    expect(confirmBtn).not.toBeDisabled();
+    fireEvent.click(confirmBtn);
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/pixelforge/reviews/rev-1/decision",
+        expect.objectContaining({ method: "POST" })
+      )
+    );
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body).toEqual({ action: "cancel", reason: "Ya no es necesaria" });
+    await waitFor(() => expect(refreshMock).toHaveBeenCalled());
+  });
+});
+
+describe("ReviewStationPanel — resolver/descartar comentario", () => {
+  const openComment = commentFixture({ id: "c-open-2", status: "open", body: "Ajustar texto del CTA" });
+
+  function renderWithOpenComment() {
+    renderPanel({
+      runs: [runFixture({ verdict: "pass" })],
+      reviews: [reviewFixture({ status: "in_review", verdictSnapshot: "pass" })],
+      comments: [openComment],
+    });
+  }
+
+  it("Resolver: razón corta deshabilita Confirmar; razón válida postea body exacto {finalStatus:'resolved'}", async () => {
+    fetchMock.mockResolvedValue({ ok: true, status: 200, json: async () => ({ ok: true }) });
+    renderWithOpenComment();
+    fireEvent.click(screen.getByRole("button", { name: /^resolver$/i }));
+
+    const confirmBtn = screen.getByRole("button", { name: /^confirmar$/i });
+    expect(confirmBtn).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText(/^razón$/i), { target: { value: "abc" } });
+    expect(confirmBtn).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText(/^razón$/i), { target: { value: "Ya se corrigió el texto" } });
+    expect(confirmBtn).not.toBeDisabled();
+    fireEvent.click(confirmBtn);
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/pixelforge/reviews/rev-1/comments/c-open-2/resolution",
+        expect.objectContaining({ method: "POST" })
+      )
+    );
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body).toEqual({ finalStatus: "resolved", reason: "Ya se corrigió el texto" });
+    await waitFor(() => expect(refreshMock).toHaveBeenCalled());
+  });
+
+  it("Descartar: postea body exacto {finalStatus:'dismissed'}", async () => {
+    fetchMock.mockResolvedValue({ ok: true, status: 200, json: async () => ({ ok: true }) });
+    renderWithOpenComment();
+    fireEvent.click(screen.getByRole("button", { name: /^descartar$/i }));
+
+    fireEvent.change(screen.getByLabelText(/^razón$/i), {
+      target: { value: "No aplica, fuera de alcance" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^confirmar$/i }));
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/pixelforge/reviews/rev-1/comments/c-open-2/resolution",
+        expect.objectContaining({ method: "POST" })
+      )
+    );
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body).toEqual({ finalStatus: "dismissed", reason: "No aplica, fuera de alcance" });
   });
 });
 
