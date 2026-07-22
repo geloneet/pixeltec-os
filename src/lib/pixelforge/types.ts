@@ -117,6 +117,7 @@ export type PixelforgeEventType =
   | "risk_accepted"
   | "approval_granted"
   | "approval_superseded"
+  | "review_superseded"
   | "review_cancelled";
 
 export type PixelforgeArtifactStatus = "pending" | "in_progress" | "sealed" | "invalidated";

@@ -54,6 +54,18 @@ import {
   type PixelforgeSourceType,
 } from "@/lib/pixelforge/types";
 import type { PixelforgeAIOperation } from "@/lib/pixelforge/schemas";
+import { computeTreeHash, treeHashMatches } from "@/lib/pixelforge/review/canonical-hash";
+import {
+  validateAcceptedRisks,
+  type AcceptedRiskEntry,
+  type FindingLike,
+} from "@/lib/pixelforge/review/approval-rules";
+import { resolveChangeTarget, type ChangeKind } from "@/lib/pixelforge/review/target-station";
+import {
+  computeQaGateState,
+  wouldRunOpenGate,
+  type QaGateClosedReason,
+} from "@/lib/pixelforge/qa/gate-state";
 import { computeScoreTotal, type DirectionScores } from "@/lib/pixelforge/scores";
 import { directionDecisionSchema } from "@/lib/pixelforge/schemas/direction-decision";
 // Import de SOLO TIPO — no cruza zod/v4 al repo (restricción global: zod/v4
@@ -697,6 +709,15 @@ export function sealArtifact(
  * (evento `invalidated` + snapshot; su `currentDraft` se CONSERVA).
  * Retrocede `currentStation` del proyecto a la estación reabierta y toca su
  * `updatedAt`. `reason` es obligatoria. Transacción.
+ *
+ * Wrapper público BYTE-COMPATIBLE (firma y comportamiento intactos, contrato
+ * F1-F8): valida ownership dentro de la tx y delega el cuerpo a
+ * `reopenArtifactInTx`. El único motivo del refactor (PF-F9 T3) es un
+ * bloqueante real: `requestChanges` necesita reabrir un artifact DENTRO de su
+ * propia transacción (que ya tomó el lock `FOR UPDATE` de la fila de
+ * proyecto); si llamara a este wrapper, `db.transaction` abriría OTRA conexión
+ * y se DEADLOCKEARÍA contra ese lock. Por eso el cuerpo vive en
+ * `reopenArtifactInTx(tx, ...)`, reusable desde una tx externa.
  */
 export function reopenArtifact(
   projectId: string,
@@ -713,6 +734,27 @@ export function reopenArtifact(
       .limit(1);
     if (!project) throw new Error("Proyecto no encontrado");
 
+    await reopenArtifactInTx(tx, projectId, kind, reason, actor);
+  });
+}
+
+/**
+ * Cuerpo de `reopenArtifact` (ver docstring del wrapper) sin la validación de
+ * ownership — el caller (`reopenArtifact` público o `requestChanges`, F9) DEBE
+ * haber verificado ownership + tomado el lock de proyecto ANTES de entrar. No
+ * abre transacción propia: opera sobre el `tx` recibido, así se compone con la
+ * tx de `requestChanges` sin deadlock. Comportamiento idéntico al original:
+ * exige `reason` no vacía y artifact `sealed` (lanza si no), reabre, invalida
+ * downstream conservando `currentDraft`, y retrocede `currentStation`.
+ */
+async function reopenArtifactInTx(
+  tx: Tx,
+  projectId: string,
+  kind: PixelforgeArtifactKind,
+  reason: string,
+  actor: Actor
+): Promise<void> {
+  {
     const artifacts = await tx
       .select()
       .from(pixelforgeArtifacts)
@@ -786,7 +828,7 @@ export function reopenArtifact(
       .update(pixelforgeProjects)
       .set({ currentStation: station, updatedAt: now })
       .where(eq(pixelforgeProjects.id, projectId));
-  });
+  }
 }
 
 // ─── Referencias visuales (F4) ──────────────────────────────────────────────
@@ -1565,6 +1607,15 @@ export function insertPageVersion(
       actorName: actor.name,
       snapshot: { version, notas: data.notas },
     });
+
+    // F9: una versión nueva invalida cualquier revisión abierta/terminal-no-
+    // cancelada anclada a la versión anterior — la aprobación (o la ronda en
+    // curso) ya no aplica a la vigente. Va DENTRO de esta tx (después del
+    // insert y del evento `page_composed`, para que el histórico lea "compuse
+    // v N" y luego "superseder las reviews de v N-1"). Cierra la ventana de la
+    // carrera approve-vs-recompose: ambas compiten por el lock `FOR UPDATE` de
+    // la fila de proyecto que este `insertPageVersion` ya tomó arriba.
+    await supersedeActiveReviewsInTx(tx, projectId, inserted.id, inserted.version, actor.name);
 
     await touchProject(tx, projectId);
 
@@ -2827,6 +2878,817 @@ export async function countOpenBlockingComments(projectId: string): Promise<numb
       )
     );
   return rows.length;
+}
+
+// ─── Revisión (F9) — capa transaccional ─────────────────────────────────────
+// Escritura de la estación `revision`. Patrón de lock OBLIGATORIO (calco de
+// `insertPageVersion`/`openQaGate`): toda operación que decide sobre el estado
+// del proyecto o de una review toma `SELECT ... FOR UPDATE` sobre la fila de
+// `pixelforge_projects` DENTRO de la tx — el mismo recurso que serializa la
+// composición de versiones y la apertura del gate, así una `insertPageVersion`
+// concurrente (que supersede reviews) y un `approveReview` no se pisan. Las
+// operaciones que NO tocan estaciones ni compiten con recompose (comentar,
+// resolver, cancelar) omiten el lock y confían en su propio CAS
+// (`WHERE ... status=<esperado>` + rowcount) para la atomicidad.
+
+/**
+ * Error tipado de conflicto de concurrencia sobre una review/comentario — un
+ * CAS (`UPDATE ... WHERE status=<esperado>`) que afectó 0 filas porque otro
+ * actor (doble clic, carrera) ya cambió el estado. Lo distingue de un error de
+ * validación para que la capa de route lo mapee a 409 (no 400/500).
+ */
+export class ReviewConflictError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ReviewConflictError";
+  }
+}
+
+/** Mensaje es-ES accionable para un gate de QA cerrado (por qué no se puede abrir revisión). */
+function reviewGateClosedMessage(reason: QaGateClosedReason | null): string {
+  switch (reason) {
+    case "no_qa":
+      return "La versión vigente todavía no pasó QA; no se puede abrir revisión.";
+    case "fail":
+      return "El QA de la versión vigente resultó en fail; corrige y vuelve a ejecutar QA antes de revisar.";
+    case "pending_decision":
+      return "El QA pasó con advertencias pero falta la decisión humana antes de abrir revisión.";
+    case "rejected":
+      return "El QA con advertencias fue rechazado; no se puede abrir revisión.";
+    case "stale":
+      return "El QA más reciente es de una versión anterior; re-ejecuta QA sobre la versión vigente antes de revisar.";
+    default:
+      return "La compuerta de QA no está abierta; no se puede abrir revisión.";
+  }
+}
+
+/** true si el `tree` de una page_version contiene un nodo con ese `nodeId` (`tree.nodes[].nodeId`, ver `compose-page-tree.ts`). */
+function treeHasNode(tree: unknown, nodeId: string): boolean {
+  if (tree === null || typeof tree !== "object") return false;
+  const nodes = (tree as { nodes?: unknown }).nodes;
+  if (!Array.isArray(nodes)) return false;
+  return nodes.some(
+    (n) => n !== null && typeof n === "object" && (n as { nodeId?: unknown }).nodeId === nodeId
+  );
+}
+
+/**
+ * Abre una revisión humana sobre la versión vigente del proyecto — SOLO si el
+ * gate de QA está abierto para ella (mismo criterio que `computeQaGateState`).
+ * Ownership + lock del proyecto; ancla la review al `qa_run` que abrió el gate
+ * y congela un snapshot del veredicto/score/hash-de-árbol. `roundNumber`
+ * incremental por proyecto, calculado bajo el lock (calco de
+ * `computeNextPageVersion`). El unique parcial `..._active_idx` es la red final
+ * contra dos reviews activas; el guard de abajo da el error accionable antes de
+ * llegar a la violación de constraint.
+ */
+export function openReview(projectId: string, ownerId: string, actor: Actor): Promise<PixelforgeReview> {
+  return db.transaction(async (tx) => {
+    // (1) ownership + lock del proyecto — mismo recurso que insertPageVersion.
+    const [project] = await tx
+      .select({ id: pixelforgeProjects.id })
+      .from(pixelforgeProjects)
+      .where(and(eq(pixelforgeProjects.id, projectId), eq(pixelforgeProjects.ownerId, ownerId)))
+      .for("update")
+      .limit(1);
+    if (!project) throw new Error("Proyecto no encontrado");
+
+    // (2) versión vigente (max version).
+    const [vigente] = await tx
+      .select()
+      .from(pixelforgePageVersions)
+      .where(eq(pixelforgePageVersions.projectId, projectId))
+      .orderBy(desc(pixelforgePageVersions.version))
+      .limit(1);
+    if (!vigente) throw new Error("No hay versión que revisar");
+
+    // (3) gate de QA sobre la vigente.
+    const runs = await tx
+      .select()
+      .from(pixelforgeQaRuns)
+      .where(eq(pixelforgeQaRuns.projectId, projectId))
+      .orderBy(desc(pixelforgeQaRuns.createdAt));
+    const gate = computeQaGateState(runs, vigente.id);
+    if (!gate.open || !gate.currentVersionRun) {
+      throw new Error(reviewGateClosedMessage(gate.reason));
+    }
+    const run = gate.currentVersionRun;
+    if (run.verdict === null || run.scoreTotal === null) {
+      throw new Error("El QA anclado no tiene veredicto resuelto");
+    }
+
+    // (4) sin review activa (el unique parcial es la red).
+    const [active] = await tx
+      .select({ id: pixelforgeReviews.id })
+      .from(pixelforgeReviews)
+      .where(and(eq(pixelforgeReviews.projectId, projectId), eq(pixelforgeReviews.status, "in_review")))
+      .limit(1);
+    if (active) throw new Error("Ya hay una revisión activa para este proyecto");
+
+    // (5) roundNumber = max(round_number) + 1 (bajo el lock).
+    const [lastRound] = await tx
+      .select({ roundNumber: pixelforgeReviews.roundNumber })
+      .from(pixelforgeReviews)
+      .where(eq(pixelforgeReviews.projectId, projectId))
+      .orderBy(desc(pixelforgeReviews.roundNumber))
+      .limit(1);
+    const roundNumber = (lastRound?.roundNumber ?? 0) + 1;
+
+    // (6) hash canónico del árbol vigente.
+    const treeHash = computeTreeHash(vigente.tree);
+
+    // (7) INSERT.
+    const [review] = await tx
+      .insert(pixelforgeReviews)
+      .values({
+        projectId,
+        pageVersionId: vigente.id,
+        qaRunId: run.id,
+        roundNumber,
+        status: "in_review",
+        verdictSnapshot: run.verdict,
+        scoreSnapshot: run.scoreTotal,
+        treeHash,
+        openedById: actor.id,
+        openedByName: actor.name,
+      })
+      .returning();
+
+    // (8) evento.
+    await tx.insert(pixelforgeEvents).values({
+      projectId,
+      station: "revision",
+      type: "review_opened",
+      actorId: actor.id,
+      actorName: actor.name,
+      snapshot: {
+        reviewId: review.id,
+        roundNumber,
+        pageVersionId: vigente.id,
+        version: vigente.version,
+        qaRunId: run.id,
+        verdict: run.verdict,
+        scoreTotal: run.scoreTotal,
+        treeHash,
+      },
+    });
+
+    await touchProject(tx, projectId);
+    return review;
+  });
+}
+
+export interface AddReviewCommentInput {
+  anchorType: "general" | "section" | "finding";
+  nodeId?: string;
+  findingId?: string;
+  body: string;
+  blocking: boolean;
+}
+
+/**
+ * Agrega un comentario a una revisión ABIERTA (`in_review`). Sin lock de
+ * proyecto — no toca estado de estaciones. Ownership vía review→project.
+ * Valida el ancla server-side: `section` exige que `nodeId` exista en el
+ * `tree` de la page_version anclada; `finding` exige que el finding exista Y
+ * pertenezca al `qaRunId` anclado (ESCOPADO — nunca un finding de otro run);
+ * `general` exige `nodeId`/`findingId` nulos.
+ */
+export function addReviewComment(
+  reviewId: string,
+  ownerId: string,
+  input: AddReviewCommentInput,
+  actor: Actor
+): Promise<PixelforgeReviewComment> {
+  return db.transaction(async (tx) => {
+    const [row] = await tx
+      .select({ review: pixelforgeReviews })
+      .from(pixelforgeReviews)
+      .innerJoin(pixelforgeProjects, eq(pixelforgeReviews.projectId, pixelforgeProjects.id))
+      .where(and(eq(pixelforgeReviews.id, reviewId), eq(pixelforgeProjects.ownerId, ownerId)))
+      .limit(1);
+    if (!row) throw new Error("Revisión no encontrada");
+    const review = row.review;
+
+    if (review.status !== "in_review") {
+      throw new Error("Solo se puede comentar en una revisión abierta");
+    }
+    if (!input.body || input.body.trim() === "") {
+      throw new Error("El comentario no puede estar vacío");
+    }
+
+    if (input.anchorType === "general") {
+      if (input.nodeId != null || input.findingId != null) {
+        throw new Error("Un comentario general no puede llevar nodeId ni findingId");
+      }
+    } else if (input.anchorType === "section") {
+      if (!input.nodeId) throw new Error("El comentario de sección requiere nodeId");
+      const [pv] = await tx
+        .select({ tree: pixelforgePageVersions.tree })
+        .from(pixelforgePageVersions)
+        .where(eq(pixelforgePageVersions.id, review.pageVersionId))
+        .limit(1);
+      if (!pv) throw new Error("Versión anclada no encontrada");
+      if (!treeHasNode(pv.tree, input.nodeId)) {
+        throw new Error(`El nodo "${input.nodeId}" no existe en la versión anclada`);
+      }
+    } else {
+      if (!input.findingId) throw new Error("El comentario de finding requiere findingId");
+      const [finding] = await tx
+        .select({ id: pixelforgeQaFindings.id })
+        .from(pixelforgeQaFindings)
+        .where(
+          and(
+            eq(pixelforgeQaFindings.id, input.findingId),
+            eq(pixelforgeQaFindings.qaRunId, review.qaRunId)
+          )
+        )
+        .limit(1);
+      if (!finding) {
+        throw new Error(`El finding "${input.findingId}" no pertenece al QA anclado de esta revisión`);
+      }
+    }
+
+    const [comment] = await tx
+      .insert(pixelforgeReviewComments)
+      .values({
+        reviewId: review.id,
+        projectId: review.projectId,
+        anchorType: input.anchorType,
+        nodeId: input.anchorType === "section" ? input.nodeId! : null,
+        findingId: input.anchorType === "finding" ? input.findingId! : null,
+        body: input.body,
+        blocking: input.blocking,
+        status: "open",
+        authorId: actor.id,
+        authorName: actor.name,
+      })
+      .returning();
+
+    await tx.insert(pixelforgeEvents).values({
+      projectId: review.projectId,
+      station: "revision",
+      type: "comment_added",
+      actorId: actor.id,
+      actorName: actor.name,
+      snapshot: {
+        commentId: comment.id,
+        anchorType: input.anchorType,
+        nodeId: comment.nodeId,
+        findingId: comment.findingId,
+        blocking: input.blocking,
+      },
+    });
+
+    return comment;
+  });
+}
+
+export interface ResolveReviewCommentInput {
+  finalStatus: "resolved" | "dismissed";
+  reason: string;
+  evidence?: unknown;
+}
+
+/**
+ * Resuelve (o descarta) un comentario. **CAS**: el UPDATE se condiciona a
+ * `status='open'`; rowcount 0 → `ReviewConflictError` ("ya no está abierto").
+ * Se permite resolver aunque la review ya NO esté `in_review` — los
+ * bloqueantes viejos deben poder cerrarse en cualquier momento. `reason`
+ * trim ≥5 se valida aquí (no solo en la route).
+ */
+export function resolveReviewComment(
+  commentId: string,
+  ownerId: string,
+  resolution: ResolveReviewCommentInput,
+  actor: Actor
+): Promise<void> {
+  return db.transaction(async (tx) => {
+    const [row] = await tx
+      .select({ projectId: pixelforgeReviewComments.projectId })
+      .from(pixelforgeReviewComments)
+      .innerJoin(pixelforgeProjects, eq(pixelforgeReviewComments.projectId, pixelforgeProjects.id))
+      .where(and(eq(pixelforgeReviewComments.id, commentId), eq(pixelforgeProjects.ownerId, ownerId)))
+      .limit(1);
+    if (!row) throw new Error("Comentario no encontrado");
+
+    if (resolution.reason.trim().length < 5) {
+      throw new Error("La razón de resolución es demasiado corta (mínimo 5 caracteres)");
+    }
+
+    const now = new Date();
+    const updated = await tx
+      .update(pixelforgeReviewComments)
+      .set({
+        status: resolution.finalStatus,
+        resolvedById: actor.id,
+        resolvedByName: actor.name,
+        resolvedAt: now,
+        resolutionReason: resolution.reason,
+        resolutionEvidence: resolution.evidence ?? null,
+      })
+      .where(and(eq(pixelforgeReviewComments.id, commentId), eq(pixelforgeReviewComments.status, "open")))
+      .returning({ id: pixelforgeReviewComments.id });
+    if (updated.length === 0) throw new ReviewConflictError("El comentario ya no está abierto");
+
+    await tx.insert(pixelforgeEvents).values({
+      projectId: row.projectId,
+      station: "revision",
+      type: "comment_resolved",
+      actorId: actor.id,
+      actorName: actor.name,
+      reason: resolution.reason,
+      snapshot: { commentId, finalStatus: resolution.finalStatus, resolutionReason: resolution.reason },
+    });
+  });
+}
+
+export interface RequestChangesInput {
+  changeKind: ChangeKind;
+  contentTarget?: "contexto" | "estrategia" | "blueprint";
+  reason: string;
+}
+
+/**
+ * Cierra la revisión pidiendo cambios (`changes_requested`) y ejecuta el
+ * efecto correspondiente EN LA MISMA TX (lock de proyecto): reabrir un artifact
+ * (cascada downstream vía `reopenArtifactInTx` — llamado en-tx para no
+ * deadlockear con el lock, ver docstring de `reopenArtifact`), retroceder a
+ * `produccion`, o bloqueo técnico sin cambio de estación. **CAS** sobre
+ * `status='in_review'`. Si el artifact objetivo NO está sellado (p.ej. ya
+ * reabierto) NO es error fatal: solo retrocede `current_station` a la estación
+ * destino. Todo atómico: si cualquier paso lanza, nada queda escrito.
+ */
+export function requestChanges(
+  reviewId: string,
+  ownerId: string,
+  input: RequestChangesInput,
+  actor: Actor
+): Promise<void> {
+  return db.transaction(async (tx) => {
+    const [row] = await tx
+      .select({ review: pixelforgeReviews })
+      .from(pixelforgeReviews)
+      .innerJoin(pixelforgeProjects, eq(pixelforgeReviews.projectId, pixelforgeProjects.id))
+      .where(and(eq(pixelforgeReviews.id, reviewId), eq(pixelforgeProjects.ownerId, ownerId)))
+      .limit(1);
+    if (!row) throw new Error("Revisión no encontrada");
+    const review = row.review;
+
+    if (input.reason.trim().length < 5) {
+      throw new Error("La razón del cambio es demasiado corta (mínimo 5 caracteres)");
+    }
+
+    // Lock del proyecto — serializa contra recompose/approve concurrente.
+    await tx
+      .select({ id: pixelforgeProjects.id })
+      .from(pixelforgeProjects)
+      .where(eq(pixelforgeProjects.id, review.projectId))
+      .for("update")
+      .limit(1);
+
+    // Mapa cerrado server-side — lanza en input inválido (p.ej. 'contenido' sin contentTarget).
+    const target = resolveChangeTarget(input.changeKind, input.contentTarget);
+
+    const now = new Date();
+
+    const openComments = await tx
+      .select({ id: pixelforgeReviewComments.id })
+      .from(pixelforgeReviewComments)
+      .where(and(eq(pixelforgeReviewComments.reviewId, reviewId), eq(pixelforgeReviewComments.status, "open")));
+
+    const updated = await tx
+      .update(pixelforgeReviews)
+      .set({
+        status: "changes_requested",
+        targetStation: target.station,
+        requestReason: input.reason,
+        closedAt: now,
+        updatedAt: now,
+      })
+      .where(and(eq(pixelforgeReviews.id, reviewId), eq(pixelforgeReviews.status, "in_review")))
+      .returning({ id: pixelforgeReviews.id });
+    if (updated.length === 0) throw new ReviewConflictError("La revisión ya no está abierta");
+
+    await tx.insert(pixelforgeEvents).values({
+      projectId: review.projectId,
+      station: "revision",
+      type: "changes_requested",
+      actorId: actor.id,
+      actorName: actor.name,
+      reason: input.reason,
+      snapshot: {
+        reviewId,
+        targetStation: target.station,
+        technicalBlock: target.mechanism === "technical_block",
+        openComments: openComments.length,
+      },
+    });
+
+    if (target.mechanism === "reopen_artifact") {
+      const kind = target.artifactKind!;
+      const [artifact] = await tx
+        .select({ status: pixelforgeArtifacts.status })
+        .from(pixelforgeArtifacts)
+        .where(and(eq(pixelforgeArtifacts.projectId, review.projectId), eq(pixelforgeArtifacts.kind, kind)))
+        .limit(1);
+      if (!artifact) {
+        // Anómalo (los 5 artifacts nacen con el proyecto): delega el throw a
+        // reopenArtifactInTx ("Artifact no encontrado") — la tx entera revierte.
+        await reopenArtifactInTx(tx, review.projectId, kind, `Cambios solicitados en revisión: ${input.reason}`, actor);
+      } else if (artifact.status === "sealed") {
+        await reopenArtifactInTx(tx, review.projectId, kind, `Cambios solicitados en revisión: ${input.reason}`, actor);
+      } else {
+        // No sellado (ya reabierto): no es fatal — solo retrocede la estación.
+        await tx
+          .update(pixelforgeProjects)
+          .set({ currentStation: target.station!, updatedAt: now })
+          .where(eq(pixelforgeProjects.id, review.projectId));
+      }
+    } else if (target.mechanism === "regress_station") {
+      await tx
+        .update(pixelforgeProjects)
+        .set({ currentStation: "produccion", updatedAt: now })
+        .where(
+          and(
+            eq(pixelforgeProjects.id, review.projectId),
+            inArray(pixelforgeProjects.currentStation, ["revision", "qa"])
+          )
+        );
+    }
+    // technical_block: sin cambio de estación.
+
+    await touchProject(tx, review.projectId);
+  });
+}
+
+export interface ApproveReviewInput {
+  reason: string;
+  risks: Array<{ findingId: string; rationale: string }>;
+}
+
+/**
+ * Aprueba una revisión — el camino más delicado. Lock de proyecto + validación
+ * en ORDEN estricto (cada fallo = error distinto): ownership, review abierta,
+ * versión vigente == anclada, qa_run anclado válido, el anclado es el ÚLTIMO
+ * cerrado de esa versión Y abre la compuerta, hash de árbol coincide, cero
+ * bloqueantes abiertos, riesgos aceptados válidos (construidos server-side y
+ * ESCOPADOS al run anclado). **CAS** final sobre `status='in_review'`. Eventos
+ * `risk_accepted` × entry + `approval_granted`.
+ */
+export function approveReview(
+  reviewId: string,
+  ownerId: string,
+  input: ApproveReviewInput,
+  actor: Actor
+): Promise<void> {
+  return db.transaction(async (tx) => {
+    // 1. ownership.
+    const [row] = await tx
+      .select({ review: pixelforgeReviews })
+      .from(pixelforgeReviews)
+      .innerJoin(pixelforgeProjects, eq(pixelforgeReviews.projectId, pixelforgeProjects.id))
+      .where(and(eq(pixelforgeReviews.id, reviewId), eq(pixelforgeProjects.ownerId, ownerId)))
+      .limit(1);
+    if (!row) throw new Error("Revisión no encontrada");
+    const review = row.review;
+
+    // Lock del proyecto — serializa contra recompose (supersede) y doble-approve.
+    await tx
+      .select({ id: pixelforgeProjects.id })
+      .from(pixelforgeProjects)
+      .where(eq(pixelforgeProjects.id, review.projectId))
+      .for("update")
+      .limit(1);
+
+    if (input.reason.trim().length < 5) {
+      throw new Error("La razón de aprobación es demasiado corta (mínimo 5 caracteres)");
+    }
+
+    // 2. review in_review (el CAS final es la garantía dura).
+    if (review.status !== "in_review") throw new Error("La revisión no está abierta");
+
+    // 3. versión vigente (releída bajo lock) === review.pageVersionId.
+    const [vigente] = await tx
+      .select({
+        id: pixelforgePageVersions.id,
+        version: pixelforgePageVersions.version,
+        tree: pixelforgePageVersions.tree,
+      })
+      .from(pixelforgePageVersions)
+      .where(eq(pixelforgePageVersions.projectId, review.projectId))
+      .orderBy(desc(pixelforgePageVersions.version))
+      .limit(1);
+    if (!vigente || vigente.id !== review.pageVersionId) {
+      throw new Error("La versión vigente cambió desde que se abrió la revisión; re-ancla o reabre la revisión");
+    }
+
+    // 4. qa_run anclado válido.
+    const [run] = await tx
+      .select()
+      .from(pixelforgeQaRuns)
+      .where(eq(pixelforgeQaRuns.id, review.qaRunId))
+      .limit(1);
+    if (!run || run.pageVersionId !== review.pageVersionId || run.status !== "succeeded" || run.verdict === null) {
+      throw new Error("El QA anclado ya no es válido para aprobar esta revisión");
+    }
+
+    // 5. el anclado es el ÚLTIMO cerrado de esa versión Y abre la compuerta.
+    const runsForVersion = await tx
+      .select({
+        id: pixelforgeQaRuns.id,
+        verdict: pixelforgeQaRuns.verdict,
+        humanDecision: pixelforgeQaRuns.humanDecision,
+        status: pixelforgeQaRuns.status,
+      })
+      .from(pixelforgeQaRuns)
+      .where(eq(pixelforgeQaRuns.pageVersionId, review.pageVersionId))
+      .orderBy(desc(pixelforgeQaRuns.createdAt));
+    const latestClosed = runsForVersion.find((r) => r.status === "succeeded" && r.verdict !== null);
+    if (!latestClosed || latestClosed.id !== run.id) {
+      throw new Error("Hay un QA más reciente sobre esta versión; re-ancla la revisión al QA vigente");
+    }
+    if (!wouldRunOpenGate({ verdict: run.verdict, humanDecision: run.humanDecision })) {
+      throw new Error("El QA anclado no abre la compuerta; re-ejecuta QA o solicita cambios");
+    }
+
+    // 6. hash del árbol (releído en la tx).
+    if (!treeHashMatches(vigente.tree, review.treeHash)) {
+      throw new Error("El contenido de la versión cambió desde que se abrió la revisión (hash no coincide)");
+    }
+
+    // 7. cero comentarios bloqueantes abiertos del proyecto (bajo tx).
+    const blockingOpen = await tx
+      .select({ id: pixelforgeReviewComments.id })
+      .from(pixelforgeReviewComments)
+      .where(
+        and(
+          eq(pixelforgeReviewComments.projectId, review.projectId),
+          eq(pixelforgeReviewComments.blocking, true),
+          eq(pixelforgeReviewComments.status, "open")
+        )
+      );
+    if (blockingOpen.length > 0) {
+      throw new Error(
+        `No se puede aprobar: quedan ${blockingOpen.length} comentario(s) bloqueante(s) sin resolver`
+      );
+    }
+
+    // 8. AcceptedRiskEntry[] server-side, ESCOPADOS al run anclado.
+    const findings = await tx
+      .select()
+      .from(pixelforgeQaFindings)
+      .where(eq(pixelforgeQaFindings.qaRunId, run.id));
+    const findingsById = new Map(findings.map((f) => [f.id, f]));
+    const nowIso = new Date().toISOString();
+    const entries: AcceptedRiskEntry[] = [];
+    for (const risk of input.risks) {
+      const f = findingsById.get(risk.findingId);
+      if (!f) throw new Error(`El finding "${risk.findingId}" no existe en el QA anclado`);
+      entries.push({
+        findingId: f.id,
+        qaRunId: run.id,
+        checkCode: f.checkCode,
+        severity: f.severity,
+        rationale: risk.rationale,
+        acceptedById: actor.id,
+        acceptedByName: actor.name,
+        acceptedAt: nowIso,
+      });
+    }
+    const findingLikes: FindingLike[] = findings.map((f) => ({
+      id: f.id,
+      checkCode: f.checkCode,
+      severity: f.severity,
+      blocking: f.blocking,
+    }));
+    const validation = validateAcceptedRisks({
+      verdict: run.verdict,
+      anchoredQaRunId: run.id,
+      findings: findingLikes,
+      entries,
+    });
+    if (!validation.ok) throw new Error(validation.error);
+
+    // 9. CAS.
+    const now = new Date();
+    const updated = await tx
+      .update(pixelforgeReviews)
+      .set({
+        status: "approved",
+        acceptedRisks: entries,
+        approvedById: actor.id,
+        approvedByName: actor.name,
+        approvedAt: now,
+        approvalReason: input.reason,
+        closedAt: now,
+        updatedAt: now,
+      })
+      .where(and(eq(pixelforgeReviews.id, reviewId), eq(pixelforgeReviews.status, "in_review")))
+      .returning({ id: pixelforgeReviews.id });
+    if (updated.length === 0) throw new ReviewConflictError("La revisión ya no está abierta");
+
+    // 10. eventos: risk_accepted × entry, luego approval_granted.
+    for (const entry of entries) {
+      await tx.insert(pixelforgeEvents).values({
+        projectId: review.projectId,
+        station: "revision",
+        type: "risk_accepted",
+        actorId: actor.id,
+        actorName: actor.name,
+        snapshot: entry,
+      });
+    }
+    await tx.insert(pixelforgeEvents).values({
+      projectId: review.projectId,
+      station: "revision",
+      type: "approval_granted",
+      actorId: actor.id,
+      actorName: actor.name,
+      reason: input.reason,
+      snapshot: {
+        reviewId,
+        pageVersionId: review.pageVersionId,
+        version: vigente.version,
+        qaRunId: run.id,
+        treeHash: review.treeHash,
+        acceptedRisksCount: entries.length,
+      },
+    });
+
+    await touchProject(tx, review.projectId);
+  });
+}
+
+/**
+ * Cancela una revisión abierta (sin lock de proyecto — no toca estaciones).
+ * **CAS** sobre `status='in_review'`. Los comentarios conservan su status
+ * propio. `reason` trim ≥5.
+ */
+export function cancelReview(
+  reviewId: string,
+  ownerId: string,
+  reason: string,
+  actor: Actor
+): Promise<void> {
+  return db.transaction(async (tx) => {
+    const [row] = await tx
+      .select({ review: pixelforgeReviews })
+      .from(pixelforgeReviews)
+      .innerJoin(pixelforgeProjects, eq(pixelforgeReviews.projectId, pixelforgeProjects.id))
+      .where(and(eq(pixelforgeReviews.id, reviewId), eq(pixelforgeProjects.ownerId, ownerId)))
+      .limit(1);
+    if (!row) throw new Error("Revisión no encontrada");
+    const review = row.review;
+
+    if (reason.trim().length < 5) {
+      throw new Error("La razón de cancelación es demasiado corta (mínimo 5 caracteres)");
+    }
+
+    const now = new Date();
+    const updated = await tx
+      .update(pixelforgeReviews)
+      .set({ status: "cancelled", requestReason: reason, closedAt: now, updatedAt: now })
+      .where(and(eq(pixelforgeReviews.id, reviewId), eq(pixelforgeReviews.status, "in_review")))
+      .returning({ id: pixelforgeReviews.id });
+    if (updated.length === 0) throw new ReviewConflictError("La revisión ya no está abierta");
+
+    await tx.insert(pixelforgeEvents).values({
+      projectId: review.projectId,
+      station: "revision",
+      type: "review_cancelled",
+      actorId: actor.id,
+      actorName: actor.name,
+      reason,
+      snapshot: { reviewId, roundNumber: review.roundNumber },
+    });
+  });
+}
+
+/**
+ * Re-ancla una revisión abierta al QA cerrado más reciente de SU misma versión
+ * (para cuando un re-QA sobre la vigente cerró después de abrir la revisión).
+ * Lock de proyecto; exige que el nuevo run difiera del anclado y que abra la
+ * compuerta (`wouldRunOpenGate`) — un re-QA con fail NO se puede anclar.
+ * **CAS** sobre `status='in_review'`; actualiza qaRunId + snapshots.
+ */
+export function reanchorReview(reviewId: string, ownerId: string, actor: Actor): Promise<void> {
+  return db.transaction(async (tx) => {
+    const [row] = await tx
+      .select({ review: pixelforgeReviews })
+      .from(pixelforgeReviews)
+      .innerJoin(pixelforgeProjects, eq(pixelforgeReviews.projectId, pixelforgeProjects.id))
+      .where(and(eq(pixelforgeReviews.id, reviewId), eq(pixelforgeProjects.ownerId, ownerId)))
+      .limit(1);
+    if (!row) throw new Error("Revisión no encontrada");
+    const review = row.review;
+
+    await tx
+      .select({ id: pixelforgeProjects.id })
+      .from(pixelforgeProjects)
+      .where(eq(pixelforgeProjects.id, review.projectId))
+      .for("update")
+      .limit(1);
+
+    if (review.status !== "in_review") throw new Error("La revisión no está abierta");
+
+    const runsForVersion = await tx
+      .select()
+      .from(pixelforgeQaRuns)
+      .where(eq(pixelforgeQaRuns.pageVersionId, review.pageVersionId))
+      .orderBy(desc(pixelforgeQaRuns.createdAt));
+    const latestClosed = runsForVersion.find((r) => r.status === "succeeded" && r.verdict !== null);
+    if (!latestClosed) throw new Error("No hay un QA cerrado sobre la versión de esta revisión");
+    if (latestClosed.id === review.qaRunId) {
+      throw new Error("La revisión ya está anclada al QA más reciente de su versión");
+    }
+    if (!wouldRunOpenGate({ verdict: latestClosed.verdict, humanDecision: latestClosed.humanDecision })) {
+      throw new Error("El QA más reciente no abre la compuerta; re-ejecuta QA o solicita cambios");
+    }
+    if (latestClosed.verdict === null || latestClosed.scoreTotal === null) {
+      throw new Error("El QA más reciente no tiene veredicto resuelto");
+    }
+
+    const now = new Date();
+    const updated = await tx
+      .update(pixelforgeReviews)
+      .set({
+        qaRunId: latestClosed.id,
+        verdictSnapshot: latestClosed.verdict,
+        scoreSnapshot: latestClosed.scoreTotal,
+        updatedAt: now,
+      })
+      .where(and(eq(pixelforgeReviews.id, reviewId), eq(pixelforgeReviews.status, "in_review")))
+      .returning({ id: pixelforgeReviews.id });
+    if (updated.length === 0) throw new ReviewConflictError("La revisión ya no está abierta");
+
+    await tx.insert(pixelforgeEvents).values({
+      projectId: review.projectId,
+      station: "revision",
+      type: "review_opened",
+      actorId: actor.id,
+      actorName: actor.name,
+      snapshot: {
+        reviewId,
+        reanchored: true,
+        qaRunId: latestClosed.id,
+        verdict: latestClosed.verdict,
+        scoreTotal: latestClosed.scoreTotal,
+        roundNumber: review.roundNumber,
+      },
+    });
+  });
+}
+
+/**
+ * INTERNA — supersede cualquier revisión NO terminal-benigna del proyecto
+ * (`in_review`/`approved`/`changes_requested`) cuando una versión nueva
+ * aterriza. La invoca `insertPageVersion` DENTRO de su tx (bajo el lock de
+ * proyecto que ya tomó). NO toca estaciones upstream, NO borra nada. Emite
+ * `approval_superseded` si la review estaba `approved`, si no
+ * `review_superseded`. Se seleccionan las filas ANTES del UPDATE para capturar
+ * su status previo (el `.returning()` de un UPDATE devuelve el status NUEVO,
+ * inútil para discriminar el evento).
+ */
+async function supersedeActiveReviewsInTx(
+  tx: Tx,
+  projectId: string,
+  newPageVersionId: string,
+  newVersion: number,
+  actorName: string
+): Promise<void> {
+  const active = await tx
+    .select({ id: pixelforgeReviews.id, status: pixelforgeReviews.status })
+    .from(pixelforgeReviews)
+    .where(
+      and(
+        eq(pixelforgeReviews.projectId, projectId),
+        inArray(pixelforgeReviews.status, ["in_review", "approved", "changes_requested"])
+      )
+    );
+  if (active.length === 0) return;
+
+  const now = new Date();
+  await tx
+    .update(pixelforgeReviews)
+    .set({ status: "superseded", closedAt: now, updatedAt: now })
+    .where(inArray(pixelforgeReviews.id, active.map((r) => r.id)));
+
+  for (const review of active) {
+    await tx.insert(pixelforgeEvents).values({
+      projectId,
+      station: "revision",
+      type: review.status === "approved" ? "approval_superseded" : "review_superseded",
+      actorId: null,
+      actorName,
+      snapshot: {
+        reviewId: review.id,
+        previousStatus: review.status,
+        newPageVersionId,
+        newVersion,
+      },
+    });
+  }
 }
 
 // ─── Helpers privados ──────────────────────────────────────────────────────
