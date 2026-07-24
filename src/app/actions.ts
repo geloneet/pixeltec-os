@@ -565,7 +565,7 @@ const newsletterSchema = z.object({
  * Subscribe a visitor to the newsletter.
  *
  * Public contract — unary `(email: string)` to match the original handler
- * shape consumed by `<NewsletterSection />`. The honeypot bot-check is
+ * shape consumed by `<NewsletterFooterForm />`. The honeypot bot-check is
  * the form's responsibility (it knows about its own DOM); this action
  * never sees it. Concerns stay separated.
  */

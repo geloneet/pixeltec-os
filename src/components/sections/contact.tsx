@@ -8,12 +8,9 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ContactCard } from '@/components/ui/contact-card';
-import { Mail, Phone, MapPin, Sparkles } from 'lucide-react';
+import { CircleAlert, CircleCheck, Loader2 } from 'lucide-react';
 import { ShinyButton } from '../ui/shiny-button';
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { DiagnosticWizard } from '@/components/diagnostico/DiagnosticWizard';
-import { ObfuscatedMailto } from '@/components/ui/obfuscated-mailto';
+import { cn } from '@/lib/utils';
 
 const initialState = {
   message: '',
@@ -21,37 +18,29 @@ const initialState = {
   errors: undefined,
 };
 
-const contactInfo = [
-  {
-      icon: Mail,
-      label: 'Email',
-      // ObfuscatedMailto, no texto plano: Cloudflare reescribe cualquier
-      // email visible en el HTML crudo (Scrape Shield) antes de que React
-      // hidrate, lo que producía "Hydration failed" en esta sección.
-      value: (
-        <ObfuscatedMailto email="contacto@pixeltec.mx" className="text-muted-foreground hover:text-foreground transition-colors">
-          contacto@pixeltec.mx
-        </ObfuscatedMailto>
-      ),
-  },
-  {
-      icon: Phone,
-      label: 'Teléfono',
-      value: '+52 (322) 137-8336',
-  },
-  {
-      icon: MapPin,
-      label: 'Oficina',
-      value: 'Puerto Vallarta, Jalisco'
-  }
-];
+const INTEREST_OPTIONS = [
+  'Automatización',
+  'Software a medida',
+  'Inteligencia artificial',
+  'Datos e integraciones',
+  'Aún no estoy seguro',
+] as const;
+
+function FieldError({ id, children }: { id: string; children: React.ReactNode }) {
+  return (
+    <p id={id} className="mt-1 flex items-start gap-1.5 text-sm text-destructive">
+      <CircleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+      <span>{children}</span>
+    </p>
+  );
+}
 
 export default function ContactSection() {
-  const [state, formAction] = useActionState(submitContactForm, initialState);
+  const [state, formAction, isPending] = useActionState(submitContactForm, initialState);
   const { toast } = useToast();
   const formRef = useRef<HTMLFormElement>(null);
   const [consent, setConsent] = useState(false);
-  const [diagnosticOpen, setDiagnosticOpen] = useState(false);
+  const [interest, setInterest] = useState<string | null>(null);
 
   useEffect(() => {
     if (state.message && !state.isSuccess) {
@@ -63,107 +52,196 @@ export default function ContactSection() {
     }
     if (state.isSuccess) {
       formRef.current?.reset();
+      setInterest(null);
+      setConsent(false);
     }
   }, [state, toast]);
 
+  // Opción A (sin cambio de contrato): el interés viaja dentro de `message`
+  // con prefijo estable, inyectado SOLO en el submit — el textarea que ve el
+  // usuario nunca se modifica.
+  const handleAction = (formData: FormData) => {
+    if (interest) {
+      const message = (formData.get('message') ?? '').toString();
+      formData.set('message', `Interés: ${interest}\n\n${message}`);
+    }
+    formAction(formData);
+  };
+
   return (
-    <section id="contact" className="py-20 md:py-32 bg-background dark:bg-[#0A0A0B]">
-      <div className="container mx-auto px-4 md:px-6">
-        <div className="mb-8 rounded-2xl border border-cyan-500/20 bg-cyan-950/10 p-6 sm:p-8 flex flex-col sm:flex-row items-center gap-5 sm:gap-6 justify-between">
-          <div className="flex items-center gap-4 text-center sm:text-left">
-            <div className="hidden sm:flex p-3 rounded-xl bg-cyan-950/40 border border-cyan-500/20 shrink-0">
-              <Sparkles className="h-6 w-6 text-cyan-400" />
-            </div>
-            <div>
-              <h3 className="text-lg font-bold text-white">Diagnóstico Inteligente</h3>
-              <p className="text-sm text-zinc-400">
-                Responde 5 preguntas y recibe una recomendación personalizada en minutos.
-              </p>
-            </div>
+    <section id="contact" className="bg-background py-16 dark:bg-[#0A0A0B] md:py-24">
+      <div className="container mx-auto max-w-6xl px-4 md:px-6">
+        {/* ── 1. Contacto compacto — prospectos decididos ────────────────── */}
+        <div className="grid gap-10 md:grid-cols-5 md:gap-14">
+          <div className="md:col-span-2">
+            <h2 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">
+              Cuéntanos qué está frenando tu operación
+            </h2>
+            <p className="mt-4 max-w-md text-base font-light leading-relaxed text-muted-foreground">
+              Revisamos tu caso y te proponemos un siguiente paso claro, sin soluciones genéricas.
+            </p>
           </div>
-          <ShinyButton type="button" onClick={() => setDiagnosticOpen(true)} className="shrink-0 px-6">
-            Iniciar Diagnóstico Inteligente
-          </ShinyButton>
-        </div>
 
-        <Dialog open={diagnosticOpen} onOpenChange={setDiagnosticOpen}>
-          <DialogContent className="max-w-2xl bg-transparent border-none shadow-none p-0">
-            <DialogTitle className="sr-only">Diagnóstico Inteligente PixelTEC</DialogTitle>
-            <DialogDescription className="sr-only">
-              Responde unas preguntas y recibe una recomendación personalizada para tu empresa.
-            </DialogDescription>
-            <DiagnosticWizard variant="modal" onClose={() => setDiagnosticOpen(false)} />
-          </DialogContent>
-        </Dialog>
+          <form ref={formRef} action={handleAction} className="space-y-5 md:col-span-3">
+            {/* Honeypot — hidden from humans (incl. screen readers), tempting for naive bots. */}
+            <div
+              aria-hidden="true"
+              style={{ position: 'absolute', left: '-9999px', width: 1, height: 1, overflow: 'hidden' }}
+            >
+              <label htmlFor="website-hp">No completar este campo.</label>
+              <input
+                id="website-hp"
+                type="text"
+                name="website"
+                tabIndex={-1}
+                autoComplete="off"
+                aria-hidden="true"
+                style={{ position: 'absolute', left: '-9999px', width: 1, height: 1, opacity: 0, pointerEvents: 'none' }}
+              />
+            </div>
 
-        <ContactCard
-            title="¿Listo para automatizar tu éxito?"
-            description="Hablemos de tu próximo gran desafío tecnológico. Llena el formulario y nuestro equipo de consultores se pondrá en contacto contigo a la brevedad."
-            contactInfo={contactInfo}
-        >
-            <form ref={formRef} action={formAction} className="w-full space-y-6">
-              {/* Honeypot — hidden from humans (incl. screen readers), tempting for naive bots. */}
-              <div aria-hidden="true" style={{ position: 'absolute', left: '-9999px', width: 1, height: 1, overflow: 'hidden' }}>
-                <label htmlFor="website-hp">No completar este campo.</label>
-                <input
-                  id="website-hp"
-                  type="text"
-                  name="website"
-                  tabIndex={-1}
-                  autoComplete="off"
-                  aria-hidden="true"
-                  style={{ position: 'absolute', left: '-9999px', width: 1, height: 1, opacity: 0, pointerEvents: 'none' }}
-                />
+            <fieldset>
+              <legend className="text-sm font-medium text-foreground">¿Qué necesitas resolver?</legend>
+              <div className="mt-2.5 flex flex-wrap gap-2">
+                {INTEREST_OPTIONS.map((option) => (
+                  <label key={option} className="cursor-pointer">
+                    <input
+                      type="radio"
+                      name="interest"
+                      value={option}
+                      checked={interest === option}
+                      onChange={() => setInterest(option)}
+                      onClick={() => {
+                        // Selección opcional: volver a clickear la misma opción la limpia.
+                        if (interest === option) setInterest(null);
+                      }}
+                      className="peer sr-only"
+                    />
+                    <span
+                      className={cn(
+                        'inline-flex min-h-[2.25rem] items-center rounded-full border px-3.5 py-1.5 text-sm transition-colors',
+                        'peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-cyan-400',
+                        interest === option
+                          ? 'border-cyan-500/60 bg-cyan-500/10 font-medium text-foreground dark:text-cyan-300'
+                          : 'border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground'
+                      )}
+                    >
+                      {option}
+                    </span>
+                  </label>
+                ))}
               </div>
+            </fieldset>
+
+            <div className="grid gap-5 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="name">Nombre</Label>
-                <Input id="name" name="name" placeholder="Tu nombre" required className="bg-transparent border-border focus:border-primary"/>
-                {state.errors?.name && <p className="text-sm text-destructive mt-1">{state.errors.name[0]}</p>}
+                <Input
+                  id="name"
+                  name="name"
+                  placeholder="Tu nombre"
+                  required
+                  aria-invalid={Boolean(state.errors?.name)}
+                  aria-describedby={state.errors?.name ? 'name-error' : undefined}
+                  className="border-border bg-transparent focus:border-primary"
+                />
+                {state.errors?.name && <FieldError id="name-error">{state.errors.name[0]}</FieldError>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" name="email" type="email" placeholder="tu@email.com" required className="bg-transparent border-border focus:border-primary"/>
-                {state.errors?.email && <p className="text-sm text-destructive mt-1">{state.errors.email[0]}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="message">Mensaje</Label>
-                <Textarea id="message" name="message" placeholder="Cuéntanos sobre tu proyecto..." required rows={4} className="bg-transparent border-border focus:border-primary"/>
-                {state.errors?.message && <p className="text-sm text-destructive mt-1">{state.errors.message[0]}</p>}
-              </div>
-              <div className="flex items-start gap-3 pt-1">
-                <input type="hidden" name="consent" value={consent ? 'on' : ''} />
-                <Checkbox
-                  id="contact-consent"
-                  checked={consent}
-                  onCheckedChange={(checked) => setConsent(Boolean(checked))}
-                  className="mt-0.5 border-border data-[state=checked]:bg-cyan-500 data-[state=checked]:border-cyan-500"
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  placeholder="tu@email.com"
+                  required
+                  aria-invalid={Boolean(state.errors?.email)}
+                  aria-describedby={state.errors?.email ? 'email-error' : undefined}
+                  className="border-border bg-transparent focus:border-primary"
                 />
-                <Label htmlFor="contact-consent" className="text-sm text-muted-foreground leading-relaxed cursor-pointer">
-                  He leído y acepto el{' '}
-                  <Link href="/aviso-de-privacidad" target="_blank" className="text-primary dark:text-cyan-400 hover:underline">
-                    Aviso de Privacidad
-                  </Link>
-                </Label>
+                {state.errors?.email && <FieldError id="email-error">{state.errors.email[0]}</FieldError>}
               </div>
-              {state.errors?.consent && (
-                <p className="text-sm text-destructive -mt-1">{state.errors.consent[0]}</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="message">¿Qué quieres resolver?</Label>
+              <Textarea
+                id="message"
+                name="message"
+                placeholder="Cuéntanos qué está frenando tu operación..."
+                required
+                minLength={10}
+                rows={4}
+                aria-invalid={Boolean(state.errors?.message)}
+                aria-describedby={state.errors?.message ? 'message-error' : undefined}
+                className="border-border bg-transparent focus:border-primary"
+              />
+              {state.errors?.message && (
+                <FieldError id="message-error">{state.errors.message[0]}</FieldError>
               )}
-              <div className="pt-2">
-                <ShinyButton
-                  type="submit"
-                  className="w-full"
-                  disabled={!consent}
+            </div>
+
+            <div className="flex items-start gap-3 pt-1">
+              <input type="hidden" name="consent" value={consent ? 'on' : ''} />
+              <Checkbox
+                id="contact-consent"
+                checked={consent}
+                onCheckedChange={(checked) => setConsent(Boolean(checked))}
+                className="mt-0.5 border-foreground/40 data-[state=checked]:border-cyan-500 data-[state=checked]:bg-cyan-500"
+              />
+              <Label
+                htmlFor="contact-consent"
+                className="cursor-pointer text-sm leading-relaxed text-foreground/80"
+              >
+                He leído y acepto el{' '}
+                <Link
+                  href="/aviso-de-privacidad"
+                  target="_blank"
+                  className="text-primary hover:underline dark:text-cyan-400"
                 >
-                  Enviar mensaje
-                </ShinyButton>
-              </div>
-               {state.isSuccess && (
-                <p className="text-sm text-green-700 dark:text-green-400 mt-2 text-center">
+                  Aviso de Privacidad
+                </Link>
+              </Label>
+            </div>
+            {state.errors?.consent && (
+              <FieldError id="consent-error">{state.errors.consent[0]}</FieldError>
+            )}
+
+            <div className="pt-1">
+              <ShinyButton
+                type="submit"
+                disabled={!consent || isPending}
+                aria-describedby={!consent ? 'submit-hint' : undefined}
+                aria-busy={isPending}
+                className="w-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-400 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isPending ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                    Enviando…
+                  </span>
+                ) : (
+                  'Solicitar revisión'
+                )}
+              </ShinyButton>
+              {!consent && !isPending && (
+                <p id="submit-hint" className="mt-2 text-center text-xs text-muted-foreground">
+                  Acepta el Aviso de Privacidad para poder enviar.
+                </p>
+              )}
+            </div>
+
+            <div aria-live="polite">
+              {state.isSuccess && (
+                <p className="mt-2 flex items-center justify-center gap-2 text-sm text-green-700 dark:text-green-400">
+                  <CircleCheck className="h-4 w-4 shrink-0" aria-hidden="true" />
                   ¡Gracias! Tu mensaje ha sido enviado con éxito.
                 </p>
               )}
-            </form>
-        </ContactCard>
+            </div>
+          </form>
+        </div>
+
       </div>
     </section>
   );

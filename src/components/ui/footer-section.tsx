@@ -5,6 +5,7 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { FacebookIcon, InstagramIcon, Phone } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { NewsletterFooterForm } from '@/components/ui/newsletter-footer-form';
 
 interface FooterLink {
 	title: string;
@@ -68,6 +69,9 @@ export function Footer() {
                     <p className="text-muted-foreground mt-4 text-sm leading-relaxed max-w-xs font-light">
                         Arquitectura digital y automatización inteligente para empresas que escalan al ritmo de la innovación.
                     </p>
+					<div className="mt-8">
+						<NewsletterFooterForm />
+					</div>
 					<p className="text-muted-foreground/70 mt-8 text-xs md:mt-6">
 						© {new Date().getFullYear()} PixelTEC. Todos los derechos reservados.
 					</p>

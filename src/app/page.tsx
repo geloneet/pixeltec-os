@@ -10,11 +10,9 @@ const LandingAccordionItem = dynamic(() =>
   import('@/components/ui/interactive-image-accordion').then((m) => m.LandingAccordionItem)
 );
 const BenefitsSection = dynamic(() => import('@/components/sections/benefits'));
+const DiagnosticCtaSection = dynamic(() => import('@/components/sections/diagnostic-cta'));
 const TestimonialsSection = dynamic(() => import('@/components/sections/testimonials'));
 const ContactSection = dynamic(() => import('@/components/sections/contact'));
-const NewsletterSection = dynamic(() =>
-  import('@/components/ui/newsletter-section').then((m) => m.NewsletterSection)
-);
 const Footer = dynamic(() =>
   import('@/components/ui/footer-section').then((m) => m.Footer)
 );
@@ -38,9 +36,9 @@ export default function Home() {
         <LazyWaveSection />
         <LandingAccordionItem />
         <BenefitsSection />
+        <DiagnosticCtaSection />
         <TestimonialsSection />
         <ContactSection />
-        <NewsletterSection />
       </main>
       <Footer />
     </div>
