@@ -10,7 +10,6 @@ import { cn } from '@/lib/utils';
 import { AnimatedTextLink } from './ui/animated-menu';
 import { SocialLinks } from './ui/social-links';
 import { ShinyButton } from './ui/shiny-button';
-import { ThemeToggle } from './theme-toggle';
 
 const navLinks = [
     { label: 'Inicio', href: '/' },
@@ -124,7 +123,6 @@ export default function Header() {
             </nav>
 
             <div className="hidden lg:flex items-center gap-4">
-              <ThemeToggle />
               <a href="https://api.whatsapp.com/send?phone=523221378336&text=Hola,%20quiero%20informaci%C3%B3n." target="_blank" rel="noopener noreferrer">
                 <ShinyButton>
                     <Phone className="h-5 w-5" />
@@ -134,7 +132,6 @@ export default function Header() {
             </div>
 
             <div className="lg:hidden flex items-center gap-3">
-                <ThemeToggle />
                 <AnimatedHamburger isOpen={isMenuOpen} onClick={() => setIsMenuOpen(true)} />
                 <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
                     <SheetContent 
