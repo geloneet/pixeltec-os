@@ -109,9 +109,7 @@ export default function MetodologiaPage() {
             viewport={{ once: true, amount: 0.5 }}
             variants={cardVariants}
           >
-            <Link href="/contact">
-              <ShinyButton className="w-full sm:w-auto">Agendar Diagnóstico</ShinyButton>
-            </Link>
+            <ShinyButton href="/contact" className="w-full sm:w-auto">Hablar con un especialista</ShinyButton>
           </motion.div>
         </section>
       </main>

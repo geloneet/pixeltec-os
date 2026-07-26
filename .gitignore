@@ -17,3 +17,10 @@ tsconfig.tsbuildinfo
 
 # Dev server output (not source)
 dev.log
+
+# Artefactos de tooling de agentes (RuVector / AgentDB), no son fuente.
+# Nota: ruvector.db entro al repo por error en b051ab1 y sigue trackeado;
+# esta regla no lo destrackea, hace falta `git rm --cached ruvector.db`.
+ruvector.db
+agentdb.rvf
+agentdb.rvf.lock

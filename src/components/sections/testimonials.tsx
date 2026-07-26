@@ -40,7 +40,15 @@ export default function TestimonialsSection() {
   return (
     <section id="testimonials" className="bg-background dark:bg-[#0A0A0B]">
       <TestimonialsWithMarquee
-        title="Empresas que ya escalaron con nosotros"
+        title={
+          <>
+            Empresas que ya{' '}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-500 to-blue-500">
+              escalaron
+            </span>{' '}
+            con nosotros
+          </>
+        }
         description="No solo creamos software, construimos alianzas. Nuestra mayor satisfacción es ver el éxito medible de nuestros clientes."
         testimonials={testimonials}
       />

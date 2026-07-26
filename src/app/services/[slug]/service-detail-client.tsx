@@ -304,9 +304,7 @@ export default function ServiceDetailClient({ slug }: { slug: string }) {
             Agendemos una consultoría gratuita para analizar tus necesidades y diseñar una solución a la medida.
           </p>
           <div className="mt-8">
-            <Link href="/contact">
-              <ShinyButton className="w-full sm:w-auto">Agendar Consultoría Gratuita</ShinyButton>
-            </Link>
+            <ShinyButton href="/contact" className="w-full sm:w-auto">Hablar con un especialista</ShinyButton>
           </div>
         </motion.section>
       </main>

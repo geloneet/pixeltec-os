@@ -1,17 +1,34 @@
 "use client"
 
 import type React from "react"
+import Link from "next/link"
 import { cn } from "@/lib/utils"
 
 interface ShinyButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   children: React.ReactNode
   className?: string
+  /** Con destino se renderiza un <a>, no un <button>: evita el anidamiento
+   *  inválido <Link><button> en los CTA que navegan. */
+  href?: string
+  /** Solo para destinos externos; conserva el comportamiento de apertura del consumidor. */
+  target?: string
+  rel?: string
 }
 
-export function ShinyButton({ children, className = "", ...props }: ShinyButtonProps) {
+const SHINY_CLASSES =
+  "shiny-cta tracking-wide transition-all duration-300 ease-out shadow-md hover:shadow-lg dark:shadow-none hover:text-blue-300 dark:hover:shadow-[0_0_20px_rgba(33,150,243,0.2)] active:scale-95 active:shadow-none " +
+  "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-cyan-400 " +
+  "disabled:opacity-60 disabled:cursor-not-allowed disabled:pointer-events-none"
+
+export function ShinyButton({ children, className = "", href, target, rel, ...props }: ShinyButtonProps) {
+  const isExternal = Boolean(href && /^https?:\/\//.test(href));
+
   return (
     <>
-      <style jsx>{`
+      {/* global: styled-jsx solo aplica sus clases con ámbito a elementos DOM
+          directos; la variante <Link> renderiza su propio <a> y se quedaba sin
+          estilos. Los selectores .shiny-cta son suficientemente específicos. */}
+      <style jsx global>{`
         /* Composited rotation via transform instead of @property --gradient-angle */
         @keyframes shiny-rotate {
           to { transform: rotate(360deg); }
@@ -100,14 +117,44 @@ export function ShinyButton({ children, className = "", ...props }: ShinyButtonP
           z-index: 1;
           letter-spacing: 0.05em;
         }
+
+        /* Reducción de movimiento acotada: detiene SOLO el shine rotante
+           infinito. El hover, el focus, el active y las transiciones de
+           estado siguen dando feedback. */
+        @media (prefers-reduced-motion: reduce) {
+          .shiny-cta::before {
+            animation: none;
+          }
+        }
       `}</style>
 
-      <button className={cn(
-        "shiny-cta tracking-wide transition-all duration-300 ease-out shadow-md hover:shadow-lg dark:shadow-none hover:text-blue-300 dark:hover:shadow-[0_0_20px_rgba(33,150,243,0.2)] active:scale-95 active:shadow-none",
-        "disabled:opacity-60 disabled:cursor-not-allowed disabled:pointer-events-none",
-        className)} {...props}>
-        <span className="flex items-center justify-center gap-2">{children}</span>
-      </button>
+      {href ? (
+        // Externo: <a> nativo conservando target/rel del consumidor.
+        // Interno: <Link> de Next. En ambos casos se evita <a><button>.
+        isExternal ? (
+          <a
+            href={href}
+            target={target}
+            rel={rel}
+            onClick={props.onClick as unknown as React.MouseEventHandler<HTMLAnchorElement>}
+            className={cn(SHINY_CLASSES, className)}
+          >
+            <span className="flex items-center justify-center gap-2">{children}</span>
+          </a>
+        ) : (
+          <Link
+            href={href}
+            onClick={props.onClick as unknown as React.MouseEventHandler<HTMLAnchorElement>}
+            className={cn(SHINY_CLASSES, className)}
+          >
+            <span className="flex items-center justify-center gap-2">{children}</span>
+          </Link>
+        )
+      ) : (
+        <button className={cn(SHINY_CLASSES, className)} {...props}>
+          <span className="flex items-center justify-center gap-2">{children}</span>
+        </button>
+      )}
     </>
   )
 }

@@ -23,7 +23,7 @@ const navLinks = [
 const AnimatedHamburger = ({ isOpen, onClick, className }: { isOpen: boolean; onClick: () => void, className?: string }) => (
     <button 
       onClick={onClick}
-      className={cn("relative block flex-shrink-0 cursor-pointer w-[50px] h-[40px] z-[60] focus:outline-none lg:hidden", className)}
+      className={cn("relative block flex-shrink-0 cursor-pointer w-[50px] h-[40px] z-[60] rounded-md focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-cyan-400 lg:hidden", className)}
       aria-label="Abrir menú"
     >
       <span
@@ -123,12 +123,14 @@ export default function Header() {
             </nav>
 
             <div className="hidden lg:flex items-center gap-4">
-              <a href="https://api.whatsapp.com/send?phone=523221378336&text=Hola,%20quiero%20informaci%C3%B3n." target="_blank" rel="noopener noreferrer">
-                <ShinyButton>
-                    <Phone className="h-5 w-5" />
-                    WhatsApp
-                </ShinyButton>
-              </a>
+              <ShinyButton
+                href="https://api.whatsapp.com/send?phone=523221378336&text=Hola,%20quiero%20informaci%C3%B3n."
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Phone className="h-5 w-5" />
+                WhatsApp
+              </ShinyButton>
             </div>
 
             <div className="lg:hidden flex items-center gap-3">
@@ -167,12 +169,16 @@ export default function Header() {
                           <div className="mb-8">
                               <SocialLinks />
                           </div>
-                          <a href="https://api.whatsapp.com/send?phone=523221378336&text=Hola,%20quiero%20informaci%C3%B3n." target="_blank" rel="noopener noreferrer" onClick={() => setIsMenuOpen(false)}>
-                            <ShinyButton className="w-full text-sm uppercase tracking-widest">
-                              <Phone className="h-5 w-5" />
-                              WhatsApp
-                            </ShinyButton>
-                          </a>
+                          <ShinyButton
+                            href="https://api.whatsapp.com/send?phone=523221378336&text=Hola,%20quiero%20informaci%C3%B3n."
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={() => setIsMenuOpen(false)}
+                            className="w-full text-sm uppercase tracking-widest"
+                          >
+                            <Phone className="h-5 w-5" />
+                            WhatsApp
+                          </ShinyButton>
                         </div>
                     </div>
                     </SheetContent>

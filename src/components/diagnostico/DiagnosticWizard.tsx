@@ -26,9 +26,11 @@ interface Props {
   variant?: 'modal' | 'page';
   initialIndustry?: string;
   onClose?: () => void;
+  /** Oculta el encabezado del paso de bienvenida cuando la sección ya tiene el suyo. */
+  hideWelcomeHeading?: boolean;
 }
 
-export function DiagnosticWizard({ variant = 'page', initialIndustry, onClose }: Props) {
+export function DiagnosticWizard({ variant = 'page', initialIndustry, onClose, hideWelcomeHeading = false }: Props) {
   const [step, setStep] = useState(STEP_WELCOME);
   const [answers, setAnswers] = useState<WizardAnswers>(() => ({
     ...DEFAULT_WIZARD_ANSWERS,
@@ -112,7 +114,7 @@ export function DiagnosticWizard({ variant = 'page', initialIndustry, onClose }:
 
         {showStepper && <DiagnosticStepper currentStep={step - STEP_COMPANY_TYPE} />}
 
-        {step === STEP_WELCOME && <StepWelcome onNext={next} />}
+        {step === STEP_WELCOME && <StepWelcome onNext={next} hideHeading={hideWelcomeHeading} />}
         {step === STEP_COMPANY_TYPE && <StepCompanyType answers={answers} update={update} onNext={next} />}
         {step === STEP_PROBLEMS && <StepProblems answers={answers} update={update} onNext={next} />}
         {step === STEP_COMPANY_SIZE && <StepCompanySize answers={answers} update={update} onNext={next} />}

@@ -1,10 +1,12 @@
 // shape-landing-hero.tsx
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
+import Link from "next/link";
 import { Circle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ShinyButton } from "@/components/ui/shiny-button";
+import { useDiagnosticModal } from "@/components/diagnostico/diagnostic-modal-provider";
 
 function ElegantShape({
     className,
@@ -21,9 +23,13 @@ function ElegantShape({
     rotate?: number;
     gradient?: string;
 }) {
+    // Con movimiento reducido las formas entran ya colocadas y dejan de flotar;
+    // la composición visual del hero se conserva intacta.
+    const reduceMotion = useReducedMotion();
+
     return (
         <motion.div
-            initial={{
+            initial={reduceMotion ? false : {
                 opacity: 0,
                 y: -150,
                 rotate: rotate - 15,
@@ -33,7 +39,7 @@ function ElegantShape({
                 y: 0,
                 rotate: rotate,
             }}
-            transition={{
+            transition={reduceMotion ? { duration: 0 } : {
                 duration: 2.4,
                 delay,
                 ease: [0.23, 0.86, 0.39, 0.96],
@@ -42,10 +48,10 @@ function ElegantShape({
             className={cn("absolute", className)}
         >
             <motion.div
-                animate={{
+                animate={reduceMotion ? undefined : {
                     y: [0, 15, 0],
                 }}
-                transition={{
+                transition={reduceMotion ? undefined : {
                     duration: 12,
                     repeat: Number.POSITIVE_INFINITY,
                     ease: "easeInOut",
@@ -82,6 +88,7 @@ function HeroGeometric({
     title1?: string;
     title2?: string;
 }) {
+    const diagnostic = useDiagnosticModal();
     const fadeUpVariants = {
         hidden: { opacity: 0, y: 30 },
         visible: (i: number) => ({
@@ -154,7 +161,7 @@ function HeroGeometric({
                         animate="visible"
                         className="inline-flex items-center gap-3 mb-8 md:mb-12"
                     >
-                        <Circle className="h-2 w-2 text-cyan-400 fill-cyan-400 animate-pulse" />
+                        <Circle className="h-2 w-2 text-cyan-400 fill-cyan-400 animate-pulse motion-reduce:animate-none" />
                         <span className="text-xs text-muted-foreground tracking-[0.2em]">
                             {badge}
                         </span>
@@ -201,11 +208,19 @@ function HeroGeometric({
                         animate="visible"
                         className="mt-8"
                     >
-                         <ShinyButton onClick={() => {
-                            document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' });
-                         }}>
-                            Agendar Diagnóstico
-                         </ShinyButton>
+                         <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
+                            <ShinyButton type="button" onClick={() => diagnostic?.openDiagnostic()}>
+                               Iniciar diagnóstico
+                            </ShinyButton>
+                            {/* El formulario de contacto ya no vive en la home:
+                                el CTA humano lleva a la página /contact. */}
+                            <Link
+                               href="/contact"
+                               className="rounded-full px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-cyan-400"
+                            >
+                               Hablar con un especialista
+                            </Link>
+                         </div>
                     </motion.div>
                 </div>
             </div>

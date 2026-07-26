@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { buildMetadata } from "@/lib/seo";
 import Link from "next/link";
-import { Truck, Stethoscope, Store, Package, Building2, CheckCircle } from "lucide-react";
+import { Truck, Droplets, Stethoscope, Hotel, ShoppingBag, Sun, CheckCircle } from "lucide-react";
 import Header from "@/components/header";
 import { Footer } from "@/components/ui/footer-section";
 import { ShinyButton } from "@/components/ui/shiny-button";
@@ -12,6 +12,9 @@ export const metadata: Metadata = buildMetadata({
   description: 'PIXELTEC construye software a medida para logística, clínicas, retail y SaaS. Conoce los problemas específicos que resolvemos en cada vertical.',
 });
 
+// Solo sectores con al menos un cliente real documentado. El stack refleja el
+// vigente (Next.js + PostgreSQL, ADR-0001/ADR-0022); Firebase quedó como
+// legacy de proyectos anteriores, no como tecnología actual.
 const industries = [
   {
     icon: Truck,
@@ -19,7 +22,7 @@ const industries = [
     title: "Logística y Transportes",
     description:
       "Automatizamos rutas, despachos y facturación para empresas de transporte. Integraciones con sistemas SAT mexicanos, tracking en tiempo real, y dashboards operativos.",
-    stack: ["Next.js", "Firebase", "Integraciones SAT", "Google Maps"],
+    stack: ["Next.js", "PostgreSQL", "Integraciones SAT", "Google Maps"],
     problems: [
       "Gestión de flotillas y mantenimiento",
       "Facturación electrónica automatizada",
@@ -28,12 +31,26 @@ const industries = [
     ],
   },
   {
+    icon: Droplets,
+    slug: "agua",
+    title: "Distribución de Agua",
+    description:
+      "Digitalizamos la operación de distribuidoras: pedidos, rutas de reparto, control de clientes recurrentes y cobranza, con visibilidad diaria de la operación.",
+    stack: ["Next.js", "PostgreSQL", "WhatsApp API", "Reportes operativos"],
+    problems: [
+      "Pedidos y rutas de reparto",
+      "Control de clientes recurrentes",
+      "Cobranza y seguimiento de saldos",
+      "Reportes diarios de operación",
+    ],
+  },
+  {
     icon: Stethoscope,
     slug: "salud",
     title: "Salud Dental y Clínicas",
     description:
       "Plataformas para clínicas dentales y consultorios: gestión de pacientes, agenda online, historiales clínicos digitales, y portal del paciente.",
-    stack: ["Next.js", "Firebase", "Google Calendar", "WhatsApp API"],
+    stack: ["Next.js", "PostgreSQL", "Google Calendar", "WhatsApp API"],
     problems: [
       "Citas y agenda online",
       "Historial clínico digital",
@@ -42,45 +59,45 @@ const industries = [
     ],
   },
   {
-    icon: Store,
-    slug: "retail",
-    title: "Retail y Boutiques",
+    icon: Hotel,
+    slug: "hoteleria",
+    title: "Hotelería y Hospedaje",
     description:
-      "Llevamos negocios tradicionales al canal digital: e-commerce, inventario conectado, CRM de clientes, y automatización de ventas.",
-    stack: ["Next.js", "Firebase", "Stripe / Mercado Pago", "Shopify alternatives"],
+      "Sistemas de reservas a medida para hoteles y villas: disponibilidad, gestión de huéspedes y comunicación directa, sin depender solo de plataformas de terceros.",
+    stack: ["Next.js", "PostgreSQL", "Pasarelas de pago", "WhatsApp API"],
     problems: [
-      "Migrar boutique física a venta online",
+      "Reservas directas sin comisiones de terceros",
+      "Calendario de disponibilidad y tarifas",
+      "Gestión de huéspedes y seguimiento",
+      "Reportes de ocupación",
+    ],
+  },
+  {
+    icon: ShoppingBag,
+    slug: "moda",
+    title: "Moda y Comercio Especializado",
+    description:
+      "Llevamos marcas y comercios especializados al canal digital: e-commerce, inventario conectado, CRM de clientes y automatización de ventas.",
+    stack: ["Next.js", "PostgreSQL", "Stripe / Mercado Pago", "Cloudflare R2"],
+    problems: [
+      "Tienda en línea con identidad propia",
       "Inventario unificado físico + digital",
       "Automatización de marketing (email, WhatsApp)",
       "Reportes de ventas y rentabilidad",
     ],
   },
   {
-    icon: Package,
-    slug: "saas",
-    title: "SaaS y Producto",
+    icon: Sun,
+    slug: "solar",
+    title: "Energía Solar",
     description:
-      "Construimos productos SaaS desde cero: MVP rápido, arquitectura escalable, y producción lista para crecer.",
-    stack: ["Next.js", "Firebase", "Stripe", "Plataformas cloud"],
+      "Herramientas para instaladores y comercializadoras: cotizadores que calculan el dimensionamiento y el retorno, captura de prospectos y seguimiento comercial.",
+    stack: ["Next.js", "PostgreSQL", "Cotizador a medida", "WhatsApp API"],
     problems: [
-      "MVP en 8-12 semanas",
-      "Arquitectura multi-tenant",
-      "Sistema de billing + suscripciones",
-      "Dashboard de analíticas de producto",
-    ],
-  },
-  {
-    icon: Building2,
-    slug: "inmobiliarias",
-    title: "Inmobiliarias y Desarrollos",
-    description:
-      "Digitalizamos la venta y gestión de propiedades: portales de listados con búsqueda avanzada, catálogos de desarrollos, captura de prospectos y CRM inmobiliario integrado.",
-    stack: ["Next.js", "Firebase", "Google Maps", "WhatsApp API"],
-    problems: [
-      "Portal de propiedades con filtros y galerías",
-      "Captura y seguimiento de prospectos (leads)",
-      "CRM de agentes y comisiones",
-      "Micrositios por desarrollo o preventa",
+      "Cotizador de sistemas fotovoltaicos",
+      "Cálculo de ahorro y retorno de inversión",
+      "Captura y seguimiento de prospectos",
+      "Propuestas comerciales automatizadas",
     ],
   },
 ];
@@ -91,10 +108,11 @@ const industries = [
 // el wizard simplemente no preselecciona nada, no es un error.
 const DIAGNOSTIC_INDUSTRY_MAP: Record<string, string> = {
   logistica: 'logistica',
+  agua: 'servicios',
   salud: 'clinica',
-  retail: 'ecommerce',
-  saas: 'servicios',
-  inmobiliarias: 'otra',
+  hoteleria: 'hotel',
+  moda: 'ecommerce',
+  solar: 'otra',
 };
 
 export default function IndustriasPage() {
@@ -192,9 +210,7 @@ export default function IndustriasPage() {
               Trabajamos con empresas que buscan transformación digital seria en cualquier sector.
               Si tienes un problema operativo real, tenemos las herramientas para resolverlo.
             </p>
-            <Link href="/contact">
-              <ShinyButton>Agenda un diagnóstico gratuito</ShinyButton>
-            </Link>
+            <ShinyButton href="/contact">Hablar con un especialista</ShinyButton>
           </section>
         </div>
       </main>

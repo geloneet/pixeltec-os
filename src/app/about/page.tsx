@@ -142,11 +142,9 @@ export default function AboutPage() {
                 Hablemos de cómo la tecnología puede transformar tu negocio.
                 </p>
                 <div className="mt-8">
-                <Link href="/contact">
-                    <ShinyButton className="w-full sm:w-auto">
-                        Agendar Diagnóstico
-                    </ShinyButton>
-                </Link>
+                <ShinyButton href="/contact" className="w-full sm:w-auto">
+                    Hablar con un especialista
+                </ShinyButton>
                 </div>
             </div>
           </div>
