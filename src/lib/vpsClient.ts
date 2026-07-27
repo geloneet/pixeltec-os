@@ -6,7 +6,9 @@
  * fetchVpsApi() para hablar con el backend.
  *
  * Variables de entorno (en .env.production en el VPS):
- *   VPS_API_URL      URL base del vps-api (default: https://api.pixeltec.mx)
+ *   VPS_API_URL      URL base del vps-api. OBLIGATORIA — ya no hay valor por
+ *                    defecto: un entorno sin configurar debe fallar, no
+ *                    apuntar a producción.
  *   VPS_API_SECRET   Secret para autenticar contra el vps-api — DEBE ser el
  *                    mismo valor que vps-api/.env's VPS_API_SECRET (ver
  *                    vps-api/src/auth.js). NO es CRON_SECRET — ese es el
@@ -14,9 +16,10 @@
  *                    completamente distinto que vps-api nunca acepta.
  */
 
-const DEFAULT_VPS_API_URL = "https://api.pixeltec.mx";
 const DEFAULT_TIMEOUT_MS = 30_000;
 const DEPLOY_TIMEOUT_MS = 600_000; // 10 min, para /deploy que puede tardar
+
+import { assertVpsEgressAllowed, type EgressOperation } from "@/lib/egress-guard";
 
 export type VpsMethod = "GET" | "POST" | "PUT" | "DELETE";
 
@@ -34,8 +37,30 @@ export interface VpsResponse<T = unknown> {
   data: T;
 }
 
-function getBaseUrl(): string {
-  return process.env.VPS_API_URL?.replace(/\/$/, "") || DEFAULT_VPS_API_URL;
+/**
+ * Base del vps-api. Sin fallback: antes, un entorno sin `VPS_API_URL` caía a
+ * `https://api.pixeltec.mx` y desarrollo operaba infraestructura productiva.
+ * Ahora la ausencia se propaga y la guarda de egress la rechaza.
+ */
+function getBaseUrl(): string | undefined {
+  const raw = process.env.VPS_API_URL?.trim();
+  return raw ? raw.replace(/\/$/, "") : undefined;
+}
+
+/**
+ * Operación real a partir del path, para que la guarda reciba `deploy` o
+ * `restart` y no un genérico. Se deriva aquí en vez de exigirlo a las 12 rutas:
+ * este wrapper es la única frontera, y tocarlas quedaba fuera del gate.
+ */
+function operationForPath(path: string): EgressOperation {
+  const segment = path.toLowerCase();
+  if (segment.includes("deploy")) return "deploy";
+  if (segment.includes("restart")) return "restart";
+  if (segment.includes("pause")) return "pause";
+  if (segment.includes("resume")) return "resume";
+  if (segment.includes("backup")) return "backup";
+  if (segment.includes("snapshot")) return "snapshot";
+  return "read";
 }
 
 function getSecret(): string {
@@ -52,6 +77,10 @@ export async function fetchVpsApi<T = unknown>(
   }
 
   const baseUrl = getBaseUrl();
+  // Fail-closed antes de construir la petición: si la política no autoriza este
+  // host y operación, no se arma la URL ni se llega al fetch.
+  assertVpsEgressAllowed(baseUrl, operationForPath(path));
+
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
 
   const params = new URLSearchParams({ secret });

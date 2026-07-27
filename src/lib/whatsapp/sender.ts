@@ -24,6 +24,8 @@
  * en envs y redeploy — no hay caches.
  */
 
+import { assertWhatsAppEgressAllowed } from "@/lib/egress-guard";
+
 export interface SendWhatsAppOptions {
   /** Override del destinatario default (`WHATSAPP_DEFAULT_TO`). E.g. "5213221378336". */
   to?: string;
@@ -87,6 +89,11 @@ export async function sendWhatsApp(
   }
 
   const masked = maskPhone(to);
+
+  // Fail-closed antes de construir la petición. La normalización a E.164 ocurre
+  // dentro de la guarda y es solo para autorizar: `to` llega a Meta intacto.
+  assertWhatsAppEgressAllowed(to);
+
   console.info("[whatsapp] sending to", masked);
 
   // 3) Call Meta Cloud API.

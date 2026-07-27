@@ -25,6 +25,8 @@ import { renderProposalDecisionEmail, type ProposalDecisionEmailProps } from '@/
 
 // ── Resend client ──────────────────────────────────────────────────────────────
 
+import { assertEmailEgressAllowed, EgressBlockedError } from "@/lib/egress-guard";
+
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 const FROM = process.env.RESEND_FROM_EMAIL ?? 'PixelTEC <onboarding@resend.dev>';
@@ -45,6 +47,19 @@ export async function sendEmail(
   subject: string,
   html: string
 ): Promise<EmailResult> {
+  // Fail-closed antes de tocar Resend. `sendEmail` solo expone `to`; si en el
+  // futuro admite CC o BCC deben pasarse aquí también, porque la política exige
+  // que TODOS los destinatarios estén permitidos para que el envío proceda.
+  try {
+    assertEmailEgressAllowed({ to });
+  } catch (err) {
+    if (err instanceof EgressBlockedError) {
+      console.error(`[email] bloqueado por política de egress: ${err.reason}`);
+      return { success: false, error: err.code };
+    }
+    throw err;
+  }
+
   try {
     const { data, error } = await resend.emails.send({
       from: FROM,
