@@ -18,6 +18,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { sendWhatsApp } from "@/lib/whatsapp/sender";
+import { assertCronExecutionAllowed, cronBlockedResponse } from "@/lib/cron-guard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,6 +33,14 @@ export async function POST(request: NextRequest) {
   const expected = process.env.CRON_SECRET ? `Bearer ${process.env.CRON_SECRET}` : null;
   if (!expected || auth !== expected) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    assertCronExecutionAllowed();
+  } catch (err) {
+    const blocked = cronBlockedResponse(err);
+    if (blocked) return blocked;
+    throw err;
   }
 
   try {

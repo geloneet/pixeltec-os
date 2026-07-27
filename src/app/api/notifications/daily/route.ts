@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { sendWhatsApp } from "@/lib/whatsapp/sender";
+import { assertCronExecutionAllowed, cronBlockedResponse } from "@/lib/cron-guard";
 import { createNotification } from "@/lib/notifications/actions";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
@@ -10,6 +11,16 @@ export async function GET(req: NextRequest) {
   const provided = req.headers.get("authorization")?.replace("Bearer ", "") ?? req.nextUrl.searchParams.get("secret");
   if (!process.env.CRON_SECRET || provided !== process.env.CRON_SECRET) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Antes de cargar TODOS los usuarios y recorrerlos: es la ruta de mayor
+  // alcance de las siete.
+  try {
+    assertCronExecutionAllowed();
+  } catch (err) {
+    const blocked = cronBlockedResponse(err);
+    if (blocked) return blocked;
+    throw err;
   }
 
   try {
