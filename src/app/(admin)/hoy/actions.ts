@@ -1,25 +1,29 @@
 "use server";
 
-import { getSessionUid } from "@/lib/auth/session";
+import { getSessionUserId } from "@/lib/auth/session";
 import {
-  getCrmClients,
+  getCrmClientsByOwnerId,
   deriveActiveProjects,
   deriveRecentClients,
 } from "@/lib/hoy/crm-data";
 import type { TodayData } from "@/lib/hoy/types";
 
 /**
- * Assembles the Hoy dashboard payload for the signed-in user.
- * Projects and clients are derived from the single `crm_data/{uid}`
- * document (there are no `clients`/`projects` collections). Returns null
- * when there is no valid session — the page redirects to /login.
+ * Arma el payload del panel Hoy para el usuario autenticado.
+ *
+ * Proyectos y clientes salen de la tabla `clients` de Postgres, filtrada por
+ * `owner_id`. Devuelve null cuando no hay sesión: la página redirige a /login.
+ *
+ * La identidad es `users.id`. Antes se usaba el `firebaseUid` puente, lo que
+ * dejaba fuera a toda cuenta creada tras la migración: sin puente esta función
+ * devolvía null y la página rebotaba al login en bucle, pese a haber sesión.
  */
 export async function getTodayData(): Promise<TodayData | null> {
-  const uid = await getSessionUid();
-  if (!uid) return null;
+  const ownerId = await getSessionUserId();
+  if (!ownerId) return null;
 
   const now = new Date();
-  const clients = await getCrmClients(uid);
+  const clients = await getCrmClientsByOwnerId(ownerId);
 
   return {
     projects: deriveActiveProjects(clients, 6),

@@ -1,4 +1,3 @@
-import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth/config";
 import { AUTH_SESSION_USER_ID_MISSING } from "@/lib/auth/auth.config";
 
@@ -47,27 +46,13 @@ export async function getSessionUserId(): Promise<string | null> {
  * canónica. Las cuentas creadas tras la migración lo tienen a `null`, así que
  * esta función las trata como no autenticadas aunque su sesión sea válida — ese
  * es el defecto que la remediación corrige. Usar {@link getSessionUserId}.
- * Se elimina al cerrar la remediación; sus 42 consumidores migran en el Gate B.
+ * Se elimina al cerrar la remediación; sus consumidores migran por bloques.
+ *
+ * El guard de administración real vive en `@/lib/auth-guards`, que deriva el rol
+ * de `users.role`. Aquí hubo un `requireAdmin()` homónimo sin ningún consumidor:
+ * se eliminó en el Gate B1 en vez de migrarse.
  */
 export async function getSessionUid(): Promise<string | null> {
   const session = await auth();
   return session?.user?.firebaseUid ?? null;
-}
-
-/**
- * Guard de admin.
- *
- * TODO(Gate B): sigue apoyándose en {@link getSessionUid}, así que hereda su
- * defecto — una cuenta sin `firebaseUid` es rechazada aunque su sesión sea
- * válida. No se cambia en el Gate A porque alteraría el comportamiento de sus
- * consumidores, y este gate es solo de contrato.
- */
-export async function requireAdmin(): Promise<{ uid: string }> {
-  const uid = await getSessionUid();
-  if (!uid) redirect("/login");
-
-  const session = await auth();
-  if (session?.user?.role !== "admin") redirect("/hoy");
-
-  return { uid };
 }

@@ -1,9 +1,6 @@
 // Server-only helpers that derive the projection types used by /hoy and
 // /proyectos. Fase 4: el núcleo CRM ya vive en Postgres (tabla `clients`,
 // source='crm_blob') — se dejó de leer el blob `crm_data/{uid}` de Firestore.
-import { eq } from "drizzle-orm";
-import { db } from "@/lib/db";
-import { users } from "@/lib/db/schema";
 import { getFullCrmData } from "@/lib/db/repos/crm-sync";
 import type { CRMClient } from "@/types/crm";
 import type { ActiveProject, RecentClient } from "@/lib/hoy/types";
@@ -11,13 +8,20 @@ import type { PixelforgeProjectListItem } from "@/lib/db/repos/pixelforge";
 import type { DefinitionListItem } from "@/lib/db/repos/definitions";
 
 /**
- * `uid` aquí sigue siendo el firebaseUid (bridge) que devuelve
- * `getSessionUid()` — se resuelve al ownerId real de Postgres antes de leer.
+ * Clientes del propietario indicado.
+ *
+ * `ownerId` es `users.id` — la identidad canónica, la misma que referencian por
+ * clave foránea los `owner_id` de las tablas de negocio. Antes esta función
+ * recibía el `firebaseUid` puente y lo traducía con una consulta a
+ * `users.firebase_uid`; ese rodeo desaparece, porque el identificador que
+ * necesita `getFullCrmData` es justo el que ya trae la sesión.
+ *
+ * El nombre lleva el tipo de identificador a propósito: el error que motivó
+ * este cambio fue pasar un identificador de un espacio donde se esperaba otro,
+ * y una firma `getCrmClients(uid)` no lo delataba.
  */
-export async function getCrmClients(uid: string): Promise<CRMClient[]> {
-  const [user] = await db.select({ id: users.id }).from(users).where(eq(users.firebaseUid, uid)).limit(1);
-  if (!user) return [];
-  const data = await getFullCrmData(user.id);
+export async function getCrmClientsByOwnerId(ownerId: string): Promise<CRMClient[]> {
+  const data = await getFullCrmData(ownerId);
   return data.clients;
 }
 

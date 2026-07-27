@@ -4,7 +4,7 @@ import Link from "next/link";
 import { FolderKanban, Sparkles, Wand2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
-import { getSessionUid } from "@/lib/auth/session";
+import { getSessionUserId } from "@/lib/auth/session";
 import { getAllActiveProjects } from "./actions";
 import type { ActiveProject, ActiveProjectKind } from "@/lib/hoy/types";
 
@@ -68,8 +68,11 @@ function ProjectCard({ project }: { project: ActiveProject }) {
 }
 
 export default async function ProyectosPage() {
-  const uid = await getSessionUid();
-  if (!uid) redirect("/login?redirect=/proyectos");
+  // La guarda mide identidad canónica (`users.id`), no el alias heredado: con
+  // `getSessionUid()` una cuenta sin `firebase_uid` rebotaba al login pese a
+  // tener sesión válida, y el login la devolvía aquí — bucle infinito.
+  const ownerId = await getSessionUserId();
+  if (!ownerId) redirect("/login?redirect=/proyectos");
 
   const projects = await getAllActiveProjects();
 
