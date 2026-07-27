@@ -37,10 +37,11 @@ export type EgressOperation =
   | "credential_read"
   | "create_media"
   | "publish"
-  // IA: la operación distingue analizar material ya existente de generar texto
-  // nuevo. Ambas transportan input del cliente hacia un tercero.
+  // IA: la operación distingue analizar material ya existente de generar
+  // contenido nuevo. Las tres transportan input del cliente hacia un tercero.
   | "analyze"
-  | "generate_text";
+  | "generate_text"
+  | "generate_image";
 
 export type EgressRequest = {
   channel: EgressChannel;
@@ -414,11 +415,17 @@ export function assertMetaEgressAllowed(input: {
   );
 }
 
-/** Proveedores de inferencia reconocidos. E0c-1 solo habilita Anthropic. */
-export type AiProvider = "anthropic";
+/**
+ * Proveedores de inferencia reconocidos.
+ *
+ * Reconocer un proveedor aquí **no** lo autoriza: la autorización sigue siendo
+ * el par exacto `proveedor:modelo` en `EGRESS_AI_TARGET_ALLOWLIST`. Esta unión
+ * solo fija el vocabulario para que un typo (`"openia"`) no llegue a runtime.
+ */
+export type AiProvider = "anthropic" | "openai" | "ideogram" | "fal";
 
 /** Operaciones semánticas del canal IA (subconjunto de `EgressOperation`). */
-export type AiOperation = "analyze" | "generate_text";
+export type AiOperation = "analyze" | "generate_text" | "generate_image";
 
 /**
  * Autoriza una llamada de inferencia a un proveedor de IA.

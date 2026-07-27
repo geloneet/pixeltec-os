@@ -5,6 +5,7 @@ import { db } from '@/lib/db';
 import { growthJobs, growthPosts, growthCredits, growthCreditLedger } from '@/lib/db/schema';
 import { generateText } from './providers/openai-text';
 import { generateFluxImage } from './providers/flux-image';
+import { SafeUserError, toSafeFailure } from '@/lib/ai/errors';
 import { buildSystemPrompt, buildUserPrompt, buildImagePrompt, type PostGenerationRequest } from './prompt-builder';
 import { CREDIT_COSTS, type CreditOperation } from '@/lib/growth/credits/costs';
 import { resolveOwnerId, resolveBrandRow } from '@/lib/growth/pg';
@@ -38,8 +39,11 @@ async function deductCredits(ownerId: string, operation: CreditOperation): Promi
       .from(growthCredits)
       .where(eq(growthCredits.ownerId, ownerId))
       .limit(1);
-    if (!account) throw new Error('Sin cuenta de créditos');
-    throw new Error(`Créditos insuficientes. Necesitas ${amount}, tienes ${account.balance}.`);
+    if (!account) throw new SafeUserError('Sin cuenta de créditos', 'no_credit_account');
+    throw new SafeUserError(
+      `Créditos insuficientes. Necesitas ${amount}, tienes ${account.balance}.`,
+      'insufficient_credits'
+    );
   }
 
   await db.insert(growthCreditLedger).values({
@@ -94,12 +98,12 @@ export async function runPostGeneration(input: OrchestratorInput): Promise<Conte
   const { uid, brand, request, jobId } = input;
 
   const ownerId = await resolveOwnerId(uid);
-  if (!ownerId) throw new Error('Usuario no encontrado para el uid de sesión');
+  if (!ownerId) throw new SafeUserError('Usuario no encontrado para el uid de sesión', 'user_not_found');
 
   // `brand.id` es el id público (Firestore id para marcas migradas) — el FK
   // growth_posts.brand_id necesita el uuid de Postgres de la fila.
   const brandRow = await resolveBrandRow(brand.id);
-  if (!brandRow || brandRow.ownerId !== ownerId) throw new Error('Marca no encontrada');
+  if (!brandRow || brandRow.ownerId !== ownerId) throw new SafeUserError('Marca no encontrada', 'brand_not_found');
 
   await updateJob(jobId, { status: 'running', progress: 10, currentStep: 'Verificando créditos...' });
 
@@ -146,7 +150,12 @@ export async function runPostGeneration(input: OrchestratorInput): Promise<Conte
       imageUrl = imageResult.imageUrl;
       imageCost = imageResult.cost;
     } catch (err) {
-      console.error('Image generation failed, continuing text-only:', err);
+      // Solo estructura: el objeto del proveedor puede citar el prompt de imagen
+      // o el cuerpo de la respuesta, y de aquí acabaría en logs y trazas.
+      const failure = toSafeFailure(err, 'Fallo en generación de imagen');
+      console.error(
+        `Image generation failed (${failure.code}${failure.status !== undefined ? `, status ${failure.status}` : ''}), continuing text-only`
+      );
       // Se cobró `post_complete` (incluye imagen) pero el usuario solo recibe texto —
       // reembolsar el delta contra el costo de solo-texto.
       const delta = CREDIT_COSTS.post_complete - CREDIT_COSTS.post_text_only;

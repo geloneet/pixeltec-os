@@ -1,11 +1,16 @@
-import OpenAI from 'openai';
+/**
+ * Generación de texto de Growth. La llamada real vive en
+ * `@/lib/ai/openai-egress`, que aplica la política de egress de IA antes de
+ * construir el request y antes de construir el cliente.
+ *
+ * Este módulo ya no instancia OpenAI ni conserva un cliente entre llamadas: el
+ * par `openai:<modelo>` debe estar autorizado en cada invocación.
+ */
+import { openaiChatCreate } from '@/lib/ai/openai-egress';
 import type { OpenAIRawResult } from '@/types/growth/ai';
 
-let _client: OpenAI | null = null;
-function client() {
-  if (!_client) _client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-  return _client;
-}
+/** Modelo por defecto. Es el valor que se autoriza y el que viaja al SDK. */
+const DEFAULT_MODEL = 'gpt-4o';
 
 export interface TextGenerationInput {
   systemPrompt: string;
@@ -14,16 +19,20 @@ export interface TextGenerationInput {
 }
 
 export async function generateText(input: TextGenerationInput): Promise<OpenAIRawResult> {
-  const model = input.model ?? 'gpt-4o';
+  const model = input.model ?? DEFAULT_MODEL;
   const start = Date.now();
 
-  const response = await client().chat.completions.create({
+  const response = await openaiChatCreate({
+    operation: 'generate_text',
     model,
-    temperature: 0.8,
-    messages: [
-      { role: 'system', content: input.systemPrompt },
-      { role: 'user', content: input.userPrompt },
-    ],
+    // Diferido: si la guarda bloquea, `messages` no llega a construirse.
+    buildParams: () => ({
+      temperature: 0.8,
+      messages: [
+        { role: 'system', content: input.systemPrompt },
+        { role: 'user', content: input.userPrompt },
+      ],
+    }),
   });
 
   const text = response.choices[0]?.message?.content ?? '';

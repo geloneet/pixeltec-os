@@ -7,6 +7,7 @@ import { growthBrands, growthCampaigns, growthCredits, growthCreditLedger } from
 import { getSessionUid } from '@/lib/auth/session';
 import { revalidatePath } from 'next/cache';
 import { generateText } from '@/lib/growth/ai/providers/openai-text';
+import { SafeUserError, toSafeFailure } from '@/lib/ai/errors';
 import { buildSystemPrompt } from '@/lib/growth/ai/prompt-builder';
 import { CREDIT_COSTS } from '@/lib/growth/credits/costs';
 import { resolveOwnerId, resolveBrandRow, resolveCampaignRow, publicId } from '@/lib/growth/pg';
@@ -168,8 +169,11 @@ export async function generateCampaignStrategy(
       .set({ status: 'planning', updatedAt: new Date() })
       .where(eq(growthCampaigns.id, campaignRow.id))
       .catch(() => {});
-    const message = err instanceof Error ? err.message : 'Error interno generando la estrategia';
-    return { ok: false, error: message };
+    // El `message` de un error desconocido no cruza hacia el cliente: el de un
+    // proveedor de IA cita el cuerpo de su respuesta, que puede contener el
+    // prompt —y el prompt lleva el Brand Brain completo—.
+    const failure = toSafeFailure(err, 'Error interno generando la estrategia');
+    return { ok: false, error: failure.message };
   }
 }
 
@@ -245,7 +249,7 @@ Genera entre 3 y 6 posts con diferentes propósitos (awareness, consideration, c
   } catch {
     // Re-lanzado como Error para que el catch de generateCampaignStrategy revierta
     // el status de la campaña a 'planning' (si no, quedaría atascada en 'generating').
-    throw new Error('Error al parsear la estrategia de IA');
+    throw new SafeUserError('Error al parsear la estrategia de IA', 'strategy_parse_failed');
   }
 
   const postPlans: CampaignPostPlan[] = (strategy.postPlans as Array<Partial<CampaignPostPlan>>).map((p, i) => ({

@@ -6,6 +6,7 @@ import { getSessionUid } from '@/lib/auth/session';
 import { getBrand } from '@/lib/growth/actions/brands';
 import { runPostGeneration } from '@/lib/growth/ai/orchestrator';
 import { resolveOwnerId, resolveBrandRow } from '@/lib/growth/pg';
+import { toSafeFailure } from '@/lib/ai/errors';
 import type { PostGenerationRequest } from '@/lib/growth/ai/prompt-builder';
 
 export const maxDuration = 60;
@@ -51,11 +52,15 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ jobId: job.id, post });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Error interno';
+    // El `message` de un error desconocido no se mira: un `APIError` de un SDK
+    // cita el cuerpo de la respuesta, y esto se persiste y se devuelve al
+    // navegador. Solo cruzan el código estable y un mensaje redactado por
+    // nosotros.
+    const failure = toSafeFailure(err, 'No se pudo generar el post.');
     await db
       .update(growthJobs)
-      .set({ status: 'failed', error: message, updatedAt: new Date() })
+      .set({ status: 'failed', error: failure.code, updatedAt: new Date() })
       .where(eq(growthJobs.id, job.id));
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: failure.message, code: failure.code }, { status: 500 });
   }
 }

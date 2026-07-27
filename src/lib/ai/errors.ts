@@ -12,7 +12,7 @@
  * logs y trazas.
  */
 
-import type { AiOperation, AiProvider } from "@/lib/egress-guard";
+import { EgressBlockedError, type AiOperation, type AiProvider } from "@/lib/egress-guard";
 
 /**
  * Códigos estables. Son la única señal que los consumidores deben leer para
@@ -53,4 +53,67 @@ export class AiProviderError extends Error {
     // un target < ES2015 rompe `instanceof` sobre clases de Error nativas).
     Object.setPrototypeOf(this, AiProviderError.prototype);
   }
+}
+
+/**
+ * Error cuyo mensaje lo redactamos nosotros y es seguro mostrar y persistir.
+ *
+ * Existe para poder distinguir en runtime lo que escribimos —«Créditos
+ * insuficientes», «Marca no encontrada»— de lo que trae un tercero. Un
+ * `new Error(...)` de la app y un `APIError` de un SDK son indistinguibles al
+ * capturarlos, y esa ambigüedad es justo la que hacía que el cuerpo crudo de un
+ * proveedor acabara en `growth_jobs.error` y en una respuesta HTTP.
+ *
+ * Regla al construirlo: el mensaje debe ser literal nuestro. Interpolar cifras
+ * propias (saldos, cantidades) es correcto; interpolar `err.message`,
+ * `res.text()` o cualquier dato que venga de fuera lo convierte en una fuga con
+ * otro nombre.
+ */
+export class SafeUserError extends Error {
+  readonly code: string;
+
+  constructor(message: string, code = "operation_failed") {
+    super(message);
+    this.name = "SafeUserError";
+    this.code = code;
+    Object.setPrototypeOf(this, SafeUserError.prototype);
+  }
+}
+
+/**
+ * Representación mínima que puede cruzar hacia el usuario, la base de datos o
+ * un log: un código estable y un mensaje que ya era seguro antes de llegar aquí.
+ */
+export type SafeFailure = {
+  /** Etiqueta estable para clasificar. Nunca contiene texto de terceros. */
+  code: string;
+  /** Mensaje redactado por nosotros. Nunca es el `message` de un desconocido. */
+  message: string;
+  /** Status HTTP del proveedor, si lo hubo. Es un número, no transporta texto. */
+  status?: number;
+};
+
+/**
+ * Traduce cualquier error a una `SafeFailure`.
+ *
+ * El `message` de un error desconocido **se descarta sin mirarlo**: no se
+ * inspecciona, no se trunca y no se registra. Truncar o filtrar por patrones
+ * seguiría dejando pasar el primer fragmento, que es exactamente donde los SDK
+ * colocan el eco del prompt o del cuerpo de la respuesta.
+ *
+ * `EgressBlockedError` se distingue del fallo de proveedor a propósito: que una
+ * llamada no saliera por política y que saliera y fallara son sucesos distintos,
+ * y confundirlos oculta una configuración incompleta detrás de un «error de IA».
+ */
+export function toSafeFailure(err: unknown, fallbackMessage: string): SafeFailure {
+  if (err instanceof EgressBlockedError) {
+    return { code: "ai_egress_blocked", message: fallbackMessage };
+  }
+  if (err instanceof AiProviderError) {
+    return { code: err.code, message: fallbackMessage, status: err.status };
+  }
+  if (err instanceof SafeUserError) {
+    return { code: err.code, message: err.message };
+  }
+  return { code: "internal_error", message: fallbackMessage };
 }
