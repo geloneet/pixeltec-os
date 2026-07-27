@@ -40,7 +40,7 @@ COPY . .
 # navegador embebido en la imagen no calza con el cliente Node que lo maneja.
 # `npx tsx` (ya en devDependencies) resuelve los paths `@/` de tsconfig.json
 # igual que `scripts/pixelforge-schema-smoke.ts` — sin paso de build propio.
-FROM mcr.microsoft.com/playwright:v1.61.1-noble AS qa-runner
+FROM mcr.microsoft.com/playwright:v1.62.0-noble AS qa-runner
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY package.json tsconfig.json ./
