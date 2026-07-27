@@ -16,7 +16,7 @@
  * directamente: la interpretación vive solo aquí.
  */
 
-export type EgressChannel = "email" | "whatsapp" | "vps" | "r2";
+export type EgressChannel = "email" | "whatsapp" | "vps" | "r2" | "meta";
 
 export type EgressOperation =
   | "send"
@@ -28,7 +28,14 @@ export type EgressOperation =
   | "resume"
   | "backup"
   | "snapshot"
-  | "read";
+  | "read"
+  // Meta: la operación distingue el riesgo. Leer un perfil, canjear un token y
+  // publicar en una cuenta real no son lo mismo, y la política los separa.
+  | "oauth"
+  | "token_exchange"
+  | "credential_read"
+  | "create_media"
+  | "publish";
 
 export type EgressRequest = {
   channel: EgressChannel;
@@ -51,7 +58,9 @@ export type EgressBlockReason =
   | "target_not_allowed"
   | "live_outside_production"
   | "production_target_from_non_production"
-  | "delete_not_authorized";
+  | "delete_not_authorized"
+  | "credential_read_not_authorized"
+  | "publish_not_authorized";
 
 /**
  * Error tipado y estable.
@@ -86,9 +95,15 @@ const MODE_ENV: Record<EgressChannel, string> = {
   whatsapp: "EGRESS_WHATSAPP_MODE",
   vps: "EGRESS_VPS_MODE",
   r2: "EGRESS_R2_MODE",
+  meta: "EGRESS_META_MODE",
 };
 
-const ALLOWLIST_ENV: Record<EgressChannel, string> = {
+/**
+ * Allowlist por defecto de cada canal. Meta no aparece porque usa dos listas
+ * distintas según el tipo de destino —aplicación o cuenta—, y el helper indica
+ * cuál corresponde en cada llamada.
+ */
+const ALLOWLIST_ENV: Partial<Record<EgressChannel, string>> = {
   email: "EGRESS_EMAIL_ALLOWLIST",
   whatsapp: "EGRESS_WHATSAPP_ALLOWLIST",
   vps: "EGRESS_VPS_HOST_ALLOWLIST",
@@ -146,9 +161,9 @@ function resolveMode(channel: EgressChannel): EgressMode | "invalid" {
   return "invalid";
 }
 
-/** Entradas de una allowlist, ya normalizadas y sin vacíos. */
-function readAllowlist(channel: EgressChannel): string[] {
-  return (env(ALLOWLIST_ENV[channel]) ?? "")
+/** Entradas de una lista de configuración, normalizadas y sin vacíos. */
+function readList(envName: string | undefined): string[] {
+  return (env(envName ?? "") ?? "")
     .split(",")
     .map((entry) => entry.trim().toLowerCase())
     .filter((entry) => entry.length > 0);
@@ -159,6 +174,16 @@ function readAllowlist(channel: EgressChannel): string[] {
  * canal**: aquí la comparación es exacta, nunca por inclusión ni por sufijo.
  */
 export function assertEgressAllowed(request: EgressRequest): void {
+  assertEgressAllowedWithList(request, readList(ALLOWLIST_ENV[request.channel]));
+}
+
+/**
+ * Igual que {@link assertEgressAllowed}, pero recibe la allowlist ya resuelta.
+ * Meta lo necesita porque separa aplicaciones de cuentas en dos listas y
+ * prefija sus entradas; el resto de canales usa la de su canal. Sigue siendo el
+ * mismo motor: la resolución de modo no se duplica en ningún helper.
+ */
+function assertEgressAllowedWithList(request: EgressRequest, allowlist: string[]): void {
   const { channel, operation, target } = request;
   const mode = resolveMode(channel);
 
@@ -172,7 +197,6 @@ export function assertEgressAllowed(request: EgressRequest): void {
   }
 
   // mode === "allowlist"
-  const allowlist = readAllowlist(channel);
   if (allowlist.length === 0) block(channel, operation, "allowlist_empty");
 
   const normalizedTarget = (target ?? "").trim().toLowerCase();
@@ -303,4 +327,80 @@ export function assertR2EgressAllowed(
   }
 
   assertEgressAllowed({ channel: "r2", operation, target: normalized });
+}
+
+/** Destino de una operación contra Meta: una aplicación o una cuenta publicable. */
+export type MetaTarget = { kind: "app"; id: string } | { kind: "account"; id: string };
+
+export type MetaOperation =
+  | "oauth"
+  | "token_exchange"
+  | "credential_read"
+  | "read"
+  | "create_media"
+  | "publish";
+
+/**
+ * Autoriza una operación contra la Graph API de Meta.
+ *
+ * El destino se compara **prefijado** (`app:<id>` / `account:<id>`) para que un
+ * identificador de aplicación nunca autorice por accidente una cuenta que
+ * comparta dígitos, y cada tipo se valida contra su propia lista.
+ *
+ * El host no sirve como identidad: `graph.facebook.com` es el mismo para todos
+ * y no dice qué aplicación ni qué cuenta está operando.
+ *
+ * Tres niveles de riesgo, no uno:
+ *
+ *  - `read` — lecturas inocuas.
+ *  - `token_exchange` y `credential_read` — devuelven o canjean credenciales.
+ *    `getFacebookPages` entra aquí porque su respuesta incluye tokens de página.
+ *  - `create_media` y `publish` — tocan cuentas reales. `create_media` va con
+ *    publicación y no aparte: es su primer paso y consume cuota, así que
+ *    habilitarlo por separado dejaría media publicación abierta.
+ */
+export function assertMetaEgressAllowed(input: {
+  operation: MetaOperation;
+  target: MetaTarget;
+}): void {
+  const { operation, target } = input;
+
+  const id = (target?.id ?? "").trim().toLowerCase();
+  if (id === "") block("meta", operation, "target_missing");
+
+  const esApp = target.kind === "app";
+
+  // Identidades productivas vetadas fuera de producción, aunque alguien las
+  // haya añadido a la allowlist por error.
+  const produccion = readList(
+    esApp ? "EGRESS_META_PRODUCTION_APP_IDS" : "EGRESS_META_PRODUCTION_ACCOUNT_IDS"
+  );
+  if (!isProduction() && produccion.includes(id)) {
+    block("meta", operation, "production_target_from_non_production");
+  }
+
+  // Reconocimientos adicionales fuera de producción, análogos al delete de R2.
+  if (!isProduction()) {
+    if (
+      (operation === "token_exchange" || operation === "credential_read") &&
+      !flagIsTrue("EGRESS_META_ALLOW_CREDENTIAL_READ")
+    ) {
+      block("meta", operation, "credential_read_not_authorized");
+    }
+    if (
+      (operation === "create_media" || operation === "publish") &&
+      !flagIsTrue("EGRESS_META_ALLOW_PUBLISH")
+    ) {
+      block("meta", operation, "publish_not_authorized");
+    }
+  }
+
+  const allowlist = readList(
+    esApp ? "EGRESS_META_APP_ALLOWLIST" : "EGRESS_META_ACCOUNT_ALLOWLIST"
+  ).map((entrada) => `${target.kind}:${entrada}`);
+
+  assertEgressAllowedWithList(
+    { channel: "meta", operation, target: `${target.kind}:${id}` },
+    allowlist
+  );
 }
