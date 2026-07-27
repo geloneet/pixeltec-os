@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import Anthropic from "@anthropic-ai/sdk";
+import { anthropicCreate } from "@/lib/ai/anthropic-egress";
+import { parseModelJson } from "@/lib/ai/model-json";
 import { requireSession } from "@/lib/vpsClient";
-
-const client = new Anthropic();
 
 interface RequestBody {
   clientName: string;
@@ -28,9 +27,33 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
 
     const body: RequestBody = await req.json();
-    const { clientName, scope, budget, timeline } = body;
 
-    const prompt = `Eres un consultor digital freelance que ayuda a redactar propuestas comerciales para clientes de desarrollo web y apps.
+    // El prompt lleva nombre de cliente, alcance y presupuesto reales: se arma
+    // dentro de la fábrica diferida, después de que la guarda autorice.
+    const message = await anthropicCreate({
+      operation: "generate_text",
+      model: process.env.ANTHROPIC_MODEL ?? "claude-haiku-4-5-20251001",
+      buildParams: () => ({
+        max_tokens: 600,
+        messages: [{ role: "user" as const, content: buildPrompt(body) }],
+      }),
+    });
+
+    const text = message.content[0].type === "text" ? message.content[0].text : "";
+    const parsed = parseModelJson<GeneratedProposal>(text);
+
+    return NextResponse.json(parsed);
+  } catch (err) {
+    console.error("[proposal-generate]", err);
+    return NextResponse.json(
+      { solution: "", deliverables: "", benefits: "", error: "Error generando propuesta" },
+      { status: 500 },
+    );
+  }
+}
+
+function buildPrompt({ clientName, scope, budget, timeline }: RequestBody): string {
+  return `Eres un consultor digital freelance que ayuda a redactar propuestas comerciales para clientes de desarrollo web y apps.
 
 CLIENTE: ${clientName}
 ALCANCE DEL PROYECTO: ${scope}
@@ -45,24 +68,4 @@ Genera una propuesta comercial profesional con los siguientes campos:
 
 Responde SOLO con JSON válido:
 {"solution":"...","deliverables":"...","benefits":"..."}`;
-
-    const message = await client.messages.create({
-      model: process.env.ANTHROPIC_MODEL ?? "claude-haiku-4-5-20251001",
-      max_tokens: 600,
-      messages: [{ role: "user", content: prompt }],
-    });
-
-    const text = message.content[0].type === "text" ? message.content[0].text : "";
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error("AI response had no JSON");
-    const parsed: GeneratedProposal = JSON.parse(jsonMatch[0]);
-
-    return NextResponse.json(parsed);
-  } catch (err) {
-    console.error("[proposal-generate]", err);
-    return NextResponse.json(
-      { solution: "", deliverables: "", benefits: "", error: "Error generando propuesta" },
-      { status: 500 },
-    );
-  }
 }

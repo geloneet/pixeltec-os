@@ -12,11 +12,12 @@
  *
  * Los consumidores importan el helper de su canal —`assertEmailEgressAllowed`,
  * `assertWhatsAppEgressAllowed`, `assertVpsEgressAllowed`,
- * `assertR2EgressAllowed`— y nunca leen las variables de entorno de política
- * directamente: la interpretación vive solo aquí.
+ * `assertR2EgressAllowed`, `assertMetaEgressAllowed`, `assertAiEgressAllowed`—
+ * y nunca leen las variables de entorno de política directamente: la
+ * interpretación vive solo aquí.
  */
 
-export type EgressChannel = "email" | "whatsapp" | "vps" | "r2" | "meta";
+export type EgressChannel = "email" | "whatsapp" | "vps" | "r2" | "meta" | "ai";
 
 export type EgressOperation =
   | "send"
@@ -35,7 +36,11 @@ export type EgressOperation =
   | "token_exchange"
   | "credential_read"
   | "create_media"
-  | "publish";
+  | "publish"
+  // IA: la operación distingue analizar material ya existente de generar texto
+  // nuevo. Ambas transportan input del cliente hacia un tercero.
+  | "analyze"
+  | "generate_text";
 
 export type EgressRequest = {
   channel: EgressChannel;
@@ -60,7 +65,8 @@ export type EgressBlockReason =
   | "production_target_from_non_production"
   | "delete_not_authorized"
   | "credential_read_not_authorized"
-  | "publish_not_authorized";
+  | "publish_not_authorized"
+  | "input_not_authorized";
 
 /**
  * Error tipado y estable.
@@ -96,12 +102,15 @@ const MODE_ENV: Record<EgressChannel, string> = {
   vps: "EGRESS_VPS_MODE",
   r2: "EGRESS_R2_MODE",
   meta: "EGRESS_META_MODE",
+  ai: "EGRESS_AI_MODE",
 };
 
 /**
  * Allowlist por defecto de cada canal. Meta no aparece porque usa dos listas
  * distintas según el tipo de destino —aplicación o cuenta—, y el helper indica
- * cuál corresponde en cada llamada.
+ * cuál corresponde en cada llamada. IA tampoco: su lista es de pares
+ * `proveedor:modelo` y se exige **siempre**, también en `live` (ver
+ * `assertAiEgressAllowed`), así que no puede pasar por el camino genérico.
  */
 const ALLOWLIST_ENV: Partial<Record<EgressChannel, string>> = {
   email: "EGRESS_EMAIL_ALLOWLIST",
@@ -403,4 +412,63 @@ export function assertMetaEgressAllowed(input: {
     { channel: "meta", operation, target: `${target.kind}:${id}` },
     allowlist
   );
+}
+
+/** Proveedores de inferencia reconocidos. E0c-1 solo habilita Anthropic. */
+export type AiProvider = "anthropic";
+
+/** Operaciones semánticas del canal IA (subconjunto de `EgressOperation`). */
+export type AiOperation = "analyze" | "generate_text";
+
+/**
+ * Autoriza una llamada de inferencia a un proveedor de IA.
+ *
+ * Dos diferencias deliberadas frente al motor genérico:
+ *
+ *  1. **El destino es el par `proveedor:modelo`, y la lista se exige siempre**
+ *     —también en modo `live` y también en producción—. Dos listas
+ *     independientes (una de proveedores, otra de modelos) crearían un producto
+ *     cartesiano: cualquier proveedor autorizado quedaría combinado con
+ *     cualquier modelo autorizado. Con un solo par no hay combinación
+ *     accidental, y estrenar un modelo nuevo exige una decisión explícita en vez
+ *     de heredarse de que el proveedor ya estuviera habilitado.
+ *
+ *  2. **Fuera de producción hace falta un reconocimiento adicional**
+ *     (`EGRESS_AI_ALLOW_INPUT_OUTSIDE_PRODUCTION`), análogo al `delete` de R2 y
+ *     al `publish` de Meta: estas fronteras transportan sesiones de trabajo,
+ *     briefs, propuestas y datos de clientes reales. Autorizar un modelo no es
+ *     lo mismo que autorizar el envío de esa información desde un entorno de
+ *     desarrollo.
+ *
+ * La comparación es exacta sobre el par normalizado: `anthropic:model-a` no
+ * autoriza `anthropic:model-b` ni coincidencias parciales. El modelo que se
+ * entrega al SDK no se altera — normalizar aquí es solo para decidir.
+ */
+export function assertAiEgressAllowed(input: {
+  provider: AiProvider;
+  model: string;
+  operation: AiOperation;
+}): void {
+  const { provider, operation } = input;
+
+  const mode = resolveMode("ai");
+  if (mode === "invalid") block("ai", operation, "mode_invalid");
+  if (mode === "disabled") block("ai", operation, "mode_disabled");
+
+  const model = (input.model ?? "").trim().toLowerCase();
+  if (model === "") block("ai", operation, "target_missing");
+
+  const target = `${provider}:${model}`;
+  const allowlist = readList("EGRESS_AI_TARGET_ALLOWLIST");
+  if (allowlist.length === 0) block("ai", operation, "allowlist_empty");
+  if (!allowlist.includes(target)) block("ai", operation, "target_not_allowed");
+
+  // `live` conserva el mismo reconocimiento general que el resto de canales.
+  if (mode === "live" && !isProduction() && !flagIsTrue("EGRESS_ALLOW_LIVE_OUTSIDE_PRODUCTION")) {
+    block("ai", operation, "live_outside_production");
+  }
+
+  if (!isProduction() && !flagIsTrue("EGRESS_AI_ALLOW_INPUT_OUTSIDE_PRODUCTION")) {
+    block("ai", operation, "input_not_authorized");
+  }
 }

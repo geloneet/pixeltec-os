@@ -57,7 +57,7 @@ import {
   type PixelforgeProjectFull,
 } from "@/lib/db/repos/pixelforge";
 import { executeOperation } from "../ai/run";
-import { getPixelforgeAnthropic, resolvePixelForgeModel } from "../ai/client";
+import { resolvePixelForgeModel } from "../ai/client";
 import { finalizeQaRunOrchestrated } from "./finalize";
 import {
   critiqueDesignOperation,
@@ -217,7 +217,6 @@ async function runAdvisoryOperation(params: RunAdvisoryOperationParams): Promise
     };
 
     await executeOperation({
-      client: getPixelforgeAnthropic(),
       operation,
       system,
       messages,

@@ -51,6 +51,15 @@
  *
  *   export $(grep -E '^(ANTHROPIC_API_KEY|DATABASE_URL)=' .env .env.local | sed 's/^[^:]*://') && npx tsx scripts/pixelforge-schema-smoke.ts
  *
+ * Además de la clave hace falta AUTORIZAR el egress de IA — que la credencial
+ * exista no habilita nada (política fail-closed, `src/lib/egress-guard.ts`):
+ *
+ *   EGRESS_AI_MODE=allowlist
+ *   EGRESS_AI_TARGET_ALLOWLIST=anthropic:<el modelo que resuelva PIXELFORGE_AI_MODEL>
+ *   EGRESS_AI_ALLOW_INPUT_OUTSIDE_PRODUCTION=true
+ *
+ * Sin eso las 11 filas salen "ERROR — egress bloqueado" y no se gasta un token.
+ *
  * (DATABASE_URL no lo usa este script — se incluye en el `export` porque es
  * el patrón estándar del repo para cargar `.env`+`.env.local` a mano; no
  * hace daño tenerlo en el entorno del proceso.)
@@ -62,13 +71,12 @@
  * falta caer al relativo.
  */
 import "dotenv/config";
-import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import type { z } from "zod/v4";
-import { getPixelforgeAnthropic, resolvePixelForgeModel } from "@/lib/pixelforge/ai/client";
+import { anthropicCreate, AiProviderError } from "@/lib/ai/anthropic-egress";
+import { EgressBlockedError } from "@/lib/egress-guard";
+import { resolvePixelForgeModel } from "@/lib/pixelforge/ai/client";
 import { OPERATION_SPECS, PIXELFORGE_AI_OPERATIONS, type PixelforgeAIOperation } from "@/lib/pixelforge/schemas";
-
-const SCHEMA_ISSUE_PATTERN = /schema|grammar|output_config|format/i;
 /** Fallback documentado — ver comentario de cabecera: ya no es el camino principal con `messages.create`, pero se deja por si algún parseo client-side vuelve a introducirse. */
 const TRUNCATED_PARSE_PATTERN = /Failed to parse structured output/i;
 const SMOKE_MAX_TOKENS = 64;
@@ -100,18 +108,24 @@ interface CreateResponse {
   usage: { input_tokens: number; output_tokens: number };
 }
 
-async function smokeOne(client: Anthropic, operation: PixelforgeAIOperation): Promise<FilaResultado> {
+async function smokeOne(operation: PixelforgeAIOperation): Promise<FilaResultado> {
   const spec = OPERATION_SPECS[operation];
   const model = resolvePixelForgeModel(operation);
   const startedAt = Date.now();
 
   try {
-    const response = (await client.messages.create({
+    // Pasa por el adaptador protegido igual que el motor real: este script
+    // dispara llamadas REALES, así que también necesita autorización explícita
+    // de egress (`EGRESS_AI_*`). Que exista la API key no habilita nada.
+    const response = (await anthropicCreate({
+      operation: "generate_text",
       model,
-      max_tokens: SMOKE_MAX_TOKENS,
-      system: "Responde el objeto pedido.",
-      messages: [{ role: "user", content: "Genera un ejemplo mínimo." }],
-      output_config: { format: buildOutputFormat(spec.outputSchema) },
+      buildParams: () => ({
+        max_tokens: SMOKE_MAX_TOKENS,
+        system: "Responde el objeto pedido.",
+        messages: [{ role: "user" as const, content: "Genera un ejemplo mínimo." }],
+        output_config: { format: buildOutputFormat(spec.outputSchema) },
+      }),
     })) as unknown as CreateResponse;
 
     // stop_reason "max_tokens" cuenta igual que una respuesta completa: la grammar SÍ compiló y
@@ -145,14 +159,30 @@ async function smokeOne(client: Anthropic, operation: PixelforgeAIOperation): Pr
       };
     }
 
-    if (err instanceof Anthropic.APIError) {
-      const status = err.status;
-      const message = err.message ?? "";
-      if (status === 400 && SCHEMA_ISSUE_PATTERN.test(message)) {
+    // La política cortó la llamada antes de salir: no dice nada sobre si la
+    // grammar habría compilado, solo que el entorno no está autorizado.
+    if (err instanceof EgressBlockedError) {
+      return {
+        operacion: operation,
+        resultado: "ERROR",
+        detalle: `egress bloqueado (${err.reason}) — configurá EGRESS_AI_* antes de correr el smoke`,
+        stopReason: null,
+        tokensIn: null,
+        tokensOut: null,
+        ms,
+      };
+    }
+
+    // El adaptador ya clasificó y saneó el fallo del SDK: `ai_schema_rejected`
+    // es exactamente el 400 con mensaje de schema/grammar/output_config/format
+    // que este script busca (misma regla que `ai/failures.ts`), sin arrastrar el
+    // mensaje crudo del proveedor.
+    if (err instanceof AiProviderError) {
+      if (err.code === "ai_schema_rejected") {
         return {
           operacion: operation,
           resultado: "FALLA",
-          detalle: `schema_too_complex: ${message}`,
+          detalle: "schema_too_complex (400 con mensaje de schema/grammar/output_config/format)",
           stopReason: null,
           tokensIn: null,
           tokensOut: null,
@@ -162,7 +192,7 @@ async function smokeOne(client: Anthropic, operation: PixelforgeAIOperation): Pr
       return {
         operacion: operation,
         resultado: "ERROR",
-        detalle: `HTTP ${status ?? "?"}: ${message} (no prueba fallo de compilación — otra causa)`,
+        detalle: `${err.code}${err.status !== undefined ? ` (HTTP ${err.status})` : ""} (no prueba fallo de compilación — otra causa)`,
         stopReason: null,
         tokensIn: null,
         tokensOut: null,
@@ -218,7 +248,6 @@ async function main(): Promise<void> {
     return;
   }
 
-  const client = getPixelforgeAnthropic();
   const filas: FilaResultado[] = [];
 
   console.log(
@@ -229,7 +258,7 @@ async function main(): Promise<void> {
   // Promise.all las mandaría todas de golpe contra el rate limit por minuto.
   for (const operation of PIXELFORGE_AI_OPERATIONS) {
     process.stdout.write(`  ${operation}... `);
-    const fila = await smokeOne(client, operation);
+    const fila = await smokeOne(operation);
     console.log(etiquetaResultado(fila.resultado));
     filas.push(fila);
   }

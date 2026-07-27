@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import Anthropic from "@anthropic-ai/sdk";
+import { anthropicCreate } from "@/lib/ai/anthropic-egress";
+import { parseModelJson } from "@/lib/ai/model-json";
 import { requireSession } from "@/lib/vpsClient";
-
-const client = new Anthropic();
 
 interface RequestBody {
   industry: string;
@@ -37,7 +36,29 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: "industry required" }, { status: 400 });
     }
 
-    const prompt = `Eres un consultor digital experto en onboarding de clientes. Genera un cuestionario de descubrimiento para un cliente de tipo: ${industry}${clientName ? ` (cliente: ${clientName})` : ""}.
+    // El prompt nombra industria y cliente: se arma dentro de la fábrica
+    // diferida, después de que la guarda autorice.
+    const message = await anthropicCreate({
+      operation: "generate_text",
+      model: process.env.ANTHROPIC_MODEL ?? "claude-haiku-4-5-20251001",
+      buildParams: () => ({
+        max_tokens: 2000,
+        messages: [{ role: "user" as const, content: buildPrompt(industry, clientName) }],
+      }),
+    });
+
+    const text = message.content[0].type === "text" ? message.content[0].text : "";
+    const parsed = parseModelJson<GeneratedQuestions>(text);
+
+    return NextResponse.json(parsed);
+  } catch (err) {
+    console.error("[discovery-generate]", err);
+    return NextResponse.json({ error: "Error generando cuestionario" }, { status: 500 });
+  }
+}
+
+function buildPrompt(industry: string, clientName?: string): string {
+  return `Eres un consultor digital experto en onboarding de clientes. Genera un cuestionario de descubrimiento para un cliente de tipo: ${industry}${clientName ? ` (cliente: ${clientName})` : ""}.
 
 Incluye 15-20 preguntas distribuidas en estas categorías: Negocio, Presencia digital, Objetivos, Audiencia, Pain points, Presupuesto, Timeline.
 
@@ -50,21 +71,4 @@ Reglas:
 
 Responde SOLO con JSON válido:
 {"questions":[{"id":"q_01","text":"...","category":"Negocio","required":true,"type":"text"},...]}`;
-
-    const message = await client.messages.create({
-      model: process.env.ANTHROPIC_MODEL ?? "claude-haiku-4-5-20251001",
-      max_tokens: 2000,
-      messages: [{ role: "user", content: prompt }],
-    });
-
-    const text = message.content[0].type === "text" ? message.content[0].text : "";
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error("AI response had no JSON");
-    const parsed: GeneratedQuestions = JSON.parse(jsonMatch[0]);
-
-    return NextResponse.json(parsed);
-  } catch (err) {
-    console.error("[discovery-generate]", err);
-    return NextResponse.json({ error: "Error generando cuestionario" }, { status: 500 });
-  }
 }

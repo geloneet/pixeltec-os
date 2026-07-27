@@ -2,11 +2,13 @@
  * Motor de ejecución de operaciones IA de PixelForge — Structured Outputs
  * vía `client.messages.stream` + `output_config.format` (`zodOutputFormat`,
  * SDK 0.91.1) con PARSEO MANUAL de la respuesta, en vez de
- * `client.messages.parse()`. Recibe el cliente Anthropic INYECTADO (no
- * importa `./client`, que trae `"server-only"`) para ser testeable sin red y
- * sin DB: la persistencia y el cierre de la corrida llegan como callbacks
- * (`RunCallbacks`) — el repositorio real (claimRun/finishRun contra
- * `ai_runs`) se conecta en F2-T4/T5.
+ * `client.messages.parse()`. La llamada al SDK pasa SIEMPRE por
+ * `@/lib/ai/anthropic-egress`, que aplica la política de egress de IA antes de
+ * armar el payload y es el único módulo que instancia el cliente; el `client`
+ * inyectado sigue existiendo para los tests (sin red, sin SDK real) y también
+ * entra por esa frontera protegida. La persistencia y el cierre de la corrida
+ * llegan como callbacks (`RunCallbacks`) — el repositorio real
+ * (claimRun/finishRun contra `ai_runs`) se conecta en F2-T4/T5.
  *
  * Por qué NO `messages.parse()` (hallazgo C1 de la revisión final F2):
  * `client.messages.parse()` es azúcar sobre `create().then(parseMessage)`, y
@@ -48,9 +50,33 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 // schemas de `../schemas/`, migrados a `zod/v4` porque lo exige `zodOutputFormat` (ver ese
 // directorio para el detalle). Solo tipos aquí — sin acoplar `run.ts` a un runtime de Zod real.
 import type { z } from "zod/v4";
+import {
+  anthropicStreamFinalMessage,
+  type AnthropicClientLike,
+  type AiOperation,
+} from "@/lib/ai/anthropic-egress";
 import { OPERATION_SPECS, type PixelforgeAIOperation } from "../schemas";
 import { classifyError, classifyStopReason, type PixelforgeRunFailure } from "./failures";
 import { resolvePixelForgeModel } from "./model";
+
+/**
+ * Operación semántica de egress por operación de PixelForge. El `Record`
+ * exhaustivo es deliberado: una operación nueva sin clasificar rompe el
+ * typecheck en vez de heredar un permiso en silencio.
+ */
+const AI_EGRESS_OPERATION: Record<PixelforgeAIOperation, AiOperation> = {
+  analyze_context: "analyze",
+  generate_strategy: "generate_text",
+  analyze_reference: "analyze",
+  synthesize_visual_dna: "generate_text",
+  generate_directions: "generate_text",
+  build_narrative: "generate_text",
+  compose_page_tree: "generate_text",
+  propose_change: "generate_text",
+  critique_design: "analyze",
+  score_originality: "analyze",
+  detect_ai_likeness: "analyze",
+};
 
 export interface RunCallbacks {
   onProgress?: (progress: number, currentStep: string) => Promise<void>;
@@ -70,8 +96,13 @@ export interface RunResult {
 }
 
 export interface ExecuteOperationParams {
-  /** Inyectado — testeable sin instanciar el SDK real (ver `./client`). */
-  client: Anthropic;
+  /**
+   * Inyectado solo en tests — testeable sin red y sin SDK real. En producción
+   * se omite y lo construye `@/lib/ai/anthropic-egress`, **después** de la
+   * guarda de egress. Inyectarlo NO salta la guarda: el adaptador la aplica
+   * igual antes de tocar el cliente.
+   */
+  client?: AnthropicClientLike;
   operation: PixelforgeAIOperation;
   system: string;
   messages: Anthropic.MessageParam[];
@@ -193,14 +224,21 @@ export async function executeOperation(params: ExecuteOperationParams): Promise<
 
   async function callModel(callMessages: Anthropic.MessageParam[]): Promise<CreateResponse | { error: PixelforgeRunFailure; message: string }> {
     try {
-      const stream = client.messages.stream({
+      // `stream(...)` + `finalMessage()` quedan DENTRO del adaptador: la guarda
+      // corre antes de armar params, y ninguna de las dos fases puede filtrar
+      // un error crudo del SDK. El retry semántico vuelve a pasar por aquí, así
+      // que también vuelve a atravesar la guarda.
+      const response = (await anthropicStreamFinalMessage({
+        operation: AI_EGRESS_OPERATION[operation],
         model,
-        max_tokens: spec.maxTokens,
-        system,
-        messages: callMessages,
-        output_config: { format: buildOutputFormat(spec.outputSchema) },
-      });
-      const response = (await stream.finalMessage()) as unknown as CreateResponse;
+        client,
+        buildParams: () => ({
+          max_tokens: spec.maxTokens,
+          system,
+          messages: callMessages,
+          output_config: { format: buildOutputFormat(spec.outputSchema) },
+        }),
+      })) as unknown as CreateResponse;
       return response;
     } catch (err) {
       return { error: classifyError(err), message: messageFromError(err) };

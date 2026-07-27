@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import Anthropic from "@anthropic-ai/sdk";
+import { anthropicCreate } from "@/lib/ai/anthropic-egress";
 import { requireSession } from "@/lib/vpsClient";
 import type { WorkSession } from "@/types/session";
-
-const client = new Anthropic();
 
 type PromptKey = "resumen" | "commit" | "siguiente" | "riesgos" | "bitacora" | "libre";
 
@@ -101,14 +99,20 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const body: RequestBody = await req.json();
     const { session, elapsed, promptKey, customPrompt } = body;
 
-    const ctx = buildContext(session, elapsed);
-    const promptFn = PROMPT_TEMPLATES[promptKey] ?? PROMPT_TEMPLATES.libre;
-    const prompt = promptFn(ctx, customPrompt);
-
-    const message = await client.messages.create({
+    // El contexto y el prompt se arman DENTRO de la fábrica diferida: llevan
+    // cliente, proyecto, notas y bloqueos reales, y si la política de egress
+    // bloquea no deben ni construirse.
+    const message = await anthropicCreate({
+      operation: "generate_text",
       model: process.env.ANTHROPIC_MODEL ?? "claude-haiku-4-5-20251001",
-      max_tokens: 400,
-      messages: [{ role: "user", content: prompt }],
+      buildParams: () => {
+        const ctx = buildContext(session, elapsed);
+        const promptFn = PROMPT_TEMPLATES[promptKey] ?? PROMPT_TEMPLATES.libre;
+        return {
+          max_tokens: 400,
+          messages: [{ role: "user" as const, content: promptFn(ctx, customPrompt) }],
+        };
+      },
     });
 
     const text = message.content[0].type === "text" ? message.content[0].text.trim() : "";

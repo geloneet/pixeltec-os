@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { executeOperation, type RunCallbacks } from "./run";
 import { contextBriefDomainSchema, type ContextBrief } from "../schemas/analyze-context";
 import { resolvePixelForgeModel } from "./model";
@@ -84,6 +84,36 @@ function invalidBrief(): ContextBrief {
     resumen: "Landing para una constructora que ofrece remodelaciones residenciales.",
   };
 }
+
+/**
+ * Política de egress de IA. Estos tests ejercitan el motor, no la política, así
+ * que cada uno arranca con el par `anthropic:<modelo>` explícitamente
+ * autorizado. Que haga falta declararlo es el punto: sin estas tres variables
+ * el adaptador bloquea y el SDK no se toca (ver el bloque "guarda de egress").
+ */
+const MODELO_AUTORIZADO = resolvePixelForgeModel("analyze_context");
+
+function limpiarPolitica() {
+  for (const clave of Object.keys(process.env)) {
+    if (clave.startsWith("EGRESS_")) delete process.env[clave];
+  }
+}
+
+function autorizarEgress() {
+  vi.stubEnv("EGRESS_AI_MODE", "allowlist");
+  vi.stubEnv("EGRESS_AI_TARGET_ALLOWLIST", `anthropic:${MODELO_AUTORIZADO}`);
+  vi.stubEnv("EGRESS_AI_ALLOW_INPUT_OUTSIDE_PRODUCTION", "true");
+}
+
+beforeEach(() => {
+  limpiarPolitica();
+  autorizarEgress();
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+  limpiarPolitica();
+});
 
 describe("executeOperation", () => {
   it("1. camino feliz: create ok, end_turn, sin domainSchema — persistResult y finishRun(succeeded) 1 vez, tokens correctos", async () => {
@@ -375,5 +405,127 @@ describe("executeOperation", () => {
       })
     );
     expect(result).toEqual({ output: validBrief() });
+  });
+});
+
+/**
+ * Guarda de egress — lo que importa no es que el motor devuelva un fallo, sino
+ * que el SDK reciba CERO invocaciones: ni `stream(...)` ni `finalMessage()`.
+ * Una guarda que bloqueara después de abrir el stream no protegería nada.
+ */
+describe("executeOperation — guarda de egress de IA", () => {
+  async function correrConPoliticaBloqueada(): Promise<{
+    client: ReturnType<typeof makeClient>;
+    callbacks: ReturnType<typeof makeCallbacks>;
+    result: Awaited<ReturnType<typeof executeOperation>>;
+  }> {
+    const client = makeClient();
+    // Si por un bug la guarda no bloqueara, esto explotaría de forma ruidosa en
+    // vez de devolver una respuesta plausible.
+    client.messages.stream.mockImplementation(() => {
+      throw new Error("el SDK no debía invocarse con la política bloqueada");
+    });
+    const callbacks = makeCallbacks();
+
+    const result = await executeOperation({
+      client: client as unknown as Anthropic,
+      operation: "analyze_context",
+      system: "system prompt",
+      messages: BASE_MESSAGES,
+      callbacks,
+    });
+
+    return { client, callbacks, result };
+  }
+
+  it("sin política (modo ausente) no toca el SDK", async () => {
+    limpiarPolitica();
+
+    const { client, callbacks, result } = await correrConPoliticaBloqueada();
+
+    expect(client.messages.stream).not.toHaveBeenCalled();
+    expect(callbacks.persistResult).not.toHaveBeenCalled();
+    expect(callbacks.finishRun).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "failed", failureKind: "provider_error" })
+    );
+    expect(result).toMatchObject({ failure: "provider_error" });
+  });
+
+  it("modo disabled no toca el SDK", async () => {
+    limpiarPolitica();
+    vi.stubEnv("EGRESS_AI_MODE", "disabled");
+    vi.stubEnv("EGRESS_AI_TARGET_ALLOWLIST", `anthropic:${MODELO_AUTORIZADO}`);
+    vi.stubEnv("EGRESS_AI_ALLOW_INPUT_OUTSIDE_PRODUCTION", "true");
+
+    const { client } = await correrConPoliticaBloqueada();
+
+    expect(client.messages.stream).not.toHaveBeenCalled();
+  });
+
+  it("modelo distinto al autorizado no toca el SDK", async () => {
+    vi.stubEnv("EGRESS_AI_TARGET_ALLOWLIST", "anthropic:otro-modelo-cualquiera");
+
+    const { client } = await correrConPoliticaBloqueada();
+
+    expect(client.messages.stream).not.toHaveBeenCalled();
+  });
+
+  it("sin reconocimiento de input fuera de producción no toca el SDK", async () => {
+    vi.stubEnv("EGRESS_AI_ALLOW_INPUT_OUTSIDE_PRODUCTION", "");
+
+    const { client } = await correrConPoliticaBloqueada();
+
+    expect(client.messages.stream).not.toHaveBeenCalled();
+  });
+
+  it("la existencia de ANTHROPIC_API_KEY no habilita nada", async () => {
+    limpiarPolitica();
+    vi.stubEnv("ANTHROPIC_API_KEY", "sk-ant-falsa-para-test");
+
+    const { client } = await correrConPoliticaBloqueada();
+
+    expect(client.messages.stream).not.toHaveBeenCalled();
+  });
+
+  it("el retry semántico vuelve a atravesar la guarda: si la política se revoca entre llamadas, la segunda no sale", async () => {
+    const client = makeClient();
+    // La 1ra respuesta viola el dominio (dispara el retry) y, al resolverse,
+    // revoca la autorización. Si el retry NO reevaluara la política, habría una
+    // 2da llamada al SDK con el egress ya cerrado.
+    client.messages.stream.mockReturnValueOnce({
+      finalMessage: vi.fn(async () => {
+        delete process.env.EGRESS_AI_TARGET_ALLOWLIST;
+        return textResponse(invalidBrief(), { usage: { input_tokens: 100, output_tokens: 200 } });
+      }),
+    });
+    const callbacks = makeCallbacks();
+
+    const result = await executeOperation({
+      client: client as unknown as Anthropic,
+      operation: "analyze_context",
+      system: "system prompt",
+      messages: BASE_MESSAGES,
+      domainSchema: contextBriefDomainSchema,
+      callbacks,
+    });
+
+    expect(client.messages.stream).toHaveBeenCalledTimes(1);
+    expect(callbacks.persistResult).not.toHaveBeenCalled();
+    expect(callbacks.finishRun).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "failed", failureKind: "provider_error", retryCount: 1 })
+    );
+    expect(result).toMatchObject({ failure: "provider_error" });
+  });
+
+  it("los errores que salen del motor no citan el modelo ni el target completo", async () => {
+    limpiarPolitica();
+
+    const { result } = await correrConPoliticaBloqueada();
+
+    expect("failure" in result).toBe(true);
+    if ("failure" in result) {
+      expect(result.error).not.toContain(MODELO_AUTORIZADO);
+      expect(result.error).not.toContain(`anthropic:${MODELO_AUTORIZADO}`);
+    }
   });
 });

@@ -1,10 +1,10 @@
-import Anthropic from '@anthropic-ai/sdk';
-
-export function getAnthropic(): Anthropic {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error('ANTHROPIC_API_KEY is required but not set');
-  return new Anthropic({ apiKey });
-}
+/**
+ * Resolución de modelo del pipeline de blog.
+ *
+ * Ya NO expone `getAnthropic()`: instanciar el SDK es exclusivo de
+ * `@/lib/ai/anthropic-egress`, que aplica la política de egress antes de
+ * construir cliente alguno. Lo que queda aquí es lógica pura, sin secretos.
+ */
 
 export function getModel(): string {
   return process.env.ANTHROPIC_MODEL ?? 'claude-opus-4-7';

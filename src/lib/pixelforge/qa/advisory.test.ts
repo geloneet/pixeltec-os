@@ -15,7 +15,6 @@ vi.mock("@/lib/db/repos/pixelforge", async (importOriginal) => {
 
 vi.mock("../ai/run", () => ({ executeOperation: vi.fn() }));
 vi.mock("../ai/client", () => ({
-  getPixelforgeAnthropic: vi.fn(() => ({})),
   resolvePixelForgeModel: vi.fn(() => "claude-sonnet-5"),
 }));
 vi.mock("./finalize", () => ({ finalizeQaRunOrchestrated: vi.fn() }));

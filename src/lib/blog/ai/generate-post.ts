@@ -1,4 +1,5 @@
-import { getAnthropic, getModel } from './client';
+import { anthropicCreate } from '@/lib/ai/anthropic-egress';
+import { getModel } from './client';
 import { BLOG_SYSTEM_PROMPT } from './system-prompt';
 import type { BlogBriefDoc } from '../types';
 
@@ -48,11 +49,9 @@ function extractBody(raw: string): string {
   return normalized.replace(/^---\n[\s\S]*?\n---\n?/, '').trim();
 }
 
-export async function generatePostFromBrief(brief: BlogBriefDoc): Promise<GeneratedPost> {
-  const client = getAnthropic();
-  const model = getModel();
-
-  const userPrompt = `Escribe un artículo de blog para PIXELTEC con la siguiente información:
+/** El brief completo del artículo. Se arma diferido: ver `generatePostFromBrief`. */
+function buildUserPrompt(brief: BlogBriefDoc): string {
+  return `Escribe un artículo de blog para PIXELTEC con la siguiente información:
 
 **Tema:** ${brief.topic}
 **Ángulo técnico:** ${brief.angle}
@@ -62,12 +61,20 @@ ${brief.keyPoints.map((p, i) => `${i + 1}. ${p}`).join('\n')}
 **Tono:** ${brief.tone}
 
 Sigue el formato de output especificado con front-matter YAML.`;
+}
 
-  const message = await client.messages.create({
-    model,
-    max_tokens: 4096,
-    system: BLOG_SYSTEM_PROMPT,
-    messages: [{ role: 'user', content: userPrompt }],
+export async function generatePostFromBrief(brief: BlogBriefDoc): Promise<GeneratedPost> {
+  // El prompt se construye dentro de la fábrica diferida y el cliente lo
+  // instancia el adaptador: si la política de egress bloquea, ni el brief ni el
+  // SDK llegan a existir.
+  const message = await anthropicCreate({
+    operation: 'generate_text',
+    model: getModel(),
+    buildParams: () => ({
+      max_tokens: 4096,
+      system: BLOG_SYSTEM_PROMPT,
+      messages: [{ role: 'user' as const, content: buildUserPrompt(brief) }],
+    }),
   });
 
   const rawOutput =

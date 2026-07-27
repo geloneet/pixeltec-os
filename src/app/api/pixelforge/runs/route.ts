@@ -77,7 +77,7 @@ import {
   type VisualReferenceForAnalysis,
 } from "@/lib/db/repos/pixelforge";
 import { executeOperation } from "@/lib/pixelforge/ai/run";
-import { getPixelforgeAnthropic, resolvePixelForgeModel } from "@/lib/pixelforge/ai/client";
+import { resolvePixelForgeModel } from "@/lib/pixelforge/ai/client";
 import {
   buildAnalyzeContextRequest,
   ANALYZE_CONTEXT_PROMPT_VERSION,
@@ -757,9 +757,11 @@ export async function POST(req: NextRequest) {
     const opConfig = ENABLED_OPERATIONS[operation];
     const opCtx: OperationRunCtx = { referenceId, ownerId, slot, qaRunId };
 
-    // I3: validar ANTES de crear la corrida — si no hay API key configurada, `getPixelforgeAnthropic()`
-    // (llamado más abajo, ya en background) lanzaría igual, pero para entonces ya habríamos creado
-    // un registro `ai_runs` y devuelto 200 al cliente. Cortar acá evita corridas basura.
+    // I3: validar ANTES de crear la corrida — si no hay API key configurada, el adaptador de egress
+    // (`@/lib/ai/anthropic-egress`, ya en background) lanzaría igual, pero para entonces ya habríamos
+    // creado un registro `ai_runs` y devuelto 200 al cliente. Cortar acá evita corridas basura.
+    // Ojo: esto NO es una autorización — que la credencial exista no habilita nada; la política de
+    // egress de IA se evalúa dentro del adaptador, en cada llamada.
     if (!process.env.ANTHROPIC_API_KEY) {
       return NextResponse.json(
         { error: "El motor de IA no está configurado (falta ANTHROPIC_API_KEY)" },
@@ -820,7 +822,6 @@ export async function POST(req: NextRequest) {
     void (async () => {
       try {
         await executeOperation({
-          client: getPixelforgeAnthropic(),
           operation,
           system,
           messages,

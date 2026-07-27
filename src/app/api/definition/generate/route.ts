@@ -15,11 +15,8 @@ import {
   updateStationDraft,
 } from "@/lib/db/repos/definitions";
 import { getStationConfig } from "@/lib/definition/stations";
-import {
-  getDefinitionClient,
-  getDefinitionModel,
-  DEFINITION_MAX_TOKENS,
-} from "@/lib/definition/model";
+import { getDefinitionModel, DEFINITION_MAX_TOKENS } from "@/lib/definition/model";
+import { anthropicCreate } from "@/lib/ai/anthropic-egress";
 import { generateRequestSchema } from "@/lib/definition/schemas";
 import type { DefinitionStation } from "@/lib/definition/types";
 
@@ -64,11 +61,6 @@ export async function POST(req: NextRequest) {
       if (s.status === "sealed" && s.sealedContent) sealed[s.station] = s.sealedContent;
     }
     const cfg = getStationConfig(station);
-    const kickoff = cfg.buildKickoffMessage({
-      clientName: client?.name ?? "Cliente",
-      brainDump: full.definition.brainDump,
-      sealed,
-    });
 
     // ── Persistir la iteración del usuario (si vino) ────────────────────────
     if (userMessage) {
@@ -88,18 +80,29 @@ export async function POST(req: NextRequest) {
     // para no romper la alternancia de la API.
     if (history[0]?.role === "user") history = history.slice(1);
 
-    const messages = [
-      { role: "user" as const, content: kickoff },
-      ...history.map((m) => ({ role: m.role, content: m.content })),
-    ];
-
-    // ── Llamada al modelo (single-shot) ─────────────────────────────────────
-    const anthropic = getDefinitionClient();
-    const response = await anthropic.messages.create({
+    // ── Llamada al modelo (single-shot, tras la guarda de egress) ───────────
+    // El kickoff incorpora el brain dump y el nombre del cliente, y el
+    // historial es la conversación completa de la estación: todo eso se arma
+    // DENTRO de la fábrica diferida, así que si la política bloquea no llega a
+    // construirse ningún payload ni a instanciarse ningún cliente.
+    const response = await anthropicCreate({
+      operation: "generate_text",
       model: getDefinitionModel(),
-      max_tokens: DEFINITION_MAX_TOKENS,
-      system: cfg.systemPrompt,
-      messages,
+      buildParams: () => ({
+        max_tokens: DEFINITION_MAX_TOKENS,
+        system: cfg.systemPrompt,
+        messages: [
+          {
+            role: "user" as const,
+            content: cfg.buildKickoffMessage({
+              clientName: client?.name ?? "Cliente",
+              brainDump: full.definition.brainDump,
+              sealed,
+            }),
+          },
+          ...history.map((m) => ({ role: m.role, content: m.content })),
+        ],
+      }),
     });
 
     const draft = response.content

@@ -1,5 +1,5 @@
 /**
- * Cliente y modelo Anthropic para el pipeline de Definición de Proyecto.
+ * Modelo Anthropic para el pipeline de Definición de Proyecto.
  *
  * A diferencia del resto de rutas IA de la app (que caen a
  * `ANTHROPIC_MODEL ?? haiku`, pensado para tareas cortas), el "PM retador"
@@ -9,17 +9,15 @@
  * Nota Sonnet 5: NO enviar `temperature`/`top_p`/`top_k` (el modelo los
  * rechaza). Las llamadas son single-shot `messages.create`, sin streaming —
  * consistente con toda la app.
+ *
+ * Aquí ya NO vive `getDefinitionClient()`: instanciar el SDK es exclusivo de
+ * `@/lib/ai/anthropic-egress`, que aplica la política de egress antes de
+ * construir nada. Este módulo se queda con la resolución de modelo y el tope de
+ * tokens — lógica pura, sin secretos.
  */
-import Anthropic from "@anthropic-ai/sdk";
 
 export function getDefinitionModel(): string {
   return process.env.DEFINITION_AI_MODEL ?? "claude-sonnet-5";
-}
-
-export function getDefinitionClient(): Anthropic {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error("ANTHROPIC_API_KEY is required but not set");
-  return new Anthropic({ apiKey });
 }
 
 /** Tokens máximos por generación. Los documentos (lista de funciones, MVP) pueden ser largos. */

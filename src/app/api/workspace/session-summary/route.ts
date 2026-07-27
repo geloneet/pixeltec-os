@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import Anthropic from "@anthropic-ai/sdk";
+import { anthropicCreate } from "@/lib/ai/anthropic-egress";
+import { parseModelJson } from "@/lib/ai/model-json";
 import { requireSession } from "@/lib/vpsClient";
 import type { WorkSession } from "@/types/session";
-
-const client = new Anthropic();
 
 interface RequestBody {
   session: WorkSession;
@@ -17,42 +16,36 @@ interface SummaryResponse {
   nextStep: string;
 }
 
-export async function POST(req: NextRequest): Promise<NextResponse> {
-  try {
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get("__session")?.value ?? "";
-    const authSession = await requireSession(sessionCookie);
-    if (!authSession.ok) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
+/**
+ * Arma el prompt con el contenido de la sesión. Se invoca DENTRO de la fábrica
+ * diferida de `anthropicCreate`: si la política de egress bloquea, este texto
+ * —que lleva proyecto, tarea, notas y bloqueos reales— nunca llega a existir.
+ */
+function buildPrompt(session: WorkSession, elapsed?: number): string {
+  const activitiesText = session.activities
+    .filter((a) => a.completedAt)
+    .map((a) => `- ${a.description}`)
+    .join("\n") || "Sin actividades registradas";
 
-    const body: RequestBody = await req.json();
-    const { session } = body;
+  const goalsText = (session.sessionGoals ?? [])
+    .map(g => `${g.completed ? "✓" : "☐"} ${g.text}`)
+    .join("\n") || "Sin objetivos definidos";
 
-    const activitiesText = session.activities
-      .filter((a) => a.completedAt)
-      .map((a) => `- ${a.description}`)
-      .join("\n") || "Sin actividades registradas";
+  const observationsText = session.notes.length > 0
+    ? session.notes.map(n => `[${n.type}] ${n.content}`).join("\n")
+    : "Sin observaciones";
 
-    const goalsText = (session.sessionGoals ?? [])
-      .map(g => `${g.completed ? "✓" : "☐"} ${g.text}`)
-      .join("\n") || "Sin objetivos definidos";
+  const blockersText = session.blockers.length > 0
+    ? session.blockers.map((b) => `- [${b.status}][${b.impact}][${b.source}] ${b.description}`).join("\n")
+    : "Sin bloqueos";
 
-    const observationsText = session.notes.length > 0
-      ? session.notes.map(n => `[${n.type}] ${n.content}`).join("\n")
-      : "Sin observaciones";
+  const durationMin = elapsed != null
+    ? Math.round(elapsed / 60)
+    : session.durationSeconds != null
+    ? Math.round(session.durationSeconds / 60)
+    : "desconocida";
 
-    const blockersText = session.blockers.length > 0
-      ? session.blockers.map((b) => `- [${b.status}][${b.impact}][${b.source}] ${b.description}`).join("\n")
-      : "Sin bloqueos";
-
-    const durationMin = body.elapsed != null
-      ? Math.round(body.elapsed / 60)
-      : session.durationSeconds != null
-      ? Math.round(session.durationSeconds / 60)
-      : "desconocida";
-
-    const prompt = `Eres el asistente de un desarrollador freelance. Al final de una sesión de trabajo generaste el siguiente registro:
+  return `Eres el asistente de un desarrollador freelance. Al final de una sesión de trabajo generaste el siguiente registro:
 
 PROYECTO: ${session.projectName}
 TAREA: ${session.taskName}
@@ -80,19 +73,31 @@ Con esta información:
 
 Responde SOLO con JSON válido en este formato exacto:
 {"summary":"...","bitacoraEntry":"...","nextStep":"..."}`;
+}
 
-    const message = await client.messages.create({
+export async function POST(req: NextRequest): Promise<NextResponse> {
+  try {
+    const cookieStore = await cookies();
+    const sessionCookie = cookieStore.get("__session")?.value ?? "";
+    const authSession = await requireSession(sessionCookie);
+    if (!authSession.ok) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+
+    const body: RequestBody = await req.json();
+    const { session } = body;
+
+    const message = await anthropicCreate({
+      operation: "analyze",
       model: process.env.ANTHROPIC_MODEL ?? "claude-haiku-4-5-20251001",
-      max_tokens: 600,
-      messages: [{ role: "user", content: prompt }],
+      buildParams: () => ({
+        max_tokens: 600,
+        messages: [{ role: "user", content: buildPrompt(session, body.elapsed) }],
+      }),
     });
 
     const text = message.content[0].type === "text" ? message.content[0].text : "";
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error("AI response did not contain valid JSON");
-    }
-    const parsed: SummaryResponse = JSON.parse(jsonMatch[0]);
+    const parsed = parseModelJson<SummaryResponse>(text);
 
     return NextResponse.json(parsed);
   } catch (err) {

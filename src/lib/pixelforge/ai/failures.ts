@@ -4,6 +4,7 @@
  */
 import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
+import { AiProviderError } from "@/lib/ai/errors";
 
 export type PixelforgeRunFailure =
   | "refusal"
@@ -75,8 +76,14 @@ function isZodErrorLike(err: unknown): err is z.ZodError {
 }
 
 /**
- * Clasifica un error capturado en `ai/run.ts` (try/catch alrededor de
- * `messages.create`) en una `PixelforgeRunFailure`:
+ * Clasifica un error capturado en `ai/run.ts` (try/catch alrededor de la
+ * llamada protegida) en una `PixelforgeRunFailure`:
+ * - `AiProviderError` → según su `code`. Es la forma SANEADA con la que el
+ *   adaptador de egress (`@/lib/ai/anthropic-egress`) entrega cualquier fallo
+ *   del SDK: el mensaje crudo se descarta allí porque puede citar el prompt o
+ *   la respuesta, y lo que sobrevive es el `code` estable — suficiente para
+ *   seguir distinguiendo timeout, rechazo de gramática y error de proveedor.
+ *   Va PRIMERO porque en producción es la única forma en que llegan.
  * - `ZodError` → `domain_validation` (hoy `run.ts` no deja escapar `ZodError` desde ese try/catch
  *   — el parseo/validación corre AFUERA, con `safeParse` propio — pero esta rama se conserva por
  *   si algún caller externo captura un `ZodError` real y lo pasa por acá).
@@ -86,6 +93,14 @@ function isZodErrorLike(err: unknown): err is z.ZodError {
  * - Desconocido → `provider_error`.
  */
 export function classifyError(err: unknown): PixelforgeRunFailure {
+  if (err instanceof AiProviderError) {
+    if (err.code === "ai_timeout") return "timeout";
+    if (err.code === "ai_schema_rejected") return "schema_too_complex";
+    // `ai_provider_error` y `ai_not_configured` comparten kind: para la corrida
+    // el efecto es el mismo (no hubo respuesta del proveedor) y la taxonomía
+    // persistida en `ai_runs` no se amplía por este cambio.
+    return "provider_error";
+  }
   if (isZodErrorLike(err)) return "domain_validation";
   if (isTimeoutLike(err)) return "timeout";
   if (isAPIErrorLike(err)) {
