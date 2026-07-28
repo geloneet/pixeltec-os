@@ -6,6 +6,7 @@ import { auth } from "@/lib/auth/config";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { deleteObject, uploadObject } from "@/lib/r2/upload";
+import { toPublicFailure } from "@/lib/errors/public-failure";
 import {
   AVATAR_MAX_BYTES,
   AVATAR_ALLOWED_TYPES,
@@ -65,9 +66,15 @@ export async function uploadAvatar(formData: FormData): Promise<ActionResult> {
     revalidatePath("/", "layout");
     return { ok: true, url: publicUrl };
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error("[profile/actions] uploadAvatar: user=%s error=%s", user.id, msg, err);
-    return { ok: false, error: "Error al subir la imagen" };
+    // El log llevaba el `message` crudo y además el objeto `err` entero, que
+    // arrastra stack y —en un fallo de R2— la clave del bucket y la URL
+    // firmada. Sólo se registra un código estable y el usuario afectado.
+    const failure = toPublicFailure(err, {
+      code: "profile_upload_avatar_failed",
+      message: "Error al subir la imagen",
+    });
+    console.error("[profile/actions] uploadAvatar: user=%s code=%s", user.id, failure.code);
+    return { ok: false, error: failure.message };
   }
 }
 

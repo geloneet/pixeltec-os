@@ -22,9 +22,14 @@
  *
  * ## Qué se reconoce aquí y qué no
  *
- * Se reconocen las clases seguras cuyo módulo es barato de importar
- * (`egress-guard` no tiene dependencias; `ai/errors` y `vpsClient` sólo
- * dependen de él). `QaRunAlreadyActiveError` **no** se reconoce aquí: vive en
+ * Este módulo es la **capa HTTP**: resuelve las clases propias del transporte
+ * —`EgressBlockedError` y `VpsTransportError`— y delega el resto en
+ * `toPublicFailure` (`./public-failure`), que es el núcleo compartido con las
+ * Server Actions. La separación no es estética: si el núcleo conociera
+ * `vpsClient`, cada Server Action importaría el cliente del VPS y las guardas
+ * de egress sin usarlas jamás.
+ *
+ * `QaRunAlreadyActiveError` **no** se reconoce aquí: vive en
  * `lib/db/repos/pixelforge.ts`, 2724 líneas que arrastran Drizzle, `postgres` y
  * R2. Importarlo obligaría a las 14 rutas de `/api/vps` a cargar el ORM entero
  * para nada. Esa clase se trata con un `instanceof` explícito en la ruta de QA,
@@ -32,8 +37,8 @@
  */
 import { NextResponse } from "next/server";
 import { EgressBlockedError } from "@/lib/egress-guard";
-import { SafeUserError } from "@/lib/ai/errors";
 import { VpsTransportError } from "@/lib/vpsClient";
+import { toPublicFailure } from "./public-failure";
 
 /**
  * Lo único que puede cruzar hacia una respuesta HTTP.
@@ -65,11 +70,10 @@ export type RouteFailure = {
  * el usuario va a ver.
  */
 export function toRouteFailure(error: unknown, fallback: RouteFailure): RouteFailure {
-  // Mensaje literal nuestro por construcción: la clase existe justamente para
-  // poder distinguirlo en runtime de un `new Error(...)` cualquiera.
-  if (error instanceof SafeUserError) {
-    return { code: error.code, message: error.message, status: fallback.status };
-  }
+  // 1. Clases propias de esta capa. Se resuelven AQUÍ y no en el núcleo público
+  //    a propósito: si `toPublicFailure` conociera `vpsClient` o las guardas de
+  //    egress, las 22 Server Actions acabarían importando el cliente del VPS
+  //    sin usarlo nunca.
 
   // La llamada no llegó a salir por política de egress. Se distingue del fallo
   // de proveedor a propósito: confundirlos esconde una configuración incompleta
@@ -91,8 +95,15 @@ export function toRouteFailure(error: unknown, fallback: RouteFailure): RouteFai
     };
   }
 
-  // Desconocido. No se inspecciona de ninguna forma.
-  return fallback;
+  // 2. Lo común a cualquier salida: `SafeUserError` conserva su texto —lo
+  //    redactamos nosotros— y todo lo desconocido se descarta sin mirarlo.
+  const publicFailure = toPublicFailure(error, {
+    code: fallback.code,
+    message: fallback.message,
+  });
+
+  // 3. La capa HTTP añade lo suyo: el status de NUESTRA respuesta.
+  return { ...publicFailure, status: fallback.status };
 }
 
 /**

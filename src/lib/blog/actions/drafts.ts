@@ -9,6 +9,7 @@ import { resolveBriefRow, resolvePostRow, publicId, getUserDisplayName } from '.
 import { generatePostFromBrief, computeWordCount, computeReadingTime, generateSlug } from '../ai/generate-post';
 import type { BlogBriefDoc } from '../types';
 import type { ActionResult } from '../schemas';
+import { toPublicFailure } from '@/lib/errors/public-failure';
 
 function setBriefStatus(briefRowId: string, patch: Record<string, unknown>) {
   return db
@@ -95,7 +96,17 @@ export async function generateDraft(briefId: string): Promise<ActionResult<{ pos
   } catch (err) {
     await setBriefStatus(briefRow.id, { status: 'pending' });
     console.error('generateDraft error:', err);
-    return { ok: false, error: err instanceof Error ? err.message : 'Error generando borrador' };
+    // Los adaptadores de IA ya sanean lo suyo, pero esta Action no puede
+    // apoyarse en esa garantía para cualquier `Error` futuro: un
+    // `AiProviderError` o un fallo de Drizzle citarían el cuerpo del proveedor
+    // o la consulta, y el editor los muestra tal cual con `toast.error`.
+    return {
+      ok: false,
+      error: toPublicFailure(err, {
+        code: 'blog_generate_draft_failed',
+        message: 'Error generando borrador',
+      }).message,
+    };
   }
 }
 
@@ -147,6 +158,12 @@ export async function regenerateDraft(postId: string): Promise<ActionResult<{ po
     return { ok: true, data: { postId } };
   } catch (err) {
     console.error('regenerateDraft error:', err);
-    return { ok: false, error: err instanceof Error ? err.message : 'Error regenerando borrador' };
+    return {
+      ok: false,
+      error: toPublicFailure(err, {
+        code: 'blog_regenerate_draft_failed',
+        message: 'Error regenerando borrador',
+      }).message,
+    };
   }
 }

@@ -33,6 +33,25 @@ import { eq, and, isNull, gt } from 'drizzle-orm';
 import { db as pgDb } from '@/lib/db';
 import { clients as clientsTable, users as usersTable, passwordResetTokens, leads as leadsTable } from '@/lib/db/schema';
 import bcrypt from 'bcryptjs';
+import { toPublicFailure, type PublicFailure } from '@/lib/errors/public-failure';
+
+/**
+ * Códigos estables para `systemAlerts.context`. El `message` no se usa: en este
+ * archivo el visitante ya recibe un texto genérico propio y lo único que se
+ * persiste es el código.
+ */
+const CONTACT_LEAD_FAILURE: PublicFailure = {
+  code: 'contact_create_lead_failed',
+  message: 'createLead failed',
+};
+const DIAGNOSTIC_LEAD_FAILURE: PublicFailure = {
+  code: 'diagnostic_create_lead_failed',
+  message: 'createDiagnosticLead failed',
+};
+const NEWSLETTER_FAILURE: PublicFailure = {
+  code: 'newsletter_subscribe_failed',
+  message: 'subscribeOrReactivate failed',
+};
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:9002';
 
@@ -152,7 +171,10 @@ export async function submitContactForm(
       severity: 'critical',
       source: 'contact_form',
       message: 'createLead failed — visitor saw a generic error',
-      context: { error: String(err) },
+      // `systemAlerts.context` es jsonb persistido: la conversión a texto del
+      // error metía ahí el SQL de Drizzle y el stack. Sólo viaja un código
+      // estable.
+      context: { code: toPublicFailure(err, CONTACT_LEAD_FAILURE).code },
     });
     return {
       message: 'Ocurrió un error inesperado. Inténtalo de nuevo en unos minutos.',
@@ -178,10 +200,10 @@ export async function submitContactForm(
   if (teamOk && userOk) {
     await updateLeadEmailDelivery(leadId, 'sent');
   } else {
-    const errMsg = [
-      !teamOk ? `team: ${teamResult.error}` : null,
-      !userOk ? `user: ${userResult.error}` : null,
-    ]
+    // `EmailResult.error` trae el texto crudo de Resend (`lib/email.ts` lo
+    // propaga tal cual), y esto se persiste en `leads` y en
+    // `system_alerts.context`. Sólo se registra QUÉ destinatario falló.
+    const errMsg = [!teamOk ? 'team: email_send_failed' : null, !userOk ? 'user: email_send_failed' : null]
       .filter(Boolean)
       .join(' | ');
     await updateLeadEmailDelivery(leadId, 'failed', errMsg);
@@ -323,7 +345,7 @@ export async function submitDiagnostic(input: DiagnosticFormInput): Promise<Subm
       severity: 'critical',
       source: 'diagnostic',
       message: 'createDiagnosticLead failed — visitor saw a generic error',
-      context: { error: String(err) },
+      context: { code: toPublicFailure(err, DIAGNOSTIC_LEAD_FAILURE).code },
     });
     return { ok: false, message: 'Ocurrió un error inesperado. Inténtalo de nuevo en unos minutos.' };
   }
@@ -614,7 +636,10 @@ export async function subscribeToNewsletterAction(
       severity: 'critical',
       source: 'newsletter',
       message: 'subscribeOrReactivate failed',
-      context: { error: String(err), email: normalizedEmail },
+      // `email` se conserva tal cual: retirarlo es una decisión de retención de
+      // PII, no de saneamiento de errores, y queda registrada como deuda de
+      // E0g. Lo que sí sale es la conversión a texto del error.
+      context: { code: toPublicFailure(err, NEWSLETTER_FAILURE).code, email: normalizedEmail },
     });
     return {
       success: false,
@@ -636,7 +661,9 @@ export async function subscribeToNewsletterAction(
       severity: 'warning',
       source: 'newsletter',
       message: 'Welcome email failed — subscriber persisted in Firestore',
-      context: { email: normalizedEmail, error: result.error },
+      // Mismo motivo que en `submitContactForm`: `result.error` es el texto
+      // crudo de Resend y esto es una columna jsonb persistida.
+      context: { email: normalizedEmail, code: 'newsletter_welcome_email_failed' },
     });
     // Subscriber is already in Firestore; show success to keep funnel clean.
     return { success: true };

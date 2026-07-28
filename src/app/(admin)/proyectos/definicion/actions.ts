@@ -33,6 +33,7 @@ import {
 import type { DefinitionStation } from "@/lib/definition/types";
 import { stripCongeladora, stripPmQuestions } from "@/lib/definition/proposal-content";
 import type { PortalActionResult } from "@/lib/action-types";
+import { toPublicFailure } from "@/lib/errors/public-failure";
 
 interface Auth {
   ownerId: string;
@@ -122,7 +123,10 @@ export async function startDefinitionAction(input: {
     console.error("[startDefinitionAction]", err);
     return {
       success: false,
-      error: err instanceof Error ? err.message : "No se pudo iniciar la definición",
+      error: toPublicFailure(err, {
+        code: "definition_start_failed",
+        message: "No se pudo iniciar la definición",
+      }).message,
     };
   }
 }
@@ -148,7 +152,10 @@ export async function updateDraftAction(input: {
     console.error("[updateDraftAction]", err);
     return {
       success: false,
-      error: err instanceof Error ? err.message : "No se pudo guardar el borrador",
+      error: toPublicFailure(err, {
+        code: "definition_update_draft_failed",
+        message: "No se pudo guardar el borrador",
+      }).message,
     };
   }
 }
@@ -170,7 +177,10 @@ export async function approveStationAction(input: {
     console.error("[approveStationAction]", err);
     return {
       success: false,
-      error: err instanceof Error ? err.message : "No se pudo aprobar la estación",
+      error: toPublicFailure(err, {
+        code: "definition_approve_station_failed",
+        message: "No se pudo aprobar la estación",
+      }).message,
     };
   }
 }
@@ -197,7 +207,10 @@ export async function reopenStationAction(input: {
     console.error("[reopenStationAction]", err);
     return {
       success: false,
-      error: err instanceof Error ? err.message : "No se pudo reabrir la estación",
+      error: toPublicFailure(err, {
+        code: "definition_reopen_station_failed",
+        message: "No se pudo reabrir la estación",
+      }).message,
     };
   }
 }

@@ -29,6 +29,7 @@ import {
   type Actor,
 } from "@/lib/db/repos/pixelforge";
 import { getDefinitionFull } from "@/lib/db/repos/definitions";
+import { toPublicFailure } from "@/lib/errors/public-failure";
 import {
   PIXELFORGE_STATION_SEQUENCE,
   stationForKind,
@@ -224,7 +225,10 @@ export async function addContextSourceAction(input: {
     console.error("[addContextSourceAction]", err);
     return {
       success: false,
-      error: err instanceof Error ? err.message : "No se pudo anexar la fuente",
+      error: toPublicFailure(err, {
+        code: "pixelforge_add_context_source_failed",
+        message: "No se pudo anexar la fuente",
+      }).message,
     };
   }
 }
@@ -287,7 +291,10 @@ export async function updateArtifactDraftAction(input: {
     console.error("[updateArtifactDraftAction]", err);
     return {
       success: false,
-      error: err instanceof Error ? err.message : "No se pudo guardar el borrador",
+      error: toPublicFailure(err, {
+        code: "pixelforge_update_artifact_draft_failed",
+        message: "No se pudo guardar el borrador",
+      }).message,
     };
   }
 }
@@ -320,7 +327,10 @@ export async function sealArtifactByKindAction(input: {
     console.error("[sealArtifactByKindAction]", err);
     return {
       success: false,
-      error: err instanceof Error ? err.message : "No se pudo sellar el artefacto",
+      error: toPublicFailure(err, {
+        code: "pixelforge_seal_artifact_failed",
+        message: "No se pudo sellar el artefacto",
+      }).message,
     };
   }
 }
@@ -355,7 +365,10 @@ export async function reopenArtifactByKindAction(input: {
     console.error("[reopenArtifactByKindAction]", err);
     return {
       success: false,
-      error: err instanceof Error ? err.message : "No se pudo reabrir el artefacto",
+      error: toPublicFailure(err, {
+        code: "pixelforge_reopen_artifact_failed",
+        message: "No se pudo reabrir el artefacto",
+      }).message,
     };
   }
 }
@@ -385,7 +398,10 @@ export async function setRunDecisionAction(input: {
     console.error("[setRunDecisionAction]", err);
     return {
       success: false,
-      error: err instanceof Error ? err.message : "No se pudo registrar tu respuesta",
+      error: toPublicFailure(err, {
+        code: "pixelforge_set_run_decision_failed",
+        message: "No se pudo registrar tu respuesta",
+      }).message,
     };
   }
 }
@@ -434,7 +450,10 @@ export async function chooseDirectionAction(input: {
     console.error("[chooseDirectionAction]", err);
     return {
       success: false,
-      error: err instanceof Error ? err.message : "No se pudo registrar la elección",
+      error: toPublicFailure(err, {
+        code: "pixelforge_choose_direction_failed",
+        message: "No se pudo registrar la elección",
+      }).message,
     };
   }
 }
@@ -507,7 +526,10 @@ export async function addUrlReferenceAction(input: {
     console.error("[addUrlReferenceAction]", err);
     return {
       success: false,
-      error: err instanceof Error ? err.message : "No se pudo agregar la referencia",
+      error: toPublicFailure(err, {
+        code: "pixelforge_add_url_reference_failed",
+        message: "No se pudo agregar la referencia",
+      }).message,
     };
   }
 }
@@ -558,7 +580,10 @@ export async function addImageReferenceAction(
     } catch (err) {
       return {
         success: false,
-        error: err instanceof Error ? err.message : "No se pudo subir la imagen",
+        error: toPublicFailure(err, {
+          code: "pixelforge_upload_reference_image_failed",
+          message: "No se pudo subir la imagen",
+        }).message,
       };
     }
 
@@ -583,7 +608,10 @@ export async function addImageReferenceAction(
     console.error("[addImageReferenceAction]", err);
     return {
       success: false,
-      error: err instanceof Error ? err.message : "No se pudo agregar la referencia",
+      error: toPublicFailure(err, {
+        code: "pixelforge_add_image_reference_failed",
+        message: "No se pudo agregar la referencia",
+      }).message,
     };
   }
 }
@@ -616,7 +644,10 @@ export async function addNoteReferenceAction(input: {
     console.error("[addNoteReferenceAction]", err);
     return {
       success: false,
-      error: err instanceof Error ? err.message : "No se pudo agregar la nota",
+      error: toPublicFailure(err, {
+        code: "pixelforge_add_note_reference_failed",
+        message: "No se pudo agregar la nota",
+      }).message,
     };
   }
 }
@@ -644,7 +675,10 @@ export async function removeReferenceAction(input: {
     console.error("[removeReferenceAction]", err);
     return {
       success: false,
-      error: err instanceof Error ? err.message : "No se pudo eliminar la referencia",
+      error: toPublicFailure(err, {
+        code: "pixelforge_remove_reference_failed",
+        message: "No se pudo eliminar la referencia",
+      }).message,
     };
   }
 }

@@ -16,6 +16,7 @@ import {
 } from "@/lib/db/repos/crm-sync";
 import type { CRMClient, Tool, ServerClientLink } from "@/types/crm";
 import type { WorkSession } from "@/types/session";
+import { toPublicFailure } from "@/lib/errors/public-failure";
 
 async function requireOwnerId(): Promise<string> {
   const session = await auth();
@@ -51,6 +52,17 @@ export async function syncCrmDataAction(payload: CrmSyncPayload): Promise<{ ok: 
     await Promise.all(jobs);
     return { ok: true };
   } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+    // Este `catch` cubre la sincronización completa del CRM: un fallo de
+    // Drizzle citaba aquí la consulta y los nombres de columna, y el
+    // la conversión a texto arrastraba objetos enteros. `CRMContextCore` muestra
+    // este campo directamente.
+    console.error("[syncCrmDataAction]", error);
+    return {
+      ok: false,
+      error: toPublicFailure(error, {
+        code: "crm_sync_failed",
+        message: "No se pudo sincronizar la información del CRM.",
+      }).message,
+    };
   }
 }
