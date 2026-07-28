@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth-guards";
+import { parseJsonBody, toInboxFailure } from "@/lib/whatsapp-inbox/errors";
 import { fetchPixelbot } from "@/lib/whatsapp-inbox/pixelbot-client";
 
 export const runtime = "nodejs";
@@ -14,17 +15,32 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: guard.error }, { status: guard.status });
   }
 
-  try {
-    const { id } = await params;
-    const { active } = await req.json();
-    if (typeof active !== "boolean") {
-      return NextResponse.json({ error: "active debe ser booleano" }, { status: 400 });
-    }
+  const { id } = await params;
+  // El id es un entero de PixelBot. Validarlo aquí evita que un segmento
+  // arbitrario reescriba la ruta interna solicitada: era el único sitio del
+  // subsistema que interpolaba un parámetro sin codificar.
+  if (!/^[1-9][0-9]*$/.test(id)) {
+    return NextResponse.json({ error: "id debe ser un entero positivo" }, { status: 400 });
+  }
 
-    const { data, status } = await fetchPixelbot(`/internal/examples/${id}/active`, { active }, "POST");
+  const parsed = await parseJsonBody<{ active?: unknown }>(req);
+  if (!parsed.ok) {
+    return NextResponse.json({ error: "Cuerpo JSON inválido", code: "invalid_body" }, { status: 400 });
+  }
+  const { active } = parsed.value;
+  if (typeof active !== "boolean") {
+    return NextResponse.json({ error: "active debe ser booleano" }, { status: 400 });
+  }
+
+  try {
+    const { data, status } = await fetchPixelbot(
+      `/internal/examples/${encodeURIComponent(id)}/active`,
+      { active },
+      "POST"
+    );
     return NextResponse.json(data, { status });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return NextResponse.json({ error: "Error al actualizar el ejemplo: " + message }, { status: 500 });
+    const failure = toInboxFailure(error, "No se pudo actualizar el ejemplo.");
+    return NextResponse.json({ error: failure.message, code: failure.code }, { status: failure.status });
   }
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth-guards";
+import { parseJsonBody, toInboxFailure } from "@/lib/whatsapp-inbox/errors";
 import { fetchPixelbot } from "@/lib/whatsapp-inbox/pixelbot-client";
 
 export const runtime = "nodejs";
@@ -14,17 +15,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: guard.error }, { status: guard.status });
   }
 
+  const parsed = await parseJsonBody<{ phone?: unknown }>(req);
+  if (!parsed.ok) {
+    return NextResponse.json({ error: "Cuerpo JSON inválido", code: "invalid_body" }, { status: 400 });
+  }
+  const { phone } = parsed.value;
+  if (typeof phone !== "string" || !phone.trim()) {
+    return NextResponse.json({ error: "phone es requerido" }, { status: 400 });
+  }
+
+  const tenantId = process.env.PIXELBOT_TENANT_ID;
+  if (!tenantId) {
+    return NextResponse.json({ error: "PIXELBOT_TENANT_ID no configurado" }, { status: 503 });
+  }
+
   try {
-    const { phone } = await req.json();
-    if (typeof phone !== "string" || !phone.trim()) {
-      return NextResponse.json({ error: "phone es requerido" }, { status: 400 });
-    }
-
-    const tenantId = process.env.PIXELBOT_TENANT_ID;
-    if (!tenantId) {
-      return NextResponse.json({ error: "PIXELBOT_TENANT_ID no configurado" }, { status: 503 });
-    }
-
     const { data, status } = await fetchPixelbot(
       "/internal/conversations/read",
       { tenant_id: tenantId, phone: phone.trim() },
@@ -32,7 +37,7 @@ export async function POST(req: NextRequest) {
     );
     return NextResponse.json(data, { status });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return NextResponse.json({ error: "Error al marcar como leída: " + message }, { status: 500 });
+    const failure = toInboxFailure(error, "No se pudo marcar la conversación como leída.");
+    return NextResponse.json({ error: failure.message, code: failure.code }, { status: failure.status });
   }
 }

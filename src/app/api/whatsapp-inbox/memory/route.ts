@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth-guards";
+import { toInboxFailure } from "@/lib/whatsapp-inbox/errors";
 import { fetchPixelbot } from "@/lib/whatsapp-inbox/pixelbot-client";
 
 export const runtime = "nodejs";
@@ -27,7 +28,7 @@ export async function GET(req: NextRequest) {
     );
     return NextResponse.json(data, { status });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return NextResponse.json({ error: "Error al cargar la memoria: " + message }, { status: 500 });
+    const failure = toInboxFailure(error, "No se pudo cargar la memoria.");
+    return NextResponse.json({ error: failure.message, code: failure.code }, { status: failure.status });
   }
 }

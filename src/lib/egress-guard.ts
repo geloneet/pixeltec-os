@@ -12,12 +12,12 @@
  *
  * Los consumidores importan el helper de su canal —`assertEmailEgressAllowed`,
  * `assertWhatsAppEgressAllowed`, `assertVpsEgressAllowed`,
- * `assertR2EgressAllowed`, `assertMetaEgressAllowed`, `assertAiEgressAllowed`—
- * y nunca leen las variables de entorno de política directamente: la
- * interpretación vive solo aquí.
+ * `assertR2EgressAllowed`, `assertMetaEgressAllowed`, `assertAiEgressAllowed`,
+ * `assertInternalEgressAllowed`— y nunca leen las variables de entorno de
+ * política directamente: la interpretación vive solo aquí.
  */
 
-export type EgressChannel = "email" | "whatsapp" | "vps" | "r2" | "meta" | "ai";
+export type EgressChannel = "email" | "whatsapp" | "vps" | "r2" | "meta" | "ai" | "internal";
 
 export type EgressOperation =
   | "send"
@@ -41,7 +41,11 @@ export type EgressOperation =
   // contenido nuevo. Las tres transportan input del cliente hacia un tercero.
   | "analyze"
   | "generate_text"
-  | "generate_image";
+  | "generate_image"
+  // Servicios internos: leer configuración, mutarla y enviar un mensaje real a
+  // un cliente no comparten perfil de riesgo, y por eso no comparten permiso.
+  | "write"
+  | "send_message";
 
 export type EgressRequest = {
   channel: EgressChannel;
@@ -67,7 +71,8 @@ export type EgressBlockReason =
   | "delete_not_authorized"
   | "credential_read_not_authorized"
   | "publish_not_authorized"
-  | "input_not_authorized";
+  | "input_not_authorized"
+  | "send_not_authorized";
 
 /**
  * Error tipado y estable.
@@ -104,6 +109,7 @@ const MODE_ENV: Record<EgressChannel, string> = {
   r2: "EGRESS_R2_MODE",
   meta: "EGRESS_META_MODE",
   ai: "EGRESS_AI_MODE",
+  internal: "EGRESS_INTERNAL_MODE",
 };
 
 /**
@@ -477,5 +483,104 @@ export function assertAiEgressAllowed(input: {
 
   if (!isProduction() && !flagIsTrue("EGRESS_AI_ALLOW_INPUT_OUTSIDE_PRODUCTION")) {
     block("ai", operation, "input_not_authorized");
+  }
+}
+
+/** Operaciones del canal interno, ordenadas por riesgo creciente. */
+export type InternalOperation = "read" | "write" | "send_message";
+
+/**
+ * ¿Es un nombre DNS interno de Docker? Una sola etiqueta, sin puntos: en la red
+ * `web-network` los contenedores se resuelven por su nombre (`pixelbot`), y ese
+ * nombre no existe fuera de la red. Un host con punto ya es un dominio
+ * resoluble desde internet y no tiene sitio en este canal.
+ */
+function isDockerInternalHost(hostname: string): boolean {
+  return /^[a-z0-9][a-z0-9_-]*$/.test(hostname);
+}
+
+/**
+ * Autoriza una llamada a un servicio interno del stack (hoy solo PixelBot).
+ *
+ * Tres diferencias deliberadas frente al motor genérico:
+ *
+ *  1. **La allowlist se exige siempre**, también en `live` y en producción. El
+ *     destino no es un host suelto sino el trío `<servicio>:<host>:<puerto>`:
+ *     dos listas independientes —una de servicios, otra de hosts— crearían un
+ *     producto cartesiano donde cualquier servicio autorizado quedaría
+ *     combinado con cualquier host autorizado.
+ *
+ *  2. **Restricción dura de red, por encima de la allowlist.** Aunque alguien
+ *     añada `pixelbot:evil.com:3011` a la lista, un host público se rechaza. La
+ *     lista decide entre destinos internos legítimos; no puede convertir uno
+ *     externo en legítimo. Esto importa porque este canal transporta un secreto
+ *     compartido (`X-Internal-Secret`) en cada petición.
+ *
+ *  3. **`send_message` tiene su propio permiso.** Leer configuración y enviar un
+ *     WhatsApp real a un cliente no comparten perfil de riesgo, así que no
+ *     comparten bandera —el mismo criterio que el `delete` de R2 y el `publish`
+ *     de Meta—.
+ */
+export function assertInternalEgressAllowed(input: {
+  service: string;
+  rawUrl: string | undefined;
+  operation: InternalOperation;
+}): void {
+  const { service, rawUrl, operation } = input;
+
+  const mode = resolveMode("internal");
+  if (mode === "invalid") block("internal", operation, "mode_invalid");
+  if (mode === "disabled") block("internal", operation, "mode_disabled");
+
+  if (!rawUrl || rawUrl.trim() === "") block("internal", operation, "target_missing");
+
+  let url: URL;
+  try {
+    url = new URL(rawUrl.trim());
+  } catch {
+    block("internal", operation, "target_invalid");
+  }
+
+  // Credenciales embebidas en la URL: nunca legítimas aquí.
+  if (url.username !== "" || url.password !== "") {
+    block("internal", operation, "target_invalid");
+  }
+  if (url.protocol !== "https:" && url.protocol !== "http:") {
+    block("internal", operation, "target_invalid");
+  }
+
+  const hostname = url.hostname.toLowerCase();
+  const esInterno = HOSTS_LOOPBACK.has(hostname) || isDockerInternalHost(hostname);
+
+  // Restricción dura: la allowlist no puede rescatar un destino público.
+  if (!esInterno) block("internal", operation, "target_invalid");
+
+  // Texto plano solo dentro de la máquina o de la red de Docker. Aquí siempre
+  // se cumple por la comprobación anterior, pero se deja explícito para que
+  // ampliar `esInterno` en el futuro no abra HTTP hacia fuera por descuido.
+  if (url.protocol === "http:" && !esInterno) {
+    block("internal", operation, "target_invalid");
+  }
+
+  const port = url.port !== "" ? url.port : url.protocol === "https:" ? "443" : "80";
+  const normalizedService = (service ?? "").trim().toLowerCase();
+  if (normalizedService === "") block("internal", operation, "target_missing");
+
+  const target = `${normalizedService}:${hostname}:${port}`;
+  const allowlist = readList("EGRESS_INTERNAL_TARGET_ALLOWLIST");
+  if (allowlist.length === 0) block("internal", operation, "allowlist_empty");
+  if (!allowlist.includes(target)) block("internal", operation, "target_not_allowed");
+
+  // `live` conserva el mismo reconocimiento general que el resto de canales.
+  if (mode === "live" && !isProduction() && !flagIsTrue("EGRESS_ALLOW_LIVE_OUTSIDE_PRODUCTION")) {
+    block("internal", operation, "live_outside_production");
+  }
+
+  if (
+    operation === "send_message" &&
+    !isProduction() &&
+    !flagIsTrue("EGRESS_INTERNAL_ALLOW_SEND_OUTSIDE_PRODUCTION")
+  ) {
+    block("internal", operation, "send_not_authorized");
   }
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { tickets } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/auth-guards";
+import { parseJsonBody, toInboxFailure } from "@/lib/whatsapp-inbox/errors";
 
 export const runtime = "nodejs";
 
@@ -22,13 +23,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: guard.error }, { status: guard.status });
   }
 
-  try {
-    const body = (await req.json()) as { problema?: string; phone?: string; contactName?: string | null };
-    const problema = body.problema?.trim();
-    if (!problema || !body.phone) {
-      return NextResponse.json({ error: "problema y phone son requeridos" }, { status: 400 });
-    }
+  const parsed = await parseJsonBody<{
+    problema?: string;
+    phone?: string;
+    contactName?: string | null;
+  }>(req);
+  if (!parsed.ok) {
+    return NextResponse.json({ error: "Cuerpo JSON inválido", code: "invalid_body" }, { status: 400 });
+  }
+  const body = parsed.value;
+  const problema = body.problema?.trim();
+  if (!problema || !body.phone) {
+    return NextResponse.json({ error: "problema y phone son requeridos" }, { status: 400 });
+  }
 
+  try {
     const ticketId = `WA-${Date.now().toString(36).toUpperCase()}`;
     const [ticket] = await db
       .insert(tickets)
@@ -42,7 +51,8 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ticket });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return NextResponse.json({ error: "Error al crear el ticket: " + message }, { status: 500 });
+    // Un error de Drizzle puede citar SQL, nombres de columna y constraints.
+    const failure = toInboxFailure(error, "No se pudo crear el ticket.");
+    return NextResponse.json({ error: failure.message, code: failure.code }, { status: failure.status });
   }
 }

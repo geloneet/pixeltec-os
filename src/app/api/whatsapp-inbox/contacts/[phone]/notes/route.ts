@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth-guards";
 import { addNote, listNotes } from "@/lib/db/repos/whatsapp-contacts";
+import { parseJsonBody, toInboxFailure } from "@/lib/whatsapp-inbox/errors";
 
 export const runtime = "nodejs";
 
@@ -19,8 +20,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ phon
     const notes = await listNotes(phone);
     return NextResponse.json({ notes });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return NextResponse.json({ error: "Error al obtener notas: " + message }, { status: 500 });
+    // Un error de Drizzle puede citar SQL, nombres de columna y constraints.
+    const failure = toInboxFailure(error, "No se pudieron obtener las notas.");
+    return NextResponse.json({ error: failure.message, code: failure.code }, { status: failure.status });
   }
 }
 
@@ -40,17 +42,21 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pho
     return NextResponse.json({ error: guard.error }, { status: guard.status });
   }
 
+  const parsed = await parseJsonBody<{ text?: string }>(req);
+  if (!parsed.ok) {
+    return NextResponse.json({ error: "Cuerpo JSON inválido", code: "invalid_body" }, { status: 400 });
+  }
+  const text = parsed.value.text?.trim();
+  if (!text) {
+    return NextResponse.json({ error: "text es requerido" }, { status: 400 });
+  }
+
   try {
     const { phone } = await params;
-    const body = (await req.json()) as { text?: string };
-    const text = body.text?.trim();
-    if (!text) {
-      return NextResponse.json({ error: "text es requerido" }, { status: 400 });
-    }
     const note = await addNote(phone, text, guard.uid);
     return NextResponse.json({ note });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return NextResponse.json({ error: "Error al guardar la nota: " + message }, { status: 500 });
+    const failure = toInboxFailure(error, "No se pudo guardar la nota.");
+    return NextResponse.json({ error: failure.message, code: failure.code }, { status: failure.status });
   }
 }

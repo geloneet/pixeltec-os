@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth-guards";
+import { toInboxFailure } from "@/lib/whatsapp-inbox/errors";
 import { fetchPixelbot } from "@/lib/whatsapp-inbox/pixelbot-client";
 
 export const runtime = "nodejs";
@@ -14,13 +15,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ phon
     return NextResponse.json({ error: guard.error }, { status: guard.status });
   }
 
+  const tenantId = process.env.PIXELBOT_TENANT_ID;
+  if (!tenantId) {
+    return NextResponse.json({ error: "PIXELBOT_TENANT_ID no configurado" }, { status: 503 });
+  }
+
   try {
     const { phone } = await params;
-    const tenantId = process.env.PIXELBOT_TENANT_ID;
-    if (!tenantId) {
-      return NextResponse.json({ error: "PIXELBOT_TENANT_ID no configurado" }, { status: 503 });
-    }
-
     const { data, status } = await fetchPixelbot(
       `/internal/conversations/${encodeURIComponent(phone)}/messages?tenant_id=${encodeURIComponent(tenantId)}&limit=200`,
       undefined,
@@ -28,7 +29,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ phon
     );
     return NextResponse.json(data, { status });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return NextResponse.json({ error: "Error al obtener mensajes: " + message }, { status: 500 });
+    const failure = toInboxFailure(error, "No se pudieron obtener los mensajes.");
+    return NextResponse.json({ error: failure.message, code: failure.code }, { status: failure.status });
   }
 }
