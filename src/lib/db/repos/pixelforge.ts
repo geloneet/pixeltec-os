@@ -15,6 +15,7 @@ import { and, asc, desc, eq, inArray, isNull, ne } from "drizzle-orm";
 import postgres from "postgres";
 import { db } from "@/lib/db";
 import { deleteObject } from "@/lib/r2/upload";
+import { sanitizeRunErrorForPublic } from "@/lib/pixelforge/ai/public-messages";
 import {
   clients,
   pixelforgeProjects,
@@ -498,7 +499,11 @@ export async function getRunForOwner(
     .innerJoin(pixelforgeProjects, eq(pixelforgeAiRuns.projectId, pixelforgeProjects.id))
     .where(and(eq(pixelforgeAiRuns.id, runId), eq(pixelforgeProjects.ownerId, ownerId)))
     .limit(1);
-  return row ?? null;
+  if (!row) return null;
+  // Saneamiento en lectura (E0f-3b): corridas anteriores persistieron el
+  // message crudo del SDK o el texto de Zod en `error`, y este shape va
+  // directo al poller. La fila no se muta; lo desconocido se sustituye.
+  return { ...row, error: sanitizeRunErrorForPublic(row.error) };
 }
 
 /**

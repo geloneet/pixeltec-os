@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { executeOperation, type RunCallbacks } from "./run";
+import { RUN_PUBLIC_MESSAGES } from "./public-messages";
 import { contextBriefDomainSchema, type ContextBrief } from "../schemas/analyze-context";
 import { resolvePixelForgeModel } from "./model";
 
@@ -108,6 +109,9 @@ function autorizarEgress() {
 beforeEach(() => {
   limpiarPolitica();
   autorizarEgress();
+  // E0f-3b: el catch de `callModel` ahora registra en console.error — silenciado
+  // para que los tests de fallo del proveedor no ensucien la salida.
+  vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
 afterEach(() => {
@@ -271,7 +275,10 @@ describe("executeOperation", () => {
     );
     expect(result).toMatchObject({ failure: "domain_validation" });
     if ("failure" in result) {
-      expect(result.error).toContain("confirmados.0.evidencias");
+      // E0f-3b: antes se aseveraba el texto de Zod ("confirmados.0.evidencias");
+      // ese detalle ya solo viaja en el prompt del retry — lo que sale del
+      // motor (y se persiste) es el mensaje público fijo.
+      expect(result.error).toBe(RUN_PUBLIC_MESSAGES.domain_validation);
     }
   });
 
@@ -527,5 +534,108 @@ describe("executeOperation — guarda de egress de IA", () => {
       expect(result.error).not.toContain(MODELO_AUTORIZADO);
       expect(result.error).not.toContain(`anthropic:${MODELO_AUTORIZADO}`);
     }
+  });
+});
+
+/**
+ * E0f-3b: `RunResult.error` es siempre un mensaje público fijo. Antes el catch
+ * de `callModel` propagaba `err.message` del SDK a `finishRun` (y de ahí a
+ * `pixelforgeAiRuns.error`, que el poller sirve y la UI muestra en toasts).
+ */
+describe("executeOperation — lo persistido vía finishRun no lleva texto crudo (E0f-3b)", () => {
+  const TOKEN_PRIVADO = "sk-ant-api03-tokenprivadodeanthropic";
+  const PROVIDER_BODY = '{"type":"error","error":{"type":"authentication_error","message":"invalid x-api-key"}}';
+
+  it("un throw del SDK persiste el mensaje fijo de su kind, conservando taxonomía, tokens y duración", async () => {
+    const client = makeClient();
+    client.messages.stream.mockReturnValue(
+      asRejectedStream(
+        Object.assign(new Error(`500 ${PROVIDER_BODY} key=${TOKEN_PRIVADO}`), { status: 500 })
+      )
+    );
+    const callbacks = makeCallbacks();
+
+    const result = await executeOperation({
+      client: client as unknown as Anthropic,
+      operation: "analyze_context",
+      system: "system prompt",
+      messages: BASE_MESSAGES,
+      callbacks,
+    });
+
+    expect(callbacks.finishRun).toHaveBeenCalledTimes(1);
+    const cierre = callbacks.finishRun.mock.calls[0][0];
+    expect(cierre).toMatchObject({
+      status: "failed",
+      failureKind: "provider_error",
+      error: RUN_PUBLIC_MESSAGES.provider_error,
+      tokensIn: 0,
+      tokensOut: 0,
+      retryCount: 0,
+    });
+    expect(typeof cierre.durationMs).toBe("number");
+
+    const registrado = JSON.stringify(callbacks.finishRun.mock.calls);
+    expect(registrado).not.toContain(TOKEN_PRIVADO);
+    expect(registrado).not.toContain("invalid x-api-key");
+    expect(result).toEqual({ failure: "provider_error", error: RUN_PUBLIC_MESSAGES.provider_error });
+  });
+
+  it("un timeout conserva su kind y recibe su mensaje fijo, no el message del abort", async () => {
+    const client = makeClient();
+    client.messages.stream.mockReturnValue(
+      asRejectedStream(Object.assign(new Error(`aborted ${TOKEN_PRIVADO}`), { name: "AbortError" }))
+    );
+    const callbacks = makeCallbacks();
+
+    await executeOperation({
+      client: client as unknown as Anthropic,
+      operation: "analyze_context",
+      system: "system prompt",
+      messages: BASE_MESSAGES,
+      callbacks,
+    });
+
+    expect(callbacks.finishRun).toHaveBeenCalledWith(
+      expect.objectContaining({ failureKind: "timeout", error: RUN_PUBLIC_MESSAGES.timeout })
+    );
+  });
+
+  it("domain_validation final persiste el mensaje fijo, no los issues de Zod con la salida del modelo", async () => {
+    const client = makeClient();
+    // Primera respuesta y retry violan el refine de dominio (evidencias vacías).
+    client.messages.stream
+      .mockReturnValueOnce(asStream(textResponse(invalidBrief())))
+      .mockReturnValueOnce(asStream(textResponse(invalidBrief())));
+    const callbacks = makeCallbacks();
+
+    const result = await executeOperation({
+      client: client as unknown as Anthropic,
+      operation: "analyze_context",
+      system: "system prompt",
+      messages: BASE_MESSAGES,
+      domainSchema: contextBriefDomainSchema,
+      callbacks,
+    });
+
+    expect(callbacks.finishRun).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "failed",
+        failureKind: "domain_validation",
+        error: RUN_PUBLIC_MESSAGES.domain_validation,
+        retryCount: 1,
+      })
+    );
+    // El texto de Zod (paths/valores de la salida) no cruza a la persistencia…
+    const registrado = JSON.stringify(callbacks.finishRun.mock.calls);
+    expect(registrado).not.toContain("confirmados");
+    expect(registrado).not.toContain("evidencias");
+    // …pero el retry semántico SÍ recibió el detalle en el prompt (uso interno).
+    const promptRetry = JSON.stringify(client.messages.stream.mock.calls[1][0]);
+    expect(promptRetry).toContain("evidencias");
+    expect(result).toEqual({
+      failure: "domain_validation",
+      error: RUN_PUBLIC_MESSAGES.domain_validation,
+    });
   });
 });

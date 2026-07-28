@@ -148,3 +148,79 @@ describe("GET /api/notifications/charges — el 500 no lleva el message ajeno", 
     expect(body).toEqual({ success: true, notificationsSent: 0, details: [] });
   });
 });
+
+/**
+ * E0f-3b: `details` viaja en la respuesta JSON y antes interpolaba
+ * `${result.error}` (texto de Resend) y `${e}` (throw desconocido). Ahora solo
+ * llevan códigos: el de `EmailResult` (saneado en origen) o los propios de la
+ * ruta.
+ */
+describe("GET /api/notifications/charges — details no lleva texto crudo (E0f-3b)", () => {
+  function cobroActivo() {
+    return {
+      clients: [
+        {
+          id: "cl1",
+          name: "Cliente Prueba",
+          projects: [
+            {
+              id: "p1",
+              name: "Proyecto",
+              charges: [
+                {
+                  id: "c1",
+                  active: true,
+                  concept: "Hosting",
+                  amount: "1000",
+                  frequency: "monthly",
+                  startDate: "2026-01-01",
+                  clientEmail: "cliente@ejemplo.mx",
+                  lastNotified: null,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+  }
+
+  async function correrConCobro() {
+    mockUsers([{ id: "u1" }]);
+    getFullCrmDataMock.mockResolvedValue(cobroActivo());
+    const { getNextChargeDate } = await import("@/lib/crm/next-charge-date");
+    // Mañana: daysUntil = 1 → un cobro mensual notifica.
+    vi.mocked(getNextChargeDate).mockReturnValue(new Date(Date.now() + 20 * 3600 * 1000));
+    sendWhatsAppMock.mockResolvedValue(undefined);
+    return GET(makeRequest());
+  }
+
+  test("un EmailResult fallido interpola el código estable, no el texto de Resend", async () => {
+    sendEmailMock.mockResolvedValue({ success: false, error: "email_provider_failed" });
+
+    const res = await correrConCobro();
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    const details = (body.details as string[]).join(" | ");
+    expect(details).toContain("Email FAILED to cliente@ejemplo.mx: email_provider_failed");
+    expect(details).not.toContain("domain is not verified");
+  });
+
+  test("un throw del envío interpola email_send_threw, jamás el error", async () => {
+    sendEmailMock.mockRejectedValue(
+      Object.assign(new Error(`fallo con ${RAW_SQL} y ${CLIENTE_CONFIDENCIAL}`), {
+        stack: "at sendEmail (/src/lib/email.ts:64:31)",
+      })
+    );
+
+    const res = await correrConCobro();
+    const body = await res.json();
+
+    const details = (body.details as string[]).join(" | ");
+    expect(details).toContain("Email FAILED to cliente@ejemplo.mx: email_send_threw");
+    expect(details).not.toContain(RAW_SQL);
+    expect(details).not.toContain(CLIENTE_CONFIDENCIAL);
+    expect(details).not.toContain("/src/lib/email.ts");
+  });
+});

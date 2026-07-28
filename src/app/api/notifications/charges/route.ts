@@ -115,7 +115,10 @@ export async function GET(req: NextRequest) {
                 }
               } catch (e) {
                 emailOk = false;
-                notifications.push(`Email FAILED to ${charge.clientEmail}: ${e}`);
+                // `details` viaja en la respuesta JSON: un throw desconocido no
+                // aporta ni un carácter — solo el código propio.
+                console.error('[charges] email send threw:', e instanceof Error ? e.name : typeof e);
+                notifications.push(`Email FAILED to ${charge.clientEmail}: email_send_threw`);
               }
             }
 
@@ -153,7 +156,8 @@ export async function GET(req: NextRequest) {
                 },
               });
             } catch (e) {
-              notifications.push(`In-app notification FAILED for ${charge.concept}: ${e}`);
+              console.error('[charges] in-app notification failed:', e instanceof Error ? e.name : typeof e);
+              notifications.push(`In-app notification FAILED for ${charge.concept}: notification_create_failed`);
             }
 
             // 4. Marcar como notificado — solo si el email (cuando aplica) se
@@ -169,7 +173,8 @@ export async function GET(req: NextRequest) {
                   .set({ lastNotified: nextDate })
                   .where(eq(recurringCharges.firestoreId, charge.id));
               } catch (e) {
-                notifications.push(`Failed to persist lastNotified for ${charge.concept}: ${e}`);
+                console.error('[charges] persist lastNotified failed:', e instanceof Error ? e.name : typeof e);
+                notifications.push(`Failed to persist lastNotified for ${charge.concept}: persist_failed`);
               }
             }
           }

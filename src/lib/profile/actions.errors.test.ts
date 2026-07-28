@@ -10,10 +10,11 @@ import { describe, expect, test, vi, beforeEach } from "vitest";
  * URL firmada, y siempre el stack.
  */
 
-const { authMock, uploadObjectMock, deleteObjectMock } = vi.hoisted(() => ({
+const { authMock, uploadObjectMock, deleteObjectMock, dbUpdateMock } = vi.hoisted(() => ({
   authMock: vi.fn(),
   uploadObjectMock: vi.fn(),
   deleteObjectMock: vi.fn(),
+  dbUpdateMock: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/config", () => ({ auth: authMock }));
@@ -22,12 +23,12 @@ vi.mock("@/lib/r2/upload", () => ({
   deleteObject: deleteObjectMock,
 }));
 vi.mock("@/lib/db", () => ({
-  db: { update: vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn() })) })) },
+  db: { update: dbUpdateMock },
 }));
 vi.mock("@/lib/db/schema", () => ({ users: { id: {} } }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
-import { uploadAvatar } from "./actions";
+import { uploadAvatar, deleteAvatar, updateProfile } from "./actions";
 
 const TOKEN_PRIVADO = "EAAG9ZBx0kZCZBsBO1ZC7tokenprivadodemeta";
 const STACK_INTERNO = "at Object.<anonymous> (/Users/pixeltec/pixeltec-os/src/lib/r2/upload.ts:88:9)";
@@ -49,7 +50,19 @@ beforeEach(() => {
   errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
   authMock.mockResolvedValue({ user: { id: "user-1", firebaseUid: "fb-1" } });
   deleteObjectMock.mockResolvedValue(undefined);
+  dbUpdateMock.mockImplementation(() => ({ set: vi.fn(() => ({ where: vi.fn() })) }));
 });
+
+/** Serializa TODO lo que llegó a console.error, incluidos objetos anidados. */
+function logSerializado(): string {
+  return JSON.stringify(
+    errorSpy.mock.calls.map((call: unknown[]) =>
+      call.map((arg: unknown) =>
+        arg instanceof Error ? `${arg.message} ${arg.stack ?? ""}` : String(arg)
+      )
+    )
+  );
+}
 
 describe("uploadAvatar — el log no lleva el error original", () => {
   test("un fallo de R2 no registra bucket, clave ni stack", async () => {
@@ -114,5 +127,49 @@ describe("uploadAvatar — el log no lleva el error original", () => {
     const result = await uploadAvatar(makeFormData());
 
     expect(result).toEqual({ ok: false, error: "No autenticado" });
+  });
+});
+
+/** E0f-3b: los dos catch restantes del archivo dejan de registrar el objeto original. */
+describe("deleteAvatar — el log no lleva el error original", () => {
+  test("un fallo de la BD registra sólo el código estable; el retorno público no cambia", async () => {
+    dbUpdateMock.mockImplementationOnce(() => {
+      throw Object.assign(new Error(`update falló: ${RAW_SQL}`), {
+        name: "PostgresError",
+        query: RAW_SQL,
+        stack: STACK_INTERNO,
+      });
+    });
+
+    const result = await deleteAvatar();
+
+    expect(result).toEqual({ ok: false, error: "Error al eliminar la foto" });
+    expect(logSerializado()).toContain("profile_delete_avatar_failed");
+    for (const marcador of MARCADORES) {
+      expect(logSerializado()).not.toContain(marcador);
+    }
+  });
+});
+
+describe("updateProfile — el log no lleva el error original", () => {
+  test("un fallo de la BD registra sólo el código estable; el retorno público no cambia", async () => {
+    dbUpdateMock.mockImplementationOnce(() => {
+      throw Object.assign(new Error(`update falló: ${RAW_SQL}`), {
+        name: "PostgresError",
+        stack: STACK_INTERNO,
+      });
+    });
+
+    const result = await updateProfile({
+      displayName: "Miguel Robles",
+      phone: "+523221112233",
+      bio: "Dirección técnica",
+    });
+
+    expect(result).toEqual({ ok: false, error: "Error al guardar los cambios" });
+    expect(logSerializado()).toContain("profile_update_failed");
+    for (const marcador of MARCADORES) {
+      expect(logSerializado()).not.toContain(marcador);
+    }
   });
 });

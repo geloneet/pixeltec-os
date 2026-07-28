@@ -17,6 +17,7 @@ import {
   growthJobs,
   growthSocialAccounts,
 } from '@/lib/db/schema';
+import { sanitizePublishErrors } from './social/publish-errors';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -100,6 +101,10 @@ export function serializePostRow(row: GrowthPostRow): Record<string, unknown> {
     id: publicId(row),
     uid: ownerId,
     ...rest,
+    // Saneamiento en lectura (E0f-3b): filas anteriores guardaron err.message
+    // crudo en publishErrors y esta serialización llega entera al cliente. Los
+    // valores fuera de la lista blanca se sustituyen; la fila no se muta.
+    publishErrors: sanitizePublishErrors(row.publishErrors),
     scheduledAt: row.scheduledAt?.toISOString() ?? null,
     publishedAt: row.publishedAt?.toISOString() ?? null,
     createdAt: row.createdAt?.toISOString() ?? null,

@@ -29,6 +29,12 @@ const newsletter = vi.hoisted(() => ({
   normalizeEmail: vi.fn((e: string) => e.trim().toLowerCase()),
 }));
 
+const pgDbMock = vi.hoisted(() => ({
+  select: vi.fn(),
+  insert: vi.fn(),
+  update: vi.fn(),
+}));
+
 // `lib/email` instancia el cliente de Resend en el import, así que sin este
 // mock el módulo revienta al cargarse con `Missing API key`.
 vi.mock("@/lib/email", () => ({
@@ -54,7 +60,7 @@ vi.mock("@/lib/newsletter-repo", () => newsletter);
 vi.mock("@/lib/email-env-guard", () => ({ assertEmailEnv: vi.fn(async () => ({ ok: true })) }));
 vi.mock("@/lib/privacy", () => ({ hashIp: vi.fn(() => "hash") }));
 vi.mock("@/lib/whatsapp/sender", () => ({ sendWhatsApp: vi.fn() }));
-vi.mock("@/lib/db", () => ({ db: { select: vi.fn(), insert: vi.fn(), update: vi.fn() } }));
+vi.mock("@/lib/db", () => ({ db: pgDbMock }));
 vi.mock("@/lib/db/schema", () => ({
   clients: {},
   users: {},
@@ -69,8 +75,10 @@ import {
   subscribeToNewsletterAction,
   submitContactForm,
   submitDiagnostic,
+  requestPasswordResetAction,
   type DiagnosticFormInput,
 } from "./actions";
+import * as emailLib from "@/lib/email";
 
 const RAW_SQL = "INSERT INTO newsletter_subscribers (email) VALUES ($1)";
 const CLIENTE_CONFIDENCIAL = "Clínica Smile More — +5213221234567";
@@ -260,6 +268,67 @@ describe("submitDiagnostic — la alerta persistida no lleva el error", () => {
     const alerta = logSystemAlertMock.mock.calls[0][0];
     expect(alerta.source).toBe("diagnostic");
     expect(alerta.context).toEqual({ code: "diagnostic_create_lead_failed" });
+
+    const persistido = contextoPersistido();
+    for (const marcador of MARCADORES) {
+      expect(persistido).not.toContain(marcador);
+    }
+  });
+
+  /**
+   * E0f-3b — cadena en dos pasos: `email.test.ts` fija que `EmailResult.error`
+   * SOLO puede ser un código estable; aquí se fija que este consumidor
+   * persiste ese valor tal cual (pass-through) en `leads.email_delivery_error`.
+   * Juntos demuestran que el texto de Resend no puede llegar a la columna.
+   */
+  test("un fallo de envío persiste en leads el código de EmailResult, nada más", async () => {
+    leads.createDiagnosticLead.mockResolvedValueOnce("lead-1");
+    const { sendWhatsApp } = await import("@/lib/whatsapp/sender");
+    vi.mocked(sendWhatsApp).mockResolvedValueOnce(undefined as never);
+    vi.mocked(emailLib.sendDiagnosticNotification).mockResolvedValueOnce({
+      success: false,
+      error: "email_provider_failed",
+    });
+
+    const result = (await submitDiagnostic(INPUT)) as { ok: boolean };
+
+    expect(result.ok).toBe(true);
+    expect(leads.updateLeadEmailDelivery).toHaveBeenCalledWith(
+      "lead-1",
+      "failed",
+      "email_provider_failed"
+    );
+    const persistidoEnLeads = JSON.stringify(leads.updateLeadEmailDelivery.mock.calls);
+    for (const marcador of MARCADORES) {
+      expect(persistidoEnLeads).not.toContain(marcador);
+    }
+  });
+});
+
+describe("requestPasswordResetAction — systemAlerts.context sólo recibe el código (E0f-3b)", () => {
+  test("el fallo del envío persiste {error: código estable}, sin texto de Resend", async () => {
+    pgDbMock.select.mockReturnValueOnce({
+      from: () => ({
+        where: () => ({
+          limit: async () => [{ id: "u1", email: "staff@pixeltec.mx", name: "Staff" }],
+        }),
+      }),
+    });
+    pgDbMock.insert.mockReturnValueOnce({ values: async () => undefined });
+    vi.mocked(emailLib.sendPasswordResetEmail).mockResolvedValueOnce({
+      success: false,
+      error: "email_provider_failed",
+    });
+
+    const result = await requestPasswordResetAction("staff@pixeltec.mx");
+
+    // La respuesta pública es SIEMPRE el mensaje genérico anti-enumeración.
+    expect(result.message).toContain("Si el correo existe");
+
+    expect(logSystemAlertMock).toHaveBeenCalledTimes(1);
+    const alerta = logSystemAlertMock.mock.calls[0][0];
+    expect(alerta.source).toBe("password_reset");
+    expect(alerta.context).toEqual({ error: "email_provider_failed" });
 
     const persistido = contextoPersistido();
     for (const marcador of MARCADORES) {

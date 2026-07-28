@@ -9,6 +9,7 @@ import {
   publishFacebookPost,
 } from './meta-api';
 import { resolveOwnerId, resolvePostRow, resolveSocialAccountRow } from '../pg';
+import { PUBLISH_FAILED_MESSAGE, PUBLISH_NO_ACCOUNT_MESSAGE } from './publish-errors';
 import type { PublishResult } from '@/types/growth/social';
 
 type PostRow = typeof growthPosts.$inferSelect;
@@ -104,7 +105,15 @@ async function publishRowToAccount(post: PostRow, account: AccountRow): Promise<
 
     return { ok: true, platform, publishedId, publishedUrl };
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Error desconocido';
+    // `publishErrors` se persiste Y se sirve (serializePostRow esparce la fila
+    // hacia las rutas GET, y este mismo valor vuelve por el POST de publish).
+    // Un throw aquí puede ser de Drizzle o de red, no solo el META_API_ERROR ya
+    // saneado — al log va solo el nombre del error; afuera, el mensaje fijo.
+    console.error('[growth/publish] fallo publicando', {
+      postId: post.id,
+      platform,
+      error: err instanceof Error ? err.name : typeof err,
+    });
 
     await db
       .update(growthPosts)
@@ -112,13 +121,13 @@ async function publishRowToAccount(post: PostRow, account: AccountRow): Promise<
         status: 'failed',
         publishErrors: {
           ...(post.publishErrors as Record<string, unknown>),
-          [platform]: message,
+          [platform]: PUBLISH_FAILED_MESSAGE,
         },
         updatedAt: new Date(),
       })
       .where(eq(growthPosts.id, post.id));
 
-    return { ok: false, platform, error: message };
+    return { ok: false, platform, error: PUBLISH_FAILED_MESSAGE };
   }
 }
 
@@ -157,7 +166,7 @@ export async function publishScheduledPosts(): Promise<{ published: number; fail
         .update(growthPosts)
         .set({
           status: 'failed',
-          publishErrors: { cron: 'Sin cuenta social conectada' },
+          publishErrors: { cron: PUBLISH_NO_ACCOUNT_MESSAGE },
           updatedAt: new Date(),
         })
         .where(eq(growthPosts.id, post.id));

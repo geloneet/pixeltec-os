@@ -57,6 +57,12 @@ import {
 } from "@/lib/ai/anthropic-egress";
 import { OPERATION_SPECS, type PixelforgeAIOperation } from "../schemas";
 import { classifyError, classifyStopReason, type PixelforgeRunFailure } from "./failures";
+import {
+  EMPTY_TEXT_MESSAGE,
+  INVALID_JSON_MESSAGE,
+  RUN_PUBLIC_MESSAGES,
+  STOP_UNEXPECTED_MESSAGE,
+} from "./public-messages";
 import { resolvePixelForgeModel } from "./model";
 
 /**
@@ -113,28 +119,23 @@ export interface ExecuteOperationParams {
 
 export type ExecuteOperationResult = { output: unknown } | { failure: PixelforgeRunFailure; error: string };
 
-const REFUSAL_MESSAGE = "El modelo rechazó generar una respuesta para esta operación.";
-const MAX_TOKENS_MESSAGE = "La respuesta del modelo alcanzó el límite de tokens configurado antes de completarse.";
-const EMPTY_TEXT_MESSAGE = "El modelo no devolvió ningún bloque de texto en la respuesta.";
-const INVALID_JSON_MESSAGE =
-  "La respuesta del modelo no es JSON válido; la gramática de Structured Outputs debió garantizarlo.";
-
 function stopFailureMessage(kind: PixelforgeRunFailure): string {
   // classifyStopReason (./failures) solo devuelve "refusal" | "max_tokens" | null en la práctica —
   // el tipo de retorno es el `PixelforgeRunFailure` ancho de la taxonomía completa, así que
   // cubrimos el resto con un mensaje genérico en vez de castear.
-  if (kind === "refusal") return REFUSAL_MESSAGE;
-  if (kind === "max_tokens") return MAX_TOKENS_MESSAGE;
-  return "El modelo detuvo la generación por un motivo inesperado.";
+  if (kind === "refusal") return RUN_PUBLIC_MESSAGES.refusal;
+  if (kind === "max_tokens") return RUN_PUBLIC_MESSAGES.max_tokens;
+  return STOP_UNEXPECTED_MESSAGE;
 }
 
+/**
+ * Solo para el prompt del retry semántico (viaja al modelo, nunca a
+ * `finishRun`): los issues de Zod pueden citar valores de la salida del modelo
+ * y por eso lo que se PERSISTE ante `domain_validation` es el mensaje fijo de
+ * `RUN_PUBLIC_MESSAGES`, no este texto (E0f-3b).
+ */
 function formatZodErrors(error: z.ZodError): string {
   return error.issues.map((issue) => `- ${issue.path.join(".")}: ${issue.message}`).join("\n");
-}
-
-function messageFromError(err: unknown): string {
-  if (err instanceof Error) return err.message;
-  return String(err);
 }
 
 /**
@@ -241,7 +242,16 @@ export async function executeOperation(params: ExecuteOperationParams): Promise<
       })) as unknown as CreateResponse;
       return response;
     } catch (err) {
-      return { error: classifyError(err), message: messageFromError(err) };
+      // El `message` del SDK/proveedor no cruza (E0f-3b): se persiste el
+      // mensaje público fijo del kind; la taxonomía queda en `failureKind` y
+      // el log solo lleva el nombre del error.
+      const kind = classifyError(err);
+      console.error("[pixelforge/run] llamada al proveedor falló", {
+        operation,
+        kind,
+        error: err instanceof Error ? err.name : typeof err,
+      });
+      return { error: kind, message: RUN_PUBLIC_MESSAGES[kind] };
     }
   }
 
@@ -344,7 +354,15 @@ export async function executeOperation(params: ExecuteOperationParams): Promise<
     // La respuesta del retry se valida COMPLETA forma+dominio — sin un segundo retry pase lo que pase.
     const retryResult = processResponse(retry);
     if (!retryResult.ok) {
-      return fail(retryResult.failure, retryResult.error);
+      // `domain_validation` final: el texto de Zod (que puede citar la salida
+      // del modelo) no se persiste — mensaje fijo. Los de `provider_error` ya
+      // son literales propios (EMPTY/INVALID).
+      return fail(
+        retryResult.failure,
+        retryResult.failure === "domain_validation"
+          ? RUN_PUBLIC_MESSAGES.domain_validation
+          : retryResult.error
+      );
     }
     output = retryResult.data;
   } else {

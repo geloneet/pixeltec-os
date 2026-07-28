@@ -37,6 +37,14 @@ const TEAM_EMAIL = process.env.PIXELTEC_TEAM_EMAIL ?? 'equipo@pixeltec.mx';
 export interface EmailResult {
   success: boolean;
   id?: string;
+  /**
+   * Código estable, jamás texto libre del proveedor (E0f-3b). Este valor se
+   * persiste tal cual en `leads.email_delivery_error` y en
+   * `system_alerts.context`, y cruza rutas HTTP — por eso el contrato es un
+   * código y no un mensaje: `email_egress_blocked` (código de
+   * `EgressBlockedError`), `email_provider_failed` (Resend respondió con
+   * error) o `email_unknown_failure` (excepción inesperada).
+   */
   error?: string;
 }
 
@@ -69,16 +77,18 @@ export async function sendEmail(
     });
 
     if (error) {
-      console.error('[email] Resend error:', error);
-      return { success: false, error: error.message };
+      // El objeto de error de Resend trae su `message` crudo (dominios, cuerpo
+      // de la respuesta): al log solo va el `name` del error, y al contrato el
+      // código estable.
+      console.error('[email] Resend error:', error.name);
+      return { success: false, error: 'email_provider_failed' };
     }
 
     console.log(`[email] Sent "${subject}" → ${to} (id: ${data?.id})`);
     return { success: true, id: data?.id };
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error('[email] Unexpected error:', message);
-    return { success: false, error: message };
+    console.error('[email] Unexpected error:', err instanceof Error ? err.name : typeof err);
+    return { success: false, error: 'email_unknown_failure' };
   }
 }
 

@@ -89,8 +89,14 @@ export async function deleteAvatar(): Promise<ActionResult> {
     revalidatePath("/", "layout");
     return { ok: true };
   } catch (err) {
-    console.error("[profile/actions]", { action: "deleteAvatar", user: user.id, error: err });
-    return { ok: false, error: "Error al eliminar la foto" };
+    // Mismo criterio que uploadAvatar (E0f-3a): el objeto `err` arrastra stack
+    // y detalle de R2/Drizzle — al log solo va el código estable.
+    const failure = toPublicFailure(err, {
+      code: "profile_delete_avatar_failed",
+      message: "Error al eliminar la foto",
+    });
+    console.error("[profile/actions] deleteAvatar: user=%s code=%s", user.id, failure.code);
+    return { ok: false, error: failure.message };
   }
 }
 
@@ -119,7 +125,11 @@ export async function updateProfile(input: UpdateProfileInput): Promise<ActionRe
     revalidatePath("/", "layout");
     return { ok: true };
   } catch (err) {
-    console.error("[profile/actions]", { action: "updateProfile", user: user.id, error: err });
-    return { ok: false, error: "Error al guardar los cambios" };
+    const failure = toPublicFailure(err, {
+      code: "profile_update_failed",
+      message: "Error al guardar los cambios",
+    });
+    console.error("[profile/actions] updateProfile: user=%s code=%s", user.id, failure.code);
+    return { ok: false, error: failure.message };
   }
 }
