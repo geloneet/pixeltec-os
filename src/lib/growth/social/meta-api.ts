@@ -25,7 +25,20 @@ async function metaFetch(input: {
   assertMetaEgressAllowed({ operation: input.operation, target: input.target });
 
   const { path, init } = input.buildRequest();
-  return fetch(`${BASE}${path}`, init);
+
+  // Seis de estos flujos llevan la credencial en la query string, así que un
+  // redirect no solo reenviaría cabeceras: reenviaría la URL entera con el
+  // token dentro. No se sigue ninguno.
+  const res = await fetch(`${BASE}${path}`, { ...init, redirect: "manual" });
+
+  // Se corta antes de que ningún llamador lea la respuesta. Importa porque
+  // `getInstagramUsername` devuelve '' ante `!res.ok`: sin esto, un redirect
+  // se confundiría con «la cuenta no tiene usuario».
+  if (res.type === "opaqueredirect" || (res.status >= 300 && res.status < 400)) {
+    throw metaError(input.operation, res.status);
+  }
+
+  return res;
 }
 
 /**

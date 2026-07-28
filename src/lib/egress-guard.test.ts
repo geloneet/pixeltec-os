@@ -20,9 +20,24 @@ vi.mock("resend", () => ({
   },
 }));
 
+// El S3Client es privado de `r2/upload.ts` desde E0f-1: ya no se puede
+// interceptar importándolo. Se mockea el SDK, que es el único sitio del que
+// puede salir un cliente, para que «cero llamadas» siga significando algo.
 const r2Send = vi.fn(async (_command?: unknown) => ({}));
+vi.mock("@aws-sdk/client-s3", () => ({
+  S3Client: class {
+    send(command: unknown) {
+      return r2Send(command);
+    }
+  },
+  PutObjectCommand: class {
+    constructor(readonly input: unknown) {}
+  },
+  DeleteObjectCommand: class {
+    constructor(readonly input: unknown) {}
+  },
+}));
 vi.mock("@/lib/r2/client", () => ({
-  r2: { send: (command: unknown) => r2Send(command) },
   getR2BucketName: () => process.env.__TEST_R2_BUCKET ?? "",
   getR2PublicUrl: (key: string) => `https://cdn.ejemplo.local/${key}`,
 }));

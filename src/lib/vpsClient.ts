@@ -52,6 +52,36 @@ function getBaseUrl(): string | undefined {
  * `restart` y no un genérico. Se deriva aquí en vez de exigirlo a las 12 rutas:
  * este wrapper es la única frontera, y tocarlas quedaba fuera del gate.
  */
+/**
+ * Códigos de fallo de transporte hacia el vps-api.
+ *
+ * Estables y opacos: describen qué ocurrió en el cable, nunca contra qué. Antes
+ * los errores interpolaban `path=${path}` y el `message` del error subyacente,
+ * que en undici cita host y puerto.
+ */
+export type VpsTransportCode =
+  /** Respondió 3xx. No se sigue: el secreto viaja en la query string. */
+  | "vps_redirect_blocked"
+  /** Respondió algo que no es JSON (típicamente un HTML de nginx). */
+  | "vps_invalid_response"
+  /** Se agotó el tiempo de espera. */
+  | "vps_timeout"
+  /** No se pudo conectar: DNS, conexión rechazada, TLS. */
+  | "vps_unreachable";
+
+export class VpsTransportError extends Error {
+  readonly code: VpsTransportCode;
+  readonly status?: number;
+
+  constructor(code: VpsTransportCode, status?: number) {
+    super(`VPS_TRANSPORT_ERROR: ${code}${status !== undefined ? ` (status ${status})` : ""}`);
+    this.name = "VpsTransportError";
+    this.code = code;
+    this.status = status;
+    Object.setPrototypeOf(this, VpsTransportError.prototype);
+  }
+}
+
 function operationForPath(path: string): EgressOperation {
   const segment = path.toLowerCase();
   if (segment.includes("deploy")) return "deploy";
@@ -109,26 +139,44 @@ export async function fetchVpsApi<T = unknown>(
       init.body = JSON.stringify(options.body);
     }
 
-    const res = await fetch(url, init);
-    const text = await res.text();
-    let data: unknown;
-    try {
-      data = text ? JSON.parse(text) : null;
-    } catch {
-      data = { error: "Non-JSON response from vps-api", raw: text.slice(0, 500) };
+    // El secreto viaja en la query string: seguir un redirect entregaría la
+    // URL entera —secreto incluido— al host que elija `Location`.
+    const res = await fetch(url, { ...init, redirect: "manual" });
+
+    if (res.type === "opaqueredirect" || (res.status >= 300 && res.status < 400)) {
+      // No se lee el cuerpo, no se mira `Location`, no hay segunda petición.
+      throw new VpsTransportError("vps_redirect_blocked", res.status);
     }
 
-    return {
-      ok: res.ok,
-      status: res.status,
-      data: data as T,
-    };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    if (message.includes("aborted")) {
-      throw new Error(`vps-api request timed out after ${timeoutMs}ms (path=${path})`);
+    // Un no-2xx **no aporta cuerpo**. Antes se devolvían 500 caracteres crudos
+    // de la respuesta del vps-api, que pueden citar rutas de archivo, SQL o el
+    // eco del payload. Lo accionable es el status; el resto se descarta.
+    if (!res.ok) {
+      return { ok: false, status: res.status, data: null as T };
     }
-    throw new Error(`vps-api request failed (path=${path}): ${message}`);
+
+    const contentType = (res.headers.get("content-type") ?? "").toLowerCase();
+    if (!contentType.includes("application/json")) {
+      throw new VpsTransportError("vps_invalid_response", res.status);
+    }
+
+    let data: unknown;
+    try {
+      data = await res.json();
+    } catch {
+      throw new VpsTransportError("vps_invalid_response", res.status);
+    }
+
+    return { ok: true, status: res.status, data: data as T };
+  } catch (err) {
+    // Un fallo de transporte ya saneado sube tal cual.
+    if (err instanceof VpsTransportError) throw err;
+
+    // El resto se traduce sin mirar su `message`: undici cita host y puerto en
+    // `cause`, y `path` identificaría el endpoint interno invocado.
+    const abortado =
+      err instanceof Error && (err.name === "AbortError" || err.name === "TimeoutError");
+    throw new VpsTransportError(abortado ? "vps_timeout" : "vps_unreachable");
   } finally {
     clearTimeout(timeout);
   }

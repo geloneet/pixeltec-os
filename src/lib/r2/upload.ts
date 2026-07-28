@@ -1,6 +1,32 @@
-import { DeleteObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { assertR2EgressAllowed } from "@/lib/egress-guard";
-import { getR2BucketName, getR2PublicUrl, r2 } from "./client";
+import { getR2BucketName, getR2PublicUrl } from "./client";
+
+/**
+ * Cliente S3 **privado de este módulo**.
+ *
+ * No se exporta a propósito: las dos funciones de abajo son la única forma de
+ * llegar al bucket, y ambas empiezan por la guarda. Cuando el cliente vivía
+ * exportado en `./client.ts`, bastaba un import para saltársela.
+ *
+ * Perezoso porque construirlo lee credenciales de entorno, y eso no debe
+ * ocurrir al cargar el módulo en procesos que nunca tocan R2.
+ */
+let cliente: S3Client | null = null;
+
+function r2(): S3Client {
+  if (cliente === null) {
+    cliente = new S3Client({
+      region: "auto",
+      endpoint: process.env.R2_ENDPOINT ?? "",
+      credentials: {
+        accessKeyId: process.env.R2_ACCESS_KEY_ID ?? "",
+        secretAccessKey: process.env.R2_SECRET_ACCESS_KEY ?? "",
+      },
+    });
+  }
+  return cliente;
+}
 
 export async function uploadObject(
   key: string,
@@ -12,7 +38,7 @@ export async function uploadObject(
   // y no en `client.ts`.
   assertR2EgressAllowed(getR2BucketName(), "upload");
 
-  await r2.send(
+  await r2().send(
     new PutObjectCommand({
       Bucket: getR2BucketName(),
       Key: key,
@@ -31,7 +57,7 @@ export async function deleteObject(key: string): Promise<void> {
   assertR2EgressAllowed(getR2BucketName(), "delete");
 
   try {
-    await r2.send(new DeleteObjectCommand({ Bucket: getR2BucketName(), Key: key }));
+    await r2().send(new DeleteObjectCommand({ Bucket: getR2BucketName(), Key: key }));
   } catch {
     // best-effort, igual que el .catch silencioso vía Promise.allSettled anterior
   }

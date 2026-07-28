@@ -100,9 +100,24 @@ export async function ideogramGenerateImage(call: ProtectedIdeogramCall): Promis
       method: "POST",
       headers: { "Api-Key": apiKey, "Content-Type": "application/json" },
       body: JSON.stringify(body),
+      // `Api-Key` es una cabecera propia: en un salto cross-origin la spec de
+      // fetch solo elimina Authorization, Cookie y Proxy-Authorization, así que
+      // ésta viajaría íntegra al host que indique `Location`.
+      redirect: "manual",
     });
   } catch (err) {
     sanitizeError(err, "ideogram");
+  }
+
+  // Todo 3xx se rechaza antes de mirar nada más. No se lee el cuerpo, no se
+  // consulta `Location` y no se hace una segunda petición.
+  if (res.type === "opaqueredirect" || (res.status >= 300 && res.status < 400)) {
+    throw new AiProviderError({
+      provider: "ideogram",
+      operation: OPERATION,
+      code: "ai_redirect_blocked",
+      status: res.status,
+    });
   }
 
   if (!res.ok) {

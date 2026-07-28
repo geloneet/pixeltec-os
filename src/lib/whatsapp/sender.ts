@@ -118,24 +118,36 @@ export async function sendWhatsApp(
         "Content-Type": "application/json",
       },
       body: JSON.stringify(payload),
+      // La spec sí elimina `Authorization` en un salto cross-origin, pero no
+      // conviene depender de eso: el destino de `Location` lo elige el otro
+      // extremo, y en el body viajan el teléfono y el texto del cliente.
+      redirect: "manual",
     });
-  } catch (err) {
-    const detail = err instanceof Error ? err.message : String(err);
-    console.error("[whatsapp] send failed (network)", { error: detail, to: masked });
-    throw new Error(`Meta WhatsApp API network error: ${detail}`);
+  } catch {
+    // El error de undici cita host y puerto en `cause`; nada de él se propaga.
+    console.error("[whatsapp] send failed (network)", { to: masked });
+    throw new Error("Meta WhatsApp API network error");
+  }
+
+  // Antes de leer el cuerpo: un 3xx no se sigue ni se interpreta.
+  if (res.type === "opaqueredirect" || (res.status >= 300 && res.status < 400)) {
+    console.error("[whatsapp] send failed (redirect blocked)", { status: res.status, to: masked });
+    throw new Error(`Meta WhatsApp API redirect blocked (${res.status})`);
   }
 
   const json = (await res.json().catch(() => ({}))) as MetaApiResponse;
 
   if (!res.ok) {
-    const errMsg = json?.error?.message ?? "Unknown Meta API error";
+    // `error.message` es texto libre de Meta y puede citar el cuerpo enviado
+    // —es decir, el mensaje del cliente—. Se descarta. Los códigos numéricos y
+    // el fbtrace sí son estables, opacos y accionables para soporte.
     const errCode = json?.error?.code ?? "unknown";
     const subcode = json?.error?.error_subcode ?? null;
     const trace = json?.error?.fbtrace_id ?? null;
     const retryAfter = res.headers.get("retry-after");
 
     const details =
-      `Meta WhatsApp API failed (${res.status}): ${errMsg} ` +
+      `Meta WhatsApp API failed (${res.status}) ` +
       `[code=${errCode}` +
       `${subcode !== null ? `, subcode=${subcode}` : ""}` +
       `${trace ? `, fbtrace=${trace}` : ""}` +

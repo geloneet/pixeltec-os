@@ -23,6 +23,8 @@ export type AiProviderErrorCode =
   | "ai_timeout"
   /** El proveedor rechazó la gramática / `output_config` (schema demasiado complejo). */
   | "ai_schema_rejected"
+  /** El proveedor respondió 3xx. No se sigue: la credencial viajaría al host nuevo. */
+  | "ai_redirect_blocked"
   /** Cualquier otro fallo del proveedor. */
   | "ai_provider_error"
   /** Falta la credencial del proveedor: no se llegó a construir cliente. */
