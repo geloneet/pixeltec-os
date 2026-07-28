@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchVpsApi } from "@/lib/vpsClient";
 import { requireAdmin } from "@/lib/auth-guards";
+import { jsonFailure, toRouteFailure } from "@/lib/errors/route-failure";
 import type { VpsSnapshot } from "@/lib/vps-types";
 
 export async function GET(req: NextRequest) {
@@ -17,10 +18,13 @@ export async function GET(req: NextRequest) {
     const { data, status } = await fetchVpsApi<VpsSnapshot>("/health/snapshot");
     return NextResponse.json(data, { status });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return NextResponse.json(
-      { error: "Failed to fetch VPS snapshot: " + message },
-      { status: 500 }
+    console.error("[vps/snapshot] error:", error);
+    return jsonFailure(
+      toRouteFailure(error, {
+        code: "vps_snapshot_failed",
+        message: "Failed to fetch VPS snapshot",
+        status: 500,
+      })
     );
   }
 }

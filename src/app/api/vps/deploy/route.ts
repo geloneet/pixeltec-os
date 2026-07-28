@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { deployVpsProject } from "@/lib/vpsClient";
 import { requireAdmin } from "@/lib/auth-guards";
+import { jsonFailure, toRouteFailure } from "@/lib/errors/route-failure";
 
 export async function POST(req: NextRequest) {
   const guard = await requireAdmin(req.cookies.get("__session")?.value, {
@@ -17,10 +18,13 @@ export async function POST(req: NextRequest) {
     const { data, status } = await deployVpsProject(body.projectId);
     return NextResponse.json(data, { status });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return NextResponse.json(
-      { error: "Deploy failed: " + message },
-      { status: 500 }
+    console.error("[vps/deploy] error:", error);
+    return jsonFailure(
+      toRouteFailure(error, {
+        code: "vps_deploy_failed",
+        message: "Deploy failed",
+        status: 500,
+      })
     );
   }
 }

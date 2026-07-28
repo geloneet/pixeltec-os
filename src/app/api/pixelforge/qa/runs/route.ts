@@ -53,6 +53,7 @@ import { runDeterministicChecks } from "@/lib/pixelforge/qa/run-deterministic";
 import { QA_CATALOG_VERSION } from "@/lib/pixelforge/qa/catalog";
 import { QA_SCORING_VERSION } from "@/lib/pixelforge/qa/scoring";
 import { launchQaAdvisoryRuns } from "@/lib/pixelforge/qa/advisory";
+import { toRouteFailure } from "@/lib/errors/route-failure";
 
 function fail(error: string, status: number) {
   return NextResponse.json({ ok: false, error }, { status });
@@ -150,7 +151,19 @@ export async function POST(req: NextRequest) {
       } catch (err) {
         console.error("[pixelforge/qa/runs background]", err);
         try {
-          await failQaRun(claimedQaRunId, "internal", err instanceof Error ? err.message : "Error inesperado");
+          // Lo que se guarde en `pixelforge_qa_runs.error` lo devuelve entero
+          // el GET de `runs/[qaRunId]` al poller del cliente. Persistir el
+          // `message` de un desconocido era una fuga diferida: se almacenaba
+          // aquí y se reflejaba en el siguiente poll.
+          await failQaRun(
+            claimedQaRunId,
+            "internal",
+            toRouteFailure(err, {
+              code: "qa_internal_error",
+              message: "Error inesperado",
+              status: 500,
+            }).message
+          );
         } catch {}
       }
     })();

@@ -1,12 +1,16 @@
 import { describe, expect, test, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 import type { VpsAuditReport } from "@/lib/vps-types";
+import { VpsTransportError } from "@/lib/vpsClient";
 
 const { fetchVpsApiMock } = vi.hoisted(() => ({
   fetchVpsApiMock: vi.fn(),
 }));
 
-vi.mock("@/lib/vpsClient", () => ({
+// Ver nota en `backup/route.test.ts`: el mock debe conservar
+// `VpsTransportError`, que `toRouteFailure` reconoce por `instanceof`.
+vi.mock("@/lib/vpsClient", async (importActual) => ({
+  ...(await importActual<typeof import("@/lib/vpsClient")>()),
   fetchVpsApi: fetchVpsApiMock,
 }));
 
@@ -51,13 +55,34 @@ describe("GET /api/vps/audit", () => {
     expect(fetchVpsApiMock).toHaveBeenCalledWith("/health/audit");
   });
 
-  test("returns an error status when fetchVpsApi throws", async () => {
-    fetchVpsApiMock.mockRejectedValueOnce(new Error("timed out"));
+  test("un error desconocido devuelve 500 sin filtrar su message", async () => {
+    // Afirmaba `toContain("timed out")`: el tercer test que fijaba la fuga
+    // como contrato (los otros dos, en `backup` y `snapshot`).
+    fetchVpsApiMock.mockRejectedValueOnce(
+      new Error("timed out — VPS_API_SECRET is not set — SELECT * FROM audit_log")
+    );
 
     const res = await GET(makeRequest());
     const body = await res.json();
 
     expect(res.status).toBe(500);
-    expect(body.error).toContain("timed out");
+    expect(body.error).toBe("Failed to fetch VPS audit");
+    expect(body.code).toBe("vps_audit_failed");
+    const serialized = JSON.stringify(body);
+    expect(serialized).not.toContain("timed out");
+    expect(serialized).not.toContain("VPS_API_SECRET");
+    expect(serialized).not.toContain("SELECT");
+  });
+
+  test("un VpsTransportError conserva su código y el status upstream", async () => {
+    fetchVpsApiMock.mockRejectedValueOnce(new VpsTransportError("vps_invalid_response", 502));
+
+    const res = await GET(makeRequest());
+    const body = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(body.code).toBe("vps_invalid_response");
+    expect(body.upstreamStatus).toBe(502);
+    expect(JSON.stringify(body)).not.toContain("VPS_TRANSPORT_ERROR");
   });
 });

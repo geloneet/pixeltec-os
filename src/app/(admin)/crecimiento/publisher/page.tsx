@@ -4,7 +4,10 @@ import { getSocialAccounts } from '@/lib/growth/actions/social-accounts';
 import { ConnectedAccountCard } from '@/components/growth/publisher/ConnectedAccountCard';
 
 interface Props {
-  searchParams: Promise<{ meta_connected?: string; meta_error?: string; meta_desc?: string }>;
+  // `meta_desc` ya no existe: el callback dejó de poner el texto del error en
+  // la URL (E0f-2). Lo que se mostraba aquí como "Error de Meta API: …" era el
+  // `message` crudo de Graph API o de Drizzle, renderizado al usuario.
+  searchParams: Promise<{ meta_connected?: string; meta_error?: string }>;
 }
 
 export default async function PublisherPage({ searchParams }: Props) {
@@ -15,13 +18,12 @@ export default async function PublisherPage({ searchParams }: Props) {
   const hasAccounts = accounts.length > 0;
 
   const metaError = params.meta_error;
-  const metaDesc = params.meta_desc;
   const metaConnected = params.meta_connected ? parseInt(params.meta_connected, 10) : null;
 
   const errorMessages: Record<string, string> = {
     no_pages: 'Tu cuenta de Facebook no tiene Páginas de negocio. Crea una Página en Facebook primero.',
     invalid_state: 'Error de seguridad en el flujo OAuth. Inténtalo de nuevo.',
-    oauth_failed: metaDesc ? `Error de Meta API: ${metaDesc}` : 'Error al conectar con Meta. Revisa los logs del servidor.',
+    oauth_failed: 'Error al conectar con Meta. Revisa los logs del servidor.',
     meta_denied: 'Cancelaste la autorización de Meta.',
     missing_params: 'Meta no devolvió los parámetros esperados.',
   };

@@ -85,6 +85,7 @@ import {
   failQaRun,
   openQaGate,
 } from "@/lib/db/repos/pixelforge";
+import { toRouteFailure } from "@/lib/errors/route-failure";
 import { runDeterministicChecks } from "./run-deterministic";
 import { buildStaleVersionFinding } from "./checks/structural";
 import { computeQaScore, type QaScoreInput } from "./scoring";
@@ -230,7 +231,19 @@ export async function finalizeQaRunOrchestrated(qaRunId: string): Promise<void> 
     // Nunca dejar el run colgado — mismo criterio de "best-effort de cierre"
     // que el catch de `runs/route.ts` (F2, decisión I1).
     try {
-      await failQaRun(qaRunId, "internal", err instanceof Error ? err.message : "Error inesperado");
+      // El texto se persiste en `pixelforge_qa_runs.error`, y el GET de
+      // `runs/[qaRunId]` devuelve la fila entera al poller del cliente: lo que
+      // se guarde aquí acaba en el navegador. Por eso el `message` de un error
+      // desconocido no se guarda —era una fuga diferida, no un simple log.
+      await failQaRun(
+        qaRunId,
+        "internal",
+        toRouteFailure(err, {
+          code: "qa_internal_error",
+          message: "Error inesperado",
+          status: 500,
+        }).message
+      );
     } catch {}
   }
 }

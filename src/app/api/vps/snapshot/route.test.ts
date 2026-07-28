@@ -1,12 +1,16 @@
 import { describe, expect, test, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 import type { VpsSnapshot } from "@/lib/vps-types";
+import { VpsTransportError } from "@/lib/vpsClient";
 
 const { fetchVpsApiMock } = vi.hoisted(() => ({
   fetchVpsApiMock: vi.fn(),
 }));
 
-vi.mock("@/lib/vpsClient", () => ({
+// Ver nota en `backup/route.test.ts`: el mock debe conservar
+// `VpsTransportError`, que `toRouteFailure` reconoce por `instanceof`.
+vi.mock("@/lib/vpsClient", async (importActual) => ({
+  ...(await importActual<typeof import("@/lib/vpsClient")>()),
   fetchVpsApi: fetchVpsApiMock,
 }));
 
@@ -61,13 +65,34 @@ describe("GET /api/vps/snapshot", () => {
     expect(fetchVpsApiMock).toHaveBeenCalledWith("/health/snapshot");
   });
 
-  test("returns an error status when fetchVpsApi throws", async () => {
-    fetchVpsApiMock.mockRejectedValueOnce(new Error("vps-api unreachable"));
+  test("un error desconocido devuelve 500 sin filtrar su message", async () => {
+    // Afirmaba `toContain("vps-api unreachable")`: fijaba la fuga como
+    // contrato. El mismo camino traía SQL y nombres de variables de entorno.
+    fetchVpsApiMock.mockRejectedValueOnce(
+      new Error("vps-api unreachable — VPS_API_SECRET missing — SELECT 1 FROM projects")
+    );
 
     const res = await GET(makeRequest());
     const body = await res.json();
 
     expect(res.status).toBe(500);
-    expect(body.error).toContain("vps-api unreachable");
+    expect(body.error).toBe("Failed to fetch VPS snapshot");
+    expect(body.code).toBe("vps_snapshot_failed");
+    const serialized = JSON.stringify(body);
+    expect(serialized).not.toContain("unreachable");
+    expect(serialized).not.toContain("VPS_API_SECRET");
+    expect(serialized).not.toContain("SELECT");
+  });
+
+  test("un VpsTransportError conserva su código y el status upstream", async () => {
+    fetchVpsApiMock.mockRejectedValueOnce(new VpsTransportError("vps_redirect_blocked", 302));
+
+    const res = await GET(makeRequest());
+    const body = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(body.code).toBe("vps_redirect_blocked");
+    expect(body.upstreamStatus).toBe(302);
+    expect(JSON.stringify(body)).not.toContain("VPS_TRANSPORT_ERROR");
   });
 });

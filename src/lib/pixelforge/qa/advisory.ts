@@ -56,6 +56,7 @@ import {
   type FinishRunResult,
   type PixelforgeProjectFull,
 } from "@/lib/db/repos/pixelforge";
+import { toRouteFailure } from "@/lib/errors/route-failure";
 import { executeOperation } from "../ai/run";
 import { resolvePixelForgeModel } from "../ai/client";
 import { finalizeQaRunOrchestrated } from "./finalize";
@@ -233,7 +234,15 @@ async function runAdvisoryOperation(params: RunAdvisoryOperationParams): Promise
       await finishAndFinalize(runId, qaRunId, {
         status: "failed",
         failureKind: "provider_error",
-        error: err instanceof Error ? err.message : "Error inesperado",
+        // `provider_error` es literalmente el caso en que el `message` viene de
+        // un SDK de IA: es donde acaba el eco del prompt y del cuerpo de la
+        // respuesta. Se descarta; el código ya dice de qué clase de fallo se
+        // trata.
+        error: toRouteFailure(err, {
+          code: "qa_advisory_provider_error",
+          message: "Error inesperado",
+          status: 500,
+        }).message,
         durationMs: 0,
         retryCount: 0,
       });

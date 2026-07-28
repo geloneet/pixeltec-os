@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchVpsApi } from "@/lib/vpsClient";
 import { requireAdmin } from "@/lib/auth-guards";
+import { jsonFailure, toRouteFailure } from "@/lib/errors/route-failure";
 
 export async function POST(req: NextRequest) {
   const guard = await requireAdmin(req.cookies.get("__session")?.value, {
@@ -20,10 +21,13 @@ export async function POST(req: NextRequest) {
     });
     return NextResponse.json(data, { status });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return NextResponse.json(
-      { error: "Pause failed: " + message },
-      { status: 500 }
+    console.error("[vps/pause] error:", error);
+    return jsonFailure(
+      toRouteFailure(error, {
+        code: "vps_pause_failed",
+        message: "Pause failed",
+        status: 500,
+      })
     );
   }
 }

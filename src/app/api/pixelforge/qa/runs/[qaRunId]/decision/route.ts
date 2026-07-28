@@ -28,6 +28,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { toRouteFailure } from "@/lib/errors/route-failure";
 import { auth } from "@/lib/auth/config";
 import {
   getQaRunWithFindings,
@@ -83,7 +84,21 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ qaR
     try {
       await recordQaHumanDecision(parsedId.data, ownerId, decision, reason, actor);
     } catch (err) {
-      return fail(err instanceof Error ? err.message : "No se pudo registrar la decisión", 409);
+      // `recordQaHumanDecision` lanza `new Error(...)` con mensajes nuestros,
+      // pero un `Error` pelado es indistinguible en runtime del que lanza
+      // Drizzle si falla la transacción — y ese cita SQL y columnas. Como no
+      // hay forma de separarlos por tipo, no se propaga ninguno: el fallback
+      // cubre los dos motivos reales de 409 que puede devolver el repo.
+      console.error("[pixelforge/qa/runs/:qaRunId/decision] recordQaHumanDecision:", err);
+      return fail(
+        toRouteFailure(err, {
+          code: "qa_decision_not_applicable",
+          message:
+            "No se pudo registrar la decisión: el QA no existe o no admite una decisión humana.",
+          status: 409,
+        }).message,
+        409
+      );
     }
 
     if (decision === "approved") {

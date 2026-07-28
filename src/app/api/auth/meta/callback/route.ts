@@ -10,6 +10,27 @@ import {
 } from '@/lib/growth/social/meta-api';
 import { upsertSocialAccount } from '@/lib/growth/actions/social-accounts';
 import { OAUTH_STATE_COOKIE } from '@/lib/growth/social/meta-oauth-state';
+import { toRouteFailure } from '@/lib/errors/route-failure';
+
+/**
+ * Códigos de error OAuth2 (RFC 6749 §4.1.2.1). Es una lista cerrada a
+ * propósito: `?error=` lo escribe Meta, y cualquier valor fuera de esta lista
+ * es texto libre de un tercero que no tiene por qué acabar en nuestra URL.
+ */
+const OAUTH_ERROR_CODES = new Set([
+  'invalid_request',
+  'unauthorized_client',
+  'access_denied',
+  'unsupported_response_type',
+  'invalid_scope',
+  'server_error',
+  'temporarily_unavailable',
+]);
+
+function oauthErrorCode(error: string | null): string {
+  if (!error) return 'missing_params';
+  return OAUTH_ERROR_CODES.has(error) ? error : 'oauth_failed';
+}
 
 function isValidCsrfState(req: NextRequest, state: string): boolean {
   const expected = req.cookies.get(OAUTH_STATE_COOKIE)?.value;
@@ -32,9 +53,15 @@ export async function GET(req: NextRequest) {
   console.log('[meta/callback] received', { code: !!code, state: !!state, error, errorDescription });
 
   if (error || !code || !state) {
+    // `error` y `error_description` los escribe Meta: son texto libre de un
+    // tercero. Se registran en el servidor —ahí sí sirven— pero no se
+    // reflejan: `meta_desc` los depositaba en la URL, y una URL de redirect
+    // acaba en el historial del navegador, en los logs de acceso de nginx y en
+    // la cabecera `Referer` hacia terceros. Sólo viaja un código de la lista
+    // cerrada de OAuth2.
     console.error('[meta/callback] denied or missing params:', { error, errorDescription });
     return NextResponse.redirect(
-      `${redirectBase}?meta_error=${encodeURIComponent(error ?? 'missing_params')}&meta_desc=${encodeURIComponent(errorDescription ?? '')}`
+      `${redirectBase}?meta_error=${encodeURIComponent(oauthErrorCode(error))}`
     );
   }
 
@@ -125,10 +152,18 @@ export async function GET(req: NextRequest) {
     return res;
 
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error('[meta/callback] error:', message);
+    // El error entero se registra en el servidor, que es donde es útil. A la
+    // URL sólo va un código estable: este `catch` cubre las cinco llamadas a
+    // Graph API y los `upsertSocialAccount`, así que un fallo de Drizzle
+    // acababa citando SQL en la barra de direcciones del usuario.
+    console.error('[meta/callback] error:', err);
+    const failure = toRouteFailure(err, {
+      code: 'oauth_failed',
+      message: 'No se pudo completar la conexión con Meta.',
+      status: 500,
+    });
     return NextResponse.redirect(
-      `${redirectBase}?meta_error=oauth_failed&meta_desc=${encodeURIComponent(message)}`
+      `${redirectBase}?meta_error=${encodeURIComponent(failure.code)}`
     );
   }
 }

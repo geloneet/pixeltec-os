@@ -8,6 +8,7 @@ import { createNotification } from "@/lib/notifications/actions";
 import { db } from "@/lib/db";
 import { users, recurringCharges } from "@/lib/db/schema";
 import { getFullCrmData } from "@/lib/db/repos/crm-sync";
+import { toRouteFailure } from "@/lib/errors/route-failure";
 
 export async function GET(req: NextRequest) {
   const provided = req.headers.get("authorization")?.replace("Bearer ", "") ?? req.nextUrl.searchParams.get("secret");
@@ -182,8 +183,18 @@ export async function GET(req: NextRequest) {
       details: notifications,
     });
   } catch (error: unknown) {
+    // Este `try` cubre la consulta de usuarios, el recorrido de cobros y los
+    // envíos de correo y WhatsApp. Un fallo de Drizzle citaba aquí la consulta
+    // y los nombres de columna; el del proveedor, el cuerpo de su respuesta.
     console.error("Charges notification error:", error);
-    const message = error instanceof Error ? error.message : String(error);
-    return NextResponse.json({ error: message }, { status: 500 });
+    const failure = toRouteFailure(error, {
+      code: "charges_notification_failed",
+      message: "No se pudieron procesar las notificaciones de cobros.",
+      status: 500,
+    });
+    return NextResponse.json(
+      { error: failure.message, code: failure.code },
+      { status: failure.status }
+    );
   }
 }

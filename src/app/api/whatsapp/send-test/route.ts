@@ -19,6 +19,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sendWhatsApp } from "@/lib/whatsapp/sender";
 import { assertCronExecutionAllowed, cronBlockedResponse } from "@/lib/cron-guard";
+import { toRouteFailure } from "@/lib/errors/route-failure";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -59,7 +60,18 @@ export async function POST(request: NextRequest) {
       to: result.to,
     });
   } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    return NextResponse.json({ ok: false, error: msg }, { status: 500 });
+    // `sendWhatsApp` ya redacta sus propios mensajes, pero este `catch` atrapa
+    // además el `WHATSAPP_ACCESS_TOKEN is not configured` —que nombra la
+    // variable— y cualquier error no previsto. Ninguno viaja.
+    console.error("[whatsapp/send-test] error:", error);
+    const failure = toRouteFailure(error, {
+      code: "whatsapp_send_test_failed",
+      message: "No se pudo enviar el mensaje de prueba.",
+      status: 500,
+    });
+    return NextResponse.json(
+      { ok: false, error: failure.message, code: failure.code },
+      { status: failure.status }
+    );
   }
 }

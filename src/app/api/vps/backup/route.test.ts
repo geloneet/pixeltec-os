@@ -1,13 +1,18 @@
 import { describe, expect, test, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 import type { VpsBackupResult } from "@/lib/vps-types";
+import { VpsTransportError } from "@/lib/vpsClient";
 
 const { fetchVpsApiMock, authMock } = vi.hoisted(() => ({
   fetchVpsApiMock: vi.fn(),
   authMock: vi.fn(),
 }));
 
-vi.mock("@/lib/vpsClient", () => ({
+// `importActual` conserva `VpsTransportError`: `toRouteFailure` lo reconoce por
+// `instanceof`, así que un mock que sólo exporte `fetchVpsApi` dejaría la clase
+// en `undefined` y el `instanceof` lanzaría dentro del helper.
+vi.mock("@/lib/vpsClient", async (importActual) => ({
+  ...(await importActual<typeof import("@/lib/vpsClient")>()),
   fetchVpsApi: fetchVpsApiMock,
 }));
 
@@ -63,14 +68,38 @@ describe("POST /api/vps/backup", () => {
     });
   });
 
-  test("returns an error status when fetchVpsApi throws", async () => {
+  test("un error desconocido devuelve 500 sin filtrar su message", async () => {
+    // Este test afirmaba lo contrario —`toContain("disk full")`—, es decir,
+    // fijaba la fuga como contrato. "disk full" es benigno, pero el mismo
+    // camino traía el SQL de Drizzle y el nombre de `VPS_API_SECRET`.
     authMock.mockResolvedValue({ user: { name: "Miguel Robles" } });
-    fetchVpsApiMock.mockRejectedValueOnce(new Error("disk full"));
+    fetchVpsApiMock.mockRejectedValueOnce(
+      new Error("disk full: SELECT * FROM projects — VPS_API_SECRET is not set")
+    );
 
     const res = await POST(makeRequest());
     const body = await res.json();
 
     expect(res.status).toBe(500);
-    expect(body.error).toContain("disk full");
+    expect(body.error).toBe("Backup failed");
+    expect(body.code).toBe("vps_backup_failed");
+    const serialized = JSON.stringify(body);
+    expect(serialized).not.toContain("disk full");
+    expect(serialized).not.toContain("SELECT");
+    expect(serialized).not.toContain("VPS_API_SECRET");
+  });
+
+  test("un VpsTransportError conserva su código y el status upstream", async () => {
+    authMock.mockResolvedValue({ user: { name: "Miguel Robles" } });
+    fetchVpsApiMock.mockRejectedValueOnce(new VpsTransportError("vps_timeout", 504));
+
+    const res = await POST(makeRequest());
+    const body = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(body.code).toBe("vps_timeout");
+    expect(body.upstreamStatus).toBe(504);
+    // El prefijo interno de la clase no viaja.
+    expect(JSON.stringify(body)).not.toContain("VPS_TRANSPORT_ERROR");
   });
 });

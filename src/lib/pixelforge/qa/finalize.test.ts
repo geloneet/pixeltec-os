@@ -400,12 +400,20 @@ describe("finalizeQaRunOrchestrated — openQaGate detecta stale-version DENTRO 
 });
 
 describe("finalizeQaRunOrchestrated — nunca deja el run colgado", () => {
-  it("una excepción inesperada cierra el run vía failQaRun('internal')", async () => {
+  it("una excepción inesperada cierra el run vía failQaRun('internal') SIN persistir su message", async () => {
+    // Antes afirmaba `stringContaining("DB caída")`. Ese texto se guarda en
+    // `pixelforge_qa_runs.error` y el GET de `runs/[qaRunId]` devuelve la fila
+    // entera al poller: era una fuga diferida, no un log interno.
     getQaRunByIdMock.mockResolvedValue(makeRun({ browserStatus: "succeeded" }));
-    getPageVersionInternalMock.mockRejectedValue(new Error("DB caída"));
+    getPageVersionInternalMock.mockRejectedValue(
+      new Error('DB caída: relation "pixelforge_qa_runs" does not exist')
+    );
 
     await finalizeQaRunOrchestrated(QA_RUN_ID);
 
-    expect(failQaRunMock).toHaveBeenCalledWith(QA_RUN_ID, "internal", expect.stringContaining("DB caída"));
+    expect(failQaRunMock).toHaveBeenCalledWith(QA_RUN_ID, "internal", "Error inesperado");
+    const persisted = failQaRunMock.mock.calls.at(-1)?.[2] ?? "";
+    expect(persisted).not.toContain("DB caída");
+    expect(persisted).not.toContain("pixelforge_qa_runs");
   });
 });

@@ -215,7 +215,7 @@ describe("POST /api/pixelforge/qa/runs", () => {
     (getActiveQaRun as ReturnType<typeof vi.fn>).mockResolvedValue(null);
     (createQaRun as ReturnType<typeof vi.fn>).mockResolvedValue({ id: QA_RUN_ID });
     (runDeterministicChecks as ReturnType<typeof vi.fn>).mockImplementation(() => {
-      throw new Error("boom");
+      throw new Error("boom: SELECT * FROM pixelforge_qa_findings — DATABASE_URL");
     });
 
     const res = await POST(makeRequest({ projectId: PROJECT_ID }));
@@ -223,7 +223,14 @@ describe("POST /api/pixelforge/qa/runs", () => {
 
     await flushBackground();
 
-    expect(failQaRun).toHaveBeenCalledWith(QA_RUN_ID, "internal", "boom");
+    // Antes afirmaba `"boom"`: el `message` del error se persistía en
+    // `pixelforge_qa_runs.error`, y el GET de `runs/[qaRunId]` devuelve esa
+    // fila entera al poller del cliente.
+    expect(failQaRun).toHaveBeenCalledWith(QA_RUN_ID, "internal", "Error inesperado");
+    const persisted = (failQaRun as ReturnType<typeof vi.fn>).mock.calls.at(-1)?.[2] ?? "";
+    expect(persisted).not.toContain("boom");
+    expect(persisted).not.toContain("SELECT");
+    expect(persisted).not.toContain("DATABASE_URL");
   });
 });
 
