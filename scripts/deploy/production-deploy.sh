@@ -83,10 +83,13 @@ for f in Dockerfile docker-compose.yml scripts/validate-egress-config.ts \
   [ -f "$RELEASE_DIR/$f" ] || fail "release incompleta: falta $f"
 done
 [ ! -e "$RELEASE_DIR/.git" ] || fail "la release no debe contener .git"
-# La release NO contiene NINGÚN archivo de entorno (ni archivo, ni symlink,
-# ni copia): el contrato E0 entra por ruta canónica absoluta y, al build,
-# SOLO como BuildKit secret. Única excepción versionada: .env.example.
-ENV_LEAK="$(find "$RELEASE_DIR" -name ".env*" ! -name ".env.example" -print -quit)"
+# La release NO contiene NINGÚN archivo de entorno real (ni archivo, ni
+# symlink, ni copia): el contrato E0 entra por ruta canónica absoluta y, al
+# build, SOLO como BuildKit secret. Excepciones versionadas — exactamente las
+# DOS plantillas del repo, lista cerrada y explícita: .env.example y
+# .env.production.example (marcadores/documentación, sin valores productivos).
+ENV_LEAK="$(find "$RELEASE_DIR" -name ".env*" \
+  ! -name ".env.example" ! -name ".env.production.example" -print -quit)"
 [ -z "$ENV_LEAK" ] || fail "archivo de entorno no permitido dentro de la release: $ENV_LEAK"
 grep -qE '^\.env\.production$' "$RELEASE_DIR/.dockerignore" \
   || fail ".dockerignore de la release no excluye .env.production"

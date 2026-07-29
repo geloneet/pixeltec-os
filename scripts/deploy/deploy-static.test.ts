@@ -1,5 +1,13 @@
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, readFileSync, readdirSync, mkdtempSync } from "node:fs";
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { describe, expect, test } from "vitest";
@@ -74,8 +82,10 @@ describe("motor production-deploy.sh", () => {
     expect(engine).toMatch(/pixeltec-os-releases/);
     expect(engine).not.toMatch(/ln -s/);
     expect(engine).toMatch(/config --quiet/);
-    // Guard: la release rechaza cualquier .env* salvo .env.example.
-    expect(engine).toMatch(/find "\$RELEASE_DIR" -name "\.env\*" ! -name "\.env\.example"/);
+    // Guard: la release rechaza cualquier .env* salvo las DOS plantillas
+    // versionadas (lista cerrada — comportamiento fijado en el describe
+    // "guard de plantillas env en la release").
+    expect(engine).toMatch(/find "\$RELEASE_DIR" -name "\.env\*"/);
     expect(engine).toMatch(/archivo de entorno no permitido/);
   });
 
@@ -255,6 +265,77 @@ describe("aislamiento de .env.production del build context (M1A ITERATE)", () =>
     );
     expect(r.status).not.toBe(0);
     expect(String(r.stderr)).toMatch(/argumento desconocido/);
+  });
+});
+
+describe("guard de plantillas env en la release (F-M1B-1)", () => {
+  // Ejecuta la condición REAL del guard: extrae la asignación ENV_LEAK del
+  // motor y la corre contra un directorio temporal con archivos plantados.
+  const assignment = engine.match(/ENV_LEAK="\$\(find[\s\S]*?-print -quit\)"/)?.[0];
+
+  function envLeak(entries: { name: string; symlink?: boolean }[]): string {
+    expect(assignment, "la asignación ENV_LEAK debe existir en el motor").toBeDefined();
+    const dir = mkdtempSync(join(tmpdir(), "release-guard-"));
+    try {
+      for (const e of entries) {
+        const p = join(dir, e.name);
+        if (e.symlink) symlinkSync("/dev/null", p);
+        else writeFileSync(p, "x=1\n");
+      }
+      const r = spawnSync("bash", [
+        "-c",
+        `RELEASE_DIR=${JSON.stringify(dir)}\n${assignment}\nprintf '%s' "$ENV_LEAK"`,
+      ]);
+      expect(r.status).toBe(0);
+      return String(r.stdout).trim();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }
+
+  test("permite exactamente las dos plantillas versionadas", () => {
+    expect(envLeak([{ name: ".env.example" }, { name: ".env.production.example" }])).toBe("");
+  });
+
+  test("rechaza .env.production real", () => {
+    expect(envLeak([{ name: ".env.production" }])).toMatch(/\/\.env\.production$/);
+  });
+
+  test("rechaza .env, .env.local, .env.test y .env.secret", () => {
+    expect(envLeak([{ name: ".env" }])).toMatch(/\/\.env$/);
+    expect(envLeak([{ name: ".env.local" }])).toMatch(/\/\.env\.local$/);
+    expect(envLeak([{ name: ".env.test" }])).toMatch(/\/\.env\.test$/);
+    expect(envLeak([{ name: ".env.secret" }])).toMatch(/\/\.env\.secret$/);
+  });
+
+  test("rechaza un symlink .env.production aunque las plantillas estén presentes", () => {
+    expect(
+      envLeak([
+        { name: ".env.example" },
+        { name: ".env.production.example" },
+        { name: ".env.production", symlink: true },
+      ]),
+    ).toMatch(/\/\.env\.production$/);
+  });
+
+  test("la allowlist es cerrada y explícita: sin patrones amplios", () => {
+    expect(engine).not.toMatch(/! -name "\*\.example"/);
+    expect(engine).not.toMatch(/\.env\*\.example/);
+    // Exactamente las dos excepciones literales, en el único find del motor.
+    const exceptions = engine.match(/! -name "[^"]*"/g) ?? [];
+    expect(exceptions).toEqual([
+      '! -name ".env.example"',
+      '! -name ".env.production.example"',
+    ]);
+  });
+
+  test(".dockerignore NO re-incluye .env.production.example en el build context", () => {
+    const lines = readFileSync(join(ROOT, ".dockerignore"), "utf8")
+      .split("\n")
+      .map((l) => l.trim());
+    expect(lines).not.toContain("!.env.production.example");
+    // La única re-inclusión env del contexto sigue siendo .env.example.
+    expect(lines.filter((l) => l.startsWith("!.env"))).toEqual(["!.env.example"]);
   });
 });
 
