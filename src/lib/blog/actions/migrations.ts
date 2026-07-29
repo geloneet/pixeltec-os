@@ -8,7 +8,7 @@ import { eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
 import { blogPosts } from '@/lib/db/schema';
-import { getSessionUid } from '@/lib/auth/session';
+import { requireUserSession } from '@/lib/auth/session';
 import type { ActionResult } from '../schemas';
 
 function stripCodeFenceWrapper(raw: string): string {
@@ -47,8 +47,8 @@ const ALLOWED_CATEGORIES = ['arquitectura', 'automatización', 'case-study', 'op
 const TARGET_SLUG = 'como-tomar-un-curso-de-ia-gratis';
 
 export async function migrateExistingPostBody(): Promise<ActionResult<{ before: number; after: number }>> {
-  const uid = await getSessionUid();
-  if (!uid) return { ok: false, error: 'No autenticado' };
+  const session = await requireUserSession();
+  if (!session) return { ok: false, error: 'No autenticado' };
 
   const [row] = await db.select().from(blogPosts).where(eq(blogPosts.slug, TARGET_SLUG)).limit(1);
   if (!row) return { ok: false, error: `Post no encontrado: ${TARGET_SLUG}` };

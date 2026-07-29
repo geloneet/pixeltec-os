@@ -17,7 +17,7 @@ const { getSessionUidMock, resolveBriefRowMock, resolvePostRowMock, generatePost
     generatePostFromBriefMock: vi.fn(),
   }));
 
-vi.mock("@/lib/auth/session", () => ({ getSessionUid: getSessionUidMock }));
+vi.mock("@/lib/auth/session", () => ({ requireUserSession: getSessionUidMock }));
 vi.mock("@/lib/db", () => ({
   db: { update: vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn() })) })) },
 }));
@@ -59,7 +59,7 @@ function sinFugas(result: unknown) {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.spyOn(console, "error").mockImplementation(() => {});
-  getSessionUidMock.mockResolvedValue("user-1");
+  getSessionUidMock.mockResolvedValue({ userId: "user-1", email: "staff@ejemplo.mx", role: "staff" });
   resolveBriefRowMock.mockResolvedValue({ id: "row-1", data: { titulo: "T" } });
   // `regenerateDraft` reconstruye el brief desde `briefSource`, no desde `data`.
   resolvePostRowMock.mockResolvedValue({

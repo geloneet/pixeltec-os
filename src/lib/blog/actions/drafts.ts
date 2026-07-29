@@ -4,7 +4,7 @@
 import { eq, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { blogBriefs, blogPosts } from '@/lib/db/schema';
-import { getSessionUid } from '@/lib/auth/session';
+import { requireUserSession } from '@/lib/auth/session';
 import { resolveBriefRow, resolvePostRow, publicId, getUserDisplayName } from '../pg';
 import { generatePostFromBrief, computeWordCount, computeReadingTime, generateSlug } from '../ai/generate-post';
 import type { BlogBriefDoc } from '../types';
@@ -19,8 +19,8 @@ function setBriefStatus(briefRowId: string, patch: Record<string, unknown>) {
 }
 
 export async function generateDraft(briefId: string): Promise<ActionResult<{ postId: string }>> {
-  const uid = await getSessionUid();
-  if (!uid) return { ok: false, error: 'No autenticado' };
+  const session = await requireUserSession();
+  if (!session) return { ok: false, error: 'No autenticado' };
 
   const briefRow = await resolveBriefRow(briefId);
   if (!briefRow) return { ok: false, error: 'Brief no encontrado' };
@@ -35,7 +35,7 @@ export async function generateDraft(briefId: string): Promise<ActionResult<{ pos
     tone: (briefFields.tone as string) ?? '',
     status: 'pending',
     generatedDraftId: null,
-    createdBy: (briefFields.createdBy as string) ?? uid,
+    createdBy: (briefFields.createdBy as string) ?? session.userId,
     createdAt: briefRow.createdAt,
   };
 
@@ -43,7 +43,7 @@ export async function generateDraft(briefId: string): Promise<ActionResult<{ pos
   await setBriefStatus(briefRow.id, { status: 'generating' });
 
   try {
-    const authorName = await getUserDisplayName(uid);
+    const authorName = await getUserDisplayName(session.userId);
     const generated = await generatePostFromBrief(briefData);
 
     const wordCount = computeWordCount(generated.body);
@@ -61,7 +61,7 @@ export async function generateDraft(briefId: string): Promise<ActionResult<{ pos
         category: generated.category,
         tags: generated.tags,
         coverImage: null,
-        author: { name: authorName, uid },
+        author: { name: authorName, uid: session.userId },
         status: 'draft',
         briefSource: {
           topic: briefData.topic,
@@ -111,8 +111,8 @@ export async function generateDraft(briefId: string): Promise<ActionResult<{ pos
 }
 
 export async function regenerateDraft(postId: string): Promise<ActionResult<{ postId: string }>> {
-  const uid = await getSessionUid();
-  if (!uid) return { ok: false, error: 'No autenticado' };
+  const session = await requireUserSession();
+  if (!session) return { ok: false, error: 'No autenticado' };
 
   const row = await resolvePostRow(postId);
   if (!row) return { ok: false, error: 'Post no encontrado' };
@@ -127,7 +127,7 @@ export async function regenerateDraft(postId: string): Promise<ActionResult<{ po
     tone: (briefSource.tone as string) ?? '',
     status: 'generated',
     generatedDraftId: postId,
-    createdBy: uid,
+    createdBy: session.userId,
     createdAt: row.createdAt,
   };
 

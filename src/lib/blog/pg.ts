@@ -30,8 +30,8 @@ export function publicId(row: { id: string; firestoreId: string | null }): strin
   return row.firestoreId ?? row.id;
 }
 
-/** Display name del usuario (antes: getAdminAuth().getUser(uid).displayName). */
-export async function getUserDisplayName(firebaseUid: string): Promise<string> {
-  const [u] = await db.select({ name: users.name }).from(users).where(eq(users.firebaseUid, firebaseUid)).limit(1);
+/** Display name por identidad canonica users.id (Gate B2 - Firebase Exit). */
+export async function getUserDisplayName(userId: string): Promise<string> {
+  const [u] = await db.select({ name: users.name }).from(users).where(eq(users.id, userId)).limit(1);
   return u?.name ?? 'Admin';
 }

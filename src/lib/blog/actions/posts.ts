@@ -5,14 +5,14 @@ import { and, eq, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
 import { blogPosts } from '@/lib/db/schema';
-import { getSessionUid } from '@/lib/auth/session';
+import { requireUserSession } from '@/lib/auth/session';
 import { resolvePostRow } from '../pg';
 import { BlogPostEditSchema, type BlogPostEditInput, type ActionResult } from '../schemas';
 import { computeWordCount, computeReadingTime, generateSlug } from '../ai/generate-post';
 
 export async function updatePost(postId: string, input: BlogPostEditInput): Promise<ActionResult> {
-  const uid = await getSessionUid();
-  if (!uid) return { ok: false, error: 'No autenticado' };
+  const session = await requireUserSession();
+  if (!session) return { ok: false, error: 'No autenticado' };
 
   const parsed = BlogPostEditSchema.safeParse(input);
   if (!parsed.success) {
@@ -49,23 +49,23 @@ export async function updatePost(postId: string, input: BlogPostEditInput): Prom
 }
 
 export async function approvePost(postId: string): Promise<ActionResult> {
-  const uid = await getSessionUid();
-  if (!uid) return { ok: false, error: 'No autenticado' };
+  const session = await requireUserSession();
+  if (!session) return { ok: false, error: 'No autenticado' };
 
   const row = await resolvePostRow(postId);
   if (!row) return { ok: false, error: 'Post no encontrado' };
 
   await db
     .update(blogPosts)
-    .set({ status: 'approved', approvedBy: uid, updatedAt: new Date() })
+    .set({ status: 'approved', approvedBy: session.userId, updatedAt: new Date() })
     .where(eq(blogPosts.id, row.id));
 
   return { ok: true };
 }
 
 export async function publishPost(postId: string): Promise<ActionResult> {
-  const uid = await getSessionUid();
-  if (!uid) return { ok: false, error: 'No autenticado' };
+  const session = await requireUserSession();
+  if (!session) return { ok: false, error: 'No autenticado' };
 
   const row = await resolvePostRow(postId);
   if (!row) return { ok: false, error: 'Post no encontrado' };
@@ -96,7 +96,7 @@ export async function publishPost(postId: string): Promise<ActionResult> {
       wordCount,
       readingTimeMin,
       publishedAt: new Date(),
-      approvedBy: uid,
+      approvedBy: session.userId,
       seo,
       updatedAt: new Date(),
     })
@@ -109,8 +109,8 @@ export async function publishPost(postId: string): Promise<ActionResult> {
 }
 
 export async function archivePost(postId: string): Promise<ActionResult> {
-  const uid = await getSessionUid();
-  if (!uid) return { ok: false, error: 'No autenticado' };
+  const session = await requireUserSession();
+  if (!session) return { ok: false, error: 'No autenticado' };
 
   const row = await resolvePostRow(postId);
   if (!row) return { ok: false, error: 'Post no encontrado' };
@@ -127,8 +127,8 @@ export async function setPostStatus(
   postId: string,
   status: 'draft' | 'needs-review' | 'approved',
 ): Promise<ActionResult> {
-  const uid = await getSessionUid();
-  if (!uid) return { ok: false, error: 'No autenticado' };
+  const session = await requireUserSession();
+  if (!session) return { ok: false, error: 'No autenticado' };
 
   const row = await resolvePostRow(postId);
   if (!row) return { ok: false, error: 'Post no encontrado' };

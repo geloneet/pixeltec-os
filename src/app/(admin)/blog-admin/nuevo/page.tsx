@@ -1,10 +1,10 @@
 import { redirect } from "next/navigation";
-import { getSessionUid } from "@/lib/auth/session";
+import { requireUserSession } from "@/lib/auth/session";
 import { NuevoBriefForm } from "./nuevo-brief-form";
 
 export default async function NuevoBriefPage() {
-  const uid = await getSessionUid();
-  if (!uid) redirect("/login?redirect=/blog-admin/nuevo");
+  const session = await requireUserSession();
+  if (!session) redirect("/login?redirect=/blog-admin/nuevo");
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 pb-16">

@@ -4,20 +4,20 @@
 import { desc, eq, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { blogBriefs } from '@/lib/db/schema';
-import { getSessionUid } from '@/lib/auth/session';
+import { requireUserSession } from '@/lib/auth/session';
 import { resolveBriefRow, publicId, getUserDisplayName } from '../pg';
 import { BlogBriefSchema, type BlogBriefInput, type ActionResult } from '../schemas';
 
 export async function createBrief(input: BlogBriefInput): Promise<ActionResult<{ briefId: string }>> {
-  const uid = await getSessionUid();
-  if (!uid) return { ok: false, error: 'No autenticado' };
+  const session = await requireUserSession();
+  if (!session) return { ok: false, error: 'No autenticado' };
 
   const parsed = BlogBriefSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.errors[0]?.message ?? 'Datos inválidos' };
   }
 
-  const createdByName = await getUserDisplayName(uid);
+  const createdByName = await getUserDisplayName(session.userId);
 
   const [row] = await db
     .insert(blogBriefs)
@@ -26,7 +26,7 @@ export async function createBrief(input: BlogBriefInput): Promise<ActionResult<{
         ...parsed.data,
         status: 'pending',
         generatedDraftId: null,
-        createdBy: uid,
+        createdBy: session.userId,
         createdByName,
       },
     })
@@ -36,8 +36,8 @@ export async function createBrief(input: BlogBriefInput): Promise<ActionResult<{
 }
 
 export async function listBriefs(): Promise<ActionResult<import('../types').BlogBriefSerialized[]>> {
-  const uid = await getSessionUid();
-  if (!uid) return { ok: false, error: 'No autenticado' };
+  const session = await requireUserSession();
+  if (!session) return { ok: false, error: 'No autenticado' };
 
   const rows = await db.select().from(blogBriefs).orderBy(desc(blogBriefs.createdAt)).limit(50);
 
@@ -61,8 +61,8 @@ export async function listBriefs(): Promise<ActionResult<import('../types').Blog
 }
 
 export async function discardBrief(briefId: string): Promise<ActionResult> {
-  const uid = await getSessionUid();
-  if (!uid) return { ok: false, error: 'No autenticado' };
+  const session = await requireUserSession();
+  if (!session) return { ok: false, error: 'No autenticado' };
 
   const row = await resolveBriefRow(briefId);
   if (!row) return { ok: false, error: 'Brief no encontrado' };
