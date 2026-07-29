@@ -23,7 +23,7 @@ interface UserProfile {
 export function useUserProfile(): { userProfile: UserProfile | null; loading: boolean } {
   const { data: session, status } = useSession();
 
-  const uid = session?.user ? session.user.firebaseUid ?? session.user.id ?? null : null;
+  const uid = session?.user?.id ?? null;
   const email = session?.user?.email ?? undefined;
   const displayName = session?.user?.name ?? undefined;
   const role = session?.user?.role as 'admin' | 'staff' | undefined;

@@ -277,10 +277,9 @@ export function sanitizeVpsPayload(
  * todavía leen `cookies().get("__session")` y lo pasan aquí — ese valor
  * ahora se ignora.
  *
- * El "uid" devuelto es el Firebase UID puente (`session.user.firebaseUid`),
- * no el id de Postgres — mientras los datos sigan en Firestore (Fase 3 no ha
- * corrido), todo el código que usa este uid para queries de Firestore/
- * crm_data debe seguir recibiendo el mismo valor de siempre.
+ * Gate B5 (Firebase Exit): WRAPPER TEMPORAL del contrato canónico — el "uid"
+ * devuelto ahora ES `users.id`, jamás el alias Firebase. Se retira en el Gate
+ * B6; código nuevo usa `getSessionUserId()`/`requireUserSession()`.
  */
 export async function requireSession(
   _sessionCookie?: string
@@ -288,7 +287,7 @@ export async function requireSession(
   try {
     const { auth } = await import("./auth/config");
     const session = await auth();
-    const uid = session?.user?.firebaseUid;
+    const uid = session?.user?.id;
     if (!uid) return { ok: false, error: "Unauthorized" };
     return { ok: true, uid };
   } catch {

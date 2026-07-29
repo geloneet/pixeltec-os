@@ -9,7 +9,7 @@ import { useSession } from 'next-auth/react';
  * no tocar los ~20 sitios que consumen `useUser()` en toda la app — ahora
  * respaldado por la sesión de NextAuth en vez del SDK cliente de Firebase.
  *
- * `uid` es el Firebase UID puente (`firebaseUid`), no el id de Postgres —
+ * Gate B5 (Firebase Exit): `uid` es la identidad canonica `users.id`.
  * mientras los datos sigan en Firestore, el resto del código sigue
  * necesitando ese valor para sus queries.
  *
@@ -31,7 +31,7 @@ export interface CompatUser {
 export function useUser(): CompatUser | null | undefined {
   const { data: session, status } = useSession();
 
-  const uid = session?.user ? session.user.firebaseUid ?? session.user.id ?? null : null;
+  const uid = session?.user?.id ?? null;
   const email = session?.user?.email ?? null;
   const displayName = session?.user?.name ?? null;
   const photoURL = session?.user?.image ?? null;
