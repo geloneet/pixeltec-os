@@ -266,31 +266,5 @@ export function sanitizeVpsPayload(
 
 // ── Auth ─────────────────────────────────────────────────────────────────────
 
-/**
- * Valida la sesión del CRM antes de hablar al vps-api.
- *
- * Fase 2 de la migración (Firebase Auth → NextAuth): la sesión ya no es una
- * cookie de Firebase que el caller lee y pasa explícitamente — `auth()` de
- * NextAuth lee la sesión actual directo del request (vía el almacenamiento
- * async de Next.js), así que el parámetro `sessionCookie` ya no se usa. Se
- * mantiene en la firma a propósito para no tocar los ~10 call sites que
- * todavía leen `cookies().get("__session")` y lo pasan aquí — ese valor
- * ahora se ignora.
- *
- * Gate B5 (Firebase Exit): WRAPPER TEMPORAL del contrato canónico — el "uid"
- * devuelto ahora ES `users.id`, jamás el alias Firebase. Se retira en el Gate
- * B6; código nuevo usa `getSessionUserId()`/`requireUserSession()`.
- */
-export async function requireSession(
-  _sessionCookie?: string
-): Promise<{ ok: true; uid: string } | { ok: false; error: string }> {
-  try {
-    const { auth } = await import("./auth/config");
-    const session = await auth();
-    const uid = session?.user?.id;
-    if (!uid) return { ok: false, error: "Unauthorized" };
-    return { ok: true, uid };
-  } catch {
-    return { ok: false, error: "Session expired or invalid" };
-  }
-}
+// Gate B6 (Firebase Exit): `requireSession` fue retirado — la frontera de
+// sesión es `getSessionUserId()`/`requireUserSession()` en `@/lib/auth/session`.

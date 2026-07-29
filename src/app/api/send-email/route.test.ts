@@ -14,7 +14,7 @@ const { sendTestEmailMock, requireSessionMock } = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/email", () => ({ sendTestEmail: sendTestEmailMock }));
-vi.mock("@/lib/vpsClient", () => ({ requireSession: requireSessionMock }));
+vi.mock("@/lib/auth/session", () => ({ getSessionUserId: requireSessionMock }));
 vi.mock("next/headers", () => ({
   cookies: vi.fn(async () => ({ get: () => ({ value: "session-cookie" }) })),
 }));
@@ -34,7 +34,7 @@ function makeRequest() {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.stubEnv("RESEND_API_KEY", "clave-sintetica-de-test");
-  requireSessionMock.mockResolvedValue({ ok: true });
+  requireSessionMock.mockResolvedValue("11111111-1111-4111-8111-111111111111");
 });
 
 afterEach(() => {

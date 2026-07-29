@@ -165,8 +165,8 @@ describe("código muerto retirado", () => {
     expect("requireAdmin" in sessionModule).toBe(false);
   });
 
-  it("sigue exportando la resolución canónica y la heredada", () => {
+  it("exporta solo la resolucion canonica; la heredada fue retirada (Gate B6)", () => {
     expect(typeof sessionModule.getSessionUserId).toBe("function");
-    expect(typeof sessionModule.getSessionUid).toBe("function");
+    expect("getSessionUid" in sessionModule).toBe(false);
   });
 });

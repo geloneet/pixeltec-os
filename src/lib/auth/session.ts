@@ -63,8 +63,7 @@ export interface UserSession {
  *   {@link getSessionUserId} — un identificador vacío se propagaría como
  *   `ownerId` y devolvería datos de nadie sin avisar.
  *
- * Sustituye progresivamente a `getSessionUid`/`requireSession` (módulos
- * migran por gates B2-B5); no lee ni expone `firebaseUid` jamás.
+ * Frontera unica de sesion desde el Gate B6; no lee ni expone `firebaseUid`.
  */
 export async function requireUserSession(): Promise<UserSession | null> {
   const session = await auth();
@@ -78,18 +77,3 @@ export async function requireUserSession(): Promise<UserSession | null> {
   return { userId: id, email, role: role ?? undefined };
 }
 
-/**
- * @deprecated Devuelve el alias heredado `firebaseUid`, no la identidad
- * canónica. Las cuentas creadas tras la migración lo tienen a `null`, así que
- * esta función las trata como no autenticadas aunque su sesión sea válida — ese
- * es el defecto que la remediación corrige. Usar {@link getSessionUserId}.
- * Se elimina al cerrar la remediación; sus consumidores migran por bloques.
- *
- * El guard de administración real vive en `@/lib/auth-guards`, que deriva el rol
- * de `users.role`. Aquí hubo un `requireAdmin()` homónimo sin ningún consumidor:
- * se eliminó en el Gate B1 en vez de migrarse.
- */
-export async function getSessionUid(): Promise<string | null> {
-  const session = await auth();
-  return session?.user?.firebaseUid ?? null;
-}

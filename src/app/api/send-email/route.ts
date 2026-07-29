@@ -2,17 +2,16 @@
  * POST /api/send-email
  *
  * Generic email endpoint — used by the admin test panel.
- * Protected: requires an authenticated session (requireSession); RESEND_API_KEY
+ * Protected: requiere sesion canonica (getSessionUserId); RESEND_API_KEY
  * is still required for the send itself to succeed, but is not an auth control.
  *
  * Body: { type: 'test', to: string }
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { z } from 'zod';
 import { sendTestEmail } from '@/lib/email';
-import { requireSession } from '@/lib/vpsClient';
+import { getSessionUserId } from '@/lib/auth/session';
 
 const schema = z.object({
   type: z.literal('test'),
@@ -20,10 +19,8 @@ const schema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get('__session')?.value ?? '';
-  const session = await requireSession(sessionCookie);
-  if (!session.ok) {
+  const userId = await getSessionUserId();
+  if (!userId) {
     return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
   }
 

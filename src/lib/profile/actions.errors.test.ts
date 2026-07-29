@@ -23,7 +23,15 @@ vi.mock("@/lib/r2/upload", () => ({
   deleteObject: deleteObjectMock,
 }));
 vi.mock("@/lib/db", () => ({
-  db: { update: dbUpdateMock },
+  db: {
+    update: dbUpdateMock,
+    // Gate B6: requireSessionUser lee el alias de storage desde la BD (compat).
+    select: vi.fn(() => ({
+      from: vi.fn(() => ({
+        where: vi.fn(() => ({ limit: vi.fn(async () => [{ legacyUid: "fb-1" }]) })),
+      })),
+    })),
+  },
 }));
 vi.mock("@/lib/db/schema", () => ({ users: { id: {} } }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));

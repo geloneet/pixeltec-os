@@ -25,8 +25,17 @@ const AVATAR_EXTS = ["jpg", "png", "webp"] as const;
 async function requireSessionUser(): Promise<{ id: string; storageUid: string } | null> {
   const session = await auth();
   if (!session?.user?.id) return null;
-  // El path de Storage sigue scoped por Firebase UID (archivos existentes).
-  return { id: session.user.id, storageUid: session.user.firebaseUid ?? session.user.id };
+  const id = session.user.id;
+  // COMPAT (hasta el Gate B8): los avatares existentes viven bajo el alias
+  // Firebase en R2. El alias ya no viaja en la sesión (B6), así que esta es la
+  // ÚNICA lectura runtime permitida de `users.firebase_uid`; cae junto con la
+  // columna al migrar los paths.
+  const [row] = await db
+    .select({ legacyUid: users.firebaseUid })
+    .from(users)
+    .where(eq(users.id, id))
+    .limit(1);
+  return { id, storageUid: row?.legacyUid ?? id };
 }
 
 async function deleteExistingAvatars(storageUid: string): Promise<void> {

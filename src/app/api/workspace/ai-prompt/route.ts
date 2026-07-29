@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { anthropicCreate } from "@/lib/ai/anthropic-egress";
-import { requireSession } from "@/lib/vpsClient";
+import { getSessionUserId } from "@/lib/auth/session";
 import type { WorkSession } from "@/types/session";
 
 type PromptKey = "resumen" | "commit" | "siguiente" | "riesgos" | "bitacora" | "libre";
@@ -89,10 +88,8 @@ ${custom ?? "Resume la sesión."}`,
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get("__session")?.value ?? "";
-    const authSession = await requireSession(sessionCookie);
-    if (!authSession.ok) {
+    const userId = await getSessionUserId();
+    if (!userId) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 

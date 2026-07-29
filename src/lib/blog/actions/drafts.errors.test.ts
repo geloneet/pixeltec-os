@@ -9,15 +9,15 @@ import { SafeUserError, AiProviderError } from "@/lib/ai/errors";
  * un `AiProviderError` o un fallo de Drizzle acababan en pantalla.
  */
 
-const { getSessionUidMock, resolveBriefRowMock, resolvePostRowMock, generatePostFromBriefMock } =
+const { sessionUserIdMock, resolveBriefRowMock, resolvePostRowMock, generatePostFromBriefMock } =
   vi.hoisted(() => ({
-    getSessionUidMock: vi.fn(),
+    sessionUserIdMock: vi.fn(),
     resolveBriefRowMock: vi.fn(),
     resolvePostRowMock: vi.fn(),
     generatePostFromBriefMock: vi.fn(),
   }));
 
-vi.mock("@/lib/auth/session", () => ({ requireUserSession: getSessionUidMock }));
+vi.mock("@/lib/auth/session", () => ({ requireUserSession: sessionUserIdMock }));
 vi.mock("@/lib/db", () => ({
   db: { update: vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn() })) })) },
 }));
@@ -59,7 +59,7 @@ function sinFugas(result: unknown) {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.spyOn(console, "error").mockImplementation(() => {});
-  getSessionUidMock.mockResolvedValue({ userId: "user-1", email: "staff@ejemplo.mx", role: "staff" });
+  sessionUserIdMock.mockResolvedValue({ userId: "user-1", email: "staff@ejemplo.mx", role: "staff" });
   resolveBriefRowMock.mockResolvedValue({ id: "row-1", data: { titulo: "T" } });
   // `regenerateDraft` reconstruye el brief desde `briefSource`, no desde `data`.
   resolvePostRowMock.mockResolvedValue({
@@ -122,7 +122,7 @@ describe("generateDraft — el cuerpo del proveedor no llega al editor", () => {
   });
 
   test("los rechazos previos al try conservan su texto propio", async () => {
-    getSessionUidMock.mockResolvedValueOnce(null);
+    sessionUserIdMock.mockResolvedValueOnce(null);
 
     const result = (await generateDraft("brief-1")) as Result;
 

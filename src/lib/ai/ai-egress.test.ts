@@ -46,8 +46,8 @@ vi.mock("next/headers", () => ({
   cookies: vi.fn(async () => ({ get: () => ({ value: "cookie-sintetica" }) })),
 }));
 
-vi.mock("@/lib/vpsClient", () => ({
-  requireSession: vi.fn(async () => ({ ok: true })),
+vi.mock("@/lib/auth/session", () => ({
+  getSessionUserId: vi.fn(async () => "11111111-1111-4111-8111-111111111111"),
 }));
 
 const { authMock, getClientByIdMock, getDefinitionFullMock } = vi.hoisted(() => ({

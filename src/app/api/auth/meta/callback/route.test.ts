@@ -11,8 +11,8 @@ import { NextRequest } from "next/server";
  * no lleva más que un código estable.
  */
 
-const { getSessionUidMock, upsertSocialAccountMock } = vi.hoisted(() => ({
-  getSessionUidMock: vi.fn(),
+const { sessionUserIdMock, upsertSocialAccountMock } = vi.hoisted(() => ({
+  sessionUserIdMock: vi.fn(),
   upsertSocialAccountMock: vi.fn(),
 }));
 
@@ -24,7 +24,7 @@ const metaApi = vi.hoisted(() => ({
   getInstagramUsername: vi.fn(),
 }));
 
-vi.mock("@/lib/auth/session", () => ({ getSessionUid: getSessionUidMock }));
+vi.mock("@/lib/auth/session", () => ({ getSessionUserId: sessionUserIdMock }));
 vi.mock("@/lib/growth/social/meta-api", () => metaApi);
 vi.mock("@/lib/growth/actions/social-accounts", () => ({
   upsertSocialAccount: upsertSocialAccountMock,
@@ -58,7 +58,7 @@ function redirectParams(res: Response): URLSearchParams {
 beforeEach(() => {
   vi.clearAllMocks();
   process.env.NEXT_PUBLIC_APP_URL = APP_URL;
-  getSessionUidMock.mockResolvedValue("user-1");
+  sessionUserIdMock.mockResolvedValue("user-1");
   metaApi.exchangeCodeForToken.mockResolvedValue({ access_token: TOKEN_PRIVADO });
   metaApi.getLongLivedToken.mockResolvedValue({ access_token: TOKEN_PRIVADO });
   metaApi.getFacebookUser.mockResolvedValue({ id: "fb-1", name: "Cuenta de prueba" });
@@ -170,7 +170,7 @@ describe("GET /api/auth/meta/callback — la URL de redirect no transporta texto
   });
 
   test("sin sesión activa redirige con no_session, sin descripción", async () => {
-    getSessionUidMock.mockResolvedValueOnce(null);
+    sessionUserIdMock.mockResolvedValueOnce(null);
 
     const res = await GET(makeRequest({ code: "fake-code", state: STATE }));
     const params = redirectParams(res);

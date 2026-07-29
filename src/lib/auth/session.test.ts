@@ -13,7 +13,7 @@ const authMock = vi.fn();
 vi.mock("@/lib/auth/config", () => ({ auth: () => authMock() }));
 vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
 
-const { getSessionUserId, getSessionUid, requireUserSession } = await import("./session");
+const { getSessionUserId, requireUserSession } = await import("./session");
 const { authConfig, AUTH_SESSION_USER_ID_MISSING } = await import("./auth.config");
 
 const USER_ID = "3f1a2b4c-5d6e-4f70-8a91-b2c3d4e5f607";
@@ -107,17 +107,6 @@ describe("getSessionUserId", () => {
   });
 });
 
-describe("getSessionUid (heredada, @deprecated)", () => {
-  it("sigue devolviendo el alias para cuentas antiguas", async () => {
-    authMock.mockResolvedValue(sessionConPuente);
-    await expect(getSessionUid()).resolves.toBe(LEGACY_UID);
-  });
-
-  it("devuelve null para cuentas sin puente — este ES el defecto, documentado hasta el Gate B", async () => {
-    authMock.mockResolvedValue(sessionSinPuente);
-    await expect(getSessionUid()).resolves.toBeNull();
-  });
-});
 
 describe("contrato del token y de la sesión", () => {
   const jwt = authConfig.callbacks!.jwt!;
@@ -145,7 +134,8 @@ describe("contrato del token y de la sesión", () => {
   it("el JWT contiene users.id también sin puente", async () => {
     const token = await sellar({ id: USER_ID, role: "staff", firebaseUid: null });
     expect(token.id).toBe(USER_ID);
-    expect(token.firebaseUid).toBeNull();
+    // Gate B6: el alias ya no se sella en el JWT.
+    expect(token.firebaseUid).toBeUndefined();
   });
 
   it("la sesión propaga users.id desde el token", async () => {
@@ -159,11 +149,11 @@ describe("contrato del token y de la sesión", () => {
     expect(s.user.role).toBe("staff");
   });
 
-  it("firebaseUid es opcional y no bloquea la sesión", async () => {
+  it("el alias Firebase ya no viaja en la sesion (Gate B6)", async () => {
     const token = await sellar({ id: USER_ID, role: "admin" });
     const s = await proyectar(token);
     expect(s.user.id).toBe(USER_ID);
-    expect(s.user.firebaseUid).toBeNull();
+    expect(s.user.firebaseUid).toBeUndefined();
   });
 
   it("un token sin id no produce sesión: lanza y lo registra", async () => {

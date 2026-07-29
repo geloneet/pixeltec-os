@@ -68,9 +68,8 @@ function ProjectCard({ project }: { project: ActiveProject }) {
 }
 
 export default async function ProyectosPage() {
-  // La guarda mide identidad canónica (`users.id`), no el alias heredado: con
-  // `getSessionUid()` una cuenta sin `firebase_uid` rebotaba al login pese a
-  // tener sesión válida, y el login la devolvía aquí — bucle infinito.
+  // Identidad canonica (`users.id`); el helper heredado del alias fue retirado
+  // en el Gate B6 (Firebase Exit).
   const ownerId = await getSessionUserId();
   if (!ownerId) redirect("/login?redirect=/proyectos");
 

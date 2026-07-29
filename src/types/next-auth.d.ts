@@ -1,26 +1,18 @@
 import type { DefaultSession } from "next-auth";
 
 /**
- * Contrato de identidad de la sesión.
+ * Contrato de identidad de la sesión (Gate B6 — Firebase Exit).
  *
  * La identidad canónica de PixelTEC OS es `users.id` (uuid de Postgres) — es
  * lo que referencian los `owner_id` de todas las tablas de negocio vía clave
- * foránea. `firebaseUid` NO es identidad canónica: es un alias heredado de la
- * migración Firebase → Postgres que sobrevive solo como ventana de
- * compatibilidad para las cuentas creadas antes del corte.
- *
- * Regla: nada de autenticación, autorización ni acceso a datos puede depender
- * de `firebaseUid`. Una cuenta sin él debe funcionar igual.
+ * foránea. El alias heredado de Firebase ya NO viaja en el JWT ni en la
+ * sesión: la única compatibilidad restante (paths de storage de avatares
+ * antiguos) se resuelve con una lectura puntual de `users.firebase_uid` en
+ * `src/lib/profile/actions.ts`, y desaparece con la columna en el Gate B8.
  */
 declare module "next-auth" {
   interface User {
     role?: string;
-    /**
-     * Alias heredado, opcional. Las cuentas creadas después de la migración lo
-     * tienen a `null` y eso es correcto — no se generan valores nuevos.
-     * @deprecated No usar como identidad. Usar `id` (`users.id`).
-     */
-    firebaseUid?: string | null;
   }
   interface Session {
     user: {
@@ -30,10 +22,6 @@ declare module "next-auth" {
        */
       id: string;
       role?: string;
-      /**
-       * @deprecated Alias heredado. Ver la nota de cabecera del módulo.
-       */
-      firebaseUid?: string | null;
     } & DefaultSession["user"];
   }
 }
@@ -43,9 +31,5 @@ declare module "@auth/core/jwt" {
     /** Identidad canónica: `users.id`. */
     id?: string;
     role?: string;
-    /**
-     * @deprecated Alias heredado. Ver la nota de cabecera del módulo.
-     */
-    firebaseUid?: string | null;
   }
 }

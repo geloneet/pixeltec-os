@@ -39,7 +39,6 @@ export const authConfig: NextAuthConfig = {
         token.id = user.id;
         token.role = user.role;
         // Alias heredado: se propaga si existe, pero nada debe depender de él.
-        token.firebaseUid = user.firebaseUid ?? null;
       }
       // `useSession().update({ name?, image? })` desde el cliente tras editar
       // el perfil — sin esto el header mostraría nombre/foto viejos hasta el
@@ -62,7 +61,6 @@ export const authConfig: NextAuthConfig = {
       session.user.id = userId;
       if (token.role) session.user.role = token.role;
       // Alias heredado: viaja solo informativamente.
-      session.user.firebaseUid = token.firebaseUid ?? null;
       return session;
     },
   },

@@ -93,15 +93,15 @@ const { dbMock, registro } = vi.hoisted(() => {
 
 vi.mock("@/lib/db", () => ({ db: dbMock }));
 
-const { getSessionUidMock, resolveOwnerIdMock, resolveBrandRowMock, resolveCampaignRowMock } =
+const { sessionUserIdMock, resolveOwnerIdMock, resolveBrandRowMock, resolveCampaignRowMock } =
   vi.hoisted(() => ({
-    getSessionUidMock: vi.fn(),
+    sessionUserIdMock: vi.fn(),
     resolveOwnerIdMock: vi.fn(),
     resolveBrandRowMock: vi.fn(),
     resolveCampaignRowMock: vi.fn(),
   }));
 
-vi.mock("@/lib/auth/session", () => ({ getSessionUserId: getSessionUidMock }));
+vi.mock("@/lib/auth/session", () => ({ getSessionUserId: sessionUserIdMock }));
 
 vi.mock("@/lib/growth/pg", () => ({
   resolveOwnerId: resolveOwnerIdMock,
@@ -161,7 +161,7 @@ const FILA_CAMPANA = {
 beforeEach(() => {
   vi.clearAllMocks();
   registro.length = 0;
-  getSessionUidMock.mockResolvedValue("uid-1");
+  sessionUserIdMock.mockResolvedValue("uid-1");
   resolveOwnerIdMock.mockResolvedValue("owner-1");
   resolveBrandRowMock.mockResolvedValue(FILA_MARCA);
   resolveCampaignRowMock.mockResolvedValue(FILA_CAMPANA);

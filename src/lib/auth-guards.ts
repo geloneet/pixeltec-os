@@ -1,4 +1,3 @@
-import { requireSession } from "@/lib/vpsClient";
 import { db } from "@/lib/db";
 import { infraAuditLog } from "@/lib/db/schema";
 import { auth } from "@/lib/auth/config";
@@ -8,27 +7,24 @@ type GuardResult =
   | { ok: false; error: string; status: number };
 
 /**
- * Fase 2 de la migración: el rol de admin ahora vive en `users.role`
- * (Postgres), no en `ADMIN_UIDS` (env) — reemplaza esa comprobación.
- * `requireSession` ya no valida contra Firebase, ver el comentario en
- * vpsClient.ts.
+ * Identidad canonica (Gate B6): sesion y rol salen de auth() — `users.id` +
+ * `users.role`. La auditoria de 403 registra users.id.
  */
 export async function requireAdmin(
-  sessionCookie?: string,
+  _sessionCookie?: string,
   context?: { route: string; ip?: string; userAgent?: string }
 ): Promise<GuardResult> {
-  const session = await requireSession(sessionCookie);
-  if (!session.ok) return { ok: false, error: session.error, status: 401 };
-
-  const nextAuthSession = await auth();
-  const isAdmin = nextAuthSession?.user?.role === "admin";
+  const session = await auth();
+  const uid = session?.user?.id;
+  if (!uid) return { ok: false, error: "Unauthorized", status: 401 };
+  const isAdmin = session.user.role === "admin";
 
   if (!isAdmin) {
     if (context) {
       db.insert(infraAuditLog)
         .values({
           type: "forbidden_access_attempt",
-          uid: session.uid,
+          uid,
           route: context.route,
           ip: context.ip ?? null,
           userAgent: context.userAgent ?? null,
@@ -38,5 +34,5 @@ export async function requireAdmin(
     return { ok: false, error: "forbidden", status: 403 };
   }
 
-  return { ok: true, uid: session.uid, isAdmin: true };
+  return { ok: true, uid, isAdmin: true };
 }

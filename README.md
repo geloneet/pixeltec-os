@@ -12,8 +12,8 @@ Sistema operativo interno de PixelTEC — CRM, gestión de proyectos, DevOps, in
 |---|---|
 | Framework | Next.js 15 (App Router, standalone output) |
 | UI | Tailwind CSS, shadcn/ui, Radix UI, Lucide React |
-| Auth | Firebase Auth + sesión cookie (`__session`) verificada con Firebase Admin SDK |
-| Base de datos | Firestore (cliente SDK en browser, Admin SDK en server) |
+| Auth | NextAuth v5 (credenciales) — sesión JWT; identidad canónica `users.id` |
+| Base de datos | PostgreSQL 16 + Drizzle ORM (contenedor propio, red interna) |
 | Bot | grammY (Telegram) — alertas crypto |
 | AI | Genkit |
 | Infraestructura | Docker + Nginx en OVH VPS |
@@ -48,7 +48,7 @@ Inteligencia de mercado crypto: precios en tiempo real, sistema de alertas confi
 Portal público para clientes. Acceso por OTP (código de 6 dígitos enviado por email). Los clientes ven el estado de sus proyectos y actualizaciones sin necesidad de cuenta.
 
 ### `/login`
-Autenticación con Firebase. Soporta redirect tras login. Verifica sesión cookie en middleware.
+Autenticación con NextAuth v5 (credenciales). Soporta redirect tras login.
 
 ---
 
@@ -91,10 +91,9 @@ src/
 │   ├── crm/              — CRM shell, contexto, vistas
 │   └── crypto-intel/     — alertas, market pulse, admin
 ├── lib/
-│   ├── firebase-admin.ts
 │   ├── crypto-intel/     — server actions, schemas, evaluador de alertas
 │   └── vps-swr.ts
-└── middleware.ts         — verifica __session cookie con Firebase Admin SDK
+└── middleware.ts
 ```
 
 ---
@@ -122,25 +121,18 @@ src/
 
 ---
 
-## Firestore — colecciones
+## Datos — PostgreSQL
 
-| Colección | Acceso | Descripción |
-|---|---|---|
-| `users/{uid}` | Solo el propio usuario | Perfil y rol |
-| `clients/{id}` | Auth (write) / Público (read) | Clientes + pipeline |
-| `clients/{id}/updates` | Auth (write) / Público (read) | Actualizaciones de cliente |
-| `clients/{id}/projects` | Auth (write) / Público (read) | Proyectos del cliente |
-| `leads`, `tickets`, `finances`, `tasks`, `activity` | Auth | Datos del CRM |
-| `crm_data/{uid}` | Solo el propio usuario autenticado | Estado blob del CRM |
-| `alertRules`, `alerts`, `prices`, `priceSnapshots`, `cryptoIntelLogs`, `telegramUsers`, `telegramSessions` | **Solo Admin SDK** (denegado al cliente) | Crypto intel — solo backend |
+Todas las tablas viven en `src/lib/db/schema.ts` (Drizzle). Las columnas
+`firestore_id` son el vinculo historico de las filas migradas desde Firestore
+y sostienen los ids publicos; se conservan a proposito.
 
 ---
 
 ## Seguridad
 
-- **Middleware:** verifica criptográficamente la cookie `__session` con `verifySessionCookie()` en cada request a rutas protegidas. Cookies inválidas/expiradas → redirect a `/login?error=session_expired`. Errores de infraestructura → fail-open.
-- **Firestore Rules:** colecciones crypto-intel denegadas explícitamente al cliente (`if false`). Datos de otros usuarios inaccesibles.
-- **Server Actions:** todas las acciones verifican `getSessionUid()`. Ownership checks en alertas para prevenir IDOR.
+- **Middleware:** protege rutas con la sesion de NextAuth; sesiones invalidas redirigen a `/login`.
+- **Server Actions:** todas las acciones verifican `getSessionUserId()` (identidad canonica `users.id`). Ownership checks para prevenir IDOR.
 
 ---
 
@@ -148,21 +140,12 @@ src/
 
 ### Build-time (públicas, inyectadas vía Docker ARG)
 ```
-NEXT_PUBLIC_FIREBASE_API_KEY
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
-NEXT_PUBLIC_FIREBASE_PROJECT_ID
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
-NEXT_PUBLIC_FIREBASE_APP_ID
 NEXT_PUBLIC_LOGO_URL
 NEXT_PUBLIC_PROFILE_PHOTO_URL
 ```
 
 ### Runtime (`.env.production`, nunca en el repo)
 ```
-FIREBASE_ADMIN_PROJECT_ID
-FIREBASE_ADMIN_CLIENT_EMAIL
-FIREBASE_ADMIN_PRIVATE_KEY
 TELEGRAM_BOT_TOKEN
 TELEGRAM_WEBHOOK_SECRET
 CRON_SECRET
@@ -218,9 +201,6 @@ docker compose restart app
 
 # Verificar BUILD_ID en producción
 docker compose exec app cat .next/BUILD_ID
-
-# Aplicar Firestore rules
-firebase deploy --only firestore:rules
 ```
 
 ---
@@ -229,8 +209,6 @@ firebase deploy --only firestore:rules
 
 ```bash
 npm install
-cp .env.local.example .env.local   # completar con credenciales Firebase
+cp .env.local.example .env.local   # completar variables locales
 npm run dev                         # http://localhost:3000
 ```
-
-> El middleware usa `firebase-admin` con `nodeMiddleware: true` (Next.js 15.2+). No funciona en Edge runtime — requiere Node.js runtime explícito (`export const runtime = 'nodejs'`).
