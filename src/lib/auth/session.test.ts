@@ -13,7 +13,7 @@ const authMock = vi.fn();
 vi.mock("@/lib/auth/config", () => ({ auth: () => authMock() }));
 vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
 
-const { getSessionUserId, getSessionUid } = await import("./session");
+const { getSessionUserId, getSessionUid, requireUserSession } = await import("./session");
 const { authConfig, AUTH_SESSION_USER_ID_MISSING } = await import("./auth.config");
 
 const USER_ID = "3f1a2b4c-5d6e-4f70-8a91-b2c3d4e5f607";
@@ -183,5 +183,54 @@ describe("contrato del token y de la sesión", () => {
     const mensaje = spy.mock.calls.flat().join(" ");
     expect(mensaje).not.toContain(LEGACY_UID);
     expect(mensaje).not.toContain(USER_ID);
+  });
+});
+
+/**
+ * Gate B1 (Firebase Exit): frontera canónica `requireUserSession` — contrato
+ * {userId, email, role?} sin `firebaseUid`. Cuentas sin alias operan igual.
+ */
+describe("requireUserSession (Gate B1)", () => {
+  it("admin histórico CON alias: contrato canónico, jamás expone el alias", async () => {
+    authMock.mockResolvedValue(sessionConPuente);
+    const s = await requireUserSession();
+    expect(s).toEqual({ userId: USER_ID, email: "con-puente@ejemplo.mx", role: "admin" });
+    expect(s).not.toHaveProperty("firebaseUid");
+  });
+
+  it("staff con firebaseUid = null AUTENTICA igual — el defecto queda corregido", async () => {
+    authMock.mockResolvedValue(sessionSinPuente);
+    const s = await requireUserSession();
+    expect(s).toEqual({ userId: USER_ID, email: "sin-puente@ejemplo.mx", role: "staff" });
+  });
+
+  it("usuario nuevo post-migración (sin campo firebaseUid en absoluto)", async () => {
+    authMock.mockResolvedValue({ user: { id: USER_ID, email: "nuevo@ejemplo.mx" } });
+    const s = await requireUserSession();
+    expect(s).toEqual({ userId: USER_ID, email: "nuevo@ejemplo.mx", role: undefined });
+  });
+
+  it("sin sesión → null, en silencio (401/redirect es del caller)", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    authMock.mockResolvedValue(null);
+    await expect(requireUserSession()).resolves.toBeNull();
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it("usuario desactivado/eliminado (el callback ya no emite sesión) → null", async () => {
+    authMock.mockResolvedValue({ user: undefined });
+    await expect(requireUserSession()).resolves.toBeNull();
+  });
+
+  it("sesión corrupta sin users.id → LANZA, no degrada", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    authMock.mockResolvedValue({ user: { email: "x@ejemplo.mx", firebaseUid: LEGACY_UID } });
+    await expect(requireUserSession()).rejects.toThrow(AUTH_SESSION_USER_ID_MISSING);
+  });
+
+  it("sesión sin email → LANZA (invariante del contrato)", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    authMock.mockResolvedValue({ user: { id: USER_ID, role: "staff" } });
+    await expect(requireUserSession()).rejects.toThrow(AUTH_SESSION_USER_ID_MISSING);
   });
 });

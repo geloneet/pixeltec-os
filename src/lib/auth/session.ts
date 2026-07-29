@@ -42,6 +42,43 @@ export async function getSessionUserId(): Promise<string | null> {
 }
 
 /**
+ * Contrato mínimo de la sesión canónica (Gate B1 — Firebase Exit).
+ * `firebaseUid` NO forma parte del contrato: una cuenta con el alias en
+ * `null` opera idéntico a una con alias.
+ */
+export interface UserSession {
+  /** Identidad canónica: `users.id` (uuid de Postgres). */
+  userId: string;
+  email: string;
+  /** Rol tal cual viaja en el JWT; la autorización vive en `@/lib/auth-guards`. */
+  role?: string;
+}
+
+/**
+ * Frontera canónica de sesión (Gate B1 — Firebase Exit).
+ *
+ * - `null` — sin sesión: el caller responde 401 o redirige (estado normal).
+ * - **Lanza** `AUTH_SESSION_USER_ID_MISSING` si la sesión existe pero viola el
+ *   invariante (sin `users.id` o sin `email`): mismo criterio ruidoso que
+ *   {@link getSessionUserId} — un identificador vacío se propagaría como
+ *   `ownerId` y devolvería datos de nadie sin avisar.
+ *
+ * Sustituye progresivamente a `getSessionUid`/`requireSession` (módulos
+ * migran por gates B2-B5); no lee ni expone `firebaseUid` jamás.
+ */
+export async function requireUserSession(): Promise<UserSession | null> {
+  const session = await auth();
+  if (!session?.user) return null;
+
+  const { id, email, role } = session.user;
+  if (typeof id !== "string" || id.length === 0 || typeof email !== "string" || email.length === 0) {
+    console.error("[auth] sesión sin users.id/email — identidad no resoluble");
+    throw new Error(AUTH_SESSION_USER_ID_MISSING);
+  }
+  return { userId: id, email, role: role ?? undefined };
+}
+
+/**
  * @deprecated Devuelve el alias heredado `firebaseUid`, no la identidad
  * canónica. Las cuentas creadas tras la migración lo tienen a `null`, así que
  * esta función las trata como no autenticadas aunque su sesión sea válida — ese
