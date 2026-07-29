@@ -4,9 +4,8 @@
 // Firestore para las filas migradas y uuids de Postgres para las nuevas —
 // estas funciones resuelven ambos (mismo patrón que src/lib/blog/pg.ts).
 //
-// `getSessionUid()` devuelve el UID de Firebase (valor puente); las tablas
-// growth* usan `ownerId` = users.id (uuid de Postgres). `resolveOwnerId`
-// hace ese mapeo vía la columna users.firebase_uid.
+// Identidad canonica: la sesion entrega users.id (Gate B3 - Firebase Exit);
+// las tablas growth* usan `ownerId` = users.id directamente.
 import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import {
@@ -21,12 +20,17 @@ import { sanitizePublishErrors } from './social/publish-errors';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** Firebase UID (sesión) → users.id (uuid de Postgres). */
-export async function resolveOwnerId(firebaseUid: string): Promise<string | null> {
+/**
+ * Identidad canónica (Gate B3 — Firebase Exit): recibe `users.id` de la sesión
+ * y solo verifica que el usuario exista. El mapeo vía `users.firebase_uid`
+ * quedó retirado; la función se conserva por compatibilidad de call sites y se
+ * inlineará en el Gate B6.
+ */
+export async function resolveOwnerId(userId: string): Promise<string | null> {
   const [u] = await db
     .select({ id: users.id })
     .from(users)
-    .where(eq(users.firebaseUid, firebaseUid))
+    .where(eq(users.id, userId))
     .limit(1);
   return u?.id ?? null;
 }

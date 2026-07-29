@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSessionUid } from '@/lib/auth/session';
+import { getSessionUserId } from '@/lib/auth/session';
 import { publishPostToAccount } from '@/lib/growth/social/publish';
 
 export async function POST(req: NextRequest) {
-  const uid = await getSessionUid();
+  const uid = await getSessionUserId();
   if (!uid) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { postId, accountId } = (await req.json()) as { postId?: string; accountId?: string };

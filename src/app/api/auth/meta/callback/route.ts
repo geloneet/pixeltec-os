@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'node:crypto';
-import { getSessionUid } from '@/lib/auth/session';
+import { getSessionUserId } from '@/lib/auth/session';
 import {
   exchangeCodeForToken,
   getLongLivedToken,
@@ -69,7 +69,7 @@ export async function GET(req: NextRequest) {
   // que viene del cliente. Antes `state` era el uid en claro, validado solo con
   // un regex de formato, lo que permitía a cualquiera vincular sus propias
   // páginas de Facebook/Instagram a la cuenta de otra persona (account takeover).
-  const uid = await getSessionUid();
+  const uid = await getSessionUserId();
   if (!uid) {
     console.error('[meta/callback] no hay sesión activa al recibir el callback');
     return NextResponse.redirect(`${redirectBase}?meta_error=no_session`);

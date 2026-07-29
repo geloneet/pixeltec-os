@@ -2,17 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { growthPosts } from '@/lib/db/schema';
-import { getSessionUid } from '@/lib/auth/session';
+import { getSessionUserId } from '@/lib/auth/session';
 import { resolveOwnerId, resolvePostRow, serializePostRow } from '@/lib/growth/pg';
 
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ postId: string }> }
 ) {
-  const uid = await getSessionUid();
-  if (!uid) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const ownerId = await getSessionUserId();
+  if (!ownerId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const ownerId = await resolveOwnerId(uid);
   const { postId } = await params;
   const row = await resolvePostRow(postId);
   if (!row || !ownerId || row.ownerId !== ownerId) {
@@ -26,10 +25,9 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ postId: string }> }
 ) {
-  const uid = await getSessionUid();
-  if (!uid) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const ownerId = await getSessionUserId();
+  if (!ownerId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const ownerId = await resolveOwnerId(uid);
   const { postId } = await params;
   const row = await resolvePostRow(postId);
   if (!row || !ownerId || row.ownerId !== ownerId) {
@@ -60,10 +58,9 @@ export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ postId: string }> }
 ) {
-  const uid = await getSessionUid();
-  if (!uid) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const ownerId = await getSessionUserId();
+  if (!ownerId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const ownerId = await resolveOwnerId(uid);
   const { postId } = await params;
   const row = await resolvePostRow(postId);
   if (!row || !ownerId || row.ownerId !== ownerId) {

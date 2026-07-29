@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSessionUid } from '@/lib/auth/session';
+import { getSessionUserId } from '@/lib/auth/session';
 import { uploadBrandLogo } from '@/lib/growth/storage/brands';
 
 const MAX_BYTES = 5 * 1024 * 1024;
 const ALLOWED = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml']);
 
 export async function POST(req: NextRequest) {
-  const uid = await getSessionUid();
+  const uid = await getSessionUserId();
   if (!uid) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const form = await req.formData();

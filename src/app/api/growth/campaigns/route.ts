@@ -2,15 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { and, desc, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { growthCampaigns } from '@/lib/db/schema';
-import { getSessionUid } from '@/lib/auth/session';
+import { getSessionUserId } from '@/lib/auth/session';
 import { resolveOwnerId, resolveBrandRow, serializeCampaignRow } from '@/lib/growth/pg';
 
 export async function GET(req: NextRequest) {
-  const uid = await getSessionUid();
-  if (!uid) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  const ownerId = await resolveOwnerId(uid);
-  if (!ownerId) return NextResponse.json({ campaigns: [] });
+  const ownerId = await getSessionUserId();
+  if (!ownerId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
   const brandId = searchParams.get('brandId');

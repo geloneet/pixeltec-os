@@ -101,7 +101,7 @@ const { getSessionUidMock, resolveOwnerIdMock, resolveBrandRowMock, resolveCampa
     resolveCampaignRowMock: vi.fn(),
   }));
 
-vi.mock("@/lib/auth/session", () => ({ getSessionUid: getSessionUidMock }));
+vi.mock("@/lib/auth/session", () => ({ getSessionUserId: getSessionUidMock }));
 
 vi.mock("@/lib/growth/pg", () => ({
   resolveOwnerId: resolveOwnerIdMock,

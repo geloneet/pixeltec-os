@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import crypto from 'node:crypto';
-import { getSessionUid } from '@/lib/auth/session';
+import { getSessionUserId } from '@/lib/auth/session';
 import { OAUTH_STATE_COOKIE } from '@/lib/growth/social/meta-oauth-state';
 
 const SCOPES = [
@@ -12,7 +12,7 @@ const SCOPES = [
 ].join(',');
 
 export async function GET() {
-  const uid = await getSessionUid();
+  const uid = await getSessionUserId();
   if (!uid) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL;

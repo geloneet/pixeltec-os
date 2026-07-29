@@ -4,7 +4,7 @@
 import { and, desc, eq, gte, ne, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { growthBrands, growthCampaigns, growthCredits, growthCreditLedger } from '@/lib/db/schema';
-import { getSessionUid } from '@/lib/auth/session';
+import { getSessionUserId } from '@/lib/auth/session';
 import { revalidatePath } from 'next/cache';
 import { generateText } from '@/lib/growth/ai/providers/openai-text';
 import { SafeUserError, toSafeFailure } from '@/lib/ai/errors';
@@ -55,7 +55,7 @@ function serialize(row: CampaignRow): CampaignClient {
 }
 
 export async function getCampaigns(brandId?: string): Promise<CampaignClient[]> {
-  const uid = await getSessionUid();
+  const uid = await getSessionUserId();
   if (!uid) return [];
   const ownerId = await resolveOwnerId(uid);
   if (!ownerId) return [];
@@ -76,7 +76,7 @@ export async function getCampaigns(brandId?: string): Promise<CampaignClient[]> 
 }
 
 export async function getCampaign(campaignId: string): Promise<CampaignClient | null> {
-  const uid = await getSessionUid();
+  const uid = await getSessionUserId();
   if (!uid) return null;
   const ownerId = await resolveOwnerId(uid);
   if (!ownerId) return null;
@@ -93,7 +93,7 @@ export async function createCampaign(data: {
   targetPlatforms: Campaign['targetPlatforms'];
   dateRange?: { startDate: string; endDate: string };
 }): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
-  const uid = await getSessionUid();
+  const uid = await getSessionUserId();
   if (!uid) return { ok: false, error: 'No autenticado' };
   const ownerId = await resolveOwnerId(uid);
   if (!ownerId) return { ok: false, error: 'No autenticado' };
@@ -123,7 +123,7 @@ export async function createCampaign(data: {
 export async function generateCampaignStrategy(
   campaignId: string
 ): Promise<{ ok: boolean; error?: string }> {
-  const uid = await getSessionUid();
+  const uid = await getSessionUserId();
   if (!uid) return { ok: false, error: 'No autenticado' };
   const ownerId = await resolveOwnerId(uid);
   if (!ownerId) return { ok: false, error: 'No autenticado' };

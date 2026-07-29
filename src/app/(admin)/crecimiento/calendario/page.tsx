@@ -1,12 +1,12 @@
 import { and, asc, eq, gte, inArray, lte } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { growthPosts } from '@/lib/db/schema';
-import { getSessionUid } from '@/lib/auth/session';
+import { getSessionUserId } from '@/lib/auth/session';
 import { resolveOwnerId, publicId } from '@/lib/growth/pg';
 import { CalendarGrid } from '@/components/growth/calendar/CalendarGrid';
 
 async function getScheduledPosts() {
-  const uid = await getSessionUid();
+  const uid = await getSessionUserId();
   if (!uid) return [];
   const ownerId = await resolveOwnerId(uid);
   if (!ownerId) return [];

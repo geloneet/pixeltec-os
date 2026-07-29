@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { growthJobs } from '@/lib/db/schema';
-import { getSessionUid } from '@/lib/auth/session';
+import { getSessionUserId } from '@/lib/auth/session';
 import { getBrand } from '@/lib/growth/actions/brands';
 import { runPostGeneration } from '@/lib/growth/ai/orchestrator';
 import { resolveOwnerId, resolveBrandRow } from '@/lib/growth/pg';
@@ -12,10 +12,7 @@ import type { PostGenerationRequest } from '@/lib/growth/ai/prompt-builder';
 export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
-  const uid = await getSessionUid();
-  if (!uid) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  const ownerId = await resolveOwnerId(uid);
+  const ownerId = await getSessionUserId();
   if (!ownerId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const body = (await req.json()) as { brandId?: string; request?: PostGenerationRequest };
@@ -44,7 +41,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const post = await runPostGeneration({
-      uid,
+      uid: ownerId,
       brand: brand as unknown as import('@/types/growth/brand-brain').BrandBrain,
       request,
       jobId: job.id,

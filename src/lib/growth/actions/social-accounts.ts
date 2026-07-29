@@ -4,7 +4,7 @@
 import { and, desc, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { growthSocialAccounts } from '@/lib/db/schema';
-import { getSessionUid } from '@/lib/auth/session';
+import { getSessionUserId } from '@/lib/auth/session';
 import { revalidatePath } from 'next/cache';
 import { resolveOwnerId, resolveSocialAccountRow, publicId } from '@/lib/growth/pg';
 import type { SocialAccount } from '@/types/growth/social';
@@ -34,7 +34,7 @@ function serialize(row: AccountRow): SocialAccountClient {
 }
 
 export async function getSocialAccounts(): Promise<SocialAccountClient[]> {
-  const uid = await getSessionUid();
+  const uid = await getSessionUserId();
   if (!uid) return [];
   const ownerId = await resolveOwnerId(uid);
   if (!ownerId) return [];
@@ -47,7 +47,7 @@ export async function getSocialAccounts(): Promise<SocialAccountClient[]> {
 }
 
 export async function disconnectSocialAccount(accountId: string): Promise<{ ok: boolean; error?: string }> {
-  const uid = await getSessionUid();
+  const uid = await getSessionUserId();
   if (!uid) return { ok: false, error: 'No autenticado' };
   const ownerId = await resolveOwnerId(uid);
   if (!ownerId) return { ok: false, error: 'No autenticado' };

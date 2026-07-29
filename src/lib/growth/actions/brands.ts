@@ -4,7 +4,7 @@
 import { desc, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { growthBrands, growthCredits, growthCreditLedger } from '@/lib/db/schema';
-import { getSessionUid } from '@/lib/auth/session';
+import { getSessionUserId } from '@/lib/auth/session';
 import { revalidatePath } from 'next/cache';
 import { computeBrandScore, isBrandComplete, isBrandUsable } from '@/lib/growth/utils/brand-score';
 import { resolveOwnerId, resolveBrandRow, publicId } from '@/lib/growth/pg';
@@ -70,7 +70,7 @@ async function ensureCredits(ownerId: string) {
 }
 
 export async function getBrands(): Promise<BrandBrainClient[]> {
-  const uid = await getSessionUid();
+  const uid = await getSessionUserId();
   if (!uid) return [];
   const ownerId = await resolveOwnerId(uid);
   if (!ownerId) return [];
@@ -83,7 +83,7 @@ export async function getBrands(): Promise<BrandBrainClient[]> {
 }
 
 export async function getBrand(brandId: string): Promise<BrandBrainClient | null> {
-  const uid = await getSessionUid();
+  const uid = await getSessionUserId();
   if (!uid) return null;
   const ownerId = await resolveOwnerId(uid);
   if (!ownerId) return null;
@@ -95,7 +95,7 @@ export async function getBrand(brandId: string): Promise<BrandBrainClient | null
 export type CreateBrandInput = Omit<BrandBrain, 'id' | 'uid' | 'createdAt' | 'updatedAt' | 'completionScore' | 'isComplete'>;
 
 export async function createBrand(data: CreateBrandInput): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
-  const uid = await getSessionUid();
+  const uid = await getSessionUserId();
   if (!uid) return { ok: false, error: 'No autenticado' };
   const ownerId = await resolveOwnerId(uid);
   if (!ownerId) return { ok: false, error: 'No autenticado' };
@@ -125,7 +125,7 @@ export async function updateBrand(
   brandId: string,
   data: Partial<CreateBrandInput>
 ): Promise<{ ok: boolean; error?: string }> {
-  const uid = await getSessionUid();
+  const uid = await getSessionUserId();
   if (!uid) return { ok: false, error: 'No autenticado' };
   const ownerId = await resolveOwnerId(uid);
   if (!ownerId) return { ok: false, error: 'No autenticado' };
@@ -152,7 +152,7 @@ export async function updateBrand(
 }
 
 export async function deleteBrand(brandId: string): Promise<{ ok: boolean; error?: string }> {
-  const uid = await getSessionUid();
+  const uid = await getSessionUserId();
   if (!uid) return { ok: false, error: 'No autenticado' };
   const ownerId = await resolveOwnerId(uid);
   if (!ownerId) return { ok: false, error: 'No autenticado' };

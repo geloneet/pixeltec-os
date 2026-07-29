@@ -2,14 +2,13 @@ import { NextResponse } from 'next/server';
 import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { growthCredits } from '@/lib/db/schema';
-import { getSessionUid } from '@/lib/auth/session';
+import { getSessionUserId } from '@/lib/auth/session';
 import { resolveOwnerId } from '@/lib/growth/pg';
 
 export async function GET() {
-  const uid = await getSessionUid();
-  if (!uid) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const ownerId = await getSessionUserId();
+  if (!ownerId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const ownerId = await resolveOwnerId(uid);
   const [row] = ownerId
     ? await db.select().from(growthCredits).where(eq(growthCredits.ownerId, ownerId)).limit(1)
     : [];
