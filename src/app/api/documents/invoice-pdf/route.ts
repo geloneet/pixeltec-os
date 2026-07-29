@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
-import { requireSession } from "@/lib/vpsClient";
+import { getSessionUserId } from "@/lib/auth/session";
 import { findInvoiceByPublicId } from "@/lib/documents/pg";
 import type { Invoice, InvoiceItem } from "@/types/documents";
 
@@ -12,14 +11,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       return new NextResponse("Missing invoiceId", { status: 400 });
     }
 
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get("__session")?.value ?? "";
-    const session = await requireSession(sessionCookie);
-    if (!session.ok) return new NextResponse("Unauthorized", { status: 401 });
+    const userId = await getSessionUserId();
+    if (!userId) return new NextResponse("Unauthorized", { status: 401 });
 
     const invoice = await findInvoiceByPublicId(invoiceId);
     if (!invoice) return new NextResponse("Invoice not found", { status: 404 });
-    if (invoice.uid !== session.uid) return new NextResponse("Forbidden", { status: 403 });
+    if (invoice.uid !== userId) return new NextResponse("Forbidden", { status: 403 });
 
     const pdf = await buildInvoicePdf(invoice);
 

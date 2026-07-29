@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { anthropicCreate } from "@/lib/ai/anthropic-egress";
-import { requireSession } from "@/lib/vpsClient";
+import { getSessionUserId } from "@/lib/auth/session";
 
 interface RequestBody {
   clientName: string;
@@ -12,10 +11,8 @@ interface RequestBody {
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get("__session")?.value ?? "";
-    const session = await requireSession(sessionCookie);
-    if (!session.ok) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const userId = await getSessionUserId();
+    if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body: RequestBody = await req.json();
     const { clientName, serviceDescription } = body;

@@ -25,7 +25,7 @@ import {
   strategies,
   iaTemplates,
 } from "@/lib/db/schema";
-import { getSessionUid } from "@/lib/auth/session";
+import { getSessionUserId } from "@/lib/auth/session";
 import type {
   Proposal,
   ProposalViewEvent,
@@ -49,11 +49,12 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 // ── Identidad / auth ─────────────────────────────────────────────────────────
 
-export async function resolveOwnerPgId(firebaseUid: string): Promise<string | null> {
+// Identidad canonica (Gate B4): verifica users.id; el mapeo firebase_uid quedo retirado.
+export async function resolveOwnerPgId(userId: string): Promise<string | null> {
   const [u] = await db
     .select({ id: users.id })
     .from(users)
-    .where(eq(users.firebaseUid, firebaseUid))
+    .where(eq(users.id, userId))
     .limit(1);
   return u?.id ?? null;
 }
@@ -63,7 +64,7 @@ export async function resolveOwnerPgId(firebaseUid: string): Promise<string | nu
  * cliente — ese se conserva solo por compatibilidad de firma y se ignora).
  */
 export async function requireOwner(): Promise<{ uid: string; ownerId: string }> {
-  const uid = await getSessionUid();
+  const uid = await getSessionUserId();
   if (!uid) throw new Error("No autenticado");
   const ownerId = await resolveOwnerPgId(uid);
   if (!ownerId) throw new Error("Usuario no encontrado");
@@ -94,13 +95,9 @@ async function clientPublicIdFor(clientPgId: string): Promise<string> {
   return c?.fsId ?? clientPgId;
 }
 
+// Gate B4: el campo `uid` de los documentos serializados ahora ES users.id.
 async function ownerFirebaseUidFor(ownerPgId: string): Promise<string> {
-  const [u] = await db
-    .select({ fu: users.firebaseUid })
-    .from(users)
-    .where(eq(users.id, ownerPgId))
-    .limit(1);
-  return u?.fu ?? "";
+  return ownerPgId;
 }
 
 function iso(d: Date | null | undefined): string | undefined {

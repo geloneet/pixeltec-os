@@ -11,7 +11,7 @@ export async function getProposalByToken(
   token: string,
 ): Promise<(Proposal & { id: string }) | null> {
   const [r] = await db
-    .select({ doc: proposals, clientFsId: clients.firestoreId, ownerUid: users.firebaseUid })
+    .select({ doc: proposals, clientFsId: clients.firestoreId, ownerUid: users.id })
     .from(proposals)
     .innerJoin(clients, eq(proposals.clientId, clients.id))
     .innerJoin(users, eq(proposals.ownerId, users.id))

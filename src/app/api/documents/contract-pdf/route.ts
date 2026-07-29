@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { requireSession } from "@/lib/vpsClient";
+import { getSessionUserId } from "@/lib/auth/session";
 import { findContractByPublicId } from "@/lib/documents/pg";
 import { contractPdfResponse } from "@/lib/documents/contract-pdf-render";
 
@@ -10,18 +9,14 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     if (!contractId) {
       return new NextResponse("Missing contractId", { status: 400 });
     }
-
-    // Auth — session cookie (admin) only.
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get("__session")?.value ?? "";
-    const session = await requireSession(sessionCookie);
-    if (!session.ok) return new NextResponse("Unauthorized", { status: 401 });
+    const userId = await getSessionUserId();
+    if (!userId) return new NextResponse("Unauthorized", { status: 401 });
 
     const contract = await findContractByPublicId(contractId);
     if (!contract) {
       return new NextResponse("Contract not found", { status: 404 });
     }
-    if (contract.uid !== session.uid) {
+    if (contract.uid !== userId) {
       return new NextResponse("Forbidden", { status: 403 });
     }
 

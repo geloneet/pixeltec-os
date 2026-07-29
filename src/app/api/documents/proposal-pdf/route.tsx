@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { requireSession } from "@/lib/vpsClient";
+import { getSessionUserId } from "@/lib/auth/session";
 import { getProposalByToken } from "@/lib/documents/proposals-admin";
 import { findProposalByPublicId } from "@/lib/documents/pg";
 import type { Proposal } from "@/types/documents";
@@ -55,14 +54,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       proposal = await getProposalByToken(token);
     } else if (proposalId) {
       // Admin-only by session
-      const cookieStore = await cookies();
-      const sessionCookie = cookieStore.get("__session")?.value ?? "";
-      const session = await requireSession(sessionCookie);
-      if (!session.ok) return new NextResponse("Unauthorized", { status: 401 });
+      const userId = await getSessionUserId();
+      if (!userId) return new NextResponse("Unauthorized", { status: 401 });
 
       const found = await findProposalByPublicId(proposalId);
       if (!found) return new NextResponse("Not found", { status: 404 });
-      if (found.uid !== session.uid) return new NextResponse("Forbidden", { status: 403 });
+      if (found.uid !== userId) return new NextResponse("Forbidden", { status: 403 });
       proposal = found;
     }
 

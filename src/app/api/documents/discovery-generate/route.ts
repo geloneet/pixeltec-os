@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { anthropicCreate } from "@/lib/ai/anthropic-egress";
 import { parseModelJson } from "@/lib/ai/model-json";
-import { requireSession } from "@/lib/vpsClient";
+import { getSessionUserId } from "@/lib/auth/session";
 
 interface RequestBody {
   industry: string;
@@ -22,10 +21,8 @@ interface GeneratedQuestions {
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get("__session")?.value ?? "";
-    const session = await requireSession(sessionCookie);
-    if (!session.ok) {
+    const userId = await getSessionUserId();
+    if (!userId) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
