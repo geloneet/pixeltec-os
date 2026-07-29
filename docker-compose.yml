@@ -30,6 +30,10 @@ services:
         - NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=${NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET}
         - NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID}
         - NEXT_PUBLIC_FIREBASE_APP_ID=${NEXT_PUBLIC_FIREBASE_APP_ID}
+    # Imagen etiquetada por commit (E0g-3): el pipeline exporta
+    # PIXELTEC_OS_IMAGE_TAG=<sha> para build/up; sin exportar cae a `latest`,
+    # que solo se mueve tras health OK. Permite rollback real sin rebuild.
+    image: pixeltec-os-app:${PIXELTEC_OS_IMAGE_TAG:-latest}
     container_name: pixeltec-os
     restart: unless-stopped
     env_file:

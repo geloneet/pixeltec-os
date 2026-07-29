@@ -188,8 +188,26 @@ Nginx hace proxy de `pixeltec.mx → app:3000` por la red Docker `web-network`.
 
 ## Operaciones comunes
 
+> **Deploy a producción (E0g-3, ADR-0028):** SOLO por el workflow manual
+> `Deploy PixelTEC OS (manual)` (`workflow_dispatch` + aprobación del
+> Environment `production`). Requiere SHA completo (ancestro de `origin/main`)
+> y valida el contrato E0 (`npm run validate:egress -- --profile=predeploy`)
+> ANTES de construir; capabilities (`--require-r2-delete`, etc.) solo por
+> inputs aprobados. Imágenes etiquetadas por SHA (`pixeltec-os-app:<sha>`);
+> `latest` se mueve tras health OK; rollback automático a la versión previa
+> (`.deploy-active-sha`) ante health FAIL. Sin `git pull` ni `docker image
+> prune` en el flujo (la limpieza conserva ≥2 versiones y es un gate aparte).
+> Los smokes con efectos reales (email, WhatsApp, IA, R2 delete) son manuales
+> y posteriores. Detalle: `scripts/deploy/production-deploy.sh`.
+>
+> **`deploy.sh` (raíz) está RETIRADO y siempre falla** — no es una ruta
+> alternativa de despliegue (hacía `git add .` + commit + push + pull + build
+> sin gobierno). El único despliegue autorizado es el workflow manual descrito
+> arriba: SHA completo, Environment `production` y credencial de deploy nueva;
+> la llave antigua de GitHub Actions continúa deshabilitada.
+
 ```bash
-# Rebuild y deploy completo
+# Rebuild manual de emergencia (preferir SIEMPRE el workflow de deploy)
 docker compose build --no-cache app && docker compose up -d app
 
 # Ver logs en vivo
