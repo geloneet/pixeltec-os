@@ -171,28 +171,52 @@ Nginx hace proxy de `pixeltec.mx → app:3000` por la red Docker `web-network`.
 
 ## Operaciones comunes
 
-> **Deploy a producción (E0g-3, ADR-0028):** SOLO por el workflow manual
-> `Deploy PixelTEC OS (manual)` (`workflow_dispatch` + aprobación del
-> Environment `production`). Requiere SHA completo (ancestro de `origin/main`)
-> y valida el contrato E0 (`npm run validate:egress -- --profile=predeploy`)
-> ANTES de construir; capabilities (`--require-r2-delete`, etc.) solo por
-> inputs aprobados. Imágenes etiquetadas por SHA (`pixeltec-os-app:<sha>`);
-> `latest` se mueve tras health OK; rollback automático a la versión previa
-> (`.deploy-active-sha`) ante health FAIL. Sin `git pull` ni `docker image
-> prune` en el flujo (la limpieza conserva ≥2 versiones y es un gate aparte).
-> Los smokes con efectos reales (email, WhatsApp, IA, R2 delete) son manuales
-> y posteriores. Detalle: `scripts/deploy/production-deploy.sh`.
+> **Deploy a producción (M1A — deploy manual gobernado desde el VPS):**
+> **GitHub Actions está RETIRADO como camino productivo** (el workflow
+> `deploy.yml` fue eliminado; PROHIBIDO restaurar un pipeline de deploy desde
+> Actions — GitHub queda solo como `origin`, fuente del SHA aprobado, respaldo
+> y CI no productivo futuro). El ÚNICO camino autorizado es el comando
+> instalado en el VPS (plantilla versionada:
+> `scripts/deploy/deploy-pixeltec-os-wrapper.sh`, instalada como
+> `/usr/local/sbin/deploy-pixeltec-os`, root:root 0755, ejecutada como
+> `ubuntu`):
+>
+> ```bash
+> # SIEMPRE dentro de tmux (el build tarda >30 min y no debe morir con el SSH)
+> tmux new -s deploy-pixeltec
+> deploy-pixeltec-os --sha <40-hex> [--require-r2-delete] \
+>   [--require-meta-credential-read] [--require-meta-publish] [--check-only]
+> ```
+>
+> Requiere SHA completo (ancestro de `origin/main`); `--check-only` ejecuta
+> todas las validaciones (SHA, release, compose config, contrato E0) sin
+> build ni activación. El motor (`scripts/deploy/production-deploy.sh`, se
+> extrae DEL SHA aprobado) valida el contrato E0 ANTES de construir;
+> capabilities solo explícitas (mínimo privilegio). Construye desde una
+> **release inmutable** (`git archive` → `/home/ubuntu/pixeltec-os-releases/<sha>`):
+> el checkout canónico **NUNCA se muta** — sin `git pull` y sin
+> `git checkout/switch/reset` sobre `/home/ubuntu/pixeltec-os`. Imágenes
+> etiquetadas por SHA (`pixeltec-os-app:<sha>`); `latest` se mueve tras health
+> OK; rollback automático a la versión previa (`.deploy-active-sha`) ante
+> health FAIL; la imagen fallida se conserva para diagnóstico. Sin `docker
+> image prune` ni `docker system prune` automáticos en el flujo (la limpieza
+> conserva ≥2 versiones y es un gate aparte). Un lock (`flock`) impide deploys
+> concurrentes. Evidencia en `/home/ubuntu/deploy-logs/`. Los smokes con
+> efectos reales (email, WhatsApp, IA, R2 delete) son manuales y posteriores.
 >
 > **`deploy.sh` (raíz) está RETIRADO y siempre falla** — no es una ruta
 > alternativa de despliegue (hacía `git add .` + commit + push + pull + build
-> sin gobierno). El único despliegue autorizado es el workflow manual descrito
-> arriba: SHA completo, Environment `production` y credencial de deploy nueva;
-> la llave antigua de GitHub Actions continúa deshabilitada.
+> sin gobierno). La llave SSH de GitHub Actions y el secret
+> `VPS_DEPLOY_SSH_KEY` quedan programados para eliminación tras validar el
+> deploy manual (gate M1B).
+>
+> **qa-runner:** el deploy normal reconstruye ÚNICAMENTE `app`. `qa-runner` es
+> una imagen separada (mismo Dockerfile, target propio), **sin bind mount del
+> checkout** (rootfs read-only + tmpfs): no se recrea ni se modifica en un
+> deploy (`--no-deps`). Cambios futuros a qa-runner requieren su propio gate y
+> comando explícito. B7 no lo toca.
 
 ```bash
-# Rebuild manual de emergencia (preferir SIEMPRE el workflow de deploy)
-docker compose build --no-cache app && docker compose up -d app
-
 # Ver logs en vivo
 docker compose logs -f app
 

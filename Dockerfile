@@ -1,7 +1,11 @@
+# syntax=docker/dockerfile:1.7
 # ============================================
 # PixelTEC OS — Production Dockerfile
 # Next.js 15 Standalone + Alpine
 # ============================================
+# Secretos (M1A): .env.production NUNCA entra al build context (.dockerignore);
+# el build lo recibe SOLO como BuildKit secret (id=env_production) montado
+# durante `npm run build` — no queda en capas, caché ni imagen final.
 
 # Stage 1: Install dependencies
 FROM node:20-alpine AS deps
@@ -16,7 +20,10 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-RUN npm run build
+# El contrato E0 entra SOLO como BuildKit secret: existe únicamente durante
+# este RUN, fuera del filesystem final, sin ARG/ENV y sin quedar en capas.
+RUN --mount=type=secret,id=env_production,target=/app/.env.production,required=true \
+    npm run build
 
 # Stage 3: Tools — migraciones Drizzle / seed (bajo demanda, perfil "tools" en docker-compose)
 FROM node:20-alpine AS tools

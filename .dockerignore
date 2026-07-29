@@ -7,10 +7,12 @@ node_modules
 # Next.js build output
 .next
 
-# Environment files
+# Environment files — NINGÚN archivo de entorno entra al build context
+# (M1A: el build recibe .env.production solo como BuildKit secret).
 .env
-.env.local
-.env.*.local
+.env.*
+.env.production
+!.env.example
 
 # Archives
 *.tar.gz

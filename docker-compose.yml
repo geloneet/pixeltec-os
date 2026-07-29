@@ -23,14 +23,20 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      # El contrato E0 entra al build SOLO como BuildKit secret (M1A):
+      # nunca por contexto (.dockerignore lo excluye) ni por ARG/ENV.
+      secrets:
+        - env_production
     # Imagen etiquetada por commit (E0g-3): el pipeline exporta
     # PIXELTEC_OS_IMAGE_TAG=<sha> para build/up; sin exportar cae a `latest`,
     # que solo se mueve tras health OK. Permite rollback real sin rebuild.
     image: pixeltec-os-app:${PIXELTEC_OS_IMAGE_TAG:-latest}
     container_name: pixeltec-os
     restart: unless-stopped
+    # PIXELTEC_OS_ENV_FILE: ruta canónica absoluta que fija el motor de deploy
+    # (release inmutable, M1A); sin definirla cae al relativo de siempre (dev).
     env_file:
-      - .env.production
+      - ${PIXELTEC_OS_ENV_FILE:-.env.production}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
@@ -109,7 +115,7 @@ services:
       retries: 3
       start_period: 30s
     env_file:
-      - .env.production
+      - ${PIXELTEC_OS_ENV_FILE:-.env.production}
     depends_on:
       db:
         condition: service_healthy
@@ -123,7 +129,7 @@ services:
       dockerfile: Dockerfile
       target: tools
     command: ["npx", "drizzle-kit", "migrate"]
-    env_file: .env.production
+    env_file: ${PIXELTEC_OS_ENV_FILE:-.env.production}
     depends_on:
       db:
         condition: service_healthy
@@ -138,7 +144,7 @@ services:
       dockerfile: Dockerfile
       target: tools
     command: ["npx", "tsx", "scripts/seed.ts"]
-    env_file: .env.production
+    env_file: ${PIXELTEC_OS_ENV_FILE:-.env.production}
     depends_on:
       db:
         condition: service_healthy
@@ -146,6 +152,12 @@ services:
       - pixeltec-os-internal
     profiles:
       - tools
+
+# Fuente del BuildKit secret del build de `app` (M1A): la ruta canónica la
+# fija el motor de deploy; en dev cae al archivo relativo si existiera.
+secrets:
+  env_production:
+    file: ${PIXELTEC_OS_ENV_FILE:-.env.production}
 
 networks:
   web-network:
