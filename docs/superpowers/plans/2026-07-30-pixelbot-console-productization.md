@@ -40,7 +40,7 @@ Bot con subnav de secciones: General · Voz y estilo · Temas y límites · Capt
 
 ## Contrato de datos (invariante)
 
-Todo payload queda idéntico: `BotConfig` completo en PUT (incluye `response_delay_seconds` Y `timing`), `manual_priority: number` (Importancia Normal=5/Alta=12/Crítica=20 al crear), `/api/whatsapp-inbox/mode` con `{phone, mode, paused_until?}`. Mapeo UI↔payload documentado inline en `ui/meta.ts`.
+Endpoints, contratos, shapes y nombres de campos intactos: `BotConfig` completo en PUT (incluye `response_delay_seconds` Y `timing`), `manual_priority: number` con mapeo intencional de la UI al crear (Normal=5, Alta=12, Crítica=20), `/api/whatsapp-inbox/mode` con `{phone, mode, pausedUntil?}`. Mapeo UI↔payload documentado inline en `ui/meta.ts`.
 
 ## Secuencia de commits (Fase 3)
 
