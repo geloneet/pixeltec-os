@@ -1,11 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Send, StickyNote } from "lucide-react";
+import { Hand, Send, StickyNote } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { Spinner } from "@/components/ui/spinner";
 import { addContactNote } from "@/lib/whatsapp-inbox/contacts-client";
 import type { SendResult, WhatsAppMode } from "@/types/whatsapp-inbox";
+import { postModeChange } from "./AutomationStateMenu";
+import { resolveMode } from "./ui/meta";
 
 interface ComposerProps {
   phone: string;
@@ -14,14 +17,17 @@ interface ComposerProps {
   onSent?: () => void;
   /** Notifica a ChatThread (dueño de useInboxContactNotes) que refetchee tras guardar una nota. */
   onNoteSaved?: () => void;
+  /** Refresca conversaciones tras un takeover desde el propio composer. */
+  onModeChanged?: () => void;
 }
 
 type ComposerMode = "message" | "note";
 
-export function Composer({ phone, mode, windowOpen, onSent, onNoteSaved }: ComposerProps) {
+export function Composer({ phone, mode, windowOpen, onSent, onNoteSaved, onModeChanged }: ComposerProps) {
   const [composerMode, setComposerMode] = useState<ComposerMode>("message");
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [takingControl, setTakingControl] = useState(false);
 
   const canWriteMessage = mode === "HUMAN";
   const isNoteMode = composerMode === "note";
@@ -47,7 +53,7 @@ export function Composer({ phone, mode, windowOpen, onSent, onNoteSaved }: Compo
       }
       if (data.status === "persisted_but_send_failed") {
         toast.warning(
-          "Meta rechazó el envío (¿ventana de 24h cerrada?). El mensaje quedó registrado en el bot."
+          "Meta rechazó el envío (¿requiere plantilla aprobada?). El mensaje quedó registrado en el bot."
         );
       } else {
         setText("");
@@ -75,6 +81,20 @@ export function Composer({ phone, mode, windowOpen, onSent, onNoteSaved }: Compo
     }
   }
 
+  async function takeControl() {
+    if (takingControl) return;
+    setTakingControl(true);
+    try {
+      await postModeChange(phone, "HUMAN");
+      toast.success("Tomaste el control — ya puedes responder");
+      onModeChanged?.();
+    } catch (err) {
+      toast.error(`No se pudo tomar el control: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setTakingControl(false);
+    }
+  }
+
   async function submit() {
     const trimmed = text.trim();
     if (!trimmed || sending) return;
@@ -90,74 +110,107 @@ export function Composer({ phone, mode, windowOpen, onSent, onNoteSaved }: Compo
 
   return (
     <div className="border-t border-border p-3">
-      {!windowOpen && canWriteMessage && !isNoteMode && (
-        <p className="mb-2 rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-1.5 text-xs text-amber-700 dark:text-amber-300">
-          Ventana de 24h cerrada: Meta solo acepta plantillas aprobadas. El envío libre
-          probablemente falle.
-        </p>
-      )}
-      <div className="flex items-end gap-2">
-        <div className="flex flex-shrink-0 flex-col gap-1 rounded-lg border border-border bg-secondary/40 p-1">
-          <button
-            type="button"
-            onClick={() => switchMode("message")}
-            className={cn(
-              "rounded-md px-2 py-1 text-[11px] font-medium transition-colors",
-              !isNoteMode ? "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300" : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            Mensaje
-          </button>
-          <button
-            type="button"
-            onClick={() => switchMode("note")}
-            className={cn(
-              "rounded-md px-2 py-1 text-[11px] font-medium transition-colors",
-              isNoteMode ? "bg-violet-500/15 text-violet-700 dark:text-violet-300" : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            Nota
-          </button>
-        </div>
-        <textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              void submit();
-            }
-          }}
-          rows={2}
-          maxLength={4096}
-          disabled={disabled}
-          placeholder={
-            isNoteMode
-              ? "Nota interna (no se envía por WhatsApp)…"
-              : canWriteMessage
-                ? "Escribe como PIXELTEC… (Enter envía, Shift+Enter salto de línea)"
-                : 'Toma el control ("Control humano") para escribir'
-          }
-          className={cn(
-            "min-h-[44px] flex-1 resize-none rounded-lg border bg-secondary/40 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50",
-            isNoteMode
-              ? "border-violet-500/40 focus:border-violet-500/60"
-              : "border-border focus:border-cyan-500/50"
-          )}
-        />
+      {/* Selector horizontal Responder | Nota interna (§8.6) */}
+      <div className="mb-2 flex items-center gap-1 rounded-lg border border-border bg-secondary/40 p-1 sm:w-fit">
         <button
           type="button"
-          onClick={() => void submit()}
-          disabled={disabled || !text.trim()}
+          aria-pressed={!isNoteMode}
+          onClick={() => switchMode("message")}
           className={cn(
-            "inline-flex h-[44px] items-center gap-2 rounded-lg px-4 text-sm font-medium text-white transition-colors disabled:cursor-not-allowed disabled:opacity-40",
-            isNoteMode ? "bg-violet-600 hover:bg-violet-500" : "bg-cyan-600 hover:bg-cyan-500"
+            "flex-1 rounded-md px-3 py-1 text-xs font-medium transition-colors sm:flex-none",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40",
+            !isNoteMode
+              ? "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300"
+              : "text-muted-foreground hover:text-foreground"
           )}
         >
-          {isNoteMode ? <StickyNote className="h-4 w-4" /> : <Send className="h-4 w-4" />}
-          {isNoteMode ? "Guardar nota" : "Enviar"}
+          Responder
+        </button>
+        <button
+          type="button"
+          aria-pressed={isNoteMode}
+          onClick={() => switchMode("note")}
+          className={cn(
+            "flex-1 rounded-md px-3 py-1 text-xs font-medium transition-colors sm:flex-none",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40",
+            isNoteMode
+              ? "bg-violet-500/15 text-violet-700 dark:text-violet-300"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          Nota interna
         </button>
       </div>
+
+      {/* Bot/pausa a cargo: en vez de un campo gris bloqueado, explica y ofrece el takeover. */}
+      {!isNoteMode && !canWriteMessage ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-secondary/30 px-3 py-3">
+          <p className="text-sm text-muted-foreground">
+            {resolveMode(mode) === "PAUSED"
+              ? "El bot está pausado en esta conversación."
+              : "El bot está atendiendo esta conversación."}
+          </p>
+          <button
+            type="button"
+            onClick={() => void takeControl()}
+            disabled={takingControl}
+            className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3.5 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/40 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {takingControl ? <Spinner size="sm" /> : <Hand aria-hidden className="h-4 w-4" />}
+            Tomar control y responder
+          </button>
+        </div>
+      ) : (
+        <>
+          {!windowOpen && !isNoteMode && (
+            <p className="mb-2 rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-1.5 text-xs text-amber-700 dark:text-amber-300">
+              WhatsApp requiere una plantilla aprobada para escribir fuera de la ventana de 24 h — el
+              envío libre probablemente falle.
+            </p>
+          )}
+          <div className="flex items-end gap-2">
+            <textarea
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  void submit();
+                }
+              }}
+              rows={2}
+              maxLength={4096}
+              disabled={disabled}
+              aria-label={isNoteMode ? "Nota interna" : "Respuesta al cliente"}
+              placeholder={isNoteMode ? "Nota interna (no se envía por WhatsApp)…" : "Escribe tu respuesta…"}
+              className={cn(
+                "min-h-[44px] flex-1 resize-none rounded-lg border bg-secondary/40 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50",
+                isNoteMode
+                  ? "border-violet-500/40 focus:border-violet-500/60"
+                  : "border-border focus:border-cyan-500/50"
+              )}
+            />
+            <button
+              type="button"
+              onClick={() => void submit()}
+              disabled={disabled || !text.trim()}
+              className={cn(
+                "inline-flex h-[44px] items-center gap-2 rounded-lg px-4 text-sm font-medium text-white transition-colors disabled:cursor-not-allowed disabled:opacity-40",
+                "focus-visible:outline-none focus-visible:ring-2",
+                isNoteMode
+                  ? "bg-violet-600 hover:bg-violet-500 focus-visible:ring-violet-400/40"
+                  : "bg-cyan-600 hover:bg-cyan-500 focus-visible:ring-cyan-400/40"
+              )}
+            >
+              {isNoteMode ? <StickyNote aria-hidden className="h-4 w-4" /> : <Send aria-hidden className="h-4 w-4" />}
+              {isNoteMode ? "Guardar nota" : "Enviar"}
+            </button>
+          </div>
+          <p className="mt-1 text-right text-[11px] text-muted-foreground/60">
+            Enter envía · Shift+Enter salto de línea
+          </p>
+        </>
+      )}
     </div>
   );
 }

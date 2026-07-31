@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
-import { ArrowLeft, PanelRight } from "lucide-react";
+import { ArrowLeft, MessageCircle, PanelRight } from "lucide-react";
 import { toast } from "sonner";
 import { Spinner } from "@/components/ui/spinner";
 import { useUser } from "@/hooks/use-user";
@@ -26,8 +26,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { AutomationStateMenu } from "./AutomationStateMenu";
 import { Composer } from "./Composer";
-import { ModeToggle } from "./ModeToggle";
+import { EmptyState } from "./ui/EmptyState";
 
 const WINDOW_MS = 24 * 60 * 60 * 1000;
 
@@ -189,7 +190,7 @@ export function ChatThread({
       nodes.push(
         <div key={`sep-${dateKey}`} className="flex items-center gap-3 py-2">
           <div className="h-px flex-1 bg-border" />
-          <span className="rounded-full border border-border bg-card px-2.5 py-0.5 text-[11px] text-muted-foreground">
+          <span className="rounded-full border border-border bg-card px-2.5 py-0.5 text-xs text-muted-foreground">
             {dateSeparatorLabel(item.time)}
           </span>
           <div className="h-px flex-1 bg-border" />
@@ -203,7 +204,7 @@ export function ChatThread({
       nodes.push(
         <div key={`note-${note.id}`} className="flex justify-center">
           <div className="w-full max-w-[85%] rounded-lg border border-violet-500/25 bg-violet-500/5 px-3 py-2 text-sm text-violet-700 dark:text-violet-200">
-            <p className="mb-0.5 text-[10px] font-medium uppercase tracking-wide opacity-70">
+            <p className="mb-0.5 text-[11px] font-medium uppercase tracking-wide opacity-70">
               📝 Nota interna · {formatNoteTime(note)}
             </p>
             <p className="whitespace-pre-wrap break-words">{note.text}</p>
@@ -229,12 +230,14 @@ export function ChatThread({
           )}
         >
           {isOutbound && (
-            <p className="mb-0.5 text-[10px] font-medium uppercase tracking-wide opacity-60">
+            <p className="mb-0.5 text-[11px] font-medium uppercase tracking-wide opacity-60">
               {isManual ? "Tú (manual)" : "Bot"}
             </p>
           )}
-          <p className="whitespace-pre-wrap break-words">{msg.text ?? `[${msg.type}]`}</p>
-          <p className="mt-1 text-right text-[10px] opacity-50">{formatTime(msg)}</p>
+          <p className="whitespace-pre-wrap break-words">
+            {msg.text ?? `Contenido no soportado (${msg.type})`}
+          </p>
+          <p className="mt-1 text-right text-[11px] opacity-50">{formatTime(msg)}</p>
         </div>
       </div>
     );
@@ -254,12 +257,18 @@ export function ChatThread({
         </button>
         <div className="min-w-0 flex-1">
           <h2 className="truncate font-semibold text-foreground">{contact?.name || phone}</h2>
-          <p className="text-xs text-muted-foreground">
-            {windowOpen ? "Ventana de 24h abierta" : "Ventana de 24h cerrada"}
+          <p className="truncate text-xs text-muted-foreground">
+            {contact?.name ? <span>{phone} · </span> : null}
+            {/* Indicador humano de la ventana de 24h de Meta (§8.3, §9). */}
+            {windowOpen ? "Puedes responder libremente" : "Requiere plantilla aprobada"}
+            {contact?.assignedTo ? <span> · Atiende: {contact.assignedTo}</span> : null}
           </p>
         </div>
         <Select value={statusValue} onValueChange={(v) => handleStatusChange(v as ConversationStatus)}>
-          <SelectTrigger className="h-8 w-40 border-border bg-secondary/40 text-xs text-foreground focus:ring-cyan-500/20">
+          <SelectTrigger
+            aria-label="Estado de atención"
+            className="h-8 w-40 border-border bg-secondary/40 text-xs text-foreground focus:ring-cyan-500/20"
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent className="border-border bg-popover/95 backdrop-blur-xl">
@@ -274,15 +283,21 @@ export function ChatThread({
             ))}
           </SelectContent>
         </Select>
+        <AutomationStateMenu
+          phone={phone}
+          mode={mode}
+          pausedUntil={conv?.pausedUntil}
+          onChanged={refetchConversations}
+        />
         <button
           type="button"
           onClick={onOpenPanel}
-          className="rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:text-foreground"
-          aria-label="Abrir panel de contacto"
+          className="rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40"
+          aria-label="Abrir ficha del contacto"
+          title="Ficha del contacto"
         >
           <PanelRight className="h-4 w-4" />
         </button>
-        <ModeToggle phone={phone} mode={mode} onChanged={refetchConversations} />
       </div>
 
       {/* Banners de estado del bot + sugerencia */}
@@ -316,14 +331,26 @@ export function ChatThread({
 
       {/* Mensajes + notas — scroller interno con fades arriba/abajo */}
       <div className="relative min-h-0 flex-1">
-        <div className="scrollbar-soft h-full space-y-2 overflow-y-auto p-4">
-          {loading && (
-            <div className="flex justify-center py-8">
-              <Spinner size="md" className="text-muted-foreground" />
-            </div>
-          )}
-          {nodes}
-          <div ref={bottomRef} />
+        <div className="scrollbar-soft h-full overflow-y-auto p-4">
+          {/* Ancho máximo legible (§8.5): el hilo no se estira sin límite en ultrawide. */}
+          <div className="mx-auto w-full max-w-3xl space-y-2">
+            {loading && (
+              <div className="flex justify-center py-8">
+                <Spinner size="md" className="text-muted-foreground" />
+              </div>
+            )}
+            {!loading && nodes.length === 0 && (
+              <div className="py-8">
+                <EmptyState
+                  icon={MessageCircle}
+                  title="Sin mensajes todavía"
+                  description="Cuando el cliente escriba o el bot responda, la conversación aparecerá aquí."
+                />
+              </div>
+            )}
+            {nodes}
+            <div ref={bottomRef} />
+          </div>
         </div>
         <div
           aria-hidden
@@ -344,6 +371,7 @@ export function ChatThread({
           refetchConversations();
         }}
         onNoteSaved={refetchNotes}
+        onModeChanged={refetchConversations}
       />
     </div>
   );

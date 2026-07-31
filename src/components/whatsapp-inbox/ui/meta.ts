@@ -58,12 +58,15 @@ export function resolveMode(mode?: WhatsAppMode | null): WhatsAppMode {
 
 /**
  * Label del modo con la pausa temporal resuelta: "Bot pausado hasta 14:30".
- * `pausedUntil` llega como ISO (lo escribe el propio front al pausar).
+ * `pausedUntil` puede venir como ISO (escrito por el front al pausar) o en el
+ * formato canónico del bot 'YYYY-MM-DD HH:MM:SS' (leído de conversaciones).
  */
 export function modeLabel(mode?: WhatsAppMode | null, pausedUntil?: string | null): string {
   const meta = MODE_META[resolveMode(mode)];
   if (resolveMode(mode) === "PAUSED" && pausedUntil) {
-    const until = new Date(pausedUntil);
+    const until = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(pausedUntil)
+      ? parseCanonical(pausedUntil)
+      : new Date(pausedUntil);
     if (!Number.isNaN(until.getTime()) && until.getTime() > Date.now()) {
       return `Bot pausado hasta ${until.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}`;
     }
