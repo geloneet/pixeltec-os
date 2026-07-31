@@ -29,6 +29,7 @@ import {
 import { AutomationStateMenu } from "./AutomationStateMenu";
 import { Composer } from "./Composer";
 import { EmptyState } from "./ui/EmptyState";
+import { resolveMode } from "./ui/meta";
 
 const WINDOW_MS = 24 * 60 * 60 * 1000;
 
@@ -91,7 +92,7 @@ export function ChatThread({
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages?.length, notes?.length]);
 
-  const mode = conv?.mode ?? "BOT";
+  const mode = resolveMode(conv?.mode);
 
   // Ventana de 24h de Meta: cuenta desde el último mensaje DEL CLIENTE (inbound).
   const windowOpen = useMemo(() => {
