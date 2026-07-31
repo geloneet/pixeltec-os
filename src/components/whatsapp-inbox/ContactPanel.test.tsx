@@ -2,7 +2,7 @@
 // src/components/whatsapp-inbox/ContactPanel.test.tsx
 import { afterEach, describe, expect, it, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { BotMemoryEntry } from "@/types/whatsapp-inbox";
 
 afterEach(() => {
@@ -51,6 +51,7 @@ describe("ContactPanel — memoria del bot (Fase 2)", () => {
     useInboxBotMemoryMock.mockReturnValue({ memory, loading: false, error: null, refetch: vi.fn() });
 
     render(<ContactPanel {...noopProps} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Bot" }));
 
     expect(screen.getByText("Memoria del bot")).toBeInTheDocument();
     expect(screen.getByText("Nombre")).toBeInTheDocument();
@@ -63,7 +64,39 @@ describe("ContactPanel — memoria del bot (Fase 2)", () => {
     useInboxBotMemoryMock.mockReturnValue({ memory: [], loading: false, error: null, refetch: vi.fn() });
 
     render(<ContactPanel {...noopProps} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Bot" }));
 
     expect(screen.getByText(/aún no recuerda datos/i)).toBeInTheDocument();
+  });
+});
+
+describe("ContactPanel — ficha tabulada (PixelBot Console, §8.7)", () => {
+  it("expone las tres tabs Perfil / Bot / Actividad", () => {
+    useInboxBotMemoryMock.mockReturnValue({ memory: [], loading: false, error: null, refetch: vi.fn() });
+    render(<ContactPanel {...noopProps} />);
+    expect(screen.getByRole("tab", { name: "Perfil" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Bot" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Actividad" })).toBeInTheDocument();
+  });
+
+  it("NO renderiza un segundo control de automatización: solo resumen de estado", () => {
+    useInboxBotMemoryMock.mockReturnValue({ memory: [], loading: false, error: null, refetch: vi.fn() });
+    render(<ContactPanel {...noopProps} conv={{ id: "+5213221234567", mode: "BOT" }} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Bot" }));
+    // Badge de solo lectura con el estado…
+    expect(screen.getByText("Bot respondiendo")).toBeInTheDocument();
+    // …pero ninguna acción de cambio de modo (viven solo en el hilo).
+    expect(screen.queryByText("Tomar control")).not.toBeInTheDocument();
+    expect(screen.queryByText("Devolver al bot")).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Pausar/)).not.toBeInTheDocument();
+  });
+
+  it("Resolver y Archivar viven en el menú secundario, no como botones primarios", () => {
+    useInboxBotMemoryMock.mockReturnValue({ memory: [], loading: false, error: null, refetch: vi.fn() });
+    render(<ContactPanel {...noopProps} />);
+    expect(screen.queryByText("Marcar como resuelto")).not.toBeInTheDocument();
+    fireEvent.keyDown(screen.getByRole("button", { name: "Más acciones" }), { key: "Enter" });
+    expect(screen.getByText("Marcar como resuelto")).toBeInTheDocument();
+    expect(screen.getByText("Archivar")).toBeInTheDocument();
   });
 });
