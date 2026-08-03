@@ -130,6 +130,67 @@ export function BlogPostingStructuredData({
   );
 }
 
+// Variante de Service para páginas de producto fuera de /services/[slug]
+// (ServiceStructuredData hardcodea ese prefijo en su URL).
+interface StandaloneServiceSchemaProps {
+  url: string;
+  name: string;
+  description: string;
+}
+
+export function StandaloneServiceStructuredData({ url, name, description }: StandaloneServiceSchemaProps) {
+  const schema = {
+    "@context": "https://schema.org",
+    "@type": "Service",
+    name,
+    description,
+    url,
+    provider: {
+      "@type": "Organization",
+      name: "PIXELTEC",
+      url: "https://pixeltec.mx",
+    },
+    areaServed: {
+      "@type": "Country",
+      name: "Mexico",
+    },
+  };
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+    />
+  );
+}
+
+interface FaqPageItem {
+  q: string;
+  a: string;
+}
+
+// FAQPage: usar ÚNICAMENTE con preguntas/respuestas idénticas al texto visible
+// de la página que lo emite (requisito de Google para rich results).
+export function FAQPageStructuredData({ items }: { items: readonly FaqPageItem[] }) {
+  const schema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: items.map((item) => ({
+      "@type": "Question",
+      name: item.q,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: item.a,
+      },
+    })),
+  };
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+    />
+  );
+}
+
 interface BreadcrumbItem {
   name: string;
   url: string;
