@@ -14,8 +14,24 @@
  */
 
 // Dominios de terceros con script-src propio (fuera del nonce): Cloudflare Web
-// Analytics, inyectado a nivel de edge/proxy.
-const THIRD_PARTY_SCRIPT_SRC = ['https://static.cloudflareinsights.com'].join(' ');
+// Analytics (inyectado a nivel de edge/proxy) y el SDK del Pixel de Meta
+// (fbevents.js, cargado por el snippet nonceado de `MetaPixel`). Con
+// 'strict-dynamic' los navegadores modernos confían transitivamente en lo que
+// inserta un script nonceado; este allowlist es el fallback para navegadores
+// sin strict-dynamic.
+const THIRD_PARTY_SCRIPT_SRC = [
+  'https://static.cloudflareinsights.com',
+  'https://connect.facebook.net',
+].join(' ');
+
+// Destinos de red (fetch/XHR/sendBeacon) permitidos además del propio origen:
+// fbevents.js emite los eventos del Pixel contra facebook.com/tr y puede
+// llamar de vuelta a connect.facebook.net. El <noscript> del pixel va por
+// <img>, que ya cubre `img-src https:`.
+const THIRD_PARTY_CONNECT_SRC = [
+  'https://www.facebook.com',
+  'https://connect.facebook.net',
+].join(' ');
 
 // ── Framing: quién puede embeber (frame-ancestors) — por defecto 'none'
 //    GLOBAL, se relaja puntualmente por ruta con arrays/regex EXPLÍCITOS
@@ -68,7 +84,7 @@ export function buildCsp(nonce: string, opts: CspOptions): string {
     "default-src 'self'",
     scriptSrc,
     "style-src 'self' 'unsafe-inline'",
-    "connect-src 'self'",
+    `connect-src 'self' ${THIRD_PARTY_CONNECT_SRC}`,
     "img-src 'self' data: blob: https:",
     "font-src 'self' data:",
     // EXCEPCIÓN DE IMPLEMENTACIÓN (aprobada por Miguel, gate F6A 2026-07-17):

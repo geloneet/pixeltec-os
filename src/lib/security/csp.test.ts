@@ -88,3 +88,24 @@ describe("buildCsp — matriz de framing", () => {
     expect(csp).toContain("report-uri /api/csp-report");
   });
 });
+
+describe("buildCsp — terceros del Pixel de Meta", () => {
+  it("script-src incluye connect.facebook.net (fallback sin strict-dynamic)", () => {
+    const csp = buildCsp(NONCE, { allowSelfFraming: false });
+    expect(directive(csp, "script-src")).toContain("https://connect.facebook.net");
+  });
+
+  it("connect-src permite exactamente los endpoints de eventos del Pixel", () => {
+    const csp = buildCsp(NONCE, { allowSelfFraming: false });
+    expect(directive(csp, "connect-src")).toBe(
+      "connect-src 'self' https://www.facebook.com https://connect.facebook.net"
+    );
+  });
+
+  it("el resto de directivas no se relaja por el Pixel", () => {
+    const csp = buildCsp(NONCE, { allowSelfFraming: false });
+    expect(directive(csp, "default-src")).toBe("default-src 'self'");
+    expect(directive(csp, "frame-src")).toBe("frame-src 'self'");
+    expect(directive(csp, "form-action")).toBe("form-action 'self'");
+  });
+});
