@@ -70,15 +70,15 @@ Entorno: build de producción del worktree (dummies inline, cero archivos
 
 ## G4 — Deploy: PASS (2026-08-03, GO de Miguel)
 
-- PR #50 mergeado (rebase, 13 commits) → main .
+- PR #50 mergeado (rebase, 13 commits) → main 2631da9.
 - Migración 0026 aplicada a la DB real ANTES del deploy, con respaldo previo
-  (): 4 posts intactos,
+  (backups/blog_posts-pre-0026-20260803T193834Z.sql): 4 posts intactos,
   2 published visibles, post_redirects creada vacía.
 - Primer intento de deploy falló por disco lleno (98%) — saneado documentado:
   builder prune 9.2GB + 5 imágenes intermedias regenerables eliminadas
   (conservadas: activa, be78f9e, be371fd, pre-hardening). Producción nunca se
   tocó durante el fallo (el motor construye antes de activar).
-- Deploy OK  (19:53Z, health PASS, rollback=no; log en
+- Deploy OK 2631da9 (19:53Z, health PASS, rollback=no; log en
   ~/deploy-logs/pixeltec-os-20260803T194538Z-*).
 - Smoke en vivo: sitemap 19 URLs · robots derivado (hoy/whatsapp/ia-factory/
   reset-password bloqueados) · /crm→/hoy en 1 salto · noindex en
