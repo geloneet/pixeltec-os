@@ -1,15 +1,17 @@
-import { notFound } from 'next/navigation';
+import { notFound, permanentRedirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import { buildMetadata } from '@/lib/seo';
+import { absoluteUrl } from '@/lib/site-config';
 import { BlogPostingStructuredData, BreadcrumbStructuredData } from '@/components/seo/structured-data';
-import BlogPostFirestoreClient from './blog-post-firestore-client';
+import BlogPostClient from './blog-post-client';
+import { extractHeadings } from '@/lib/blog/heading-utils';
 import type { BlogPostSerialized } from '@/lib/blog/types';
 
 export const revalidate = 86400; // ISR: regenerar máximo cada día
 
 // Fallback absoluto para JSON-LD y OG cuando el post no tiene coverImage:
 // un `image: ""` invalida el rich result de BlogPosting en Google.
-const DEFAULT_POST_IMAGE = 'https://pixeltec.mx/og-image.png';
+const DEFAULT_POST_IMAGE = absoluteUrl('/og-image.png');
 
 async function getPost(slug: string): Promise<BlogPostSerialized | null> {
   try {
@@ -17,6 +19,18 @@ async function getPost(slug: string): Promise<BlogPostSerialized | null> {
     return await getPublishedPostBySlug(slug);
   } catch (error) {
     console.error('[blog/slug] getPublishedPostBySlug failed:', error);
+    return null;
+  }
+}
+
+/** Slug histórico → 308 al slug vigente (post_redirects, alimentada por
+ *  changeSlug). Se consulta solo cuando el slug no resolvió un post. */
+async function resolveRedirect(slug: string): Promise<string | null> {
+  try {
+    const { getRedirectTargetSlug } = await import('@/lib/blog/queries/posts');
+    return await getRedirectTargetSlug(slug);
+  } catch (error) {
+    console.error('[blog/slug] getRedirectTargetSlug failed:', error);
     return null;
   }
 }
@@ -34,19 +48,21 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     title,
     description,
     ogImage: post.coverImage ?? undefined,
+    ogImageAlt: post.seo.ogImageAlt || undefined,
+    noindex: post.seo.noindex,
+    article: {
+      publishedTime: post.publishedAt ?? post.createdAt,
+      modifiedTime: post.editorial.lastReviewedAt ?? post.updatedAt,
+      authors: [post.author.name],
+    },
   });
   return {
     ...base,
-    robots: post.seo.noindex ? 'noindex' : undefined,
     authors: [{ name: post.author.name }],
-    openGraph: {
-      ...base.openGraph,
-      type: 'article',
-      publishedTime: post.publishedAt ?? post.createdAt,
-      authors: [post.author.name],
-      images: post.coverImage
-        ? [{ url: post.coverImage, width: 1200, height: 630, alt: title }]
-        : base.openGraph?.images,
+    // El canonical editorial (seo.canonicalUrl) manda cuando existe — antes el
+    // campo era un zombie que jamás llegaba al <head>.
+    alternates: {
+      canonical: post.seo.canonicalUrl ?? absoluteUrl(`/blog/${post.slug}`),
     },
   };
 }
@@ -55,7 +71,17 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
   const { slug } = await params;
 
   const post = await getPost(slug);
-  if (!post) notFound();
+  if (!post) {
+    const target = await resolveRedirect(slug);
+    if (target) permanentRedirect(`/blog/${target}`);
+    notFound();
+  }
+
+  const { getRelatedPosts } = await import('@/lib/blog/queries/posts');
+  const related = await getRelatedPosts(post.slug, post.category).catch(() => []);
+  const headings = extractHeadings(post.body);
+
+  const imageUrl = post.coverImage ? absoluteUrl(post.coverImage) : DEFAULT_POST_IMAGE;
 
   return (
     <>
@@ -69,11 +95,15 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
         title={post.title}
         excerpt={post.excerpt}
         datePublished={post.publishedAt ?? post.createdAt}
-        dateModified={post.updatedAt ?? post.publishedAt ?? post.createdAt}
+        dateModified={post.editorial.lastReviewedAt ?? post.updatedAt ?? post.publishedAt ?? post.createdAt}
         author={post.author.name}
-        imageUrl={post.coverImage || DEFAULT_POST_IMAGE}
+        imageUrl={imageUrl}
       />
-      <BlogPostFirestoreClient post={post} />
+      <BlogPostClient
+        post={post}
+        headings={headings}
+        related={related.map((r) => ({ slug: r.slug, title: r.title, excerpt: r.excerpt, category: r.category }))}
+      />
     </>
   );
 }
