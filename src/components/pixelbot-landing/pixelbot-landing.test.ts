@@ -29,7 +29,7 @@ describe('SEO de /pixelbot', () => {
     expect(meta.title).toBe('PixelBot | Agente de IA para WhatsApp para Empresas');
     expect(meta.description).toContain('PixelTEC');
     const og = meta.openGraph as { images?: Array<{ url: string }> } | undefined;
-    expect(og?.images?.[0]?.url).toBe('/og/pixelbot.png');
+    expect(og?.images?.[0]?.url).toBe('/og/pixelbot.jpg');
   });
 
   it('los 5 aliases redirigen 301 a /pixelbot', async () => {

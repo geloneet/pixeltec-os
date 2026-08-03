@@ -349,7 +349,7 @@ export default function ContactSection() {
             {/* ── Columna de imagen ─────────────────────────────────────── */}
             <div className="relative hidden min-h-[24rem] overflow-hidden rounded-2xl lg:block">
               <Image
-                src="https://images.unsplash.com/photo-1521737604893-d14cc237f11d?q=80&w=2070&auto=format&fit=crop"
+                src="/images/colaboracion-equipo.jpg"
                 alt="Equipo de PixelTEC trabajando en la operación de un cliente"
                 fill
                 sizes="(max-width: 1024px) 0px, 50vw"
