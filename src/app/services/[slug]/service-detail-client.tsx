@@ -25,7 +25,6 @@ import {
 import Header from '@/components/header';
 import { Footer } from '@/components/ui/footer-section';
 import { ShinyButton } from '@/components/ui/shiny-button';
-import { ServiceStructuredData } from '@/components/seo/structured-data';
 
 const servicesData = [
     {
@@ -181,7 +180,8 @@ export default function ServiceDetailClient({ slug }: { slug: string }) {
 
   return (
     <>
-    <ServiceStructuredData slug={service.slug} title={service.title} description={service.description} />
+    {/* El Service JSON-LD lo emite únicamente el RSC page.tsx (era doble y
+        divergente: dos nodos Service con textos distintos por URL). */}
     <div className="min-h-screen bg-background text-foreground pt-32 sm:pt-40 pb-16 sm:pb-24">
       <Header />
       <main className="container mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
