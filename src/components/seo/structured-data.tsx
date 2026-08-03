@@ -1,34 +1,52 @@
+import { SITE, absoluteUrl } from '@/lib/site-config';
+
+/**
+ * JSON-LD del sitio — Server Components puros (sin "use client": los crawlers
+ * de redes sociales no ejecutan JS). Identidad y NAP salen de `site-config`
+ * (WS0): una sola marca ("PixelTEC"), un solo logo, un solo teléfono.
+ * `@id` enlaza Organization ↔ WebSite ↔ publisher para que Google entienda
+ * que son la misma entidad.
+ */
+
+const ORG_ID = `${SITE.url}/#organization`;
+
 const organizationSchema = {
   "@context": "https://schema.org",
   "@type": "Organization",
-  name: "PIXELTEC",
-  url: "https://pixeltec.mx",
-  logo: "https://pixeltec.mx/ptlogox.png",
-  description:
-    "Transformamos procesos complejos en ecosistemas web y automatizaciones escalables para empresas que buscan rentabilidad y control absoluto.",
+  "@id": ORG_ID,
+  name: SITE.name,
+  url: SITE.url,
+  logo: absoluteUrl(SITE.logoPath),
+  description: SITE.description,
+  email: SITE.email,
   address: {
     "@type": "PostalAddress",
-    addressLocality: "Puerto Vallarta",
-    addressRegion: "Jalisco",
-    addressCountry: "MX",
+    addressLocality: SITE.address.locality,
+    addressRegion: SITE.address.region,
+    addressCountry: SITE.address.country,
   },
   contactPoint: {
     "@type": "ContactPoint",
-    telephone: "+52-322-137-8336",
-    email: "contacto@pixeltec.mx",
+    telephone: SITE.phone.schema,
+    email: SITE.email,
     contactType: "sales",
+    areaServed: "MX",
+    availableLanguage: ["es"],
   },
   founder: {
     "@type": "Person",
-    name: "Miguel Robles Sánchez",
+    name: SITE.founder,
   },
+  sameAs: SITE.socialProfiles,
 };
 
 const webSiteSchema = {
   "@context": "https://schema.org",
   "@type": "WebSite",
-  name: "PixelTEC",
-  url: "https://pixeltec.mx",
+  name: SITE.name,
+  url: SITE.url,
+  inLanguage: SITE.locale,
+  publisher: { "@id": ORG_ID },
 };
 
 export function OrganizationStructuredData() {
@@ -58,12 +76,8 @@ export function ServiceStructuredData({ slug, title, description }: ServiceSchem
     "@type": "Service",
     name: title,
     description,
-    url: `https://pixeltec.mx/services/${slug}`,
-    provider: {
-      "@type": "Organization",
-      name: "PIXELTEC",
-      url: "https://pixeltec.mx",
-    },
+    url: absoluteUrl(`/services/${slug}`),
+    provider: { "@id": ORG_ID },
     areaServed: {
       "@type": "Country",
       name: "Mexico",
@@ -101,7 +115,8 @@ export function BlogPostingStructuredData({
     "@type": "BlogPosting",
     headline: title,
     description: excerpt,
-    url: `https://pixeltec.mx/blog/${slug}`,
+    url: absoluteUrl(`/blog/${slug}`),
+    inLanguage: SITE.locale,
     datePublished,
     dateModified: dateModified ?? datePublished,
     author: {
@@ -110,16 +125,17 @@ export function BlogPostingStructuredData({
     },
     publisher: {
       "@type": "Organization",
-      name: "PIXELTEC",
+      "@id": ORG_ID,
+      name: SITE.name,
       logo: {
         "@type": "ImageObject",
-        url: "https://pixeltec.mx/ptlogox.png",
+        url: absoluteUrl(SITE.logoPath),
       },
     },
     image: imageUrl,
     mainEntityOfPage: {
       "@type": "WebPage",
-      "@id": `https://pixeltec.mx/blog/${slug}`,
+      "@id": absoluteUrl(`/blog/${slug}`),
     },
   };
   return (
@@ -145,11 +161,7 @@ export function StandaloneServiceStructuredData({ url, name, description }: Stan
     name,
     description,
     url,
-    provider: {
-      "@type": "Organization",
-      name: "PIXELTEC",
-      url: "https://pixeltec.mx",
-    },
+    provider: { "@id": ORG_ID },
     areaServed: {
       "@type": "Country",
       name: "Mexico",
@@ -210,6 +222,35 @@ export function BreadcrumbStructuredData({ items }: BreadcrumbSchemaProps) {
       name: item.name,
       item: item.url,
     })),
+  };
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+    />
+  );
+}
+
+// Listado del blog (/blog): identifica la página como colección de artículos
+// de la Organization — complementa los BlogPosting individuales.
+export function CollectionPageStructuredData({
+  name,
+  description,
+  path,
+}: {
+  name: string;
+  description: string;
+  path: string;
+}) {
+  const schema = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name,
+    description,
+    url: absoluteUrl(path),
+    inLanguage: SITE.locale,
+    isPartOf: { "@type": "WebSite", url: SITE.url, name: SITE.name },
+    publisher: { "@id": ORG_ID },
   };
   return (
     <script
