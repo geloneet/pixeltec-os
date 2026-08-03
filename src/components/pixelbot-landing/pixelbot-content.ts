@@ -305,7 +305,7 @@ export const SEO_META = {
   title: 'PixelBot | Agente de IA para WhatsApp para Empresas',
   description:
     'Automatiza atención y calificación por WhatsApp con IA controlada, memoria, handoff humano e integraciones a tu operación. Implementado por PixelTEC en México.',
-  ogImage: '/og/pixelbot.png',
+  ogImage: '/og/pixelbot.jpg',
   serviceName: 'PixelBot — Agente de IA para WhatsApp',
   serviceDescription:
     'Agente de IA para WhatsApp que atiende, califica y transfiere conversaciones a tu equipo, con memoria por contacto, reglas configurables y handoff humano. Implementado y operado por PixelTEC.',

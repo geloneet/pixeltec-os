@@ -2,9 +2,22 @@
 
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils"
-import { useReducedMotion } from "framer-motion";
 import { TestimonialCard } from "@/components/ui/testimonial-card"
 import type { TestimonialAuthor } from "@/components/ui/testimonial-card"
+
+// Sustituye useReducedMotion de framer-motion: era el UNICO uso de framer en
+// este arbol (la home lo arrastraba entero por el marquee). matchMedia nativo.
+function usePrefersReducedMotion(): boolean {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    setReduced(mq.matches);
+    const onChange = (e: MediaQueryListEvent) => setReduced(e.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  return reduced;
+}
 
 type Testimonial = {
   author: TestimonialAuthor
@@ -29,7 +42,7 @@ export function TestimonialsWithMarquee({
   testimonials,
   className
 }: TestimonialsSectionProps) {
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = usePrefersReducedMotion();
   const viewportRef = useRef<HTMLDivElement>(null);
   const [inView, setInView] = useState(false);
   const [interacting, setInteracting] = useState(false);
