@@ -17,10 +17,25 @@ brief estratégico y editor con readiness (UI) · docs/seo.
 - vitest: suite completa en verde tras cada commit (baseline worktree 2176 →
   crece con los tests nuevos del gate).
 
-## Pendiente G2.5 — ensayo de migración (GO aparte)
+## G2.5 — Ensayo de migración: PASS (2026-08-03, GO de Miguel)
 
-- pg_dump de blog_posts → DB temporal → aplicar 0026 → leer filas viejas por
-  las queries serializadas → evidencia aquí. SIN tocar la DB real.
+Ejecutado en el contenedor pixeltec-os-db contra la copia seo_rehearsal
+(pg_dump -t blog_posts, 4 filas; la DB real solo se leyó):
+
+1. drizzle/0026 aplicada limpia (CREATE post_redirects + 3 ALTER + FK),
+   con ON_ERROR_STOP.
+2. Columnas nuevas con defaults correctos: editorial jsonb {} · sources
+   jsonb [] · internal_links jsonb [].
+3. Las 4 filas preexistentes leen defaults sin backfill y el filtro
+   coalesce((seo->>noindex)::boolean,false) da el veredicto esperado:
+   published=false (indexables), draft/archived=true.
+4. FK verificada: INSERT en post_redirects + JOIN a blog_posts OK.
+5. Rollback ensayado: DROP TABLE post_redirects + DROP de las 3 columnas
+   deja el shape original con las 4 filas intactas.
+6. Copia seo_rehearsal destruida al terminar.
+
+Conclusión: la migración es aditiva pura y reversible; lista para aplicarse
+en G4 antes del deploy.
 
 ## Pendiente G3 — QA integral (GO aparte)
 
