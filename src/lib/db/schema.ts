@@ -1190,7 +1190,12 @@ export const blogPosts = pgTable(
     status: text("status").notNull().default("draft"), // BlogPostStatus
     briefSource: jsonb("brief_source").notNull().default({}), // { topic, angle, targetAudience, keyPoints, tone }
     ai: jsonb("ai").notNull().default({}), // { model, generatedAt, editedByHuman, wordsAdded, iterations }
-    seo: jsonb("seo").notNull().default({}), // { metaTitle, metaDescription, canonicalUrl, noindex }
+    seo: jsonb("seo").notNull().default({}), // { metaTitle, metaDescription, canonicalUrl, noindex, primaryKeyword, secondaryKeywords, searchIntent, contentPillar, ogImageAlt }
+    // WS2 (SEO integral): capas editoriales nuevas. Aditivas — filas viejas
+    // leen defaults en la serialización (queries/posts.ts), cero backfill.
+    editorial: jsonb("editorial").notNull().default({}), // PostEditorial (types.ts)
+    sources: jsonb("sources").notNull().default([]), // PostSource[]
+    internalLinks: jsonb("internal_links").notNull().default([]), // PostInternalLink[]
     wordCount: integer("word_count").notNull().default(0),
     readingTimeMin: integer("reading_time_min").notNull().default(1),
     approvedBy: text("approved_by"),
@@ -1202,6 +1207,20 @@ export const blogPosts = pgTable(
     uniqueIndex("blog_posts_slug_idx").on(t.slug),
     uniqueIndex("blog_posts_firestore_id_idx").on(t.firestoreId),
   ]
+);
+
+// Redirects 301 de slugs históricos del blog: cambiar el slug de un post
+// publicado inserta aquí el slug anterior; `/blog/[slug]` los resuelve antes
+// del notFound. Nunca se borran sin auditoría (los enlaces externos viven años).
+export const postRedirects = pgTable(
+  "post_redirects",
+  {
+    fromSlug: text("from_slug").primaryKey(),
+    postId: uuid("post_id")
+      .notNull()
+      .references(() => blogPosts.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  }
 );
 
 // ════════════════════════════════════════════════════════════════════════

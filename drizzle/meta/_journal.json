@@ -183,6 +183,13 @@
       "when": 1784675850349,
       "tag": "0025_cute_maggott",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1785782187637,
+      "tag": "0026_clean_yellow_claw",
+      "breakpoints": true
     }
   ]
 }
