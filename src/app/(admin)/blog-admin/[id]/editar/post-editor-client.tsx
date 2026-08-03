@@ -1,23 +1,25 @@
 "use client";
 
-import {
-  useState,
-  useTransition,
-  useEffect,
-  useRef,
-  KeyboardEvent,
-} from "react";
+import { useState, useTransition, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { X, Check } from "lucide-react";
+import { Check, CircleAlert } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
-import { updatePost, setPostStatus, approvePost, publishPost, archivePost } from "@/lib/blog/actions/posts";
+import {
+  updatePost,
+  setPostStatus,
+  approvePost,
+  publishPost,
+  archivePost,
+  getPublicationReadiness,
+} from "@/lib/blog/actions/posts";
 import { regenerateDraft } from "@/lib/blog/actions/drafts";
 import { BlogPostEditSchema, type BlogPostEditInput } from "@/lib/blog/schemas";
 import type { BlogPostSerialized, BlogPostStatus, BlogCategory } from "@/lib/blog/types";
+import type { PublicationVerdict } from "@/lib/blog/publication-gate";
 import { cn } from "@/lib/utils";
 import {
   Form,
@@ -47,6 +49,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TagInput } from "./tag-input";
+import { SeoPanel } from "./seo-panel";
+import { SourcesEditor } from "./sources-editor";
+import { InternalLinksEditor } from "./internal-links-editor";
+import { EditorialPanel } from "./editorial-panel";
+import { ReadinessPanel } from "./readiness-panel";
+import { PreviewPanel } from "./preview-panel";
+import { SlugCard } from "./slug-card";
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
@@ -73,72 +84,9 @@ const STATUS_CLASS: Record<BlogPostStatus, string> = {
   archived: "bg-muted text-muted-foreground",
 };
 
-// ─── Tag Input ─────────────────────────────────────────────────────────────────
+const AUTO_SAVE_DEBOUNCE_MS = 5000;
 
-interface TagInputProps {
-  value: string[];
-  onChange: (tags: string[]) => void;
-}
-
-function TagInput({ value, onChange }: TagInputProps) {
-  const [inputValue, setInputValue] = useState("");
-
-  function addTag(raw: string) {
-    const tag = raw.trim();
-    if (!tag || value.includes(tag) || value.length >= 8) return;
-    onChange([...value, tag]);
-    setInputValue("");
-  }
-
-  function removeTag(tag: string) {
-    onChange(value.filter((t) => t !== tag));
-  }
-
-  function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "Enter" || e.key === ",") {
-      e.preventDefault();
-      addTag(inputValue);
-    } else if (e.key === "Backspace" && !inputValue && value.length > 0) {
-      onChange(value.slice(0, -1));
-    }
-  }
-
-  return (
-    <div className="flex min-h-[42px] flex-wrap gap-1.5 rounded-md border border-border bg-background px-3 py-2">
-      {value.map((tag) => (
-        <span
-          key={tag}
-          className="inline-flex items-center gap-1 rounded-full bg-blue-500/20 px-2.5 py-0.5 text-xs font-medium text-blue-700 dark:text-blue-300"
-        >
-          {tag}
-          <button
-            type="button"
-            onClick={() => removeTag(tag)}
-            className="text-blue-400 hover:text-blue-200 transition-colors"
-          >
-            <X className="h-3 w-3" />
-          </button>
-        </span>
-      ))}
-      <input
-        type="text"
-        value={inputValue}
-        onChange={(e) => setInputValue(e.target.value)}
-        onKeyDown={handleKeyDown}
-        onBlur={() => {
-          if (inputValue.trim()) addTag(inputValue);
-        }}
-        placeholder={value.length === 0 ? "Agregar etiqueta…" : ""}
-        disabled={value.length >= 8}
-        className="min-w-[120px] flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none disabled:cursor-not-allowed"
-      />
-    </div>
-  );
-}
-
-// ─── Auto-save hook ────────────────────────────────────────────────────────────
-
-type SaveStatus = "idle" | "saving" | "saved";
+type SaveStatus = "idle" | "saving" | "saved" | "error";
 
 // ─── Main Component ────────────────────────────────────────────────────────────
 
@@ -150,9 +98,13 @@ export function PostEditorClient({ post }: PostEditorClientProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [postStatus, setCurrentStatus] = useState<BlogPostStatus>(post.status);
+  const [slug, setSlug] = useState(post.slug);
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [coverError, setCoverError] = useState(false);
+  const [verdict, setVerdict] = useState<PublicationVerdict | null>(null);
+  const [readinessLoading, setReadinessLoading] = useState(true);
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const form = useForm<BlogPostEditInput>({
@@ -166,6 +118,23 @@ export function PostEditorClient({ post }: PostEditorClientProps) {
       coverImage: post.coverImage ?? null,
       seoMetaTitle: post.seo.metaTitle,
       seoMetaDescription: post.seo.metaDescription,
+      // WS2 — SEO
+      coverImageAlt: post.seo.ogImageAlt ?? "",
+      canonicalUrl: post.seo.canonicalUrl ?? null,
+      noindex: post.seo.noindex ?? true,
+      primaryKeyword: post.seo.primaryKeyword ?? "",
+      secondaryKeywords: post.seo.secondaryKeywords ?? [],
+      searchIntent: post.seo.searchIntent ?? "",
+      contentPillar: post.seo.contentPillar ?? "",
+      // WS2 — evidencia y enlaces
+      sources: post.sources ?? [],
+      internalLinks: post.internalLinks ?? [],
+      // WS2 — editorial
+      reviewerId: post.editorial.reviewerId,
+      nextReviewAt: post.editorial.nextReviewAt,
+      aiDisclosure: post.editorial.aiDisclosure,
+      claimsVerified: post.editorial.claimsVerified ?? false,
+      sourcesVerified: post.editorial.sourcesVerified ?? false,
     },
   });
 
@@ -175,36 +144,72 @@ export function PostEditorClient({ post }: PostEditorClientProps) {
   const watchedCoverImage = form.watch("coverImage");
   const watchedSeoMetaTitle = form.watch("seoMetaTitle") ?? "";
   const watchedSeoMetaDescription = form.watch("seoMetaDescription") ?? "";
+  const watchedCoverImageAlt = form.watch("coverImageAlt") ?? "";
 
   useEffect(() => {
     setCoverError(false);
   }, [watchedCoverImage]);
 
-  // Auto-save debounced on body/title/excerpt changes
+  // ── Readiness (gate de publicación en servidor) ──────────────────────────────
+  const refreshReadiness = useCallback(async () => {
+    setReadinessLoading(true);
+    try {
+      const result = await getPublicationReadiness(post.id);
+      if (result.ok && result.data) setVerdict(result.data);
+    } finally {
+      setReadinessLoading(false);
+    }
+  }, [post.id]);
+
   useEffect(() => {
-    if (!form.formState.isDirty) return;
+    void refreshReadiness();
+  }, [refreshReadiness]);
 
-    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+  // ── Auto-save ────────────────────────────────────────────────────────────────
+  const runAutoSave = useCallback(async () => {
+    const data = form.getValues();
+    const parsed = BlogPostEditSchema.safeParse(data);
+    if (!parsed.success) {
+      // El fallo de validación NUNCA es silencioso: se muestra qué campo falla.
+      const issue = parsed.error.errors[0];
+      setSaveStatus("error");
+      setSaveError(
+        issue
+          ? `No se guardó — ${issue.path.join(".") || "formulario"}: ${issue.message}`
+          : "No se guardó: datos inválidos",
+      );
+      return;
+    }
 
-    autoSaveTimer.current = setTimeout(async () => {
-      const data = form.getValues();
-      const parsed = BlogPostEditSchema.safeParse(data);
-      if (!parsed.success) return;
+    setSaveStatus("saving");
+    setSaveError(null);
+    const result = await updatePost(post.id, parsed.data);
+    if (result.ok) {
+      setSaveStatus("saved");
+      // El servidor mueve todo post no publicado a "needs-review" al guardar.
+      setCurrentStatus((prev) => (prev === "published" ? prev : "needs-review"));
+      setTimeout(() => setSaveStatus((s) => (s === "saved" ? "idle" : s)), 3000);
+      void refreshReadiness();
+    } else {
+      setSaveStatus("error");
+      setSaveError(result.error ?? "Error al guardar");
+    }
+  }, [form, post.id, refreshReadiness]);
 
-      setSaveStatus("saving");
-      const result = await updatePost(post.id, parsed.data);
-      setSaveStatus(result.ok ? "saved" : "idle");
-
-      if (result.ok) {
-        setTimeout(() => setSaveStatus("idle"), 3000);
-      }
-    }, 5000);
-
+  // Suscripción a TODOS los campos (antes solo title/excerpt/body): cualquier
+  // cambio — tags, SEO, fuentes, enlaces, editorial — reinicia el debounce.
+  useEffect(() => {
+    const subscription = form.watch(() => {
+      if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+      autoSaveTimer.current = setTimeout(() => {
+        void runAutoSave();
+      }, AUTO_SAVE_DEBOUNCE_MS);
+    });
     return () => {
+      subscription.unsubscribe();
       if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [watchedTitle, watchedExcerpt, watchedBody]);
+  }, [form, runAutoSave]);
 
   // Compute stats
   const wordCount = watchedBody
@@ -212,15 +217,33 @@ export function PostEditorClient({ post }: PostEditorClientProps) {
     : 0;
   const readingTime = Math.max(1, Math.ceil(wordCount / 200));
 
+  const hasBlockers = (verdict?.blockers.length ?? 0) > 0;
+
   function handleSaveDraft() {
     startTransition(async () => {
       const data = form.getValues();
-      const result = await updatePost(post.id, data);
+      const parsed = BlogPostEditSchema.safeParse(data);
+      if (!parsed.success) {
+        const issue = parsed.error.errors[0];
+        const message = issue
+          ? `${issue.path.join(".") || "formulario"}: ${issue.message}`
+          : "Datos inválidos";
+        setSaveStatus("error");
+        setSaveError(message);
+        toast.error(`No se pudo guardar — ${message}`);
+        return;
+      }
+      const result = await updatePost(post.id, parsed.data);
       if (result.ok) {
         toast.success("Borrador guardado");
         setSaveStatus("saved");
-        setTimeout(() => setSaveStatus("idle"), 3000);
+        setSaveError(null);
+        setCurrentStatus((prev) => (prev === "published" ? prev : "needs-review"));
+        setTimeout(() => setSaveStatus((s) => (s === "saved" ? "idle" : s)), 3000);
+        void refreshReadiness();
       } else {
+        setSaveStatus("error");
+        setSaveError(result.error ?? "Error al guardar");
         toast.error(result.error ?? "Error al guardar");
       }
     });
@@ -232,6 +255,7 @@ export function PostEditorClient({ post }: PostEditorClientProps) {
       if (result.ok) {
         setCurrentStatus("needs-review");
         toast.success("Marcado para revisión");
+        void refreshReadiness();
       } else {
         toast.error(result.error ?? "Error");
       }
@@ -244,6 +268,7 @@ export function PostEditorClient({ post }: PostEditorClientProps) {
       if (result.ok) {
         setCurrentStatus("approved");
         toast.success("Post aprobado");
+        void refreshReadiness();
       } else {
         toast.error(result.error ?? "Error al aprobar");
       }
@@ -257,6 +282,8 @@ export function PostEditorClient({ post }: PostEditorClientProps) {
         toast.success("¡Post publicado!");
         router.push("/blog-admin");
       } else {
+        // El gate en servidor devuelve el veredicto: se refleja en el panel.
+        if (result.data) setVerdict(result.data);
         toast.error(result.error ?? "Error al publicar");
       }
     });
@@ -288,6 +315,11 @@ export function PostEditorClient({ post }: PostEditorClientProps) {
         toast.error(result.error ?? "Error al archivar");
       }
     });
+  }
+
+  function handleSlugChanged(newSlug: string) {
+    setSlug(newSlug);
+    void refreshReadiness();
   }
 
   return (
@@ -334,165 +366,241 @@ export function PostEditorClient({ post }: PostEditorClientProps) {
                   Guardado ✓
                 </span>
               )}
+              {saveStatus === "error" && (
+                <span className="flex max-w-md items-center gap-1 text-red-400">
+                  <CircleAlert className="h-3 w-3 shrink-0" />
+                  <span className="truncate">{saveError ?? "Error al guardar"}</span>
+                </span>
+              )}
             </span>
           </div>
 
-          {/* Cover Image */}
-          <FormField
-            control={form.control}
-            name="coverImage"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="text-muted-foreground">Imagen de portada (URL)</FormLabel>
-                <FormControl>
-                  <Input
-                    {...field}
-                    value={field.value ?? ""}
-                    onChange={(e) => field.onChange(e.target.value || null)}
-                    className="bg-background border-border text-foreground placeholder:text-muted-foreground focus:border-blue-500/50"
-                    placeholder="https://images.unsplash.com/…"
-                  />
-                </FormControl>
-                <FormMessage />
-                {watchedCoverImage && !coverError && (
-                  <div className="relative mt-2 h-40 w-full overflow-hidden rounded-lg border border-border">
-                    <Image
-                      src={watchedCoverImage}
-                      alt="Cover preview"
-                      fill
-                      className="object-cover"
-                      onError={() => setCoverError(true)}
-                    />
-                  </div>
-                )}
-                {watchedCoverImage && coverError && (
-                  <p className="mt-1 text-xs text-red-400">No se pudo cargar la imagen. Verifica la URL.</p>
-                )}
-              </FormItem>
-            )}
-          />
+          <Tabs defaultValue="contenido">
+            <TabsList className="mb-4 flex h-auto w-full flex-wrap justify-start gap-1">
+              <TabsTrigger value="contenido">Contenido</TabsTrigger>
+              <TabsTrigger value="seo">SEO</TabsTrigger>
+              <TabsTrigger value="evidencia">Evidencia</TabsTrigger>
+              <TabsTrigger value="enlaces">Enlaces internos</TabsTrigger>
+              <TabsTrigger value="editorial">Editorial</TabsTrigger>
+              <TabsTrigger value="preview">Vista previa</TabsTrigger>
+            </TabsList>
 
-          {/* Title */}
-          <FormField
-            control={form.control}
-            name="title"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="text-muted-foreground">Título</FormLabel>
-                <FormControl>
-                  <Input
-                    {...field}
-                    className="bg-background border-border text-foreground text-2xl font-bold placeholder:text-muted-foreground focus:border-blue-500/50 h-auto py-3"
-                    placeholder="Título del artículo"
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* Excerpt */}
-          <FormField
-            control={form.control}
-            name="excerpt"
-            render={({ field }) => (
-              <FormItem>
-                <div className="flex items-center justify-between">
-                  <FormLabel className="text-muted-foreground">Extracto</FormLabel>
-                  <span
-                    className={cn(
-                      "text-xs",
-                      (field.value?.length ?? 0) > 160
-                        ? "text-red-400"
-                        : "text-muted-foreground",
+            {/* ── Tab: Contenido ── */}
+            <TabsContent value="contenido" className="space-y-5">
+              {/* Cover Image */}
+              <FormField
+                control={form.control}
+                name="coverImage"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-muted-foreground">Imagen de portada (URL)</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        value={field.value ?? ""}
+                        onChange={(e) => field.onChange(e.target.value || null)}
+                        className="bg-background border-border text-foreground placeholder:text-muted-foreground focus:border-blue-500/50"
+                        placeholder="https://images.unsplash.com/…"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                    {watchedCoverImage && !coverError && (
+                      <div className="relative mt-2 h-40 w-full overflow-hidden rounded-lg border border-border">
+                        <Image
+                          src={watchedCoverImage}
+                          alt="Cover preview"
+                          fill
+                          className="object-cover"
+                          onError={() => setCoverError(true)}
+                        />
+                      </div>
                     )}
-                  >
-                    {field.value?.length ?? 0}/160
-                  </span>
-                </div>
-                <FormControl>
-                  <Textarea
-                    {...field}
-                    rows={2}
-                    maxLength={160}
-                    placeholder="Resumen del artículo para SEO y listados"
-                    className="bg-background border-border text-foreground placeholder:text-muted-foreground focus:border-blue-500/50 resize-none"
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                    {watchedCoverImage && coverError && (
+                      <p className="mt-1 text-xs text-red-400">No se pudo cargar la imagen. Verifica la URL.</p>
+                    )}
+                  </FormItem>
+                )}
+              />
 
-          {/* Body */}
-          <FormField
-            control={form.control}
-            name="body"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="text-muted-foreground">
-                  Cuerpo (Markdown)
-                </FormLabel>
-                <FormControl>
-                  <Textarea
-                    {...field}
-                    rows={24}
-                    placeholder="# Título&#10;&#10;Escribe el contenido en Markdown…"
-                    className="bg-background border-border text-foreground placeholder:text-muted-foreground focus:border-blue-500/50 resize-y font-mono text-sm"
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+              {/* Title */}
+              <FormField
+                control={form.control}
+                name="title"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-muted-foreground">Título</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        className="bg-background border-border text-foreground text-2xl font-bold placeholder:text-muted-foreground focus:border-blue-500/50 h-auto py-3"
+                        placeholder="Título del artículo"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-          {/* Tags */}
-          <FormField
-            control={form.control}
-            name="tags"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="text-muted-foreground">Etiquetas</FormLabel>
-                <FormControl>
-                  <TagInput value={field.value} onChange={field.onChange} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* Category */}
-          <FormField
-            control={form.control}
-            name="category"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="text-muted-foreground">Categoría</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  defaultValue={field.value}
-                >
-                  <FormControl>
-                    <SelectTrigger className="bg-background border-border text-foreground focus:border-blue-500/50">
-                      <SelectValue placeholder="Selecciona una categoría" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent className="border-border bg-popover/95 backdrop-blur-xl">
-                    {CATEGORY_OPTIONS.map((opt) => (
-                      <SelectItem
-                        key={opt.value}
-                        value={opt.value}
-                        className="text-popover-foreground focus:bg-secondary focus:text-foreground"
+              {/* Excerpt */}
+              <FormField
+                control={form.control}
+                name="excerpt"
+                render={({ field }) => (
+                  <FormItem>
+                    <div className="flex items-center justify-between">
+                      <FormLabel className="text-muted-foreground">Extracto</FormLabel>
+                      <span
+                        className={cn(
+                          "text-xs",
+                          (field.value?.length ?? 0) > 160
+                            ? "text-red-400"
+                            : "text-muted-foreground",
+                        )}
                       >
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                        {field.value?.length ?? 0}/160
+                      </span>
+                    </div>
+                    <FormControl>
+                      <Textarea
+                        {...field}
+                        rows={2}
+                        maxLength={160}
+                        placeholder="Resumen del artículo para SEO y listados"
+                        className="bg-background border-border text-foreground placeholder:text-muted-foreground focus:border-blue-500/50 resize-none"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Body */}
+              <FormField
+                control={form.control}
+                name="body"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-muted-foreground">
+                      Cuerpo (Markdown)
+                    </FormLabel>
+                    <FormControl>
+                      <Textarea
+                        {...field}
+                        rows={24}
+                        placeholder="# Título&#10;&#10;Escribe el contenido en Markdown…"
+                        className="bg-background border-border text-foreground placeholder:text-muted-foreground focus:border-blue-500/50 resize-y font-mono text-sm"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Tags */}
+              <FormField
+                control={form.control}
+                name="tags"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-muted-foreground">Etiquetas</FormLabel>
+                    <FormControl>
+                      <TagInput value={field.value} onChange={field.onChange} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Category */}
+              <FormField
+                control={form.control}
+                name="category"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-muted-foreground">Categoría</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger className="bg-background border-border text-foreground focus:border-blue-500/50">
+                          <SelectValue placeholder="Selecciona una categoría" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent className="border-border bg-popover/95 backdrop-blur-xl">
+                        {CATEGORY_OPTIONS.map((opt) => (
+                          <SelectItem
+                            key={opt.value}
+                            value={opt.value}
+                            className="text-popover-foreground focus:bg-secondary focus:text-foreground"
+                          >
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </TabsContent>
+
+            {/* ── Tab: SEO ── */}
+            <TabsContent value="seo">
+              <SeoPanel form={form} />
+            </TabsContent>
+
+            {/* ── Tab: Evidencia (fuentes) ── */}
+            <TabsContent value="evidencia">
+              <FormField
+                control={form.control}
+                name="sources"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <SourcesEditor value={field.value ?? []} onChange={field.onChange} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </TabsContent>
+
+            {/* ── Tab: Enlaces internos ── */}
+            <TabsContent value="enlaces">
+              <FormField
+                control={form.control}
+                name="internalLinks"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <InternalLinksEditor value={field.value ?? []} onChange={field.onChange} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </TabsContent>
+
+            {/* ── Tab: Editorial ── */}
+            <TabsContent value="editorial">
+              <EditorialPanel form={form} />
+            </TabsContent>
+
+            {/* ── Tab: Vista previa ── */}
+            <TabsContent value="preview">
+              <PreviewPanel
+                title={watchedTitle}
+                excerpt={watchedExcerpt}
+                body={watchedBody}
+                slug={slug}
+                coverImage={watchedCoverImage ?? null}
+                coverImageAlt={watchedCoverImageAlt}
+                metaTitle={watchedSeoMetaTitle}
+                metaDescription={watchedSeoMetaDescription}
+              />
+            </TabsContent>
+          </Tabs>
         </div>
 
         {/* ── Sidebar (1/3) ── */}
@@ -527,81 +635,16 @@ export function PostEditorClient({ post }: PostEditorClientProps) {
             </div>
           </section>
 
-          {/* SEO card */}
-          <section className="rounded-xl border border-border bg-card p-4 space-y-4">
-            <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-              SEO
-            </h3>
+          {/* Readiness (gate de publicación) */}
+          <ReadinessPanel verdict={verdict} loading={readinessLoading} />
 
-            <FormField
-              control={form.control}
-              name="seoMetaTitle"
-              render={({ field }) => (
-                <FormItem>
-                  <div className="flex items-center justify-between">
-                    <FormLabel className="text-muted-foreground text-xs">
-                      Meta título
-                    </FormLabel>
-                    <span
-                      className={cn(
-                        "text-xs",
-                        watchedSeoMetaTitle.length > 70
-                          ? "text-red-400"
-                          : "text-muted-foreground",
-                      )}
-                    >
-                      {watchedSeoMetaTitle.length}/70
-                    </span>
-                  </div>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      value={field.value ?? ""}
-                      maxLength={70}
-                      placeholder="Meta título SEO"
-                      className="bg-background border-border text-foreground text-xs placeholder:text-muted-foreground focus:border-blue-500/50"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="seoMetaDescription"
-              render={({ field }) => (
-                <FormItem>
-                  <div className="flex items-center justify-between">
-                    <FormLabel className="text-muted-foreground text-xs">
-                      Meta descripción
-                    </FormLabel>
-                    <span
-                      className={cn(
-                        "text-xs",
-                        watchedSeoMetaDescription.length > 160
-                          ? "text-red-400"
-                          : "text-muted-foreground",
-                      )}
-                    >
-                      {watchedSeoMetaDescription.length}/160
-                    </span>
-                  </div>
-                  <FormControl>
-                    <Textarea
-                      {...field}
-                      value={field.value ?? ""}
-                      rows={3}
-                      maxLength={160}
-                      placeholder="Meta descripción SEO"
-                      className="bg-background border-border text-foreground text-xs placeholder:text-muted-foreground focus:border-blue-500/50 resize-none"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </section>
+          {/* Slug */}
+          <SlugCard
+            postId={post.id}
+            slug={slug}
+            isPublished={postStatus === "published"}
+            onSlugChanged={handleSlugChanged}
+          />
 
           {/* Actions card */}
           <section className="rounded-xl border border-border bg-card p-4 space-y-2">
@@ -646,19 +689,26 @@ export function PostEditorClient({ post }: PostEditorClientProps) {
               Aprobar
             </Button>
 
-            {/* Publish — only if approved */}
+            {/* Publish — only if approved; disabled while the gate reports blockers */}
             {postStatus === "approved" && (
-              <Button
-                type="button"
-                onClick={handlePublish}
-                disabled={isPending}
-                className="w-full bg-green-600 hover:bg-green-500 text-white font-semibold disabled:opacity-50"
-              >
-                {isPending ? (
-                  <Spinner size="sm" className="mr-2" />
-                ) : null}
-                Publicar
-              </Button>
+              <div className="space-y-1">
+                <Button
+                  type="button"
+                  onClick={handlePublish}
+                  disabled={isPending || hasBlockers}
+                  className="w-full bg-green-600 hover:bg-green-500 text-white font-semibold disabled:opacity-50"
+                >
+                  {isPending ? (
+                    <Spinner size="sm" className="mr-2" />
+                  ) : null}
+                  Publicar
+                </Button>
+                {hasBlockers && (
+                  <p className="text-xs text-red-400">
+                    Hay bloqueos activos — revisa el panel de publicación.
+                  </p>
+                )}
+              </div>
             )}
 
             <div className="border-t border-border pt-2 space-y-2">
