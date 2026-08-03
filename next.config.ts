@@ -32,7 +32,15 @@ const nextConfig: NextConfig = {
       { source: '/nosotros', destination: '/about', permanent: true },
       { source: '/contacto', destination: '/contact', permanent: true },
       { source: '/servicios', destination: '/services', permanent: true },
-      { source: '/blog/de-excel-a-saas', destination: '/blog/de-excel-a-saas-roi', permanent: true },
+      { source: '/blog/de-excel-a-saas', destination: '/blog', permanent: true },
+      // ── Posts demo estáticos retirados (2026-08-03, decisión de Miguel):
+      //    eran contenido de demostración, nunca gestionado por blog-admin ──
+      { source: '/blog/escalabilidad-en-la-nube-con-nextjs-y-firebase', destination: '/blog', permanent: true },
+      { source: '/blog/automatizacion-de-procesos-logisticos-con-python-y-apis', destination: '/blog', permanent: true },
+      { source: '/blog/agentes-ia-soporte-b2b', destination: '/blog', permanent: true },
+      { source: '/blog/de-excel-a-saas-roi', destination: '/blog', permanent: true },
+      { source: '/blog/optimizacion-extrema-nextjs', destination: '/blog', permanent: true },
+      { source: '/blog/arquitecturas-multi-tenant', destination: '/blog', permanent: true },
       // ── IA Redesign — Semana 1 route migration (301 — rollout estable) ──
       { source: '/dashboard', destination: '/hoy', permanent: true },
       { source: '/dashboard/:path*', destination: '/hoy', permanent: true },
