@@ -1,7 +1,7 @@
 // Fase 4 (rebanada Blog): Postgres/Drizzle — antes Firestore `blogPosts`.
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { blogPosts } from '@/lib/db/schema';
+import { blogPosts, postRedirects } from '@/lib/db/schema';
 import {
   EMPTY_EDITORIAL,
   EMPTY_SEO,
@@ -102,6 +102,18 @@ export async function listAllPosts(statusFilter?: BlogPostStatus[]): Promise<Blo
     .orderBy(desc(blogPosts.createdAt))
     .limit(100);
   return rows.map(serializePost);
+}
+
+/** Resuelve un slug histórico a su slug vigente (redirect 301 del artículo).
+ *  Devuelve null si el slug no es un redirect conocido. */
+export async function getRedirectTargetSlug(fromSlug: string): Promise<string | null> {
+  const [row] = await db
+    .select({ slug: blogPosts.slug })
+    .from(postRedirects)
+    .innerJoin(blogPosts, eq(postRedirects.postId, blogPosts.id))
+    .where(eq(postRedirects.fromSlug, fromSlug))
+    .limit(1);
+  return row?.slug ?? null;
 }
 
 /** Posts publicados relacionados por categoría (para el bloque "Sigue

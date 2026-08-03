@@ -9,6 +9,19 @@ import rehypeSanitize from 'rehype-sanitize';
 import 'highlight.js/styles/github-dark.css';
 import type { Components } from 'react-markdown';
 import MermaidDiagram from './mermaid-diagram';
+import { slugifyHeading } from '@/lib/blog/heading-utils';
+
+// Texto plano de un árbol de children — para calcular el id de ancla del
+// heading con la MISMA función que usa la tabla de contenidos del RSC.
+function textOf(children: React.ReactNode): string {
+  return React.Children.toArray(children)
+    .map((c) => {
+      if (typeof c === 'string' || typeof c === 'number') return String(c);
+      if (React.isValidElement(c)) return textOf((c.props as { children?: React.ReactNode }).children);
+      return '';
+    })
+    .join('');
+}
 
 // Removes an outer code fence that Claude sometimes adds when it copies the example format.
 // Idempotent: if no wrapper is present the original string is returned unchanged.
@@ -34,15 +47,23 @@ const components: Components = {
     );
   },
   h2({ children }) {
+    // id + scroll-mt: anclas navegables para la tabla de contenidos y para
+    // deep-links de Google (antes los headings no tenían id).
     return (
-      <h2 className="not-prose mb-4 mt-10 border-b border-white/10 pb-2 text-2xl font-bold text-white md:text-3xl">
+      <h2
+        id={slugifyHeading(textOf(children))}
+        className="not-prose mb-4 mt-10 scroll-mt-28 border-b border-white/10 pb-2 text-2xl font-bold text-white md:text-3xl"
+      >
         {children}
       </h2>
     );
   },
   h3({ children }) {
     return (
-      <h3 className="not-prose mb-3 mt-8 text-xl font-semibold text-white md:text-2xl">
+      <h3
+        id={slugifyHeading(textOf(children))}
+        className="not-prose mb-3 mt-8 scroll-mt-28 text-xl font-semibold text-white md:text-2xl"
+      >
         {children}
       </h3>
     );

@@ -1,5 +1,3 @@
-import Header from "@/components/header";
-import { Footer } from "@/components/ui/footer-section";
 import { BlogGrid, type BlogCardData } from "./blog-grid";
 import type { Metadata } from "next";
 import { buildMetadata } from "@/lib/seo";
@@ -53,7 +51,7 @@ export default async function BlogPage() {
         { name: SITE.name, url: SITE.url },
         { name: 'Blog', url: `${SITE.url}/blog` },
       ]} />
-      <Header />
+      {/* Header/Footer los monta blog/layout.tsx (compartidos con el detalle) */}
       <main className="min-h-screen bg-[#030303] text-white pt-32 sm:pt-40 pb-16 sm:pb-24">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
           <header className="mb-12 md:mb-16">
@@ -71,7 +69,6 @@ export default async function BlogPage() {
           </section>
         </div>
       </main>
-      <Footer />
     </>
   );
 }
