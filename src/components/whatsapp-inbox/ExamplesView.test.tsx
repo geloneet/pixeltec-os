@@ -54,10 +54,12 @@ describe("ExamplesView — biblioteca de ejemplos few-shot (Fase 3)", () => {
     render(<ExamplesView />);
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
 
-    fireEvent.change(await screen.findByPlaceholderText(/mensaje del cliente/i), {
+    // El alta ahora vive en un dialog (§8.9).
+    fireEvent.click(await screen.findByRole("button", { name: "Nuevo ejemplo" }));
+    fireEvent.change(await screen.findByLabelText("Mensaje del cliente"), {
       target: { value: "hola buenas" },
     });
-    fireEvent.change(screen.getByPlaceholderText(/respuesta ideal/i), {
+    fireEvent.change(screen.getByLabelText("Respuesta ideal"), {
       target: { value: "hola, en qué te ayudo" },
     });
     fireEvent.click(screen.getByText("Agregar ejemplo"));

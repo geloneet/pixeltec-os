@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Check, Copy, Plus, Ticket, X } from "lucide-react";
+import { Archive, Check, Copy, MoreHorizontal, Plus, Ticket, X } from "lucide-react";
 import { toast } from "sonner";
 import { Spinner } from "@/components/ui/spinner";
 import { useUser } from "@/hooks/use-user";
@@ -23,6 +23,12 @@ import {
 } from "@/types/whatsapp-inbox";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -34,28 +40,12 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { ModeToggle } from "./ModeToggle";
-
-const MODE_META: Record<string, { label: string; className: string }> = {
-  BOT: { label: "Bot", className: "text-cyan-700 dark:text-cyan-300 bg-cyan-500/10 border-cyan-500/30" },
-  HUMAN: { label: "Tú", className: "text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 border-emerald-500/30" },
-  PAUSED: { label: "Pausa", className: "text-amber-700 dark:text-amber-300 bg-amber-500/10 border-amber-500/30" },
-};
+import { SemanticBadge } from "./ui/SemanticBadge";
+import { WhatsAppSection } from "./ui/WhatsAppSection";
+import { formatRelative, MODE_META, modeLabel, resolveMode } from "./ui/meta";
 
 const NO_CLASSIFICATION = "none";
 const MAX_TAGS = 10;
-
-function formatRelative(canonical?: string): string {
-  if (!canonical) return "sin datos";
-  const date = parseCanonical(canonical);
-  const diffMs = Date.now() - date.getTime();
-  const mins = Math.floor(diffMs / 60_000);
-  if (mins < 1) return "hace instantes";
-  if (mins < 60) return `hace ${mins}m`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `hace ${hours}h`;
-  return `el ${date.toLocaleDateString("es-MX", { day: "numeric", month: "short" })}`;
-}
 
 function formatHistoryDate(iso: string): string {
   try {
@@ -70,14 +60,13 @@ function formatHistoryDate(iso: string): string {
   }
 }
 
-function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="space-y-2 rounded-xl border border-border p-3">
-      <p className="text-[11px] uppercase tracking-wider text-muted-foreground">{title}</p>
-      {children}
-    </div>
-  );
-}
+type PanelTab = "perfil" | "bot" | "actividad";
+
+const PANEL_TABS: { id: PanelTab; label: string }[] = [
+  { id: "perfil", label: "Perfil" },
+  { id: "bot", label: "Bot" },
+  { id: "actividad", label: "Actividad" },
+];
 
 interface ContactPanelProps {
   tenantId: string;
@@ -89,10 +78,18 @@ interface ContactPanelProps {
   refetchContacts: () => void;
 }
 
-export function ContactPanel({ phone, conv, contact, onClose, onModeChanged, refetchContacts }: ContactPanelProps) {
+/**
+ * Ficha del contacto en tres tabs (§8.7): Perfil (identidad + negocio),
+ * Bot (memoria y resumen de automatización, SIN control duplicado — la
+ * única fuente que muta el modo es el AutomationStateMenu del hilo) y
+ * Actividad (notas + historial). Resolver/Archivar viven en el menú "⋯"
+ * del encabezado, separados de las acciones primarias.
+ */
+export function ContactPanel({ phone, conv, contact, onClose, refetchContacts }: ContactPanelProps) {
   const user = useUser();
   const crm = useCRM();
 
+  const [activeTab, setActiveTab] = useState<PanelTab>("perfil");
   const [name, setName] = useState(contact?.name ?? "");
   const [origin, setOrigin] = useState(contact?.origin ?? "");
   const [tagInput, setTagInput] = useState("");
@@ -108,14 +105,7 @@ export function ContactPanel({ phone, conv, contact, onClose, onModeChanged, ref
   const { notes, refetch: refetchNotes } = useInboxContactNotes(phone);
   const { memory } = useInboxBotMemory(phone);
 
-  const mode = conv?.mode ?? "BOT";
-  const pausedUntilLabel = useMemo(() => {
-    if (!conv?.pausedUntil) return null;
-    return parseCanonical(conv.pausedUntil).toLocaleTimeString("es-MX", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  }, [conv?.pausedUntil]);
+  const mode = resolveMode(conv?.mode);
 
   // Igual que en ChatThread: la pausa puede haber expirado ya en pixelbot
   // (auto-reanuda a BOT) antes de que el polling traiga el nuevo `mode`.
@@ -323,367 +313,430 @@ export function ContactPanel({ phone, conv, contact, onClose, onModeChanged, ref
     conv?.suggestedClassification && contact?.classification !== conv.suggestedClassification
   );
   const isAssignedToMe = user?.uid && contact?.assignedTo === user.uid;
+  const modeMeta = MODE_META[mode];
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex items-center justify-between border-b border-border px-3 py-3">
-        <h3 className="text-sm font-semibold text-foreground">Ficha del contacto</h3>
+      <div className="flex items-center justify-between gap-1 border-b border-border px-3 py-3">
+        <h3 className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">
+          Ficha del contacto
+        </h3>
+        {/* Acciones terminales, separadas de las primarias (§8.7). */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              aria-label="Más acciones"
+              className="rounded-md border border-border p-1 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40"
+            >
+              <MoreHorizontal className="h-4 w-4" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="border-border bg-popover/95 text-popover-foreground backdrop-blur-xl">
+            <DropdownMenuItem
+              onClick={() => void saveField({ status: "resuelto" }, "Marcado como resuelto", "Marcado como resuelto")}
+              className="cursor-pointer text-sm focus:bg-secondary focus:text-foreground"
+            >
+              <Check className="h-3.5 w-3.5" />
+              Marcar como resuelto
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => void saveField({ status: "archivado" }, "Archivado", "Conversación archivada")}
+              className="cursor-pointer text-sm focus:bg-secondary focus:text-foreground"
+            >
+              <Archive className="h-3.5 w-3.5" />
+              Archivar
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <button
           type="button"
           onClick={onClose}
-          className="rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground"
+          className="rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40"
           aria-label="Cerrar panel"
         >
           <X className="h-4 w-4" />
         </button>
       </div>
 
-      <div className="scrollbar-soft min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
-        {/* Identidad */}
-        <SectionCard title="Identidad">
-          <Input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onBlur={handleNameBlur}
-            onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
-            placeholder="Nombre del contacto"
-            className="h-8 border-border bg-secondary/40 text-sm text-foreground"
-          />
-          <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-            <span className="truncate font-mono">{phone}</span>
-            <button
-              type="button"
-              onClick={handleCopyPhone}
-              className="flex-shrink-0 rounded-md border border-border p-1 text-muted-foreground transition-colors hover:text-foreground"
-              aria-label="Copiar teléfono"
-            >
-              <Copy className="h-3 w-3" />
-            </button>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Última interacción: {formatRelative(conv?.lastMessageAt)}
-          </p>
-        </SectionCard>
-
-        {/* Clasificación */}
-        <SectionCard title="Clasificación">
-          <Select value={classificationValue} onValueChange={handleClassificationChange}>
-            <SelectTrigger className="h-8 border-border bg-secondary/40 text-xs text-foreground focus:ring-cyan-500/20">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="border-border bg-popover/95 backdrop-blur-xl">
-              <SelectItem value={NO_CLASSIFICATION} className="text-sm text-popover-foreground focus:bg-secondary focus:text-foreground">
-                Sin clasificar
-              </SelectItem>
-              {Object.entries(CLASSIFICATION_META).map(([value, meta]) => (
-                <SelectItem key={value} value={value} className="text-sm text-popover-foreground focus:bg-secondary focus:text-foreground">
-                  {meta.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {showSuggestion && conv?.suggestedClassification && (
-            <button
-              type="button"
-              onClick={handleUseSuggestion}
-              className="w-full rounded-md border border-violet-500/30 bg-violet-500/5 px-2 py-1.5 text-left text-[11px] text-violet-700 dark:text-violet-300 transition-colors hover:bg-violet-500/10"
-            >
-              El bot sugiere: <strong>{CLASSIFICATION_META[conv.suggestedClassification].label}</strong> · usar
-            </button>
-          )}
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">Urgente</span>
-            <Switch checked={Boolean(contact?.urgent)} onCheckedChange={handleUrgentToggle} />
-          </div>
-        </SectionCard>
-
-        {/* Atención */}
-        <SectionCard title="Atención">
-          <Select value={statusValue} onValueChange={handleStatusChange}>
-            <SelectTrigger className="h-8 border-border bg-secondary/40 text-xs text-foreground focus:ring-cyan-500/20">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="border-border bg-popover/95 backdrop-blur-xl">
-              {Object.entries(STATUS_META).map(([value, meta]) => (
-                <SelectItem key={value} value={value} className="text-sm text-popover-foreground focus:bg-secondary focus:text-foreground">
-                  {meta.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button
+      {/* Tabs de la ficha */}
+      <div className="flex flex-shrink-0 border-b border-border px-3" role="tablist" aria-label="Secciones de la ficha">
+        {PANEL_TABS.map((tab) => (
+          <button
+            key={tab.id}
             type="button"
-            variant="outline"
-            size="sm"
-            onClick={handleAssignToggle}
-            className="h-8 w-full border-border bg-secondary/40 text-xs text-muted-foreground hover:bg-secondary/60"
+            role="tab"
+            aria-selected={activeTab === tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={cn(
+              "relative px-3 py-2 text-xs font-medium transition-colors",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40",
+              activeTab === tab.id ? "text-cyan-300" : "text-muted-foreground hover:text-foreground"
+            )}
           >
-            {isAssignedToMe ? "Quitarme como responsable" : "Asignarme"}
-          </Button>
-          <Input
-            value={origin}
-            onChange={(e) => setOrigin(e.target.value)}
-            onBlur={handleOriginBlur}
-            onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
-            placeholder="Origen (ej. Anuncio IG)"
-            className="h-8 border-border bg-secondary/40 text-sm text-foreground"
-          />
-        </SectionCard>
+            {tab.label}
+            {activeTab === tab.id && (
+              <span aria-hidden className="absolute bottom-0 left-0 right-0 h-[2px] rounded-t-full bg-cyan-400" />
+            )}
+          </button>
+        ))}
+      </div>
 
-        {/* Etiquetas */}
-        <SectionCard title="Etiquetas">
-          <div className="flex flex-wrap gap-1.5">
-            {(contact?.tags ?? []).map((tag) => (
-              <Badge
-                key={tag}
-                variant="outline"
-                className="gap-1 border-border bg-secondary text-[11px] font-normal text-secondary-foreground"
-              >
-                {tag}
+      <div className="scrollbar-soft min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
+        {activeTab === "perfil" && (
+          <>
+            <WhatsAppSection title="Identidad">
+              <Input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                onBlur={handleNameBlur}
+                onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+                placeholder="Nombre del contacto"
+                aria-label="Nombre del contacto"
+                className="h-8 border-border bg-secondary/40 text-sm text-foreground"
+              />
+              <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                <span className="truncate font-mono" title={phone}>{phone}</span>
                 <button
                   type="button"
-                  onClick={() => handleRemoveTag(tag)}
-                  aria-label={`Quitar etiqueta ${tag}`}
-                  className="text-muted-foreground hover:text-foreground"
+                  onClick={handleCopyPhone}
+                  className="flex-shrink-0 rounded-md border border-border p-1 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40"
+                  aria-label="Copiar teléfono"
+                  title="Copiar teléfono"
                 >
-                  <X className="h-2.5 w-2.5" />
+                  <Copy className="h-3 w-3" />
                 </button>
-              </Badge>
-            ))}
-            {!(contact?.tags ?? []).length && <span className="text-xs text-muted-foreground/60">Sin etiquetas</span>}
-          </div>
-          <Input
-            value={tagInput}
-            onChange={(e) => setTagInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleAddTag()}
-            placeholder="Nueva etiqueta ⏎"
-            className="h-8 border-border bg-secondary/40 text-sm text-foreground"
-          />
-        </SectionCard>
-
-        {/* Bot */}
-        <SectionCard title="Bot">
-          <div className="flex items-center justify-between">
-            <span
-              className={cn(
-                "rounded-full border px-2 py-0.5 text-[11px] font-medium",
-                MODE_META[mode]?.className
-              )}
-            >
-              {MODE_META[mode]?.label ?? mode}
-            </span>
-            {mode === "PAUSED" && pausedExpired && (
-              <span className="text-[11px] text-amber-700 dark:text-amber-300">pausa expirada</span>
-            )}
-            {mode === "PAUSED" && !pausedExpired && pausedUntilLabel && (
-              <span className="text-[11px] text-amber-700 dark:text-amber-300">hasta {pausedUntilLabel}</span>
-            )}
-          </div>
-          <ModeToggle phone={phone} mode={mode} onChanged={onModeChanged} />
-        </SectionCard>
-
-        {/* Acciones */}
-        <SectionCard title="Acciones">
-          <div className="space-y-1.5">
-            {!contact && (
-              <Button
-                type="button"
-                onClick={handleSaveContact}
-                disabled={pendingAction !== null}
-                className="h-8 w-full bg-cyan-600 text-xs text-white hover:bg-cyan-500"
-              >
-                {pendingAction === "saveContact" && <Spinner size="sm" />}
-                Guardar contacto
-              </Button>
-            )}
-
-            {contact?.linkedClientId ? (
-              <p className="rounded-md border border-emerald-500/30 bg-emerald-500/5 px-2 py-1.5 text-[11px] text-emerald-700 dark:text-emerald-300">
-                Vinculado al CRM ✓
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Última interacción: {formatRelative(conv?.lastMessageAt, "phrase")}
               </p>
-            ) : (
+            </WhatsAppSection>
+
+            <WhatsAppSection title="Clasificación">
+              <Select value={classificationValue} onValueChange={handleClassificationChange}>
+                <SelectTrigger
+                  aria-label="Clasificación del contacto"
+                  className="h-8 border-border bg-secondary/40 text-xs text-foreground focus:ring-cyan-500/20"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="border-border bg-popover/95 backdrop-blur-xl">
+                  <SelectItem value={NO_CLASSIFICATION} className="text-sm text-popover-foreground focus:bg-secondary focus:text-foreground">
+                    Sin clasificar
+                  </SelectItem>
+                  {Object.entries(CLASSIFICATION_META).map(([value, meta]) => (
+                    <SelectItem key={value} value={value} className="text-sm text-popover-foreground focus:bg-secondary focus:text-foreground">
+                      {meta.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {showSuggestion && conv?.suggestedClassification && (
+                <button
+                  type="button"
+                  onClick={handleUseSuggestion}
+                  className="w-full rounded-md border border-violet-500/30 bg-violet-500/5 px-2 py-1.5 text-left text-xs text-violet-700 dark:text-violet-300 transition-colors hover:bg-violet-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/40"
+                >
+                  El bot sugiere: <strong>{CLASSIFICATION_META[conv.suggestedClassification].label}</strong> · usar
+                </button>
+              )}
+              <div className="flex items-center justify-between">
+                <label htmlFor="contact-urgent" className="text-xs text-muted-foreground">
+                  Urgente
+                </label>
+                <Switch id="contact-urgent" checked={Boolean(contact?.urgent)} onCheckedChange={handleUrgentToggle} />
+              </div>
+            </WhatsAppSection>
+
+            <WhatsAppSection title="Atención">
+              <Select value={statusValue} onValueChange={handleStatusChange}>
+                <SelectTrigger
+                  aria-label="Estado de atención"
+                  className="h-8 border-border bg-secondary/40 text-xs text-foreground focus:ring-cyan-500/20"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="border-border bg-popover/95 backdrop-blur-xl">
+                  {Object.entries(STATUS_META).map(([value, meta]) => (
+                    <SelectItem key={value} value={value} className="text-sm text-popover-foreground focus:bg-secondary focus:text-foreground">
+                      {meta.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <Button
                 type="button"
-                onClick={handleConvertToClient}
-                disabled={pendingAction !== null}
                 variant="outline"
                 size="sm"
+                onClick={handleAssignToggle}
                 className="h-8 w-full border-border bg-secondary/40 text-xs text-muted-foreground hover:bg-secondary/60"
               >
-                {pendingAction === "convertToClient" && <Spinner size="sm" />}
-                Convertir en cliente
+                {isAssignedToMe ? "Quitarme como responsable" : "Asignarme"}
               </Button>
-            )}
+              <Input
+                value={origin}
+                onChange={(e) => setOrigin(e.target.value)}
+                onBlur={handleOriginBlur}
+                onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+                placeholder="Origen (ej. Anuncio IG)"
+                aria-label="Origen del contacto"
+                className="h-8 border-border bg-secondary/40 text-sm text-foreground"
+              />
+            </WhatsAppSection>
 
-            {followUpEligible ? (
-              <div className="space-y-1.5">
-                {linkedClient!.projects.length > 1 && (
-                  <Select value={followUpProjectId ?? undefined} onValueChange={setFollowUpProjectId}>
-                    <SelectTrigger className="h-8 border-border bg-secondary/40 text-xs text-foreground focus:ring-cyan-500/20">
-                      <SelectValue placeholder="Selecciona proyecto" />
-                    </SelectTrigger>
-                    <SelectContent className="border-border bg-popover/95 backdrop-blur-xl">
-                      {linkedClient!.projects.map((p) => (
-                        <SelectItem key={p.id} value={p.id} className="text-sm text-popover-foreground focus:bg-secondary focus:text-foreground">
-                          {p.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-                <Button
-                  type="button"
-                  onClick={handleCreateFollowUp}
-                  disabled={!followUpProject || pendingAction !== null}
-                  variant="outline"
-                  size="sm"
-                  className="h-8 w-full border-border bg-secondary/40 text-xs text-muted-foreground hover:bg-secondary/60 disabled:opacity-40"
-                >
-                  {pendingAction === "createFollowUp" && <Spinner size="sm" />}
-                  Crear seguimiento
-                </Button>
+            <WhatsAppSection title="Etiquetas">
+              <div className="flex flex-wrap gap-1.5">
+                {(contact?.tags ?? []).map((tag) => (
+                  <Badge
+                    key={tag}
+                    variant="outline"
+                    className="gap-1 border-border bg-secondary text-xs font-normal text-secondary-foreground"
+                  >
+                    {tag}
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveTag(tag)}
+                      aria-label={`Quitar etiqueta ${tag}`}
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="h-2.5 w-2.5" />
+                    </button>
+                  </Badge>
+                ))}
+                {!(contact?.tags ?? []).length && <span className="text-xs text-muted-foreground/60">Sin etiquetas</span>}
               </div>
-            ) : (
-              <p className="text-[11px] text-muted-foreground/60">
-                Vincula un cliente con proyecto para crear seguimientos
-              </p>
+              <Input
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleAddTag()}
+                placeholder="Nueva etiqueta ⏎"
+                aria-label="Nueva etiqueta"
+                className="h-8 border-border bg-secondary/40 text-sm text-foreground"
+              />
+            </WhatsAppSection>
+
+            <WhatsAppSection title="CRM" description="Acciones de negocio sobre este contacto">
+              <div className="space-y-1.5">
+                {!contact && (
+                  <Button
+                    type="button"
+                    onClick={handleSaveContact}
+                    disabled={pendingAction !== null}
+                    className="h-8 w-full bg-cyan-600 text-xs text-white hover:bg-cyan-500"
+                  >
+                    {pendingAction === "saveContact" && <Spinner size="sm" />}
+                    Guardar contacto
+                  </Button>
+                )}
+
+                {contact?.linkedClientId ? (
+                  <p className="rounded-md border border-emerald-500/30 bg-emerald-500/5 px-2 py-1.5 text-xs text-emerald-700 dark:text-emerald-300">
+                    Vinculado al CRM ✓
+                  </p>
+                ) : (
+                  <Button
+                    type="button"
+                    onClick={handleConvertToClient}
+                    disabled={pendingAction !== null}
+                    variant="outline"
+                    size="sm"
+                    className="h-8 w-full border-border bg-secondary/40 text-xs text-muted-foreground hover:bg-secondary/60"
+                  >
+                    {pendingAction === "convertToClient" && <Spinner size="sm" />}
+                    Convertir en cliente
+                  </Button>
+                )}
+
+                {followUpEligible ? (
+                  <div className="space-y-1.5">
+                    {linkedClient!.projects.length > 1 && (
+                      <Select value={followUpProjectId ?? undefined} onValueChange={setFollowUpProjectId}>
+                        <SelectTrigger
+                          aria-label="Proyecto para el seguimiento"
+                          className="h-8 border-border bg-secondary/40 text-xs text-foreground focus:ring-cyan-500/20"
+                        >
+                          <SelectValue placeholder="Selecciona proyecto" />
+                        </SelectTrigger>
+                        <SelectContent className="border-border bg-popover/95 backdrop-blur-xl">
+                          {linkedClient!.projects.map((p) => (
+                            <SelectItem key={p.id} value={p.id} className="text-sm text-popover-foreground focus:bg-secondary focus:text-foreground">
+                              {p.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                    <Button
+                      type="button"
+                      onClick={handleCreateFollowUp}
+                      disabled={!followUpProject || pendingAction !== null}
+                      variant="outline"
+                      size="sm"
+                      className="h-8 w-full border-border bg-secondary/40 text-xs text-muted-foreground hover:bg-secondary/60 disabled:opacity-40"
+                    >
+                      {pendingAction === "createFollowUp" && <Spinner size="sm" />}
+                      Crear seguimiento
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground/60">
+                    Vincula un cliente con proyecto para crear seguimientos
+                  </p>
+                )}
+
+                <Popover open={ticketOpen} onOpenChange={setTicketOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 w-full border-border bg-secondary/40 text-xs text-muted-foreground hover:bg-secondary/60"
+                    >
+                      <Ticket className="h-3.5 w-3.5" />
+                      Crear ticket de soporte
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-72 border-border bg-popover/95 p-3 backdrop-blur-xl">
+                    <p className="mb-2 text-xs font-medium text-popover-foreground">¿Cuál es el problema?</p>
+                    <Textarea
+                      value={ticketProblem}
+                      onChange={(e) => setTicketProblem(e.target.value)}
+                      placeholder="Describe el problema..."
+                      className="mb-2 min-h-[70px] border-border bg-secondary/40 text-sm text-foreground"
+                    />
+                    <Button
+                      type="button"
+                      onClick={handleCreateTicket}
+                      disabled={pendingAction !== null}
+                      className="h-8 w-full bg-cyan-600 text-xs text-white hover:bg-cyan-500"
+                    >
+                      {pendingAction === "createTicket" && <Spinner size="sm" />}
+                      Crear ticket
+                    </Button>
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </WhatsAppSection>
+          </>
+        )}
+
+        {activeTab === "bot" && (
+          <>
+            <WhatsAppSection
+              title="Automatización"
+              description="El control se cambia desde el encabezado de la conversación"
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <SemanticBadge
+                  label={modeLabel(mode, conv?.pausedUntil)}
+                  icon={modeMeta.icon}
+                  className={modeMeta.className}
+                />
+                {mode === "PAUSED" && pausedExpired && (
+                  <span className="text-xs text-amber-700 dark:text-amber-300">
+                    pausa expirada — reanudando…
+                  </span>
+                )}
+              </div>
+            </WhatsAppSection>
+
+            {showSuggestion && conv?.suggestedClassification && (
+              <WhatsAppSection title="Clasificación sugerida">
+                <button
+                  type="button"
+                  onClick={handleUseSuggestion}
+                  className="w-full rounded-md border border-violet-500/30 bg-violet-500/5 px-2 py-1.5 text-left text-xs text-violet-700 dark:text-violet-300 transition-colors hover:bg-violet-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/40"
+                >
+                  El bot sugiere: <strong>{CLASSIFICATION_META[conv.suggestedClassification].label}</strong> · usar
+                </button>
+              </WhatsAppSection>
             )}
 
-            <Popover open={ticketOpen} onOpenChange={setTicketOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-8 w-full border-border bg-secondary/40 text-xs text-muted-foreground hover:bg-secondary/60"
-                >
-                  <Ticket className="h-3.5 w-3.5" />
-                  Crear ticket de soporte
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-72 border-border bg-popover/95 p-3 backdrop-blur-xl">
-                <p className="mb-2 text-xs font-medium text-popover-foreground">¿Cuál es el problema?</p>
-                <Textarea
-                  value={ticketProblem}
-                  onChange={(e) => setTicketProblem(e.target.value)}
-                  placeholder="Describe el problema..."
-                  className="mb-2 min-h-[70px] border-border bg-secondary/40 text-sm text-foreground"
+            <WhatsAppSection title="Memoria del bot" description="Lo que el bot recuerda de este contacto">
+              <div className="space-y-1.5">
+                {memory.length === 0 && (
+                  <p className="text-xs text-muted-foreground/60">
+                    El bot aún no recuerda datos de este contacto.
+                  </p>
+                )}
+                {memory.map((entry) => {
+                  const expired = Boolean(entry.expires_at) && new Date(entry.expires_at!).getTime() < Date.now();
+                  return (
+                    <div
+                      key={entry.key}
+                      className={cn(
+                        "flex items-start justify-between gap-2 rounded-md border px-2 py-1.5",
+                        expired ? "border-border/50 opacity-50" : "border-border bg-secondary/20"
+                      )}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs text-muted-foreground">{MEMORY_KEY_LABELS[entry.key]}</p>
+                        <p className="truncate text-xs text-foreground" title={entry.value}>{entry.value}</p>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "flex-shrink-0 font-normal",
+                          entry.source === "customer"
+                            ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                            : "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                        )}
+                      >
+                        {entry.source === "customer" ? "del cliente" : "inferido"}
+                      </Badge>
+                    </div>
+                  );
+                })}
+              </div>
+            </WhatsAppSection>
+          </>
+        )}
+
+        {activeTab === "actividad" && (
+          <>
+            <WhatsAppSection title="Notas recientes">
+              <div className="space-y-1.5">
+                {recentNotes.length === 0 && <p className="text-xs text-muted-foreground/60">Sin notas aún</p>}
+                {recentNotes.map((note) => (
+                  <p key={note.id} className="rounded-md border border-violet-500/20 bg-violet-500/5 px-2 py-1.5 text-xs text-violet-700 dark:text-violet-200">
+                    {note.text}
+                  </p>
+                ))}
+              </div>
+              <div className="flex gap-1.5">
+                <Input
+                  value={noteInput}
+                  onChange={(e) => setNoteInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && void handleAddNote()}
+                  placeholder="Nota rápida..."
+                  aria-label="Nota rápida"
+                  className="h-8 border-border bg-secondary/40 text-sm text-foreground"
                 />
                 <Button
                   type="button"
-                  onClick={handleCreateTicket}
-                  disabled={pendingAction !== null}
-                  className="h-8 w-full bg-cyan-600 text-xs text-white hover:bg-cyan-500"
+                  onClick={() => void handleAddNote()}
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8 flex-shrink-0 border-border bg-secondary/40 text-secondary-foreground hover:bg-secondary/60"
+                  aria-label="Añadir nota"
                 >
-                  {pendingAction === "createTicket" && <Spinner size="sm" />}
-                  Crear ticket
+                  <Plus className="h-3.5 w-3.5" />
                 </Button>
-              </PopoverContent>
-            </Popover>
+              </div>
+            </WhatsAppSection>
 
-            <Button
-              type="button"
-              onClick={() => void saveField({ status: "resuelto" }, "Marcado como resuelto", "Marcado como resuelto")}
-              variant="ghost"
-              size="sm"
-              className="h-8 w-full text-xs text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
-            >
-              <Check className="h-3.5 w-3.5" />
-              Marcar como resuelto
-            </Button>
-            <Button
-              type="button"
-              onClick={() => void saveField({ status: "archivado" }, "Archivado", "Conversación archivada")}
-              variant="ghost"
-              size="sm"
-              className="h-8 w-full text-xs text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
-            >
-              Archivar
-            </Button>
-          </div>
-        </SectionCard>
-
-        {/* Memoria del bot */}
-        <SectionCard title="Memoria del bot">
-          <div className="space-y-1.5">
-            {memory.length === 0 && (
-              <p className="text-xs text-muted-foreground/60">
-                El bot aún no recuerda datos de este contacto.
-              </p>
-            )}
-            {memory.map((entry) => {
-              const expired = Boolean(entry.expires_at) && new Date(entry.expires_at!).getTime() < Date.now();
-              return (
-                <div
-                  key={entry.key}
-                  className={cn(
-                    "flex items-start justify-between gap-2 rounded-md border px-2 py-1.5",
-                    expired ? "border-border/50 opacity-50" : "border-border bg-secondary/20"
-                  )}
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[11px] text-muted-foreground">{MEMORY_KEY_LABELS[entry.key]}</p>
-                    <p className="truncate text-xs text-foreground">{entry.value}</p>
-                  </div>
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      "flex-shrink-0 font-normal",
-                      entry.source === "customer"
-                        ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-                        : "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300"
-                    )}
-                  >
-                    {entry.source === "customer" ? "del cliente" : "inferido"}
-                  </Badge>
-                </div>
-              );
-            })}
-          </div>
-        </SectionCard>
-
-        {/* Notas */}
-        <SectionCard title="Notas">
-          <div className="space-y-1.5">
-            {recentNotes.length === 0 && <p className="text-xs text-muted-foreground/60">Sin notas aún</p>}
-            {recentNotes.map((note) => (
-              <p key={note.id} className="rounded-md border border-violet-500/20 bg-violet-500/5 px-2 py-1.5 text-xs text-violet-700 dark:text-violet-200">
-                {note.text}
-              </p>
-            ))}
-          </div>
-          <div className="flex gap-1.5">
-            <Input
-              value={noteInput}
-              onChange={(e) => setNoteInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && void handleAddNote()}
-              placeholder="Nota rápida..."
-              className="h-8 border-border bg-secondary/40 text-sm text-foreground"
-            />
-            <Button
-              type="button"
-              onClick={() => void handleAddNote()}
-              variant="outline"
-              size="icon"
-              className="h-8 w-8 flex-shrink-0 border-border bg-secondary/40 text-secondary-foreground hover:bg-secondary/60"
-              aria-label="Añadir nota"
-            >
-              <Plus className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-        </SectionCard>
-
-        {/* Historial */}
-        <SectionCard title="Historial">
-          <div className="space-y-1">
-            {recentHistory.length === 0 && <p className="text-xs text-muted-foreground/60">Sin actividad registrada</p>}
-            {recentHistory.map((entry, idx) => (
-              <p key={`${entry.at}-${idx}`} className="text-xs text-muted-foreground">
-                {entry.action} · {formatHistoryDate(entry.at)}
-              </p>
-            ))}
-          </div>
-        </SectionCard>
+            <WhatsAppSection title="Historial">
+              <div className="space-y-1">
+                {recentHistory.length === 0 && <p className="text-xs text-muted-foreground/60">Sin actividad registrada</p>}
+                {recentHistory.map((entry, idx) => (
+                  <p key={`${entry.at}-${idx}`} className="text-xs text-muted-foreground">
+                    {entry.action} · {formatHistoryDate(entry.at)}
+                  </p>
+                ))}
+              </div>
+            </WhatsAppSection>
+          </>
+        )}
       </div>
     </div>
   );

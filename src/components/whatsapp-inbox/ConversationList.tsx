@@ -1,22 +1,18 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Bot, Hand, PauseCircle, Search } from "lucide-react";
+import { Inbox, ListFilter, MessageCircle, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Spinner } from "@/components/ui/spinner";
-import { parseCanonical } from "@/lib/whatsapp-inbox/time";
 import {
   CLASSIFICATION_META,
   type InboxConversation,
   type WhatsAppContact,
-  type WhatsAppMode,
 } from "@/types/whatsapp-inbox";
-
-const MODE_META: Record<WhatsAppMode, { label: string; icon: typeof Bot; className: string }> = {
-  BOT: { label: "Bot", icon: Bot, className: "text-cyan-700 dark:text-cyan-400 bg-cyan-500/10 border-cyan-500/30" },
-  HUMAN: { label: "Tú", icon: Hand, className: "text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/30" },
-  PAUSED: { label: "Pausa", icon: PauseCircle, className: "text-amber-700 dark:text-amber-400 bg-amber-500/10 border-amber-500/30" },
-};
+import { EmptyState } from "./ui/EmptyState";
+import { SemanticBadge } from "./ui/SemanticBadge";
+import { formatRelative, MODE_META, resolveMode } from "./ui/meta";
 
 /**
  * Nivel A — categoría del contacto ("¿qué tipo de contacto es?").
@@ -51,14 +47,31 @@ const CATEGORIES: { id: CategoryId; label: string }[] = [
   { id: "sin_clasificar", label: "Sin clasificar" },
 ];
 
-const QUICK_FILTERS: { id: QuickFilterId; label: string }[] = [
+/**
+ * Los 6 filtros operativos previos se preservan íntegros; cambia solo la
+ * presentación (§8.2): tres vistas rápidas siempre visibles y el resto
+ * dentro del popover de Filtros.
+ */
+const QUICK_VIEWS: { id: QuickFilterId; label: string }[] = [
   { id: "sin_responder", label: "Sin responder" },
-  { id: "bot_activo", label: "Bot activo" },
   { id: "control_humano", label: "Control humano" },
-  { id: "urgente", label: "Urgente" },
+  { id: "urgente", label: "Urgentes" },
+];
+
+const POPOVER_FILTERS: { id: QuickFilterId; label: string }[] = [
+  { id: "bot_activo", label: "Bot respondiendo" },
   { id: "nuevo", label: "Nuevo" },
   { id: "archivados", label: "Archivados" },
 ];
+
+const QUICK_FILTER_LABELS: Record<QuickFilterId, string> = {
+  sin_responder: "Sin responder",
+  bot_activo: "Bot respondiendo",
+  control_humano: "Control humano",
+  urgente: "Urgentes",
+  nuevo: "Nuevo",
+  archivados: "Archivados",
+};
 
 function matchesCategory(category: CategoryId, contact: WhatsAppContact | undefined): boolean {
   if (category === "todos") return true;
@@ -85,7 +98,7 @@ function matchesQuickFilter(
     case "sin_responder":
       return conv.lastMessageDirection === "inbound";
     case "bot_activo":
-      return (conv.mode ?? "BOT") === "BOT";
+      return resolveMode(conv.mode) === "BOT";
     case "control_humano":
       return conv.mode === "HUMAN";
     case "urgente":
@@ -116,18 +129,6 @@ function matchesSearch(
   return haystack.includes(q);
 }
 
-function formatRelative(canonical?: string): string {
-  if (!canonical) return "";
-  const date = parseCanonical(canonical);
-  const diffMs = Date.now() - date.getTime();
-  const mins = Math.floor(diffMs / 60_000);
-  if (mins < 1) return "ahora";
-  if (mins < 60) return `${mins}m`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h`;
-  return date.toLocaleDateString("es-MX", { day: "numeric", month: "short" });
-}
-
 interface ConversationListProps {
   tenantId: string;
   conversations: InboxConversation[];
@@ -155,12 +156,13 @@ export function ConversationList({
   onQuickFilterChange,
 }: ConversationListProps) {
   const [search, setSearch] = useState("");
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const q = search.trim().toLowerCase();
 
   // Conversaciones que pasan filtro operativo + búsqueda (la categoría se
-  // aplica después): base para la lista Y para los contadores por carpeta,
-  // que así responden "¿cuántas verías en esta carpeta con el filtro actual?".
+  // aplica después): base para la lista Y para los contadores por categoría,
+  // que así responden "¿cuántas verías en esta categoría con el filtro actual?".
   const operationalPool = useMemo(
     () =>
       (conversations ?? []).filter((conv) => {
@@ -192,6 +194,11 @@ export function ConversationList({
   );
 
   const hasActiveFilters = category !== "todos" || quickFilter !== null || q !== "";
+  // El botón Filtros gobierna categoría + filtros del popover; las vistas
+  // rápidas tienen su propio estado visible.
+  const popoverActiveCount =
+    (category !== "todos" ? 1 : 0) +
+    (quickFilter && POPOVER_FILTERS.some((f) => f.id === quickFilter) ? 1 : 0);
 
   function clearFilters() {
     onCategoryChange("todos");
@@ -209,16 +216,25 @@ export function ConversationList({
 
   if (error && !conversations?.length) {
     return (
-      <div className="p-4 text-sm text-red-700 dark:text-red-400">
-        Error cargando conversaciones: {error}
+      <div className="p-4">
+        <EmptyState
+          icon={MessageCircle}
+          tone="error"
+          title="No pudimos cargar las conversaciones"
+          description={error}
+        />
       </div>
     );
   }
 
   if (!conversations?.length) {
     return (
-      <div className="p-6 text-center text-sm text-muted-foreground">
-        Sin conversaciones todavía. Cuando alguien le escriba al bot, aparecerá aquí.
+      <div className="p-4">
+        <EmptyState
+          icon={Inbox}
+          title="Sin conversaciones todavía"
+          description="Cuando alguien le escriba a tu número de WhatsApp, la conversación aparecerá aquí y el bot empezará a atenderla."
+        />
       </div>
     );
   }
@@ -228,24 +244,30 @@ export function ConversationList({
       {/* Error no bloqueante: pixelbot momentáneamente inalcanzable — se conserva
           la última lista conocida en vez de vaciar la pantalla (polling la reintenta solo). */}
       {error && (
-        <div className="flex-shrink-0 border-b border-red-500/20 bg-red-500/5 px-4 py-1.5 text-[11px] text-red-700 dark:text-red-400">
+        <div
+          role="status"
+          className="flex-shrink-0 border-b border-red-500/20 bg-red-500/5 px-4 py-1.5 text-xs text-red-700 dark:text-red-400"
+        >
           No se pudo actualizar — mostrando la última lista conocida.
         </div>
       )}
-      {/* Cabecera fija: título + búsqueda + carpetas + filtros rápidos */}
+
+      {/* Cabecera fija: título + búsqueda + vistas rápidas + Filtros */}
       <div className="flex-shrink-0 space-y-2.5 border-b border-border px-4 py-3">
         <div className="flex items-center justify-between gap-2">
-          <h1 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-            WhatsApp — {filteredConversations.length} conversación
-            {filteredConversations.length === 1 ? "" : "es"}
-          </h1>
+          <h2 className="text-sm font-semibold text-foreground">
+            Bandeja
+            <span className="ml-2 text-xs font-normal tabular-nums text-muted-foreground">
+              {filteredConversations.length}
+            </span>
+          </h2>
           {hasActiveFilters && (
             <button
               type="button"
               onClick={clearFilters}
-              className="flex-shrink-0 text-[11px] text-muted-foreground transition-colors hover:text-cyan-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40"
+              className="flex-shrink-0 text-xs text-muted-foreground transition-colors hover:text-cyan-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40"
             >
-              Limpiar filtros
+              Limpiar
             </button>
           )}
         </div>
@@ -253,85 +275,166 @@ export function ConversationList({
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
-            type="text"
+            type="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por nombre, teléfono, mensaje, etiqueta o tipo…"
+            placeholder="Buscar conversación…"
+            aria-label="Buscar por nombre, teléfono, mensaje, etiqueta o tipo"
             className="w-full rounded-lg border border-border bg-secondary/40 py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground/60 focus:border-cyan-500/50 focus:outline-none"
           />
         </div>
 
-        {/* Nivel A: carpetas por tipo de contacto */}
-        <div>
-          <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60">
-            Contactos
-          </p>
-          <div className="mt-1.5 grid grid-cols-2 gap-1">
-            {CATEGORIES.map((cat) => {
-              const isActive = category === cat.id;
+        <div className="flex items-center gap-1.5">
+          <div className="scrollbar-none flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
+            {QUICK_VIEWS.map((view) => {
+              const isActive = quickFilter === view.id;
               return (
                 <button
-                  key={cat.id}
+                  key={view.id}
                   type="button"
                   aria-pressed={isActive}
-                  onClick={() => onCategoryChange(cat.id)}
-                  className={cn(
-                    "flex items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-xs transition-colors",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40",
-                    cat.id === "todos" && "col-span-2",
-                    isActive
-                      ? "border-cyan-500/40 bg-cyan-500/10 text-cyan-700 dark:text-cyan-200"
-                      : "border-transparent text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
-                  )}
-                >
-                  <span className="truncate">{cat.label}</span>
-                  <span
-                    className={cn(
-                      "flex-shrink-0 text-[10px] tabular-nums",
-                      isActive ? "text-cyan-700/80 dark:text-cyan-300/80" : "text-muted-foreground/60"
-                    )}
-                  >
-                    {categoryCounts.get(cat.id) ?? 0}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Nivel B: filtros operativos — scroll horizontal con fades laterales */}
-        <div className="relative">
-          <div className="scrollbar-none flex items-center gap-1.5 overflow-x-auto whitespace-nowrap px-0.5">
-            {QUICK_FILTERS.map((filter) => {
-              const isActive = quickFilter === filter.id;
-              return (
-                <button
-                  key={filter.id}
-                  type="button"
-                  aria-pressed={isActive}
-                  onClick={() => onQuickFilterChange(isActive ? null : filter.id)}
+                  onClick={() => onQuickFilterChange(isActive ? null : view.id)}
                   className={cn(
                     "flex-shrink-0 whitespace-nowrap rounded-full border px-2.5 py-1 text-xs transition-colors",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40",
                     isActive
                       ? "border-cyan-500/50 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300"
-                      : "border-border text-muted-foreground hover:border-border hover:text-foreground"
+                      : "border-border text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  {filter.label}
+                  {view.label}
                 </button>
               );
             })}
           </div>
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-y-0 left-0 w-3 bg-gradient-to-r from-background/80 to-transparent"
-          />
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-y-0 right-0 w-3 bg-gradient-to-l from-background/80 to-transparent"
-          />
+
+          <Popover open={filtersOpen} onOpenChange={setFiltersOpen}>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                aria-label={`Filtros${popoverActiveCount ? ` (${popoverActiveCount} activos)` : ""}`}
+                className={cn(
+                  "inline-flex flex-shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-xs transition-colors",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40",
+                  popoverActiveCount > 0
+                    ? "border-cyan-500/50 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300"
+                    : "border-border text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <ListFilter aria-hidden className="h-3.5 w-3.5" />
+                Filtros
+                {popoverActiveCount > 0 && (
+                  <span className="tabular-nums">{popoverActiveCount}</span>
+                )}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-64 border-border bg-popover/95 p-3 backdrop-blur-xl">
+              <div className="space-y-3">
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground/70">
+                    Categoría
+                  </p>
+                  <div className="mt-1.5 grid grid-cols-2 gap-1">
+                    {CATEGORIES.map((cat) => {
+                      const isActive = category === cat.id;
+                      return (
+                        <button
+                          key={cat.id}
+                          type="button"
+                          aria-pressed={isActive}
+                          onClick={() => onCategoryChange(cat.id)}
+                          className={cn(
+                            "flex items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-xs transition-colors",
+                            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40",
+                            cat.id === "todos" && "col-span-2",
+                            isActive
+                              ? "border-cyan-500/40 bg-cyan-500/10 text-cyan-700 dark:text-cyan-200"
+                              : "border-transparent text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
+                          )}
+                        >
+                          <span className="truncate">{cat.label}</span>
+                          <span className="flex-shrink-0 text-xs tabular-nums text-muted-foreground/60">
+                            {categoryCounts.get(cat.id) ?? 0}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground/70">
+                    Estado
+                  </p>
+                  <div className="mt-1.5 flex flex-wrap gap-1">
+                    {POPOVER_FILTERS.map((filter) => {
+                      const isActive = quickFilter === filter.id;
+                      return (
+                        <button
+                          key={filter.id}
+                          type="button"
+                          aria-pressed={isActive}
+                          onClick={() => onQuickFilterChange(isActive ? null : filter.id)}
+                          className={cn(
+                            "rounded-full border px-2.5 py-1 text-xs transition-colors",
+                            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40",
+                            isActive
+                              ? "border-cyan-500/50 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300"
+                              : "border-border text-muted-foreground hover:text-foreground"
+                          )}
+                        >
+                          {filter.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {hasActiveFilters && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      clearFilters();
+                      setFiltersOpen(false);
+                    }}
+                    className="w-full rounded-md border border-border px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40"
+                  >
+                    Limpiar filtros
+                  </button>
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
+
+        {/* Chips de filtros activos que no se ven en las vistas rápidas */}
+        {(category !== "todos" ||
+          (quickFilter && POPOVER_FILTERS.some((f) => f.id === quickFilter))) && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            {category !== "todos" && (
+              <button
+                type="button"
+                onClick={() => onCategoryChange("todos")}
+                className="inline-flex items-center gap-1 rounded-full border border-cyan-500/40 bg-cyan-500/10 px-2 py-0.5 text-xs text-cyan-700 transition-colors hover:bg-cyan-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 dark:text-cyan-300"
+              >
+                {CATEGORIES.find((c) => c.id === category)?.label}
+                <X aria-hidden className="h-3 w-3" />
+                <span className="sr-only">Quitar filtro de categoría</span>
+              </button>
+            )}
+            {quickFilter && POPOVER_FILTERS.some((f) => f.id === quickFilter) && (
+              <button
+                type="button"
+                onClick={() => onQuickFilterChange(null)}
+                className="inline-flex items-center gap-1 rounded-full border border-cyan-500/40 bg-cyan-500/10 px-2 py-0.5 text-xs text-cyan-700 transition-colors hover:bg-cyan-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 dark:text-cyan-300"
+              >
+                {QUICK_FILTER_LABELS[quickFilter]}
+                <X aria-hidden className="h-3 w-3" />
+                <span className="sr-only">Quitar filtro de estado</span>
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       <ul className="scrollbar-soft min-h-0 flex-1 overflow-y-auto">
@@ -351,36 +454,23 @@ export function ConversationList({
         ) : (
           filteredConversations.map((conv) => {
             const contact = contactsByPhone.get(conv.id);
-            const mode = MODE_META[conv.mode ?? "BOT"];
-            const ModeIcon = mode.icon;
+            const mode = MODE_META[resolveMode(conv.mode)];
             const isSelected = conv.id === selectedPhone;
             const hasInboundLast = conv.lastMessageDirection === "inbound";
+            const initial = contact?.name?.trim().charAt(0).toUpperCase();
 
-            const extraBadges: { key: string; label: string; className: string }[] = [];
-            if (contact?.urgent) {
-              extraBadges.push({
-                key: "urgent",
-                label: "Urgente",
-                className: "text-red-700 dark:text-red-300 bg-red-500/10 border-red-500/30",
-              });
-            }
-            if (!contact?.status || contact.status === "nuevo") {
-              extraBadges.push({
-                key: "nuevo",
-                label: "Nuevo",
-                className: "text-sky-700 dark:text-sky-300 bg-sky-500/10 border-sky-500/30",
-              });
-            }
-            if (contact?.classification) {
-              const classificationMeta = CLASSIFICATION_META[contact.classification];
-              if (classificationMeta) {
-                extraBadges.push({
-                  key: "classification",
-                  label: classificationMeta.label,
-                  className: classificationMeta.className,
-                });
-              }
-            }
+            // Máximo dos indicadores persistentes por fila (§8.2): el modo
+            // siempre, más el extra de mayor prioridad.
+            const extraBadge = contact?.urgent
+              ? { label: "Urgente", className: "text-red-700 dark:text-red-300 bg-red-500/10 border-red-500/30" }
+              : !contact?.status || contact.status === "nuevo"
+                ? { label: "Nuevo", className: "text-sky-700 dark:text-sky-300 bg-sky-500/10 border-sky-500/30" }
+                : contact?.classification && CLASSIFICATION_META[contact.classification]
+                  ? {
+                      label: CLASSIFICATION_META[contact.classification].label,
+                      className: CLASSIFICATION_META[contact.classification].className,
+                    }
+                  : null;
 
             return (
               <li key={conv.id}>
@@ -390,15 +480,21 @@ export function ConversationList({
                   aria-current={isSelected || undefined}
                   className={cn(
                     "relative flex w-full items-start gap-3 border-b border-border px-4 py-3 text-left transition-colors",
-                    isSelected ? "bg-secondary" : "hover:bg-secondary/40"
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-cyan-400/40",
+                    isSelected ? "bg-secondary/70" : "hover:bg-secondary/40"
                   )}
                 >
                   {isSelected && (
-                    <span
-                      aria-hidden
-                      className="absolute inset-y-0 left-0 w-0.5 bg-cyan-400"
-                    />
+                    <span aria-hidden className="absolute inset-y-0 left-0 w-0.5 bg-cyan-400" />
                   )}
+
+                  <span
+                    aria-hidden
+                    className="mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-border bg-secondary/60 text-sm font-semibold text-muted-foreground"
+                  >
+                    {initial ?? <MessageCircle className="h-4 w-4" />}
+                  </span>
+
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       {hasInboundLast && (
@@ -409,7 +505,7 @@ export function ConversationList({
                       )}
                       <span
                         className={cn(
-                          "truncate text-foreground",
+                          "truncate text-sm text-foreground",
                           (conv.unreadCount ?? 0) > 0 ? "font-semibold" : "font-medium"
                         )}
                       >
@@ -421,39 +517,25 @@ export function ConversationList({
                       {(conv.unreadCount ?? 0) > 0 && (
                         <span
                           aria-label={`${conv.unreadCount} no leídos`}
-                          className="flex-shrink-0 rounded-full bg-cyan-500 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white"
+                          className="flex-shrink-0 rounded-full bg-cyan-500 px-1.5 py-0.5 text-xs font-semibold leading-none text-white"
                         >
                           {conv.unreadCount}
                         </span>
                       )}
                     </div>
-                    {contact?.name && (
-                      <p className="truncate text-xs text-muted-foreground">{conv.id}</p>
-                    )}
                     <p className="mt-0.5 truncate text-sm text-muted-foreground">
                       {conv.lastMessagePreview ?? ""}
                     </p>
                     <div className="mt-1.5 flex flex-wrap items-center gap-1">
-                      <span
-                        className={cn(
-                          "inline-flex flex-shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium",
-                          mode.className
-                        )}
-                      >
-                        <ModeIcon className="h-3 w-3" />
-                        {mode.label}
-                      </span>
-                      {extraBadges.slice(0, 3).map((badge) => (
-                        <span
-                          key={badge.key}
-                          className={cn(
-                            "inline-flex flex-shrink-0 items-center rounded-full border px-2 py-0.5 text-[10px] font-medium",
-                            badge.className
-                          )}
-                        >
-                          {badge.label}
-                        </span>
-                      ))}
+                      <SemanticBadge
+                        label={mode.shortLabel}
+                        title={mode.label}
+                        icon={mode.icon}
+                        className={mode.className}
+                      />
+                      {extraBadge && (
+                        <SemanticBadge label={extraBadge.label} className={extraBadge.className} />
+                      )}
                     </div>
                   </div>
                 </button>
