@@ -2,7 +2,14 @@
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { blogPosts } from '@/lib/db/schema';
-import type { BlogPostSerialized, BlogPostStatus } from '../types';
+import {
+  EMPTY_EDITORIAL,
+  EMPTY_SEO,
+  type BlogPostSerialized,
+  type BlogPostStatus,
+  type PostInternalLink,
+  type PostSource,
+} from '../types';
 
 type Row = typeof blogPosts.$inferSelect;
 
@@ -27,7 +34,12 @@ function serializePost(r: Row): BlogPostSerialized {
       wordsAdded: (ai.wordsAdded as number) ?? 0,
       iterations: (ai.iterations as number) ?? 1,
     },
-    seo: (r.seo ?? { metaTitle: '', metaDescription: '', canonicalUrl: null, noindex: true }) as BlogPostSerialized['seo'],
+    // NULL-safe: filas anteriores a WS2 no traen las claves nuevas — el merge
+    // con los defaults canónicos garantiza el shape completo sin backfill.
+    seo: { ...EMPTY_SEO, ...((r.seo ?? {}) as Partial<BlogPostSerialized['seo']>) },
+    editorial: { ...EMPTY_EDITORIAL, ...((r.editorial ?? {}) as Partial<BlogPostSerialized['editorial']>) },
+    sources: ((r.sources ?? []) as PostSource[]),
+    internalLinks: ((r.internalLinks ?? []) as PostInternalLink[]),
     wordCount: r.wordCount,
     readingTimeMin: r.readingTimeMin,
     createdAt: r.createdAt.toISOString(),
@@ -61,6 +73,8 @@ export async function getPublishedPostBySlug(slug: string): Promise<BlogPostSeri
   return row ? serializePost(row) : null;
 }
 
+// ⚠️ A diferencia de getPublishedPostBySlug, NO filtra noindex: es para usos
+// administrativos. No usar en rutas públicas.
 export async function getPostBySlug(slug: string): Promise<BlogPostSerialized | null> {
   const [row] = await db
     .select()
@@ -87,5 +101,18 @@ export async function listAllPosts(statusFilter?: BlogPostStatus[]): Promise<Blo
     .where(statusFilter && statusFilter.length > 0 ? inArray(blogPosts.status, statusFilter) : undefined)
     .orderBy(desc(blogPosts.createdAt))
     .limit(100);
+  return rows.map(serializePost);
+}
+
+/** Posts publicados relacionados por categoría (para el bloque "Sigue
+ *  leyendo" del artículo). Excluye el post actual; completa con recientes si
+ *  la categoría no alcanza. */
+export async function getRelatedPosts(slug: string, category: string, limit = 3): Promise<BlogPostSerialized[]> {
+  const rows = await db
+    .select()
+    .from(blogPosts)
+    .where(and(eq(blogPosts.status, 'published'), noindexFalse, sql`${blogPosts.slug} <> ${slug}`))
+    .orderBy(sql`(${blogPosts.category} = ${category}) DESC`, desc(blogPosts.publishedAt))
+    .limit(limit);
   return rows.map(serializePost);
 }
