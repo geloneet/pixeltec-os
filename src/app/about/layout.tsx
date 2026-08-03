@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import { buildMetadata } from '@/lib/seo';
+import { BreadcrumbStructuredData } from '@/components/seo/structured-data';
+import { SITE } from '@/lib/site-config';
 
 export const metadata: Metadata = buildMetadata({
   path: '/about',
@@ -8,5 +10,13 @@ export const metadata: Metadata = buildMetadata({
 });
 
 export default function AboutLayout({ children }: { children: React.ReactNode }) {
-  return children;
+  return (
+    <>
+      <BreadcrumbStructuredData items={[
+        { name: SITE.name, url: SITE.url },
+        { name: 'Nosotros', url: `${SITE.url}/about` },
+      ]} />
+      {children}
+    </>
+  );
 }

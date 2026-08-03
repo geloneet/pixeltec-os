@@ -3,6 +3,8 @@ import { Footer } from "@/components/ui/footer-section";
 import { BlogGrid, type BlogCardData } from "./blog-grid";
 import type { Metadata } from "next";
 import { buildMetadata } from "@/lib/seo";
+import { CollectionPageStructuredData, BreadcrumbStructuredData } from "@/components/seo/structured-data";
+import { SITE } from "@/lib/site-config";
 
 export const revalidate = 3600; // ISR: regenerar máximo cada hora
 
@@ -42,6 +44,15 @@ export default async function BlogPage() {
 
   return (
     <>
+      <CollectionPageStructuredData
+        name="Blog · Insights y Tecnología"
+        description="Exploramos el futuro del desarrollo de software, la inteligencia artificial y la modernización empresarial."
+        path="/blog"
+      />
+      <BreadcrumbStructuredData items={[
+        { name: SITE.name, url: SITE.url },
+        { name: 'Blog', url: `${SITE.url}/blog` },
+      ]} />
       <Header />
       <main className="min-h-screen bg-[#030303] text-white pt-32 sm:pt-40 pb-16 sm:pb-24">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
