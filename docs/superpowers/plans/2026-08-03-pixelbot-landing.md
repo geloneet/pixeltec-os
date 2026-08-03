@@ -160,6 +160,26 @@ Ventas y calificación de prospectos · Atención y preguntas frecuentes · Sopo
 
 Pricing/paquetes · calculadora ROI · prueba real por WhatsApp · casos/testimonios/métricas · videos · campañas · agenda/pagos/catálogo estándar · omnicanal · equipos/round-robin · demo self-service · A/B · versión en inglés · analytics de eventos (requiere modificar CSP) · centralización de los 8 hardcodes del teléfono · claim de audio/voz (existe en producción pero vetado en este incremento).
 
+## Validación ejecutada (2026-08-03)
+
+Baseline en `4adb76f` limpio: typecheck PASS · suite 2148 PASS / 15 FAIL preexistentes (todos `NewPixelforgeForm.test.tsx`, jsdom/localStorage) · build PASS con `.env.local` · egress OK.
+
+Después de implementar (rebase sobre `c6c347e`, que agregó el Meta Pixel):
+
+- `npm run typecheck` — **PASS** (0 errores; nota: con `.next/types` generado aparece un error preexistente de `api/pixelforge/runs` ajeno a este cambio).
+- `npm run test` — **2160 PASS / 15 FAIL = exactamente los mismos preexistentes del baseline**; los 9 tests nuevos de la landing PASS.
+- `npm run build` — **PASS**; `/pixelbot` en tabla de rutas (13.6 kB página, 214 kB first load, comparable a /services 205 kB). Errores `ECONNREFUSED 5437` de blog en prerender = entorno sin Postgres local, con fallback capturado (preexistente).
+- `npm run validate:egress` — OK (contrato E0 válido).
+- `git diff --check` — OK.
+- **Smoke browser (Playwright, dev server 9002): 50 checks, 49 PASS + 1 falso negativo del selector** (tomó el link de WhatsApp del Header; el fallback del form con texto `Hola, quiero evaluar PixelBot para mi empresa.` existe, verificado en HTML). Cubrió: 5 viewports sin overflow y con un solo H1, title/canonical/OG, JSON-LD válido (Service+BreadcrumbList+FAQPage con 12 preguntas idénticas al texto visible), anclas, campos+honeypot+consent-gate del form, FAQ por teclado, tabs, reduced motion, 5 aliases → 308 `/pixelbot`, sitemap, regresión de `/`, `/services`, `/contact`, `/services/automatizacion` (con CTA a PixelBot) y footer.
+- Form success end-to-end no ejecutable en local (sin Postgres); el contrato de `submitContactForm` está cubierto por `actions.errors.test.ts` y es el mismo del formulario de contacto en producción.
+- Evidencia: `docs/superpowers/plans/evidence/pixelbot-landing/` (7 capturas con datos sintéticos).
+- Nota analytics: el Meta Pixel global (`c6c347e`) cubrirá PageView de `/pixelbot` automáticamente al desplegarse; eventos custom siguen en backlog.
+
+## Dictamen
+
+**PASS** contra los 20 criterios del prompt maestro §18. Pendientes fuera de este incremento: verificación de deploy antes de anunciar la consola como "disponible", y write-back a NeuroPIXEL (requiere aprobación).
+
 ## Cierre
 
 Push a `feat/pixelbot-landing` → Draft PR. **Sin merge, sin deploy, sin write-back a NeuroPIXEL** (se propondrá al cierre como pendiente aprobable).
