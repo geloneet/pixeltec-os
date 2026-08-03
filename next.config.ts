@@ -40,6 +40,12 @@ const nextConfig: NextConfig = {
       { source: '/asistente/:path*', destination: '/tareas/:path*', permanent: true },
       { source: '/herramientas', destination: '/accesos', permanent: true },
       { source: '/herramientas/:path*', destination: '/accesos/:path*', permanent: true },
+      // ── PixelBot landing — aliases 301 hacia la única canonical /pixelbot ──
+      { source: '/whatsappbot', destination: '/pixelbot', permanent: true },
+      { source: '/whatsapp-bot', destination: '/pixelbot', permanent: true },
+      { source: '/bot-whatsapp', destination: '/pixelbot', permanent: true },
+      { source: '/chatbot-whatsapp', destination: '/pixelbot', permanent: true },
+      { source: '/agente-whatsapp', destination: '/pixelbot', permanent: true },
     ];
   },
   async headers() {

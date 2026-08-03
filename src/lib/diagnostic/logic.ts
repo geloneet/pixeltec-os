@@ -202,7 +202,7 @@ export function computeDiagnostic(answers: DiagnosticAnswers): DiagnosticResult 
 
 // ─── CTA de agendado (WhatsApp / llamada / email prellenados) ─────────────
 
-const TEAM_PHONE = '523221378336';
+export const TEAM_PHONE = '523221378336';
 export const TEL_HREF = 'tel:+523221378336';
 
 export function buildDiagnosticSummary(result: DiagnosticResult, answers: DiagnosticAnswers): string {
