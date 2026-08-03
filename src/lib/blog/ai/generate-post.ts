@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { anthropicCreate } from '@/lib/ai/anthropic-egress';
 import { getModel } from './client';
 import { BLOG_SYSTEM_PROMPT } from './system-prompt';
@@ -11,6 +12,9 @@ export interface GeneratedPost {
   coverImage: string | null;
   body: string;
   rawOutput: string;
+  /** Modelo REAL reportado por el response del proveedor (antes se anotaba el
+   *  de la env var, que podía divergir del que respondió). */
+  modelUsed: string;
 }
 
 function stripCodeFenceWrapper(raw: string): string {
@@ -19,7 +23,18 @@ function stripCodeFenceWrapper(raw: string): string {
   return match ? match[1] : trimmed;
 }
 
-function parseFrontMatter(raw: string): Record<string, unknown> {
+// Validación del front-matter con Zod (.catch = resiliente a un modelo que se
+// desvía: el campo cae a su default en vez de romper la generación entera; la
+// coerción queda declarada, no escondida en Strings sueltos).
+const FrontMatterSchema = z.object({
+  title: z.string().min(5).catch(''),
+  excerpt: z.string().catch(''),
+  category: z.enum(['arquitectura', 'automatización', 'case-study', 'opinión']).catch('arquitectura'),
+  tags: z.array(z.string().min(1)).max(8).catch([]),
+  coverImage: z.string().catch(''),
+});
+
+function parseFrontMatterRaw(raw: string): Record<string, unknown> {
   const normalized = stripCodeFenceWrapper(raw).replace(/\r\n/g, '\n');
   const result: Record<string, unknown> = {};
   const match = normalized.match(/^---\n([\s\S]*?)\n---/);
@@ -51,14 +66,42 @@ function extractBody(raw: string): string {
 
 /** El brief completo del artículo. Se arma diferido: ver `generatePostFromBrief`. */
 function buildUserPrompt(brief: BlogBriefDoc): string {
-  return `Escribe un artículo de blog para PIXELTEC con la siguiente información:
+  const strategyLines: string[] = [];
+  if (brief.userProblem) strategyLines.push(`**Problema del lector:** ${brief.userProblem}`);
+  if (brief.searchIntent) strategyLines.push(`**Intención de búsqueda:** ${brief.searchIntent}`);
+  if (brief.primaryKeyword) strategyLines.push(`**Keyword principal (uso natural):** ${brief.primaryKeyword}`);
+  if (brief.secondaryKeywords?.length) strategyLines.push(`**Keywords secundarias:** ${brief.secondaryKeywords.join(', ')}`);
+  if (brief.entities?.length) strategyLines.push(`**Entidades/conceptos a cubrir:** ${brief.entities.join(', ')}`);
+  if (brief.funnelStage) strategyLines.push(`**Etapa del funnel:** ${brief.funnelStage}`);
+  if (brief.contentGoal) strategyLines.push(`**Objetivo del contenido:** ${brief.contentGoal}`);
+  if (brief.desiredAction) strategyLines.push(`**Acción deseada del lector:** ${brief.desiredAction}`);
+
+  const experience = brief.pixeltecExperience?.length
+    ? `\n**Experiencia propia de PixelTEC (intégrala, es la diferencia):**\n${brief.pixeltecExperience.map((e, i) => `${i + 1}. ${e}`).join('\n')}`
+    : '';
+
+  const sources = brief.sources?.length
+    ? `\n**Fuentes DISPONIBLES (las únicas que puedes citar):**\n${brief.sources
+        .map((s, i) => `${i + 1}. [${s.title}](${s.url}) — ${s.publisher || 'sin editor'}${s.claimSupported ? ` · respalda: ${s.claimSupported}` : ''}`)
+        .join('\n')}`
+    : '\n**Fuentes:** ninguna proporcionada — marca todo claim factual externo con [FUENTE PENDIENTE].';
+
+  const internalLinks = brief.internalLinkTargets?.length
+    ? `\n**Enlaces internos sugeridos (integra los que aporten):**\n${brief.internalLinkTargets
+        .map((l) => `- ${l.url}${l.suggestedAnchor ? ` (anchor sugerido: "${l.suggestedAnchor}")` : ''}${l.purpose ? ` — ${l.purpose}` : ''}`)
+        .join('\n')}`
+    : '';
+
+  return `Escribe un artículo de blog para PixelTEC con la siguiente información:
 
 **Tema:** ${brief.topic}
 **Ángulo técnico:** ${brief.angle}
 **Audiencia objetivo:** ${brief.targetAudience}
+${strategyLines.join('\n')}
 **Puntos clave a cubrir:**
 ${brief.keyPoints.map((p, i) => `${i + 1}. ${p}`).join('\n')}
 **Tono:** ${brief.tone}
+${experience}${sources}${internalLinks}
 
 Sigue el formato de output especificado con front-matter YAML.`;
 }
@@ -71,7 +114,7 @@ export async function generatePostFromBrief(brief: BlogBriefDoc): Promise<Genera
     operation: 'generate_text',
     model: getModel(),
     buildParams: () => ({
-      max_tokens: 4096,
+      max_tokens: 8192,
       system: BLOG_SYSTEM_PROMPT,
       messages: [{ role: 'user' as const, content: buildUserPrompt(brief) }],
     }),
@@ -83,24 +126,18 @@ export async function generatePostFromBrief(brief: BlogBriefDoc): Promise<Genera
       .map((block) => (block as { type: 'text'; text: string }).text)
       .join('') ?? '';
 
-  const frontMatter = parseFrontMatter(rawOutput);
+  const fm = FrontMatterSchema.parse(parseFrontMatterRaw(rawOutput));
   const body = extractBody(rawOutput);
 
-  const allowedCategories = ['arquitectura', 'automatización', 'case-study', 'opinión'];
-  const category = allowedCategories.includes(String(frontMatter.category))
-    ? String(frontMatter.category)
-    : 'arquitectura';
-
   return {
-    title: String(frontMatter.title ?? brief.topic),
-    excerpt: String(frontMatter.excerpt ?? '').slice(0, 160),
-    category,
-    tags: Array.isArray(frontMatter.tags)
-      ? (frontMatter.tags as string[]).slice(0, 8)
-      : [],
-    coverImage: frontMatter.coverImage ? String(frontMatter.coverImage) : null,
+    title: fm.title || brief.topic,
+    excerpt: fm.excerpt.slice(0, 160),
+    category: fm.category,
+    tags: fm.tags,
+    coverImage: fm.coverImage || null,
     body,
     rawOutput,
+    modelUsed: (message as { model?: string }).model ?? getModel(),
   };
 }
 
