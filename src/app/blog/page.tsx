@@ -1,7 +1,5 @@
 import Header from "@/components/header";
 import { Footer } from "@/components/ui/footer-section";
-import { PlaceHolderImages } from "@/lib/placeholder-images";
-import { blogPosts } from "@/lib/blog-data";
 import { BlogGrid, type BlogCardData } from "./blog-grid";
 import type { Metadata } from "next";
 import { buildMetadata } from "@/lib/seo";
@@ -14,7 +12,7 @@ export const metadata: Metadata = buildMetadata({
   description: 'Exploramos el futuro del desarrollo de software, la inteligencia artificial y la modernización empresarial.',
 });
 
-async function getFirestorePosts(): Promise<BlogCardData[]> {
+async function getPublishedCards(): Promise<BlogCardData[]> {
   try {
     const { getPublishedPosts } = await import("@/lib/blog/queries/posts");
     const posts = await getPublishedPosts();
@@ -34,33 +32,13 @@ async function getFirestorePosts(): Promise<BlogCardData[]> {
       role: "PixelTEC Team",
     }));
   } catch (error) {
-    console.error('[blog/list] getFirestorePosts failed:', error);
+    console.error('[blog/list] getPublishedCards failed:', error);
     return [];
   }
 }
 
-function getStaticPosts(): BlogCardData[] {
-  return blogPosts.map((p) => ({
-    id: p.id,
-    slug: p.slug,
-    title: p.title,
-    excerpt: p.excerpt,
-    category: p.category,
-    imageUrl:
-      PlaceHolderImages.find((img) => img.id === p.imageId)?.imageUrl ??
-      "https://placehold.co/1200x630/0a0a0a/ffffff?text=PIXELTEC",
-    date: p.date,
-    readTime: p.readTime,
-    author: p.author,
-    authorInitials: p.author.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase(),
-    role: p.role,
-  }));
-}
-
 export default async function BlogPage() {
-  const firestorePosts = await getFirestorePosts();
-  // Fall back to static posts until Firestore has published content
-  const posts = firestorePosts.length > 0 ? firestorePosts : getStaticPosts();
+  const posts = await getPublishedCards();
 
   return (
     <>

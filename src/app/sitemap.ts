@@ -5,7 +5,12 @@ const BASE_URL = "https://pixeltec.mx";
 
 const servicesSlugs = ["ecosistemas-web", "automatizacion", "consultoria"];
 
-export const revalidate = 3600;
+// force-dynamic: el sitemap DEBE consultar la DB en cada request. Con ISR, el
+// XML se horneaba durante `docker build` (sin DATABASE_URL): getBlogRoutes()
+// devolvía [] y ese artefacto vacío quedaba cacheado en producción — los
+// artículos publicados jamás aparecían. La query es barata y el sitemap se
+// pide poco; no vale el riesgo de volver a servir un horneado sin posts.
+export const dynamic = 'force-dynamic';
 
 async function getBlogRoutes(): Promise<MetadataRoute.Sitemap> {
   try {

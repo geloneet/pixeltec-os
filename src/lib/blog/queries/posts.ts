@@ -37,7 +37,11 @@ function serializePost(r: Row): BlogPostSerialized {
   };
 }
 
-const noindexFalse = sql`(${blogPosts.seo} ->> 'noindex')::boolean = false`;
+// NULL-safe: si `seo` no trae la clave `noindex`, `->>` devuelve NULL y la
+// comparación directa con false también da NULL — la fila published
+// desaparecía de listado, sitemap y detalle. El gate real de visibilidad es
+// status='published'; la clave ausente cuenta como indexable.
+const noindexFalse = sql`coalesce((${blogPosts.seo} ->> 'noindex')::boolean, false) = false`;
 
 export async function getPublishedPosts(): Promise<BlogPostSerialized[]> {
   const rows = await db

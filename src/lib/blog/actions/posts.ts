@@ -104,6 +104,7 @@ export async function publishPost(postId: string): Promise<ActionResult> {
 
   revalidatePath('/blog');
   revalidatePath(`/blog/${slug}`);
+  revalidatePath('/sitemap.xml');
 
   return { ok: true };
 }
@@ -120,6 +121,12 @@ export async function archivePost(postId: string): Promise<ActionResult> {
     .set({ status: 'archived', updatedAt: new Date() })
     .where(eq(blogPosts.id, row.id));
 
+  // Un post que estaba publicado debe salir del listado, de su URL y del
+  // sitemap sin esperar la ventana ISR.
+  revalidatePath('/blog');
+  if (row.slug) revalidatePath(`/blog/${row.slug}`);
+  revalidatePath('/sitemap.xml');
+
   return { ok: true };
 }
 
@@ -134,6 +141,12 @@ export async function setPostStatus(
   if (!row) return { ok: false, error: 'Post no encontrado' };
 
   await db.update(blogPosts).set({ status, updatedAt: new Date() }).where(eq(blogPosts.id, row.id));
+
+  // Despublicar (published → draft/needs-review/approved) también debe
+  // reflejarse de inmediato en las superficies públicas.
+  revalidatePath('/blog');
+  if (row.slug) revalidatePath(`/blog/${row.slug}`);
+  revalidatePath('/sitemap.xml');
 
   return { ok: true };
 }
