@@ -221,6 +221,31 @@ export default function ServiceDetailClient({ slug }: { slug: string }) {
           </div>
         </motion.section>
 
+        {service.slug === 'automatizacion' && (
+          <motion.aside
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, amount: 0.4 }}
+            variants={sectionVariants}
+            className="mb-4 rounded-2xl border border-primary/25 dark:border-cyan-500/25 bg-primary/5 dark:bg-cyan-500/5 p-6 sm:p-8 sm:flex sm:items-center sm:justify-between sm:gap-6"
+          >
+            <div>
+              <h2 className="text-lg sm:text-xl font-semibold text-foreground">
+                ¿Buscas un agente de IA para WhatsApp?
+              </h2>
+              <p className="mt-2 text-sm sm:text-base text-muted-foreground leading-relaxed">
+                PixelBot es nuestro producto dedicado: atiende, califica y entrega conversaciones a tu equipo, implementado y operado por PixelTEC.
+              </p>
+            </div>
+            <Link
+              href="/pixelbot"
+              className="mt-4 sm:mt-0 inline-flex flex-shrink-0 items-center font-semibold text-primary dark:text-cyan-400 hover:underline"
+            >
+              Conocer PixelBot →
+            </Link>
+          </motion.aside>
+        )}
+
         <motion.section
           initial="hidden"
           whileInView="visible"
