@@ -1,5 +1,6 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
+import { SITE } from '@/lib/site-config';
 import { cn } from '@/lib/utils';
 import { Toaster } from '@/components/ui/toaster';
 import { SessionProvider } from 'next-auth/react';
@@ -30,25 +31,22 @@ const leagueSpartan = League_Spartan({
   display: 'swap',
 });
 
-const BASE_URL = 'https://pixeltec.mx';
-
 export const metadata: Metadata = {
-  metadataBase: new URL(BASE_URL),
+  metadataBase: new URL(SITE.url),
   title: {
-    default: 'PixelTEC | Ecosistemas Digitales y Automatización',
-    template: '%s | PixelTEC',
+    default: `${SITE.name} | Ecosistemas Digitales y Automatización`,
+    template: `%s | ${SITE.name}`,
   },
-  description: 'Transformamos procesos complejos en ecosistemas web y automatizaciones escalables para empresas que buscan rentabilidad y control absoluto.',
+  description: SITE.description,
   keywords: ['desarrollo web México', 'automatización de procesos', 'CRM personalizado', 'consultoría tecnológica Puerto Vallarta', 'ecosistemas digitales', 'software a medida'],
-  authors: [{ name: 'PixelTEC' }],
-  icons: {
-    icon: '/ptlogox.png',
-    shortcut: '/ptlogox.png',
-    apple: '/ptlogox.png',
-  },
-  other: {
-    'theme-color': '#030303',
-  },
+  authors: [{ name: SITE.name }],
+  // Los iconos salen de la convención de archivos de Next (src/app/icon.png y
+  // src/app/apple-icon.png — el apple es 180×180 OPACO; el ptlogox.png
+  // transparente se veía negro sobre negro al anclar en iOS).
+};
+
+export const viewport: Viewport = {
+  themeColor: '#030303',
 };
 
 export default async function RootLayout({

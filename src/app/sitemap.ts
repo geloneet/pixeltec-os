@@ -1,7 +1,8 @@
 import type { MetadataRoute } from "next";
 import { getPublishedPosts } from "@/lib/blog/queries/posts";
+import { SITE } from "@/lib/site-config";
 
-const BASE_URL = "https://pixeltec.mx";
+const BASE_URL = SITE.url;
 
 const servicesSlugs = ["ecosistemas-web", "automatizacion", "consultoria"];
 
