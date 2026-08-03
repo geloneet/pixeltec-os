@@ -84,18 +84,14 @@ export const CAPABILITIES = {
 export const CONSOLE_SHOWCASE = {
   title: 'PixelBot no es una caja negra',
   intro: 'Su consola te deja ver y controlar cada conversación: qué respondió, qué datos capturó y quién tiene el control.',
-  note: 'Capturas de la consola de PixelBot con datos de demostración.',
+  note: 'Recreación ilustrativa de la consola con datos ficticios.',
   tabs: [
     {
       id: 'bandeja',
       label: 'Bandeja',
       heading: 'Todas las conversaciones, con contexto y control',
       detail:
-        'Cada chat muestra quién lo atiende (bot, humano o en pausa), la clasificación sugerida y la ficha del contacto con los datos capturados. Tu equipo puede tomar el control con un clic.',
-      image: '/images/pixelbot/consola-bandeja.webp',
-      alt: 'Bandeja de la consola de PixelBot: conversación de WhatsApp atendida por el bot, con ficha de contacto, clasificación sugerida y botón para tomar control humano',
-      width: 1440,
-      height: 772,
+        'Cada chat muestra quién lo atiende (bot, humano o en pausa), la clasificación sugerida y los datos capturados. Tu equipo puede tomar el control con un clic.',
     },
     {
       id: 'bot',
@@ -103,10 +99,6 @@ export const CONSOLE_SHOWCASE = {
       heading: 'Personalidad y reglas, sin tocar código',
       detail:
         'Nombre público, tono, formalidad, temas permitidos y prohibidos, horarios y preguntas de calificación. Todo editable desde la consola, con vista previa.',
-      image: '/images/pixelbot/consola-bot.webp',
-      alt: 'Configuración del bot en la consola de PixelBot: identidad pública, tono y formalidad editables',
-      width: 1440,
-      height: 648,
     },
     {
       id: 'entrenamiento',
@@ -114,10 +106,6 @@ export const CONSOLE_SHOWCASE = {
       heading: 'Enséñale cómo responde tu negocio',
       detail:
         'Respuestas de referencia para situaciones reales: precios, horarios, escalamiento. Se activan o desactivan individualmente y definen el estilo del bot.',
-      image: '/images/pixelbot/consola-entrenamiento.webp',
-      alt: 'Biblioteca de entrenamiento de PixelBot: ejemplos de preguntas y respuestas con etiquetas e importancia',
-      width: 1440,
-      height: 772,
     },
     {
       id: 'pruebas',
@@ -125,10 +113,6 @@ export const CONSOLE_SHOWCASE = {
       heading: 'Prueba antes de publicar',
       detail:
         'El simulador ejecuta el mismo cerebro del bot sin enviar nada a WhatsApp. Publica una versión cuando estés conforme y vuelve a una anterior si lo necesitas.',
-      image: '/images/pixelbot/consola-pruebas.webp',
-      alt: 'Simulador de PixelBot: prueba cómo respondería el bot sin enviar mensajes reales a WhatsApp',
-      width: 1440,
-      height: 520,
     },
   ],
 } as const;
