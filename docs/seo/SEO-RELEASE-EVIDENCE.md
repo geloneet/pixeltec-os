@@ -68,8 +68,23 @@ Entorno: build de producción del worktree (dummies inline, cero archivos
   credenciales en QA; su lógica está cubierta por los 17 tests del gate y el
   smoke autenticado queda para el post-deploy con Miguel.
 
-## Pendiente G4 — deploy (GO aparte)
+## G4 — Deploy: PASS (2026-08-03, GO de Miguel)
 
-- push + PR + merge aprobado · migración aplicada con evidencia · --check-only
-  → deploy wrapper por SHA · smoke post-deploy (sitemap, robots, artículo,
-  redirects, admin) · rollback disponible anotado.
+- PR #50 mergeado (rebase, 13 commits) → main .
+- Migración 0026 aplicada a la DB real ANTES del deploy, con respaldo previo
+  (): 4 posts intactos,
+  2 published visibles, post_redirects creada vacía.
+- Primer intento de deploy falló por disco lleno (98%) — saneado documentado:
+  builder prune 9.2GB + 5 imágenes intermedias regenerables eliminadas
+  (conservadas: activa, be78f9e, be371fd, pre-hardening). Producción nunca se
+  tocó durante el fallo (el motor construye antes de activar).
+- Deploy OK  (19:53Z, health PASS, rollback=no; log en
+  ~/deploy-logs/pixeltec-os-20260803T194538Z-*).
+- Smoke en vivo: sitemap 19 URLs · robots derivado (hoy/whatsapp/ia-factory/
+  reset-password bloqueados) · /crm→/hoy en 1 salto · noindex en
+  reset-password y portal · icon/apple-icon 200 · Organization con sameAs y
+  marca PixelTEC unificada (@id) · artículo con TOC, BlogPosting+inLanguage,
+  og:locale es_MX, og:type article, bio→/equipo, related y footer · Service
+  único en detalle de servicio · redirects demo intactos (308).
+- Pendiente de humano: smoke autenticado de blog-admin (brief estratégico,
+  editor con readiness, publicar/despublicar) — Miguel en su sesión.
