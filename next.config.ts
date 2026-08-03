@@ -27,8 +27,9 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [
       // ── Existing permanent redirects ────────────────────────────────────
-      { source: '/crm', destination: '/dashboard', permanent: true },
-      { source: '/crm/:path*', destination: '/dashboard', permanent: true },
+      // Directo a /hoy: antes /crm→/dashboard→/hoy encadenaba dos 301.
+      { source: '/crm', destination: '/hoy', permanent: true },
+      { source: '/crm/:path*', destination: '/hoy', permanent: true },
       { source: '/nosotros', destination: '/about', permanent: true },
       { source: '/contacto', destination: '/contact', permanent: true },
       { source: '/servicios', destination: '/services', permanent: true },
