@@ -128,12 +128,17 @@ describe('validatePostForPublication — warnings (no bloquean)', () => {
     );
   });
 
-  it('noindex=true publica con warning (excluido de buscadores a propósito)', () => {
-    const v = validatePostForPublication(
+  it('noindex solo advierte cuando el post YA está publicado con la bandera', () => {
+    const draft = validatePostForPublication(
       publishable({ seo: { ...EMPTY_SEO, noindex: true, metaTitle: 't', metaDescription: 'd' } })
     );
-    expect(v.ready).toBe(true);
-    expect(v.warnings.map((w) => w.code)).toContain('noindex');
+    expect(draft.ready).toBe(true);
+    expect(draft.warnings.map((w) => w.code)).not.toContain('noindex'); // default de borrador = ruido
+
+    const republicacion = validatePostForPublication(
+      publishable({ status: 'published', seo: { ...EMPTY_SEO, noindex: true, metaTitle: 't', metaDescription: 'd' } })
+    );
+    expect(republicacion.warnings.map((w) => w.code)).toContain('noindex');
   });
 
   it('sin conteo de palabras obligatorio: un body de 500+ no genera warning de longitud', () => {
