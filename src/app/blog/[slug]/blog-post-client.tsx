@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowLeft, ArrowRight, CalendarDays, RefreshCw } from 'lucide-react';
+import { formatEditorialDate } from '@/lib/blog/format-date';
 import type { PublicBlogPost } from '@/lib/blog/public-post';
 import type { HeadingEntry } from '@/lib/blog/heading-utils';
 
@@ -12,9 +13,6 @@ const MarkdownRenderer = dynamic(() => import('@/components/blog/markdown-render
 // Portada local por defecto: el placeholder externo (placehold.co) metía un
 // tercer origen en la ruta crítica del LCP y era el "cover" de posts reales.
 const DEFAULT_COVER = '/og-image.png';
-
-const fmtDate = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
 
 interface RelatedCard {
   slug: string;
@@ -34,10 +32,10 @@ export default function BlogPostClient({
 }) {
   const coverImage = post.coverImage ?? DEFAULT_COVER;
   const coverAlt = post.coverAlt || post.title;
-  const publishedStr = fmtDate(post.publishedAt);
+  const publishedStr = formatEditorialDate(post.publishedAt);
   const updatedStr =
     post.lastReviewedAt && post.lastReviewedAt !== post.publishedAt
-      ? fmtDate(post.lastReviewedAt)
+      ? formatEditorialDate(post.lastReviewedAt)
       : null;
   const readTime = `${post.readingTimeMin} min de lectura`;
   // El DTO público ya trae SOLO fuentes verificadas (frontera P1-A).

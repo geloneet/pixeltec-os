@@ -47,9 +47,9 @@ tags: [nextjs, postgres, escalabilidad]
 coverImage: "descripción de imagen sugerida"
 ---
 
-# Título del artículo
-
-Cuerpo del artículo en markdown...
+Cuerpo del artículo en markdown, empezando DIRECTO con el primer párrafo de la introducción...
 ━━━ FIN DE TU RESPUESTA ━━━
+
+ENCABEZADOS (obligatorio): el cuerpo JAMÁS repite el título como encabezado nivel 1 (\`#\`) — la plantilla del sitio ya renderiza el H1 con el title del front-matter y duplicarlo rompe el SEO. El cuerpo empieza directo con la introducción y usa \`##\` para secciones y \`###\` para subsecciones.
 
 IMPORTANTE: tu output es un BORRADOR que será revisado por un humano técnico antes de publicar. No busques perfección, busca punto de partida sólido que ahorre 70% del trabajo de escritura.`;

@@ -105,8 +105,11 @@ export async function generateDraft(briefId: string): Promise<ActionResult<{ pos
           rawOutput: generated.rawOutput,
         },
         seo: {
-          metaTitle: generated.title.slice(0, 70),
-          metaDescription: generated.excerpt.slice(0, 160),
+          // SIN truncado silencioso (SEO-BLOG-020): el corte a 70 producía
+          // titles rotos a media palabra en <title> (caso real "…atien").
+          // Se guarda completo; el gate advierte los largos y el humano decide.
+          metaTitle: generated.title,
+          metaDescription: generated.excerpt,
           canonicalUrl: null,
           noindex: true,
           primaryKeyword: briefData.primaryKeyword,
@@ -115,7 +118,7 @@ export async function generateDraft(briefId: string): Promise<ActionResult<{ pos
           contentPillar: briefData.contentPillar,
           // Alt de portada por defecto = metatítulo (decisión de Miguel
           // 2026-08-04); editable después en el editor o al elegir de Unsplash.
-          ogImageAlt: generated.title.slice(0, 70),
+          ogImageAlt: generated.title,
         },
         // El revisor por defecto es quien crea el brief (operación
         // unipersonal); approvePost lo reescribe con el aprobador real.

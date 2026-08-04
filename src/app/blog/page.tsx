@@ -1,3 +1,4 @@
+import { formatEditorialDate } from "@/lib/blog/format-date";
 import { BlogGrid, type BlogCardData } from "./blog-grid";
 import type { Metadata } from "next";
 import { buildMetadata } from "@/lib/seo";
@@ -23,9 +24,7 @@ async function getPublishedCards(): Promise<BlogCardData[]> {
       excerpt: p.excerpt,
       category: p.category,
       imageUrl: p.coverImage ?? "https://placehold.co/1200x630/0a0a0a/ffffff?text=PIXELTEC",
-      date: p.publishedAt
-        ? new Date(p.publishedAt).toLocaleDateString("es-MX", { day: "numeric", month: "long", year: "numeric" })
-        : "",
+      date: formatEditorialDate(p.publishedAt),
       readTime: `${p.readingTimeMin} min de lectura`,
       author: p.author.name,
       authorInitials: p.author.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase(),
