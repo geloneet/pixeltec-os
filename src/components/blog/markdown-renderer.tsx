@@ -40,10 +40,16 @@ function stripFrontmatter(content: string): string {
 
 const components: Components = {
   h1({ children }) {
+    // El H1 canonico del post lo pone la plantilla (blog-post-client). Un `#`
+    // en el body Markdown (contenido legacy o IA desviada) se degrada a <h2>
+    // en vez de duplicar el H1 de la pagina.
     return (
-      <h1 className="not-prose mb-4 mt-10 text-3xl font-extrabold text-white md:text-4xl">
+      <h2
+        id={slugifyHeading(textOf(children))}
+        className="not-prose mb-4 mt-10 scroll-mt-28 border-b border-white/10 pb-2 text-2xl font-bold text-white md:text-3xl"
+      >
         {children}
-      </h1>
+      </h2>
     );
   },
   h2({ children }) {
