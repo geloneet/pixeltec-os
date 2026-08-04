@@ -379,8 +379,11 @@ export function NuevoBriefForm() {
     form.setValue("desiredAction", brief.desiredAction, opts);
     form.setValue("pixeltecExperience", brief.pixeltecExperience, opts);
     form.setValue("internalLinkTargets", brief.internalLinkTargets, opts);
-    // `sources` NO se toca: las sugerencias van al panel informativo de la
-    // sección Evidencia y el humano encuentra/verifica la URL real.
+    // Fuentes REALES encontradas por la búsqueda web server-side (URL
+    // confirmada contra los resultados): entran al form SIN verificar — el
+    // humano debe abrirlas y marcar la casilla; el gate bloquea lo demás.
+    // Lo no confirmado queda en el panel informativo de sugerencias.
+    form.setValue("sources", brief.sources, opts);
     setAiSourceSuggestions(brief.sourceSuggestions);
     openAllSections();
   }
@@ -981,7 +984,7 @@ export function NuevoBriefForm() {
             {aiSourceSuggestions.length > 0 && (
               <div className="space-y-2 rounded-md border border-blue-500/30 bg-blue-500/5 p-3">
                 <p className="text-xs font-medium text-blue-700 dark:text-blue-300">
-                  Fuentes sugeridas para buscar (encuentra la URL real y
+                  Fuentes que la IA no pudo confirmar con la búsqueda (encuentra la URL real y
                   agrégala abajo):
                 </p>
                 <ul className="list-disc space-y-1 pl-4 text-xs text-muted-foreground">
