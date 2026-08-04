@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, KeyboardEvent, ReactNode } from "react";
+import { useEffect, useState, useTransition, KeyboardEvent, ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, type FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { ChevronDown, Plus, Sparkles, Trash2, X } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { createBrief, generateBriefWithAI } from "@/lib/blog/actions/briefs";
-import { generateDraft } from "@/lib/blog/actions/drafts";
+import { getBriefGenerationStatus, startDraftGeneration } from "@/lib/blog/actions/drafts";
 import type { AiBrief } from "@/lib/blog/ai/generate-brief";
 import {
   BlogBriefSchema,
@@ -316,6 +316,73 @@ export function NuevoBriefForm() {
   const [aiFeedback, setAiFeedback] = useState("");
   const [aiSourceSuggestions, setAiSourceSuggestions] = useState<string[]>([]);
 
+  // ── Fase B: generación asíncrona del borrador (polling) ────────────────────
+  const [generatingBriefId, setGeneratingBriefId] = useState<string | null>(null);
+  const [generationError, setGenerationError] = useState<string | null>(null);
+  const [generationElapsed, setGenerationElapsed] = useState(0);
+  const [pollRun, setPollRun] = useState(0);
+
+  // Polling cada 4s con tope de 5 min: al `generated` redirige al editor; al
+  // `pending` (falló) muestra el error persistido. El tope cubre el riesgo
+  // documentado del contenedor reciclado a media generación (status atascado
+  // en `generating`) — Reintentar re-dispara con force.
+  useEffect(() => {
+    if (!generatingBriefId || generationError) return;
+    let cancelled = false;
+    const startedAt = Date.now();
+    let timer: ReturnType<typeof setTimeout>;
+
+    const tick = async () => {
+      if (cancelled) return;
+      const elapsed = Math.round((Date.now() - startedAt) / 1000);
+      setGenerationElapsed(elapsed);
+      try {
+        const res = await getBriefGenerationStatus(generatingBriefId);
+        if (cancelled) return;
+        if (res.ok && res.data) {
+          if (res.data.status === "generated" && res.data.generatedDraftId) {
+            toast.success("Borrador generado con éxito");
+            router.push(`/blog-admin/${res.data.generatedDraftId}/editar`);
+            return;
+          }
+          if (res.data.status === "pending") {
+            setGenerationError(res.data.lastError ?? "Error generando borrador");
+            return;
+          }
+        }
+      } catch {
+        // Fallo de red transitorio: el siguiente tick decide.
+      }
+      if (elapsed >= 300) {
+        setGenerationError(
+          "La generación superó los 5 minutos. Puede seguir en curso en el servidor — reintenta o revisa la lista de briefs en un momento."
+        );
+        return;
+      }
+      timer = setTimeout(tick, 4000);
+    };
+
+    timer = setTimeout(tick, 4000);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [generatingBriefId, generationError, pollRun, router]);
+
+  async function retryGeneration() {
+    if (!generatingBriefId) return;
+    setGenerationError(null);
+    setGenerationElapsed(0);
+    // force: ignora el candado de idempotencia del server — cubre el status
+    // atascado en `generating` cuando la promesa desanclada murió.
+    const res = await startDraftGeneration(generatingBriefId, { force: true });
+    if (!res.ok) {
+      setGenerationError(res.error ?? "No se pudo reiniciar la generación");
+      return;
+    }
+    setPollRun((n) => n + 1);
+  }
+
   const form = useForm<BlogBriefInput>({
     resolver: zodResolver(BlogBriefSchema),
     defaultValues: {
@@ -448,18 +515,20 @@ export function NuevoBriefForm() {
         return;
       }
 
-      // Step 2: generate draft
-      setLoadingMessage("Llamando a Claude…");
-      const draftResult = await generateDraft(briefResult.data.briefId);
+      // Step 2 (Fase B): disparar la generación SIN esperar el resultado — la
+      // conexión larga moría en el techo ~100s de Cloudflare aunque el draft
+      // sí se creara. La pantalla de progreso hace el polling.
+      setLoadingMessage("Iniciando generación…");
+      const startResult = await startDraftGeneration(briefResult.data.briefId);
       setLoadingMessage("");
 
-      if (!draftResult.ok || !draftResult.data) {
-        toast.error(draftResult.error ?? "Error al generar borrador");
+      if (!startResult.ok) {
+        toast.error(startResult.error ?? "Error al iniciar la generación");
         return;
       }
 
-      toast.success("Borrador generado con éxito");
-      router.push(`/blog-admin/${draftResult.data.postId}/editar`);
+      setGenerationElapsed(0);
+      setGeneratingBriefId(briefResult.data.briefId);
     });
   };
 
@@ -480,6 +549,51 @@ export function NuevoBriefForm() {
   const sourceErrors = form.formState.errors.sources;
   const linkErrors = form.formState.errors.internalLinkTargets;
   const experienceErrors = form.formState.errors.pixeltecExperience;
+
+  // ── Fase B: pantalla de progreso mientras el borrador se genera ────────────
+  if (generatingBriefId) {
+    return (
+      <div className="mx-auto max-w-xl rounded-2xl border border-border bg-card p-8 text-center">
+        {generationError ? (
+          <>
+            <p className="text-lg font-semibold text-foreground">
+              No se pudo generar el borrador
+            </p>
+            <p className="mt-3 text-sm text-muted-foreground">{generationError}</p>
+            <div className="mt-6 flex justify-center gap-3">
+              <Button type="button" onClick={retryGeneration}>
+                Reintentar
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setGeneratingBriefId(null);
+                  setGenerationError(null);
+                }}
+              >
+                Volver al formulario
+              </Button>
+            </div>
+          </>
+        ) : (
+          <>
+            <Spinner size="lg" className="mx-auto text-blue-400" />
+            <p className="mt-4 text-lg font-semibold text-foreground">
+              Generando borrador con IA…
+            </p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Normalmente tarda 1-2 minutos. Puedes quedarte aquí: te llevamos al
+              editor en cuanto esté listo.
+            </p>
+            <p className="mt-4 text-xs text-muted-foreground">
+              {generationElapsed}s transcurridos
+            </p>
+          </>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="relative">
