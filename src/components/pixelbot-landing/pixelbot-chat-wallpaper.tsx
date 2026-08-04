@@ -20,7 +20,7 @@ export function PixelbotChatWallpaper({ className }: { className?: string }) {
     >
       <defs>
         <pattern id={patternId} width="240" height="240" patternUnits="userSpaceOnUse">
-          <g fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+          <g fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
             {/* corazón */}
             <g transform="translate(18,24) rotate(-8) scale(0.8)">
               <path d="M12 20s-6-3.8-8-7.2C2.3 9.6 3.5 6 7 6c2 0 3.6 1.4 5 3 1.4-1.6 3-3 5-3 3.5 0 4.7 3.6 3 6.8C18 16.2 12 20 12 20Z" />
