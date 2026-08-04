@@ -158,5 +158,8 @@ export function generateSlug(title: string): string {
     .trim()
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-')
-    .slice(0, 80);
+    .slice(0, 80)
+    // El corte a 80 puede caer a media palabra y dejar un guion colgante —
+    // SLUG_RE lo rechaza y bloqueaba la publicación (bug reportado por Miguel).
+    .replace(/-+$/, '');
 }
