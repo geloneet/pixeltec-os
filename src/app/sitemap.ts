@@ -32,7 +32,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticRoutes: MetadataRoute.Sitemap = [
     { url: BASE_URL,                                lastModified: new Date('2026-06-16'), changeFrequency: "weekly",  priority: 1.0 },
     { url: `${BASE_URL}/services`,                  lastModified: new Date('2026-06-16'), changeFrequency: "monthly", priority: 0.9 },
-    { url: `${BASE_URL}/pixelbot`,                  lastModified: new Date('2026-08-03'), changeFrequency: "monthly", priority: 0.9 },
+    { url: `${BASE_URL}/pixelbot`,                  lastModified: new Date('2026-08-04'), changeFrequency: "monthly", priority: 0.9 },
     { url: `${BASE_URL}/blog`,                      lastModified: new Date('2026-06-16'), changeFrequency: "weekly",  priority: 0.8 },
     { url: `${BASE_URL}/industrias`,                lastModified: new Date('2026-06-16'), changeFrequency: "monthly", priority: 0.7 },
     { url: `${BASE_URL}/diagnostico`,               lastModified: new Date('2026-07-09'), changeFrequency: "monthly", priority: 0.8 },

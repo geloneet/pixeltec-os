@@ -13,7 +13,7 @@ import { ShinyButton } from '@/components/ui/shiny-button';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { TEAM_PHONE } from '@/lib/diagnostic/logic';
-import { FINAL_CTA, buildPixelbotMessage } from './pixelbot-content';
+import { FINAL_CTA, PACKAGES, buildPixelbotMessage } from './pixelbot-content';
 
 const initialState = {
   message: '',
@@ -52,6 +52,8 @@ export function PixelbotLeadForm() {
   const formRef = useRef<HTMLFormElement>(null);
   const [consent, setConsent] = useState(false);
   const [volume, setVolume] = useState('');
+  const [plan, setPlan] = useState('');
+  const [botName, setBotName] = useState('');
 
   useEffect(() => {
     if (state.message && !state.isSuccess) {
@@ -64,13 +66,15 @@ export function PixelbotLeadForm() {
     if (state.isSuccess) {
       formRef.current?.reset();
       setVolume('');
+      setPlan('');
+      setBotName('');
       setConsent(false);
     }
   }, [state, toast]);
 
   const handleAction = (formData: FormData) => {
     const rawMessage = (formData.get('message') ?? '').toString();
-    formData.set('message', buildPixelbotMessage(rawMessage, volume));
+    formData.set('message', buildPixelbotMessage(rawMessage, volume, plan, botName));
     formAction(formData);
   };
 
@@ -142,6 +146,33 @@ export function PixelbotLeadForm() {
                     </option>
                   ))}
                 </select>
+              </div>
+              <div>
+                <Label htmlFor="pixelbot-plan" className="text-foreground/80">Plan de interés (opcional)</Label>
+                <select
+                  id="pixelbot-plan"
+                  value={plan}
+                  onChange={(event) => setPlan(event.target.value)}
+                  className="mt-2 flex h-10 w-full rounded-md border border-input bg-muted/40 dark:bg-black/50 dark:border-white/10 px-3 py-2 text-sm text-foreground ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
+                  <option value="">Selecciona una opción</option>
+                  {PACKAGES.map((pkg) => (
+                    <option key={pkg.id} value={pkg.name}>
+                      {pkg.name}
+                    </option>
+                  ))}
+                  <option value="No estoy seguro">No estoy seguro</option>
+                </select>
+              </div>
+              <div>
+                <Label htmlFor="pixelbot-bot-name" className="text-foreground/80">¿Cómo quieres llamar a tu bot? (opcional)</Label>
+                <Input
+                  id="pixelbot-bot-name"
+                  value={botName}
+                  onChange={(event) => setBotName(event.target.value)}
+                  placeholder="Ej. Dentista Bot"
+                  className="mt-2 bg-muted/40 dark:bg-black/50 dark:border-white/10"
+                />
               </div>
               <div>
                 <Label htmlFor="pixelbot-message" className="text-foreground/80">¿Qué quieres automatizar?</Label>

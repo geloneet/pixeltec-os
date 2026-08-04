@@ -26,7 +26,7 @@ export function PixelbotHero() {
               {HERO.subcopy}
             </p>
             <div className="mt-8 flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4">
-              <ShinyButton href="#diagnostico" className="w-full sm:w-auto">
+              <ShinyButton href="#planes" className="w-full sm:w-auto">
                 {HERO.ctaPrimary}
               </ShinyButton>
               <a
