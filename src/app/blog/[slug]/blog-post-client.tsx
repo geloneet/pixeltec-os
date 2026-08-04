@@ -7,6 +7,7 @@ import { ArrowLeft, ArrowRight, CalendarDays, RefreshCw } from 'lucide-react';
 import { formatEditorialDate } from '@/lib/blog/format-date';
 import type { PublicBlogPost } from '@/lib/blog/public-post';
 import type { HeadingEntry } from '@/lib/blog/heading-utils';
+import { ViewBeacon } from '@/components/blog/view-beacon';
 
 const MarkdownRenderer = dynamic(() => import('@/components/blog/markdown-renderer'));
 
@@ -43,6 +44,7 @@ export default function BlogPostClient({
 
   return (
     <main className="min-h-screen bg-[#030303] text-white pt-32 sm:pt-40 pb-16 sm:pb-24">
+      <ViewBeacon slug={post.slug} />
       <div className="container mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
         <div className="mb-8 md:mb-10">
           <Link
