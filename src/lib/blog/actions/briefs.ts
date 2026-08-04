@@ -7,6 +7,8 @@ import { blogBriefs } from '@/lib/db/schema';
 import { requireUserSession } from '@/lib/auth/session';
 import { resolveBriefRow, publicId, getUserDisplayName } from '../pg';
 import { BlogBriefSchema, type BlogBriefInput, type ActionResult } from '../schemas';
+import { generateBriefFromProblem, type AiBrief } from '../ai/generate-brief';
+import { toPublicFailure } from '@/lib/errors/public-failure';
 
 export async function createBrief(input: BlogBriefInput): Promise<ActionResult<{ briefId: string }>> {
   const session = await requireUserSession();
@@ -58,6 +60,41 @@ export async function listBriefs(): Promise<ActionResult<import('../types').Blog
   });
 
   return { ok: true, data: briefs };
+}
+
+/** Genera el brief completo con IA a partir del problema del lector. NO
+ *  persiste nada: rellena el formulario y el humano revisa/edita antes del
+ *  createBrief normal. `feedback`+`previous` = regeneración dirigida. */
+export async function generateBriefWithAI(
+  userProblem: string,
+  feedback?: string,
+  previous?: Record<string, unknown>,
+): Promise<ActionResult<AiBrief>> {
+  const session = await requireUserSession();
+  if (!session) return { ok: false, error: 'No autenticado' };
+
+  const problem = userProblem?.trim() ?? '';
+  if (problem.length < 15) {
+    return { ok: false, error: 'Describe el problema del lector con más detalle (mínimo 15 caracteres).' };
+  }
+
+  try {
+    const brief = await generateBriefFromProblem({
+      userProblem: problem,
+      feedback: feedback?.trim() || undefined,
+      previous,
+    });
+    return { ok: true, data: brief };
+  } catch (err) {
+    console.error('generateBriefWithAI error:', err);
+    return {
+      ok: false,
+      error: toPublicFailure(err, {
+        code: 'blog_generate_brief_failed',
+        message: 'Error generando el brief con IA',
+      }).message,
+    };
+  }
 }
 
 export async function discardBrief(briefId: string): Promise<ActionResult> {
