@@ -4,7 +4,7 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowLeft, ArrowRight, CalendarDays, RefreshCw } from 'lucide-react';
-import type { BlogPostSerialized } from '@/lib/blog/types';
+import type { PublicBlogPost } from '@/lib/blog/public-post';
 import type { HeadingEntry } from '@/lib/blog/heading-utils';
 
 const MarkdownRenderer = dynamic(() => import('@/components/blog/markdown-renderer'));
@@ -28,19 +28,20 @@ export default function BlogPostClient({
   related,
   headings,
 }: {
-  post: BlogPostSerialized;
+  post: PublicBlogPost;
   related: RelatedCard[];
   headings: HeadingEntry[];
 }) {
   const coverImage = post.coverImage ?? DEFAULT_COVER;
-  const coverAlt = post.seo.ogImageAlt || post.title;
+  const coverAlt = post.coverAlt || post.title;
   const publishedStr = fmtDate(post.publishedAt);
   const updatedStr =
-    post.editorial.lastReviewedAt && post.editorial.lastReviewedAt !== post.publishedAt
-      ? fmtDate(post.editorial.lastReviewedAt)
+    post.lastReviewedAt && post.lastReviewedAt !== post.publishedAt
+      ? fmtDate(post.lastReviewedAt)
       : null;
   const readTime = `${post.readingTimeMin} min de lectura`;
-  const verifiedSources = post.sources.filter((s) => s.verifiedByHuman);
+  // El DTO público ya trae SOLO fuentes verificadas (frontera P1-A).
+  const verifiedSources = post.sources;
 
   return (
     <main className="min-h-screen bg-[#030303] text-white pt-32 sm:pt-40 pb-16 sm:pb-24">
@@ -109,7 +110,7 @@ export default function BlogPostClient({
             </h2>
             <ol className="space-y-3 text-sm">
               {verifiedSources.map((s) => (
-                <li key={s.id} className="text-zinc-400">
+                <li key={s.url} className="text-zinc-400">
                   <a
                     href={s.url}
                     target="_blank"
@@ -131,7 +132,7 @@ export default function BlogPostClient({
             <div>
               <p className="text-zinc-500">Escrito por</p>
               <Link href="/equipo" className="font-semibold text-zinc-200 transition-colors hover:text-brand-blue">
-                {post.author.name}
+                {post.authorName}
               </Link>
               <p className="text-zinc-500">Equipo PixelTEC · Puerto Vallarta, México</p>
             </div>

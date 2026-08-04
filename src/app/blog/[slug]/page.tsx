@@ -5,6 +5,7 @@ import { absoluteUrl } from '@/lib/site-config';
 import { BlogPostingStructuredData, BreadcrumbStructuredData } from '@/components/seo/structured-data';
 import BlogPostClient from './blog-post-client';
 import { extractHeadings } from '@/lib/blog/heading-utils';
+import { toPublicBlogPost } from '@/lib/blog/public-post';
 import type { BlogPostSerialized } from '@/lib/blog/types';
 
 export const revalidate = 86400; // ISR: regenerar máximo cada día
@@ -99,8 +100,9 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
         author={post.author.name}
         imageUrl={imageUrl}
       />
+      {/* Frontera P1-A: al cliente cruza SOLO el DTO público (allowlist). */}
       <BlogPostClient
-        post={post}
+        post={toPublicBlogPost(post)}
         headings={headings}
         related={related.map((r) => ({ slug: r.slug, title: r.title, excerpt: r.excerpt, category: r.category }))}
       />
