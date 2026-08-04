@@ -51,6 +51,7 @@ import {
  */
 
 const POST_FILTER_OPTIONS: Array<{ value: PostFilterStatus; label: string }> = [
+  { value: 'active', label: 'Activos' },
   { value: 'all', label: 'Todos' },
   { value: 'attention', label: 'Necesita atención' },
   { value: 'draft', label: 'Borrador' },
@@ -89,7 +90,8 @@ export function BlogAdminWorkspace({
   const [tab, setTab] = useState<'posts' | 'briefs'>('posts');
   const [postQuery, setPostQuery] = useState('');
   const [briefQuery, setBriefQuery] = useState('');
-  const [postStatus, setPostStatus] = useState<PostFilterStatus>('all');
+  // «Activos» por defecto: lo archivado es ruido diario y se consulta a demanda.
+  const [postStatus, setPostStatus] = useState<PostFilterStatus>('active');
   const [briefStatus, setBriefStatus] = useState<BriefFilterStatus>('all');
   const [order, setOrder] = useState<SortOrder>('recent');
 
@@ -223,8 +225,11 @@ export function BlogAdminWorkspace({
         </div>
         {tab === 'posts' ? (
           <Select value={postStatus} onValueChange={(v) => setPostStatus(v as PostFilterStatus)}>
-            <SelectTrigger aria-label="Filtrar por estado" className="h-11 w-full sm:w-48 md:h-9">
-              <SelectValue />
+            <SelectTrigger aria-label="Filtrar por estado" className="h-11 w-full sm:w-52 md:h-9">
+              <span className="truncate">
+                <span className="text-muted-foreground">Estado: </span>
+                <SelectValue />
+              </span>
             </SelectTrigger>
             <SelectContent>
               {POST_FILTER_OPTIONS.map((o) => (
@@ -236,8 +241,11 @@ export function BlogAdminWorkspace({
           </Select>
         ) : (
           <Select value={briefStatus} onValueChange={(v) => setBriefStatus(v as BriefFilterStatus)}>
-            <SelectTrigger aria-label="Filtrar por estado" className="h-11 w-full sm:w-48 md:h-9">
-              <SelectValue />
+            <SelectTrigger aria-label="Filtrar por estado" className="h-11 w-full sm:w-52 md:h-9">
+              <span className="truncate">
+                <span className="text-muted-foreground">Estado: </span>
+                <SelectValue />
+              </span>
             </SelectTrigger>
             <SelectContent>
               {BRIEF_FILTER_OPTIONS.map((o) => (
@@ -249,8 +257,11 @@ export function BlogAdminWorkspace({
           </Select>
         )}
         <Select value={order} onValueChange={(v) => setOrder(v as SortOrder)}>
-          <SelectTrigger aria-label="Ordenar" className="h-11 w-full sm:w-44 md:h-9">
-            <SelectValue />
+          <SelectTrigger aria-label="Ordenar" className="h-11 w-full sm:w-52 md:h-9">
+            <span className="truncate">
+              <span className="text-muted-foreground">Orden: </span>
+              <SelectValue />
+            </span>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="recent">Más recientes</SelectItem>
@@ -267,7 +278,7 @@ export function BlogAdminWorkspace({
       <TabsContent value="posts" className="mt-0">
         {visiblePosts.length === 0 ? (
           <EmptyState
-            hasFilters={postQuery.trim() !== '' || postStatus !== 'all'}
+            hasFilters={postQuery.trim() !== '' || (postStatus !== 'active' && postStatus !== 'all')}
             noFilterTitle="Todavía no hay artículos."
             noFilterHint="Crea un brief para comenzar."
           />
@@ -280,13 +291,13 @@ export function BlogAdminWorkspace({
               return (
                 <li
                   key={post.id}
-                  className="flex flex-col gap-3 py-4 md:grid md:grid-cols-[1fr_auto] md:items-center md:gap-4"
+                  className="-mx-3 flex flex-col gap-3 rounded-lg px-3 py-4 transition-colors hover:bg-secondary/40 md:grid md:grid-cols-[1fr_auto] md:items-center md:gap-4"
                 >
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <StatusChip label={postStatusLabel(post.status)} className={postStatusClass(post.status)} />
                       {post.category && (
-                        <span className="text-xs uppercase tracking-wide text-muted-foreground">{post.category}</span>
+                        <span className="text-xs uppercase tracking-wide text-foreground/70">{post.category}</span>
                       )}
                     </div>
                     <Link
@@ -295,7 +306,7 @@ export function BlogAdminWorkspace({
                     >
                       {post.title}
                     </Link>
-                    <p className="mt-1 text-xs text-muted-foreground">
+                    <p className="mt-1 text-xs text-foreground/70">
                       {post.wordCount > 0 && (
                         <>
                           {numberFmt.format(post.wordCount)} palabras
@@ -387,7 +398,7 @@ export function BlogAdminWorkspace({
               return (
                 <li
                   key={brief.id}
-                  className="flex flex-col gap-3 py-4 md:grid md:grid-cols-[1fr_auto] md:items-center md:gap-4"
+                  className="-mx-3 flex flex-col gap-3 rounded-lg px-3 py-4 transition-colors hover:bg-secondary/40 md:grid md:grid-cols-[1fr_auto] md:items-center md:gap-4"
                 >
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
@@ -395,10 +406,10 @@ export function BlogAdminWorkspace({
                         label={generating ? 'Generando' : briefStatusLabel(brief.status)}
                         className={briefStatusClass(generating ? 'generating' : brief.status)}
                       />
-                      {secondary && <span className="text-xs text-muted-foreground">{secondary}</span>}
+                      {secondary && <span className="text-xs text-foreground/70">{secondary}</span>}
                     </div>
                     <p className="mt-1.5 font-medium leading-snug text-foreground line-clamp-2">{brief.topic}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">Creado {formatEditorialDate(brief.createdAt)}</p>
+                    <p className="mt-1 text-xs text-foreground/70">Creado {formatEditorialDate(brief.createdAt)}</p>
                   </div>
                   <div className="flex items-center md:justify-end">
                     {action.kind === 'generate' && (
