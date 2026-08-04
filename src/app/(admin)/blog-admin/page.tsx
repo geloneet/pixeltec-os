@@ -51,10 +51,12 @@ export default async function BlogAdminPage() {
         </div>
       )}
 
-      {/* Resumen editorial compacto — sustituye a las tarjetas KPI */}
-      <p className="text-sm text-muted-foreground">{editorialSummary(posts)}</p>
-
-      <BlogAdminWorkspace posts={posts} briefs={briefs} />
+      {/* Resumen editorial compacto — sustituye a las tarjetas KPI. Agrupado
+          con el workspace para que el contenido de trabajo empiece antes. */}
+      <div className="space-y-3">
+        <p className="text-sm text-foreground/70">{editorialSummary(posts)}</p>
+        <BlogAdminWorkspace posts={posts} briefs={briefs} />
+      </div>
     </div>
   );
 }

@@ -142,7 +142,9 @@ function postSortDate(post: Pick<BlogPostSerialized, 'updatedAt' | 'createdAt'>)
 // ── Filtros, orden y búsqueda (en memoria: ≤ decenas de filas) ───────────────
 
 export type SortOrder = 'recent' | 'oldest';
-export type PostFilterStatus = 'all' | 'attention' | BlogPostStatus;
+/** `active` = todo menos archivados (filtro predeterminado: lo archivado es
+ *  ruido en el trabajo diario y se consulta a demanda). */
+export type PostFilterStatus = 'all' | 'active' | 'attention' | BlogPostStatus;
 export type BriefFilterStatus = 'all' | BlogBriefStatus;
 
 /** Necesita atención: en revisión, o aprobado sin publicar. */
@@ -160,8 +162,16 @@ export function filterPosts(
 ): BlogPostSerialized[] {
   const q = opts.query.trim().toLowerCase();
   const filtered = posts.filter((p) => {
+    if (opts.status === 'active' && p.status === 'archived') return false;
     if (opts.status === 'attention' && !needsAttention(p)) return false;
-    if (opts.status !== 'all' && opts.status !== 'attention' && p.status !== opts.status) return false;
+    if (
+      opts.status !== 'all' &&
+      opts.status !== 'active' &&
+      opts.status !== 'attention' &&
+      p.status !== opts.status
+    ) {
+      return false;
+    }
     if (q && !p.title.toLowerCase().includes(q)) return false;
     return true;
   });
@@ -189,11 +199,15 @@ export function filterBriefs(
 
 // ── Resumen editorial compacto ───────────────────────────────────────────────
 
-/** «6 posts · 3 publicados · 3 borradores · 0 por revisar» (archivados fuera). */
+/** «8 posts · 3 publicados · 3 borradores · 0 por revisar · 2 archivados» —
+ *  el total es el REAL (coincide con el conteo del tab); los archivados se
+ *  desglosan solo cuando existen. Decisión de Miguel 2026-08-04: mostrar el
+ *  total y desglosarlo, en vez de ocultar archivados en el número. */
 export function editorialSummary(posts: Array<Pick<BlogPostSerialized, 'status'>>): string {
-  const active = posts.filter((p) => p.status !== 'archived');
-  const published = active.filter((p) => p.status === 'published').length;
-  const drafts = active.filter((p) => p.status === 'draft').length;
-  const review = active.filter((p) => p.status === 'needs-review').length;
-  return `${active.length} posts · ${published} publicados · ${drafts} borradores · ${review} por revisar`;
+  const published = posts.filter((p) => p.status === 'published').length;
+  const drafts = posts.filter((p) => p.status === 'draft').length;
+  const review = posts.filter((p) => p.status === 'needs-review').length;
+  const archived = posts.filter((p) => p.status === 'archived').length;
+  const base = `${posts.length} posts · ${published} publicados · ${drafts} borradores · ${review} por revisar`;
+  return archived > 0 ? `${base} · ${archived} archivados` : base;
 }

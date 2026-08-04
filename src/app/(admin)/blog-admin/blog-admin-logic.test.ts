@@ -149,6 +149,12 @@ describe('filterPosts — búsqueda, estado y orden', () => {
     }
   );
 
+  it('filtro active (predeterminado) excluye archivados y conserva el resto', () => {
+    const r = filterPosts(posts, { query: '', status: 'active', order: 'recent' });
+    expect(r.map((p) => p.id)).toEqual(['a', 'c', 'b']);
+    expect(r.some((p) => p.status === 'archived')).toBe(false);
+  });
+
   it('filtro attention = needs-review + approved', () => {
     const r = filterPosts([...posts, post({ id: 'e', status: 'approved' })], {
       query: '',
@@ -189,8 +195,14 @@ describe('resumen y atención', () => {
     post({ status: 'approved' }),
     post({ status: 'archived' }),
   ];
-  it('editorialSummary cuenta bien y excluye archivados', () => {
-    expect(editorialSummary(posts)).toBe('5 posts · 2 publicados · 1 borradores · 1 por revisar');
+  it('editorialSummary muestra el total REAL y desglosa archivados (coincide con el tab)', () => {
+    expect(editorialSummary(posts)).toBe('6 posts · 2 publicados · 1 borradores · 1 por revisar · 1 archivados');
+  });
+
+  it('editorialSummary omite el segmento de archivados cuando no hay', () => {
+    expect(editorialSummary(posts.filter((p) => p.status !== 'archived'))).toBe(
+      '5 posts · 2 publicados · 1 borradores · 1 por revisar'
+    );
   });
   it('attentionCount = needs-review + approved', () => {
     expect(attentionCount(posts)).toBe(2);
