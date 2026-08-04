@@ -51,8 +51,9 @@ type Env = Record<string, string | undefined>;
 const EGRESS_MODES = new Set(["disabled", "allowlist", "live"]);
 const CRON_MODES = new Set(["disabled", "enabled"]);
 
-/** Canales EGRESS con su variable de modo y (si aplica) allowlists exigibles. */
-const CHANNELS: Array<{ channel: string; mode: string; allowlists: string[] }> = [
+/** Canales EGRESS con su variable de modo y (si aplica) allowlists exigibles.
+ *  `optional: true` = el predeploy no exige el modo (ausente ⇒ disabled). */
+const CHANNELS: Array<{ channel: string; mode: string; allowlists: string[]; optional?: boolean }> = [
   { channel: "email", mode: "EGRESS_EMAIL_MODE", allowlists: ["EGRESS_EMAIL_ALLOWLIST"] },
   { channel: "whatsapp", mode: "EGRESS_WHATSAPP_MODE", allowlists: ["EGRESS_WHATSAPP_ALLOWLIST"] },
   { channel: "vps", mode: "EGRESS_VPS_MODE", allowlists: ["EGRESS_VPS_HOST_ALLOWLIST"] },
@@ -64,6 +65,10 @@ const CHANNELS: Array<{ channel: string; mode: string; allowlists: string[] }> =
   },
   { channel: "ai", mode: "EGRESS_AI_MODE", allowlists: [] },
   { channel: "internal", mode: "EGRESS_INTERNAL_MODE", allowlists: [] },
+  // Canal OPCIONAL del contrato: ausente = disabled (fail-closed en runtime)
+  // y el predeploy NO lo exige — se activa cuando producción declare
+  // EGRESS_UNSPLASH_MODE=live + UNSPLASH_ACCESS_KEY.
+  { channel: "unsplash", mode: "EGRESS_UNSPLASH_MODE", allowlists: [], optional: true },
 ];
 
 /** Solo "true" activa (mismo parseo que flagIsTrue del guard). */
@@ -132,7 +137,7 @@ export function validateEgressConfig(
   }
 
   // ── Modos por canal + allowlists ─────────────────────────────────────────
-  for (const { channel, mode, allowlists } of CHANNELS) {
+  for (const { channel, mode, allowlists, optional } of CHANNELS) {
     const value = normalized(env, mode);
 
     if (defined(env, mode) && (value === undefined || !EGRESS_MODES.has(value))) {
@@ -141,10 +146,10 @@ export function validateEgressConfig(
     }
 
     if (!defined(env, mode)) {
-      if (profile === "predeploy") {
+      if (profile === "predeploy" && !optional) {
         add(channel, mode, "missing", "producción exige modo explícito");
       }
-      continue; // ausente en dev = disabled, correcto por diseño.
+      continue; // ausente = disabled (fail-closed), correcto por diseño.
     }
 
     add(channel, mode, "present");

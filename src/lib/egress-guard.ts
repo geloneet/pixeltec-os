@@ -17,7 +17,7 @@
  * política directamente: la interpretación vive solo aquí.
  */
 
-export type EgressChannel = "email" | "whatsapp" | "vps" | "r2" | "meta" | "ai" | "internal";
+export type EgressChannel = "email" | "whatsapp" | "vps" | "r2" | "meta" | "ai" | "internal" | "unsplash";
 
 export type EgressOperation =
   | "send"
@@ -45,7 +45,11 @@ export type EgressOperation =
   // Servicios internos: leer configuración, mutarla y enviar un mensaje real a
   // un cliente no comparten perfil de riesgo, y por eso no comparten permiso.
   | "write"
-  | "send_message";
+  | "send_message"
+  // Unsplash: búsqueda de imágenes de portada desde el editor del blog. Solo
+  // lectura de un catálogo público; aún así pasa por la política (canal
+  // opcional del contrato, fail-closed sin EGRESS_UNSPLASH_MODE=live).
+  | "search_photos";
 
 export type EgressRequest = {
   channel: EgressChannel;
@@ -110,6 +114,7 @@ const MODE_ENV: Record<EgressChannel, string> = {
   meta: "EGRESS_META_MODE",
   ai: "EGRESS_AI_MODE",
   internal: "EGRESS_INTERNAL_MODE",
+  unsplash: "EGRESS_UNSPLASH_MODE",
 };
 
 /**
