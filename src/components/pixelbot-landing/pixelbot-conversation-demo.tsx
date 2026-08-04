@@ -2,6 +2,7 @@
 
 import { motion, useReducedMotion } from 'framer-motion';
 import { Bot, Check, UserRound } from 'lucide-react';
+import { PixelbotChatWallpaper } from './pixelbot-chat-wallpaper';
 
 /**
  * Demo sintética del hero: una conversación se convierte en datos, estado y
@@ -59,30 +60,33 @@ export function PixelbotConversationDemo() {
           </span>
         </div>
 
-        <ul className="space-y-3" aria-hidden="false">
-          {BUBBLES.map((bubble, i) => (
-            <motion.li
-              key={i}
-              {...appear(i)}
-              className={bubble.from === 'bot' ? 'flex justify-end' : 'flex justify-start'}
-            >
-              <div
-                className={
-                  bubble.from === 'bot'
-                    ? 'max-w-[85%] rounded-2xl rounded-br-sm bg-primary/15 dark:bg-cyan-500/15 border border-primary/20 dark:border-cyan-500/20 px-4 py-2.5'
-                    : 'max-w-[85%] rounded-2xl rounded-bl-sm bg-muted/70 dark:bg-white/5 border border-border px-4 py-2.5'
-                }
+        <div className="relative overflow-hidden rounded-xl bg-muted/40 dark:bg-black/40">
+          <PixelbotChatWallpaper className="absolute inset-0 h-full w-full text-black/[0.07] dark:text-white/[0.055]" />
+          <ul className="relative space-y-3 p-3 sm:p-3.5" aria-hidden="false">
+            {BUBBLES.map((bubble, i) => (
+              <motion.li
+                key={i}
+                {...appear(i)}
+                className={bubble.from === 'bot' ? 'flex justify-end' : 'flex justify-start'}
               >
-                {bubble.from === 'bot' && (
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-primary dark:text-cyan-400 mb-0.5">
-                    PixelBot
-                  </p>
-                )}
-                <p className="text-sm text-foreground/90 leading-relaxed">{bubble.text}</p>
-              </div>
-            </motion.li>
-          ))}
-        </ul>
+                <div
+                  className={
+                    bubble.from === 'bot'
+                      ? 'max-w-[85%] rounded-2xl rounded-br-sm bg-primary/15 dark:bg-cyan-500/15 border border-primary/20 dark:border-cyan-500/20 px-4 py-2.5'
+                      : 'max-w-[85%] rounded-2xl rounded-bl-sm bg-muted/70 dark:bg-white/5 border border-border px-4 py-2.5'
+                  }
+                >
+                  {bubble.from === 'bot' && (
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-primary dark:text-cyan-400 mb-0.5">
+                      PixelBot
+                    </p>
+                  )}
+                  <p className="text-sm text-foreground/90 leading-relaxed">{bubble.text}</p>
+                </div>
+              </motion.li>
+            ))}
+          </ul>
+        </div>
       </div>
 
       {/* Datos capturados */}
