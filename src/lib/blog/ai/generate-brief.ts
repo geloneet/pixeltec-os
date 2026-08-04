@@ -56,42 +56,77 @@ OUTPUT FINAL: después de investigar, tu ÚLTIMO mensaje de texto debe ser SOLO 
 {"topic": string, "angle": string, "targetAudience": string, "keyPoints": string[], "tone": "técnico-directo"|"educativo"|"opinión-defendida"|"caso-práctico", "searchIntent": "informational"|"commercial-investigation"|"transactional"|"navigational", "funnelStage": "awareness"|"consideration"|"decision", "primaryKeyword": string, "secondaryKeywords": string[], "entities": string[], "contentPillar": string, "contentGoal": string, "desiredAction": string, "pixeltecExperience": string[], "internalLinkTargets": [{"url": string, "purpose": string, "suggestedAnchor": string}], "sources": [{"title": string, "url": string, "publisher": string, "sourceType": string, "claimSupported": string}], "sourceSuggestions": string[]}`;
 
 const AiSourceSchema = z.object({
-  title: z.string().min(3).max(300),
+  title: z.string().min(3).transform((s) => s.trim().slice(0, 300)),
   url: z.string().url(),
-  publisher: z.string().max(200).catch(''),
+  publisher: z.string().catch('').transform((s) => s.trim().slice(0, 200)),
   sourceType: z
     .enum(['official', 'primary-research', 'regulation', 'technical-documentation', 'reputable-secondary', 'pixeltec-evidence'])
     .catch('reputable-secondary'),
-  claimSupported: z.string().max(500).catch(''),
+  claimSupported: z.string().catch('').transform((s) => s.trim().slice(0, 500)),
 });
 
+// Sanitización por RECORTE, no por anulación: un `.catch('')` sobre
+// `max(500)` vaciaba el campo completo cuando el modelo se pasaba de largo
+// (bug observado por Miguel: ángulo y puntos clave llegaban vacíos con el
+// resto rellenado). Regla: truncar strings, filtrar ítems inválidos de las
+// listas, y `.catch` de valor default SOLO en enums.
+const clip = (max: number) =>
+  z
+    .string()
+    .catch('')
+    .transform((s) => s.trim().slice(0, max));
+
+const clipList = (maxItems: number, maxLen: number) =>
+  z
+    .array(z.unknown())
+    .catch([])
+    .transform((arr) =>
+      arr
+        .filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
+        .map((s) => s.trim().slice(0, maxLen))
+        .slice(0, maxItems)
+    );
+
 const AiBriefSchema = z.object({
-  topic: z.string().min(5).max(200).catch(''),
-  angle: z.string().min(10).max(500).catch(''),
-  targetAudience: z.string().min(5).max(200).catch('Dueños de PyMEs y emprendedores en México'),
-  keyPoints: z.array(z.string().min(2).max(200)).min(2).max(8).catch([]),
+  topic: clip(200),
+  angle: clip(500),
+  targetAudience: clip(200).transform((s) => s || 'Dueños de PyMEs y emprendedores en México'),
+  keyPoints: clipList(8, 200),
   tone: z.enum(['técnico-directo', 'educativo', 'opinión-defendida', 'caso-práctico']).catch('educativo'),
   searchIntent: z.enum(['informational', 'commercial-investigation', 'transactional', 'navigational']).or(z.literal('')).catch(''),
   funnelStage: z.enum(['awareness', 'consideration', 'decision']).or(z.literal('')).catch(''),
-  primaryKeyword: z.string().max(120).catch(''),
-  secondaryKeywords: z.array(z.string().min(1).max(120)).max(10).catch([]),
-  entities: z.array(z.string().min(1).max(120)).max(15).catch([]),
-  contentPillar: z.string().max(120).catch(''),
-  contentGoal: z.string().max(300).catch(''),
-  desiredAction: z.string().max(300).catch(''),
-  pixeltecExperience: z.array(z.string().min(1).max(500)).max(10).catch([]),
+  primaryKeyword: clip(120),
+  secondaryKeywords: clipList(10, 120),
+  entities: clipList(15, 120),
+  contentPillar: clip(120),
+  contentGoal: clip(300),
+  desiredAction: clip(300),
+  pixeltecExperience: clipList(10, 500),
+  // Ítem inválido se descarta; los demás sobreviven (antes un solo objeto
+  // malformado vaciaba la lista completa).
   internalLinkTargets: z
-    .array(
-      z.object({
-        url: z.string(),
-        purpose: z.string().max(300).catch(''),
-        suggestedAnchor: z.string().max(120).catch(''),
-      })
-    )
-    .max(10)
-    .catch([]),
-  sources: z.array(AiSourceSchema).max(8).catch([]),
-  sourceSuggestions: z.array(z.string().min(3).max(400)).max(8).catch([]),
+    .array(z.unknown())
+    .catch([])
+    .transform((arr) =>
+      arr.flatMap((x) => {
+        const r = z
+          .object({
+            url: z.string(),
+            purpose: clip(300),
+            suggestedAnchor: clip(120),
+          })
+          .safeParse(x);
+        return r.success ? [r.data] : [];
+      }).slice(0, 10)
+    ),
+  sources: z
+    .array(z.unknown())
+    .catch([])
+    .transform((arr) => arr.flatMap((x) => {
+      const r = AiSourceSchema.safeParse(x);
+      return r.success ? [r.data] : [];
+    }).slice(0, 8)),
+  sourceSuggestions: clipList(8, 400),
 });
 
 export type AiBrief = Omit<z.infer<typeof AiBriefSchema>, 'sources'> & {
