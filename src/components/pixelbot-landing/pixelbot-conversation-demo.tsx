@@ -61,7 +61,7 @@ export function PixelbotConversationDemo() {
         </div>
 
         <div className="relative overflow-hidden rounded-xl bg-muted/40 dark:bg-black/40">
-          <PixelbotChatWallpaper className="absolute inset-0 h-full w-full text-black/[0.07] dark:text-white/[0.055]" />
+          <PixelbotChatWallpaper className="absolute inset-0 h-full w-full text-black/[0.16] dark:text-white/[0.14]" />
           <ul className="relative space-y-3 p-3 sm:p-3.5" aria-hidden="false">
             {BUBBLES.map((bubble, i) => (
               <motion.li
