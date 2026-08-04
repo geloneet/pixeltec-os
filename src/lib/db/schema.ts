@@ -1223,6 +1223,18 @@ export const postRedirects = pgTable(
   }
 );
 
+// Contador de visitas por artículo (GO "vistas blog" 2026-08-04): un registro
+// por post con incremento atómico desde /api/blog/view. Métrica ORIENTATIVA
+// (bots con JS pueden inflarla) — la métrica seria es GSC. Sin datos del
+// visitante: ni IP, ni cookies, ni user-agent.
+export const blogPostViewCounts = pgTable("blog_post_view_counts", {
+  postId: uuid("post_id")
+    .primaryKey()
+    .references(() => blogPosts.id, { onDelete: "cascade" }),
+  views: bigint("views", { mode: "number" }).notNull().default(0),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 // ════════════════════════════════════════════════════════════════════════
 // Funnel público — src/lib/leads-repo.ts, src/lib/newsletter-repo.ts
 // ════════════════════════════════════════════════════════════════════════
