@@ -21,7 +21,16 @@ function setBriefStatus(briefRowId: string, patch: Record<string, unknown>) {
 export async function generateDraft(briefId: string): Promise<ActionResult<{ postId: string }>> {
   const session = await requireUserSession();
   if (!session) return { ok: false, error: 'No autenticado' };
+  return generateDraftForUser(briefId, session.userId);
+}
 
+/**
+ * Núcleo de la generación SIN acceso a request-scope (ni cookies ni headers):
+ * la ruta asíncrona (Fase B) lo ejecuta como promesa desanclada que sigue viva
+ * después de responder — cualquier `headers()`/`auth()` aquí explotaría fuera
+ * del scope de la request.
+ */
+async function generateDraftForUser(briefId: string, userId: string): Promise<ActionResult<{ postId: string }>> {
   const briefRow = await resolveBriefRow(briefId);
   if (!briefRow) return { ok: false, error: 'Brief no encontrado' };
   const briefFields = briefRow.data as Record<string, unknown>;
@@ -48,7 +57,7 @@ export async function generateDraft(briefId: string): Promise<ActionResult<{ pos
     sources: (briefFields.sources as BlogBriefDoc['sources']) ?? [],
     status: 'pending',
     generatedDraftId: null,
-    createdBy: (briefFields.createdBy as string) ?? session.userId,
+    createdBy: (briefFields.createdBy as string) ?? userId,
     createdAt: briefRow.createdAt,
   };
 
@@ -56,7 +65,7 @@ export async function generateDraft(briefId: string): Promise<ActionResult<{ pos
   await setBriefStatus(briefRow.id, { status: 'generating' });
 
   try {
-    const authorName = await getUserDisplayName(session.userId);
+    const authorName = await getUserDisplayName(userId);
     const generated = await generatePostFromBrief(briefData);
 
     const wordCount = computeWordCount(generated.body);
@@ -74,7 +83,7 @@ export async function generateDraft(briefId: string): Promise<ActionResult<{ pos
         category: generated.category,
         tags: generated.tags,
         coverImage: null,
-        author: { name: authorName, uid: session.userId },
+        author: { name: authorName, uid: userId },
         status: 'draft',
         briefSource: {
           topic: briefData.topic,
@@ -122,7 +131,7 @@ export async function generateDraft(briefId: string): Promise<ActionResult<{ pos
         },
         // El revisor por defecto es quien crea el brief (operación
         // unipersonal); approvePost lo reescribe con el aprobador real.
-        editorial: { ...EMPTY_EDITORIAL, reviewerId: session.userId },
+        editorial: { ...EMPTY_EDITORIAL, reviewerId: userId },
         sources: briefData.sources ?? [],
         internalLinks: (briefData.internalLinkTargets ?? []).map((l) => ({
           targetUrl: l.url,
@@ -157,6 +166,87 @@ export async function generateDraft(briefId: string): Promise<ActionResult<{ pos
       }).message,
     };
   }
+}
+
+/**
+ * Fase B — generación ASÍNCRONA: marca `generating` y dispara la generación
+ * SIN await; la respuesta vuelve de inmediato (evita el techo ~100s de
+ * Cloudflare que mataba la conexión aunque el draft sí se creara).
+ *
+ * Riesgo documentado y aceptado: la promesa desanclada muere si el contenedor
+ * se recicla a media generación → el brief queda en `generating`. Mitigación:
+ * la UI aplica tope de espera y su botón Reintentar re-dispara con
+ * `force: true`, que ignora el candado de idempotencia.
+ */
+export async function startDraftGeneration(
+  briefId: string,
+  opts?: { force?: boolean }
+): Promise<ActionResult<{ started: true }>> {
+  const session = await requireUserSession();
+  if (!session) return { ok: false, error: 'No autenticado' };
+
+  const briefRow = await resolveBriefRow(briefId);
+  if (!briefRow) return { ok: false, error: 'Brief no encontrado' };
+
+  const currentStatus = (briefRow.data as Record<string, unknown>).status;
+  if (currentStatus === 'generating' && !opts?.force) {
+    // Idempotente: ya hay una generación en curso — no la duplicamos.
+    return { ok: true, data: { started: true } };
+  }
+
+  await setBriefStatus(briefRow.id, { status: 'generating', lastError: null });
+
+  const userId = session.userId;
+  void generateDraftForUser(briefId, userId)
+    .then((result) => {
+      // generateDraftForUser ya dejó el status en pending y saneó el error;
+      // aquí solo lo persistimos para que el polling se lo muestre al editor.
+      if (!result.ok) {
+        return setBriefStatus(briefRow.id, {
+          status: 'pending',
+          lastError: result.error ?? 'Error generando borrador',
+        });
+      }
+    })
+    .catch(async (err) => {
+      console.error('startDraftGeneration detached error:', err);
+      await setBriefStatus(briefRow.id, {
+        status: 'pending',
+        lastError: toPublicFailure(err, {
+          code: 'blog_generate_draft_failed',
+          message: 'Error generando borrador',
+        }).message,
+      }).catch(() => undefined);
+    });
+
+  return { ok: true, data: { started: true } };
+}
+
+export interface BriefGenerationStatus {
+  status: string;
+  generatedDraftId: string | null;
+  lastError: string | null;
+}
+
+/** Polling de la UI (Fase B): estado actual de la generación del brief. */
+export async function getBriefGenerationStatus(
+  briefId: string
+): Promise<ActionResult<BriefGenerationStatus>> {
+  const session = await requireUserSession();
+  if (!session) return { ok: false, error: 'No autenticado' };
+
+  const briefRow = await resolveBriefRow(briefId);
+  if (!briefRow) return { ok: false, error: 'Brief no encontrado' };
+
+  const d = briefRow.data as Record<string, unknown>;
+  return {
+    ok: true,
+    data: {
+      status: (d.status as string) ?? 'pending',
+      generatedDraftId: (d.generatedDraftId as string) ?? null,
+      lastError: (d.lastError as string) ?? null,
+    },
+  };
 }
 
 export async function regenerateDraft(postId: string): Promise<ActionResult<{ postId: string }>> {
