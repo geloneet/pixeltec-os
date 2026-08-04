@@ -5,10 +5,11 @@ import { useRouter } from "next/navigation";
 import { useForm, type FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { ChevronDown, Plus, Trash2, X } from "lucide-react";
+import { ChevronDown, Plus, Sparkles, Trash2, X } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
-import { createBrief } from "@/lib/blog/actions/briefs";
+import { createBrief, generateBriefWithAI } from "@/lib/blog/actions/briefs";
 import { generateDraft } from "@/lib/blog/actions/drafts";
+import type { AiBrief } from "@/lib/blog/ai/generate-brief";
 import {
   BlogBriefSchema,
   type BlogBriefInput,
@@ -309,6 +310,12 @@ export function NuevoBriefForm() {
     setOpenSections({ estrategia: true, contenido: true, evidencia: true, enlaces: true });
   }
 
+  // ── Brief con IA: solo rellena el formulario; el flujo de submit no cambia ──
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [hasAiBrief, setHasAiBrief] = useState(false);
+  const [aiFeedback, setAiFeedback] = useState("");
+  const [aiSourceSuggestions, setAiSourceSuggestions] = useState<string[]>([]);
+
   const form = useForm<BlogBriefInput>({
     resolver: zodResolver(BlogBriefSchema),
     defaultValues: {
@@ -331,6 +338,92 @@ export function NuevoBriefForm() {
       sources: [],
     },
   });
+
+  /** Valores actuales del form para los campos que genera la IA — la
+   *  regeneración corrige sobre lo que el usuario ya ajustó a mano. */
+  function currentAiFieldValues(): Record<string, unknown> {
+    const v = form.getValues();
+    return {
+      topic: v.topic,
+      angle: v.angle,
+      targetAudience: v.targetAudience,
+      keyPoints: v.keyPoints,
+      tone: v.tone,
+      searchIntent: v.searchIntent,
+      funnelStage: v.funnelStage,
+      primaryKeyword: v.primaryKeyword,
+      secondaryKeywords: v.secondaryKeywords,
+      entities: v.entities,
+      contentPillar: v.contentPillar,
+      contentGoal: v.contentGoal,
+      desiredAction: v.desiredAction,
+      pixeltecExperience: v.pixeltecExperience,
+      internalLinkTargets: v.internalLinkTargets,
+    };
+  }
+
+  function applyAiBrief(brief: AiBrief) {
+    const opts = { shouldDirty: true } as const;
+    form.setValue("topic", brief.topic, opts);
+    form.setValue("angle", brief.angle, opts);
+    form.setValue("targetAudience", brief.targetAudience, opts);
+    form.setValue("keyPoints", brief.keyPoints, opts);
+    form.setValue("tone", brief.tone, opts);
+    form.setValue("searchIntent", brief.searchIntent, opts);
+    form.setValue("funnelStage", brief.funnelStage, opts);
+    form.setValue("primaryKeyword", brief.primaryKeyword, opts);
+    form.setValue("secondaryKeywords", brief.secondaryKeywords, opts);
+    form.setValue("entities", brief.entities, opts);
+    form.setValue("contentPillar", brief.contentPillar, opts);
+    form.setValue("contentGoal", brief.contentGoal, opts);
+    form.setValue("desiredAction", brief.desiredAction, opts);
+    form.setValue("pixeltecExperience", brief.pixeltecExperience, opts);
+    form.setValue("internalLinkTargets", brief.internalLinkTargets, opts);
+    // `sources` NO se toca: las sugerencias van al panel informativo de la
+    // sección Evidencia y el humano encuentra/verifica la URL real.
+    setAiSourceSuggestions(brief.sourceSuggestions);
+    openAllSections();
+  }
+
+  async function handleGenerateAiBrief() {
+    const problem = (form.getValues("userProblem") ?? "").trim();
+    if (problem.length < 15) {
+      toast.error(
+        "Describe el problema del lector con más detalle (mínimo 15 caracteres).",
+      );
+      return;
+    }
+
+    const isRegeneration = hasAiBrief;
+    setAiGenerating(true);
+    try {
+      const result = isRegeneration
+        ? await generateBriefWithAI(
+            problem,
+            aiFeedback.trim() || undefined,
+            currentAiFieldValues(),
+          )
+        : await generateBriefWithAI(problem);
+
+      if (!result.ok || !result.data) {
+        toast.error(result.error ?? "Error generando el brief con IA");
+        return;
+      }
+
+      applyAiBrief(result.data);
+      setHasAiBrief(true);
+      setAiFeedback("");
+      toast.success(
+        isRegeneration
+          ? "Brief regenerado. Revisa los campos actualizados."
+          : "Brief generado con IA. Revisa y ajusta lo que necesites.",
+      );
+    } catch {
+      toast.error("Error generando el brief con IA");
+    } finally {
+      setAiGenerating(false);
+    }
+  }
 
   const onSubmit = (data: BlogBriefInput) => {
     // Validación explícita con el schema completo (safeParse) — muestra el
@@ -425,6 +518,61 @@ export function NuevoBriefForm() {
                 </FormItem>
               )}
             />
+
+            {/* Brief con IA: rellena el formulario a partir del problema */}
+            <div className="space-y-3 rounded-md border border-blue-500/30 bg-blue-500/5 p-3">
+              {hasAiBrief && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">
+                    ¿Qué no te gustó o qué quieres cambiar?
+                  </Label>
+                  <Textarea
+                    value={aiFeedback}
+                    onChange={(e) => setAiFeedback(e.target.value)}
+                    rows={2}
+                    disabled={aiGenerating}
+                    placeholder="Opcional — ej: el ángulo es muy genérico, quiero keywords más locales…"
+                    className={cn(inputCls, "resize-none")}
+                  />
+                  <p className="text-xs text-muted-foreground/60">
+                    La IA corrige sobre los valores actuales del formulario:
+                    conserva lo que ya ajustaste a mano.
+                  </p>
+                </div>
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={
+                  aiGenerating ||
+                  (watched.userProblem ?? "").trim().length < 15
+                }
+                onClick={handleGenerateAiBrief}
+                className="border-blue-500/40 text-blue-600 hover:text-blue-500 dark:text-blue-300"
+              >
+                {aiGenerating ? (
+                  <span className="flex items-center gap-2">
+                    <Spinner size="sm" />
+                    Generando brief…
+                  </span>
+                ) : (
+                  <>
+                    <Sparkles className="mr-1 h-3.5 w-3.5" />
+                    {hasAiBrief
+                      ? "Volver a crear un nuevo brief"
+                      : "Crear brief con IA"}
+                  </>
+                )}
+              </Button>
+              {!hasAiBrief && (
+                <p className="text-xs text-muted-foreground/60">
+                  Describe el problema del lector (mínimo 15 caracteres) y la
+                  IA propone el brief completo. Tú revisas y editas antes de
+                  generar el borrador.
+                </p>
+              )}
+            </div>
 
             <div className="grid gap-5 sm:grid-cols-2">
               <FormField
@@ -724,9 +872,11 @@ export function NuevoBriefForm() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="text-muted-foreground">Tono</FormLabel>
+                  {/* `value` controlado: el brief con IA hace setValue("tone") y
+                      debe reflejarse en el Select. */}
                   <Select
                     onValueChange={field.onChange}
-                    defaultValue={field.value}
+                    value={field.value}
                   >
                     <FormControl>
                       <SelectTrigger className={inputCls}>
@@ -826,6 +976,21 @@ export function NuevoBriefForm() {
             />
 
             <div className="border-t border-border pt-4" />
+
+            {/* Fuentes sugeridas por la IA (informativo, no editable) */}
+            {aiSourceSuggestions.length > 0 && (
+              <div className="space-y-2 rounded-md border border-blue-500/30 bg-blue-500/5 p-3">
+                <p className="text-xs font-medium text-blue-700 dark:text-blue-300">
+                  Fuentes sugeridas para buscar (encuentra la URL real y
+                  agrégala abajo):
+                </p>
+                <ul className="list-disc space-y-1 pl-4 text-xs text-muted-foreground">
+                  {aiSourceSuggestions.map((suggestion, idx) => (
+                    <li key={idx}>{suggestion}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             {/* Fuentes */}
             <FormField
