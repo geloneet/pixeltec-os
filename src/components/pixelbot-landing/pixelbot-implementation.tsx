@@ -59,7 +59,7 @@ export function PixelbotImplementation() {
           </div>
         </div>
 
-        {/* Modelo de costo */}
+        {/* Activación estándar vs. a la medida (los 4 planes con precio viven en PixelbotPricing) */}
         <div className="mt-12 rounded-2xl border border-border bg-gradient-to-tr from-primary/5 via-card to-card dark:from-cyan-950/40 dark:via-[#0A0A0A] dark:to-[#0A0A0A] p-8 sm:p-10 text-center">
           <h3 className="text-xl sm:text-2xl font-bold text-foreground">{PRICING.title}</h3>
           <p className="mx-auto mt-4 max-w-3xl text-sm sm:text-base text-muted-foreground leading-relaxed">
