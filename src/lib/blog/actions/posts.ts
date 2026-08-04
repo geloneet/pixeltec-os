@@ -52,8 +52,9 @@ function mergedSeo(row: Row, input: BlogPostEditInput) {
   const current = { ...EMPTY_SEO, ...(row.seo as Record<string, unknown>) };
   return {
     ...current,
-    metaTitle: input.seoMetaTitle ?? current.metaTitle ?? row.title.slice(0, 70),
-    metaDescription: input.seoMetaDescription ?? current.metaDescription ?? row.excerpt.slice(0, 160),
+    // SIN truncado silencioso (SEO-BLOG-020): completos; el gate advierte.
+    metaTitle: input.seoMetaTitle ?? current.metaTitle ?? row.title,
+    metaDescription: input.seoMetaDescription ?? current.metaDescription ?? row.excerpt,
     ...(input.coverImageAlt !== undefined ? { ogImageAlt: input.coverImageAlt } : {}),
     ...(input.canonicalUrl !== undefined ? { canonicalUrl: input.canonicalUrl } : {}),
     ...(input.noindex !== undefined ? { noindex: input.noindex } : {}),
