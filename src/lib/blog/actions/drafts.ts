@@ -7,7 +7,7 @@ import { blogBriefs, blogPosts } from '@/lib/db/schema';
 import { requireUserSession } from '@/lib/auth/session';
 import { resolveBriefRow, resolvePostRow, publicId, getUserDisplayName } from '../pg';
 import { generatePostFromBrief, computeWordCount, computeReadingTime, generateSlug } from '../ai/generate-post';
-import type { BlogBriefDoc } from '../types';
+import { EMPTY_EDITORIAL, type BlogBriefDoc } from '../types';
 import type { ActionResult } from '../schemas';
 import { toPublicFailure } from '@/lib/errors/public-failure';
 
@@ -113,14 +113,21 @@ export async function generateDraft(briefId: string): Promise<ActionResult<{ pos
           secondaryKeywords: briefData.secondaryKeywords,
           searchIntent: briefData.searchIntent,
           contentPillar: briefData.contentPillar,
-          ogImageAlt: '',
+          // Alt de portada por defecto = metatítulo (decisión de Miguel
+          // 2026-08-04); editable después en el editor o al elegir de Unsplash.
+          ogImageAlt: generated.title.slice(0, 70),
         },
+        // El revisor por defecto es quien crea el brief (operación
+        // unipersonal); approvePost lo reescribe con el aprobador real.
+        editorial: { ...EMPTY_EDITORIAL, reviewerId: session.userId },
         sources: briefData.sources ?? [],
         internalLinks: (briefData.internalLinkTargets ?? []).map((l) => ({
           targetUrl: l.url,
           anchor: l.suggestedAnchor || l.purpose || l.url,
           placement: l.purpose,
-          verified: false,
+          // Los targets vienen filtrados contra la lista de rutas REALES del
+          // sitio (generate-brief): su existencia está garantizada por máquina.
+          verified: true,
         })),
         wordCount,
         readingTimeMin,

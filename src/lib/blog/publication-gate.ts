@@ -146,7 +146,10 @@ export function validatePostForPublication(post: PublicationCandidate): Publicat
   const unverifiedLinks = post.internalLinks.filter((l) => !l.verified);
   if (unverifiedLinks.length > 0) warnings.push({ code: 'links-unverified', message: `${unverifiedLinks.length} enlace(s) interno(s) sin verificar.` });
   if (!post.editorial.reviewerId) warnings.push({ code: 'reviewer', message: 'Sin revisor asignado.' });
-  if (post.seo.noindex) warnings.push({ code: 'noindex', message: 'El post se publicará con noindex: visible en el sitio pero excluido de buscadores.' });
+  // Solo cuando el noindex es una realidad vigente (post ya publicado con la
+  // bandera puesta a propósito): en borradores es el default de seguridad y
+  // publishPost lo apaga solo — advertirlo ahí era puro ruido.
+  if (post.seo.noindex && post.status === 'published') warnings.push({ code: 'noindex', message: 'El post está publicado con noindex: visible en el sitio pero excluido de buscadores.' });
   if (!post.seo.primaryKeyword) warnings.push({ code: 'keyword', message: 'Sin palabra clave principal declarada (no bloquea, pero la estrategia queda sin registro).' });
 
   return { ready: blockers.length === 0, blockers, warnings };

@@ -11,6 +11,7 @@ AUDIENCIA (regla maestra — corrige el sesgo detectado 2026-08-03): por defecto
 
 REGLAS DE ESCRITURA:
 - Tono: claro y directo para adultos pensantes; "educativo" significa educar a un dueño de negocio, no a un programador.
+- Título: MÁXIMO 65 caracteres (Google trunca los largos en resultados) — directo y con la keyword de forma natural.
 - Extensión: la necesaria para satisfacer la intención con claridad y profundidad, sin inflar el texto. Un artículo técnico puede ser extenso; el valor y la completitud tienen prioridad sobre el conteo de palabras.
 - Estructura: intro con el problema real del lector, desarrollo con código/ejemplos, trade-offs honestos con nombre y apellido, conclusión con opinión defendible.
 - Usa la keyword principal y la intención del brief de forma NATURAL — jamás keyword stuffing ni densidades.
