@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { listAllPosts } from "@/lib/blog/queries/posts";
+import { getViewCounts, listAllPosts } from "@/lib/blog/queries/posts";
 import { listBriefs } from "@/lib/blog/actions/briefs";
 import type { BlogPostSerialized, BlogBriefSerialized } from "@/lib/blog/types";
 import { editorialSummary } from "./blog-admin-logic";
@@ -13,15 +13,18 @@ import { BlogAdminWorkspace } from "./blog-admin-workspace";
 export default async function BlogAdminPage() {
   let posts: BlogPostSerialized[] = [];
   let briefs: BlogBriefSerialized[] = [];
+  let views: Record<string, number> = {};
   let fetchError: string | null = null;
 
   try {
-    const [postsResult, briefsResult] = await Promise.all([
+    const [postsResult, briefsResult, viewsResult] = await Promise.all([
       listAllPosts(),
       listBriefs(),
+      getViewCounts(),
     ]);
     posts = postsResult;
     briefs = briefsResult.ok ? (briefsResult.data ?? []) : [];
+    views = viewsResult;
   } catch (err) {
     console.error("[blog-admin] data fetch error:", err);
     fetchError = err instanceof Error ? err.message : "Error al cargar datos";
@@ -55,7 +58,7 @@ export default async function BlogAdminPage() {
           con el workspace para que el contenido de trabajo empiece antes. */}
       <div className="space-y-3">
         <p className="text-sm text-foreground/70">{editorialSummary(posts)}</p>
-        <BlogAdminWorkspace posts={posts} briefs={briefs} />
+        <BlogAdminWorkspace posts={posts} briefs={briefs} views={views} />
       </div>
     </div>
   );

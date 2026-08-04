@@ -1,7 +1,7 @@
 // Fase 4 (rebanada Blog): Postgres/Drizzle — antes Firestore `blogPosts`.
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { blogPosts, postRedirects } from '@/lib/db/schema';
+import { blogPosts, blogPostViewCounts, postRedirects } from '@/lib/db/schema';
 import {
   EMPTY_EDITORIAL,
   EMPTY_SEO,
@@ -127,4 +127,19 @@ export async function getRelatedPosts(slug: string, category: string, limit = 3)
     .orderBy(sql`(${blogPosts.category} = ${category}) DESC`, desc(blogPosts.publishedAt))
     .limit(limit);
   return rows.map(serializePost);
+}
+
+/** Vistas por post para el Blog Admin: `{postId: views}`. Fail-safe a mapa
+ *  vacío (p. ej. contenedor nuevo contra DB sin la migración 0027 aplicada):
+ *  el admin funciona igual, solo sin la cifra. */
+export async function getViewCounts(): Promise<Record<string, number>> {
+  try {
+    const rows = await db
+      .select({ postId: blogPostViewCounts.postId, views: blogPostViewCounts.views })
+      .from(blogPostViewCounts);
+    return Object.fromEntries(rows.map((r) => [r.postId, r.views]));
+  } catch (err) {
+    console.error('[blog] getViewCounts failed:', err);
+    return {};
+  }
 }

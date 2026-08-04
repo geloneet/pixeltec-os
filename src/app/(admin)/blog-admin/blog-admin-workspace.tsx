@@ -82,9 +82,12 @@ function StatusChip({ label, className }: { label: string; className: string }) 
 export function BlogAdminWorkspace({
   posts,
   briefs,
+  views = {},
 }: {
   posts: BlogPostSerialized[];
   briefs: BlogBriefSerialized[];
+  /** Visitas por postId (contador propio, orientativo). Vacío si la tabla no existe aún. */
+  views?: Record<string, number>;
 }) {
   const router = useRouter();
   const [tab, setTab] = useState<'posts' | 'briefs'>('posts');
@@ -314,6 +317,7 @@ export function BlogAdminWorkspace({
                           {' · '}
                         </>
                       )}
+                      {(views[post.id] ?? 0) > 0 && <>{numberFmt.format(views[post.id])} vistas · </>}
                       {date.label} {date.text}
                     </p>
                   </div>
