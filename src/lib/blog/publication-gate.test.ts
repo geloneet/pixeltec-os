@@ -4,7 +4,7 @@ import {
   validatePostForPublication,
   type PublicationCandidate,
 } from './publication-gate';
-import { EMPTY_EDITORIAL, EMPTY_SEO } from './types';
+import { EMPTY_EDITORIAL, EMPTY_SEO, type PostSource } from './types';
 
 /** Candidato publicable de referencia — cada test rompe UNA cosa. */
 function publishable(overrides: Partial<PublicationCandidate> = {}): PublicationCandidate {
@@ -102,6 +102,28 @@ describe('validatePostForPublication — blockers', () => {
     expect(v.blockers.map((b) => b.code)).toContain('human-review');
   });
 
+  it.each(['Admin', 'admin', 'Administrador'])('bloquea al autor genérico "%s" aunque tenga uid', (name) => {
+    const v = validatePostForPublication(publishable({ author: { name, uid: 'uuid-real' } }));
+    expect(v.ready).toBe(false);
+    expect(v.blockers.map((b) => b.code)).toContain('author-generic');
+  });
+
+  it('un nombre real que contiene "admin" NO se bloquea', () => {
+    const v = validatePostForPublication(publishable({ author: { name: 'Adminta Pérez', uid: 'uuid-real' } }));
+    expect(v.blockers.map((b) => b.code)).not.toContain('author-generic');
+  });
+
+  it('bloquea un body que empieza con encabezado nivel 1 (doble H1)', () => {
+    const v = validatePostForPublication(publishable({ body: '# Título repetido\n\n' + 'x'.repeat(600) }));
+    expect(v.ready).toBe(false);
+    expect(v.blockers.map((b) => b.code)).toContain('body-h1');
+  });
+
+  it('un body que empieza con "## Sección" NO se bloquea', () => {
+    const v = validatePostForPublication(publishable({ body: '## Sección\n\n' + 'x'.repeat(600) }));
+    expect(v.blockers.map((b) => b.code)).not.toContain('body-h1');
+  });
+
   it('IA sin edición pero CON revisión registrada sí pasa', () => {
     const v = validatePostForPublication(
       publishable({
@@ -144,6 +166,62 @@ describe('validatePostForPublication — warnings (no bloquean)', () => {
   it('sin conteo de palabras obligatorio: un body de 500+ no genera warning de longitud', () => {
     const v = validatePostForPublication(publishable());
     expect(v.warnings.map((w) => w.code)).not.toContain('word-count');
+  });
+
+  const fuenteOficial: PostSource = {
+    id: 's1',
+    title: 'Precios de la Plataforma de WhatsApp Business',
+    url: 'https://developers.facebook.com/docs/whatsapp/pricing',
+    publisher: 'Meta',
+    sourceType: 'official',
+    claimSupported: 'Precios por conversación',
+    accessedAt: '2026-08-04',
+    verifiedByHuman: true,
+  };
+
+  it('advierte porcentajes en el body sin ninguna fuente', () => {
+    const v = validatePostForPublication(
+      publishable({ body: 'El 45% de las PyMEs pierde ventas por no contestar. ' + 'x'.repeat(600), sources: [] })
+    );
+    expect(v.ready).toBe(true); // warning, no blocker
+    expect(v.warnings.map((w) => w.code)).toContain('stats-no-source');
+  });
+
+  it('porcentajes CON fuentes declaradas no generan el warning de cifras', () => {
+    const v = validatePostForPublication(
+      publishable({ body: 'El 45% de las PyMEs pierde ventas. ' + 'x'.repeat(600), sources: [fuenteOficial] })
+    );
+    expect(v.warnings.map((w) => w.code)).not.toContain('stats-no-source');
+  });
+
+  it('advierte CTA que promete agendar sesión/llamada de 30 minutos', () => {
+    const v = validatePostForPublication(
+      publishable({ body: 'x'.repeat(600) + ' Agenda una sesión de 30 minutos con nosotros.' })
+    );
+    expect(v.ready).toBe(true);
+    expect(v.warnings.map((w) => w.code)).toContain('cta-promise');
+  });
+
+  it('"ahorra 30 minutos al día" NO dispara el warning de CTA', () => {
+    const v = validatePostForPublication(
+      publishable({ body: 'x'.repeat(600) + ' Con esto tu equipo ahorra 30 minutos al día.' })
+    );
+    expect(v.warnings.map((w) => w.code)).not.toContain('cta-promise');
+  });
+
+  it('advierte claims de plataforma (WhatsApp) sin fuente oficial/regulatoria', () => {
+    const v = validatePostForPublication(
+      publishable({ body: 'WhatsApp Business cobra por conversación. ' + 'x'.repeat(600), sources: [] })
+    );
+    expect(v.ready).toBe(true);
+    expect(v.warnings.map((w) => w.code)).toContain('platform-no-official-source');
+  });
+
+  it('claims de plataforma CON fuente oficial no generan el warning', () => {
+    const v = validatePostForPublication(
+      publishable({ body: 'WhatsApp Business cobra por conversación. ' + 'x'.repeat(600), sources: [fuenteOficial] })
+    );
+    expect(v.warnings.map((w) => w.code)).not.toContain('platform-no-official-source');
   });
 });
 

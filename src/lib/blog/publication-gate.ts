@@ -54,6 +54,18 @@ const PUBLISHABLE_FROM = new Set(['approved', 'published']);
 
 const EXTERNAL_PLACEHOLDER_RE = /placehold\.co|placeholder\.com|via\.placeholder/i;
 
+/** Cuentas genéricas: firmar "Admin" rompe E-E-A-T — el autor debe ser persona real. */
+const GENERIC_AUTHOR_RE = /^(?:admin|administrador)$/i;
+
+/** CTA que promete sesión/llamada: el diagnóstico real es un cuestionario de
+ *  ~3 minutos — prometer "30 minutos" o una llamada crea expectativa falsa. */
+const CTA_PROMISE_RE = /(?:agenda|reserva|agendar|reservar)[^.\n]{0,60}(?:sesi[oó]n|llamada|reuni[oó]n|30\s*min)/i;
+
+/** Claims sobre plataformas de terceros: precios y políticas cambian — piden
+ *  respaldo oficial (docs de producto cuentan como oficial). */
+const PLATFORM_CLAIM_RE = /whatsapp|instagram|facebook|messenger/i;
+const OFFICIAL_SOURCE_TYPES = new Set(['official', 'regulation', 'technical-documentation']);
+
 export function normalizeCandidate(row: {
   status: string;
   title: string;
@@ -113,6 +125,11 @@ export function validatePostForPublication(post: PublicationCandidate): Publicat
   }
   if (!post.author?.name?.trim() || !post.author?.uid?.trim()) {
     blockers.push({ code: 'author', message: 'El post no tiene autor real (nombre y usuario) — "Admin" anónimo no es publicable.' });
+  } else if (GENERIC_AUTHOR_RE.test(post.author.name.trim())) {
+    blockers.push({ code: 'author-generic', message: `El autor "${post.author.name}" es una cuenta genérica — publica con la firma de una persona real.` });
+  }
+  if (/^#\s/.test(post.body.trimStart())) {
+    blockers.push({ code: 'body-h1', message: 'El cuerpo empieza con un encabezado nivel 1 ("# ") — duplicaría el H1 de la plantilla; elimínalo o conviértelo en "##".' });
   }
   if (post.coverImage && EXTERNAL_PLACEHOLDER_RE.test(post.coverImage)) {
     blockers.push({ code: 'cover', message: 'La portada es un placeholder externo — usa una imagen real o déjala vacía (fallback local).' });
@@ -151,6 +168,15 @@ export function validatePostForPublication(post: PublicationCandidate): Publicat
   // publishPost lo apaga solo — advertirlo ahí era puro ruido.
   if (post.seo.noindex && post.status === 'published') warnings.push({ code: 'noindex', message: 'El post está publicado con noindex: visible en el sitio pero excluido de buscadores.' });
   if (!post.seo.primaryKeyword) warnings.push({ code: 'keyword', message: 'Sin palabra clave principal declarada (no bloquea, pero la estrategia queda sin registro).' });
+  if (/\d+(?:[.,]\d+)?\s*%/.test(post.body) && post.sources.length === 0) {
+    warnings.push({ code: 'stats-no-source', message: 'El cuerpo cita porcentajes pero el post no tiene ninguna fuente — respalda las cifras o quítalas.' });
+  }
+  if (CTA_PROMISE_RE.test(post.body)) {
+    warnings.push({ code: 'cta-promise', message: 'El cuerpo invita a agendar una sesión/llamada (p. ej. "30 minutos"): el diagnóstico real es un cuestionario de ~3 minutos — ajusta el CTA.' });
+  }
+  if (PLATFORM_CLAIM_RE.test(post.body) && !post.sources.some((s) => OFFICIAL_SOURCE_TYPES.has(s.sourceType ?? ''))) {
+    warnings.push({ code: 'platform-no-official-source', message: 'El artículo habla de plataformas de terceros (WhatsApp/Meta) sin ninguna fuente oficial, regulatoria o de documentación — precios y políticas cambian; cita la fuente oficial.' });
+  }
 
   return { ready: blockers.length === 0, blockers, warnings };
 }
