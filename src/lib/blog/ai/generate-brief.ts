@@ -38,6 +38,7 @@ AUDIENCIA (regla maestra): dueños de negocio, emprendedores y responsables de o
 
 INVESTIGACIÓN DE FUENTES (obligatoria):
 - Usa la herramienta de búsqueda web (2-4 búsquedas) para encontrar fuentes REALES que respalden los claims probables del artículo: datos oficiales (INEGI, Meta/WhatsApp Business, asociaciones), estudios de consultoras, documentación oficial.
+- PRIORIZA dominios oficiales sobre medios y blogs: developers.facebook.com, business.whatsapp.com, faq.whatsapp.com (plataformas Meta), inegi.org.mx (datos de México), www.gob.mx / dof.gob.mx / home.inai.org.mx (regulación mexicana). Una fuente oficial vale más que tres notas de medios. Marca sourceType en consecuencia: "official" (plataforma/institución), "regulation" (leyes, DOF, INAI) o "technical-documentation" (docs de producto).
 - En el JSON final, llena "sources" SOLO con fuentes cuyas URL copiaste EXACTAMENTE de los resultados de búsqueda — jamás construyas ni recuerdes una URL de memoria.
 - Para cada fuente: title (el real del resultado), url (exacta), publisher, sourceType (official | primary-research | regulation | technical-documentation | reputable-secondary), claimSupported (qué afirmación concreta respaldaría).
 - Lo que valdría la pena citar pero NO encontraste con confianza va en "sourceSuggestions" (descripción de qué buscar, SIN URL).
