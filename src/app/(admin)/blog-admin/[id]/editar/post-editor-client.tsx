@@ -58,6 +58,8 @@ import { EditorialPanel } from "./editorial-panel";
 import { ReadinessPanel } from "./readiness-panel";
 import { PreviewPanel } from "./preview-panel";
 import { SlugCard } from "./slug-card";
+import { UnsplashPicker } from "./unsplash-picker";
+import type { UnsplashPhoto } from "@/lib/unsplash-egress";
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
@@ -149,6 +151,20 @@ export function PostEditorClient({ post }: PostEditorClientProps) {
   useEffect(() => {
     setCoverError(false);
   }, [watchedCoverImage]);
+
+  // ── Unsplash picker ──────────────────────────────────────────────────────────
+  const handleUnsplashSelect = useCallback(
+    (photo: UnsplashPhoto, searchQuery: string) => {
+      form.setValue("coverImage", photo.regularUrl, { shouldDirty: true });
+      if (!(form.getValues("coverImageAlt") ?? "").trim()) {
+        form.setValue("coverImageAlt", photo.altDescription || searchQuery, {
+          shouldDirty: true,
+        });
+      }
+      toast.success(`Portada seleccionada — foto de ${photo.authorName} en Unsplash`);
+    },
+    [form],
+  );
 
   // ── Readiness (gate de publicación en servidor) ──────────────────────────────
   const refreshReadiness = useCallback(async () => {
@@ -393,7 +409,10 @@ export function PostEditorClient({ post }: PostEditorClientProps) {
                 name="coverImage"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-muted-foreground">Imagen de portada (URL)</FormLabel>
+                    <div className="flex items-center justify-between">
+                      <FormLabel className="text-muted-foreground">Imagen de portada (URL)</FormLabel>
+                      <UnsplashPicker onSelect={handleUnsplashSelect} />
+                    </div>
                     <FormControl>
                       <Input
                         {...field}
