@@ -13,7 +13,6 @@ import {
   Brain,
   Megaphone,
   CalendarDays,
-  BarChart3,
   Send,
   Bell,
   Wand2,
@@ -164,14 +163,6 @@ export const PALETTE_NAV_ITEMS: PaletteNavItem[] = [
     description: "Conecta Instagram y Facebook para publicar directamente",
     icon: Send,
     section: "crecimiento",
-  },
-  {
-    href: "/crecimiento/analytics",
-    label: "Analytics",
-    description: "Métricas de engagement y rendimiento de contenido",
-    icon: BarChart3,
-    section: "crecimiento",
-    hidden: true,
   },
   // ── Overflow (solo visible en el menú "Más…" de la Top Navigation) ──────────
   {

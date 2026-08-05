@@ -45,8 +45,9 @@ const nextConfig: NextConfig = {
       // ── IA Redesign — Semana 1 route migration (301 — rollout estable) ──
       { source: '/dashboard', destination: '/hoy', permanent: true },
       { source: '/dashboard/:path*', destination: '/hoy', permanent: true },
-      { source: '/asistente', destination: '/tareas', permanent: true },
-      { source: '/asistente/:path*', destination: '/tareas/:path*', permanent: true },
+      // /tareas no existe como ruta; /hoy es el destino operativo hasta que exista Tareas global.
+      { source: '/asistente', destination: '/hoy', permanent: true },
+      { source: '/asistente/:path*', destination: '/hoy', permanent: true },
       { source: '/herramientas', destination: '/accesos', permanent: true },
       { source: '/herramientas/:path*', destination: '/accesos/:path*', permanent: true },
       // ── PixelBot landing — aliases 301 hacia la única canonical /pixelbot ──
