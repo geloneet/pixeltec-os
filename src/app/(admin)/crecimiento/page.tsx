@@ -5,13 +5,13 @@ const MODULES = [
   {
     href: '/crecimiento/brand-brain',
     icon: Brain,
-    title: 'Brand Brain',
+    title: 'Configuración de marca',
     description: 'Define la memoria de tu marca: servicios, cliente ideal, voz e identidad visual.',
   },
   {
     href: '/crecimiento/content-studio',
     icon: Zap,
-    title: 'Content Studio',
+    title: 'Contenido',
     description: 'Genera posts individuales de alto impacto con IA en segundos.',
   },
   {
@@ -29,7 +29,7 @@ const MODULES = [
   {
     href: '/crecimiento/publisher',
     icon: Send,
-    title: 'Publisher',
+    title: 'Publicación',
     description: 'Conecta Instagram y Facebook para publicar directamente desde PixelTEC OS.',
   },
 ];
@@ -39,10 +39,10 @@ export default function CrecimientoHubPage() {
     <div className="mx-auto max-w-[1400px] px-6 py-8 lg:px-10">
       <header className="mb-10">
         <h1 className="font-poppins text-3xl font-bold tracking-tight text-foreground">
-          Crecimiento
+          Marketing
         </h1>
         <p className="mt-1 font-roboto text-sm text-muted-foreground">
-          Genera contenido de marca con IA. Alimentado por tu Brand Brain.
+          Genera contenido de marca con IA. Alimentado por tu Configuración de marca.
         </p>
       </header>
 
