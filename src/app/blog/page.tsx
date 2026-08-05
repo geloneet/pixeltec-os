@@ -23,7 +23,10 @@ async function getPublishedCards(): Promise<BlogCardData[]> {
       title: p.title,
       excerpt: p.excerpt,
       category: p.category,
-      imageUrl: p.coverImage ?? "https://placehold.co/1200x630/0a0a0a/ffffff?text=PIXELTEC",
+      // Portada local por defecto: mismo criterio que /blog/[slug] — un
+      // placeholder externo (placehold.co) mete un tercer origen en la ruta
+      // crítica del LCP del listado.
+      imageUrl: p.coverImage ?? "/og-image.png",
       date: formatEditorialDate(p.publishedAt),
       readTime: `${p.readingTimeMin} min de lectura`,
       author: p.author.name,
