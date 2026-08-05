@@ -46,8 +46,9 @@ const nextConfig: NextConfig = {
       { source: '/dashboard', destination: '/hoy', permanent: true },
       { source: '/dashboard/:path*', destination: '/hoy', permanent: true },
       // /tareas no existe como ruta; /hoy es el destino operativo hasta que exista Tareas global.
-      { source: '/asistente', destination: '/hoy', permanent: true },
-      { source: '/asistente/:path*', destination: '/hoy', permanent: true },
+      // Temporal (307) a propósito: cuando exista /tareas, el redirect vuelve allí sin caché 301 pegajoso.
+      { source: '/asistente', destination: '/hoy', permanent: false },
+      { source: '/asistente/:path*', destination: '/hoy', permanent: false },
       { source: '/herramientas', destination: '/accesos', permanent: true },
       { source: '/herramientas/:path*', destination: '/accesos/:path*', permanent: true },
       // ── PixelBot landing — aliases 301 hacia la única canonical /pixelbot ──

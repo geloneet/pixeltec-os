@@ -29,12 +29,12 @@ function routeExists(href: string): boolean {
   ].some((p) => fs.existsSync(p));
 }
 
-function extractRedirects(): Array<{ source: string; destination: string }> {
+function extractRedirects(): Array<{ source: string; destination: string; permanent: boolean }> {
   const config = fs.readFileSync(path.join(REPO_ROOT, "next.config.ts"), "utf8");
-  const out: Array<{ source: string; destination: string }> = [];
-  const re = /source:\s*'([^']+)',\s*destination:\s*'([^']+)'/g;
+  const out: Array<{ source: string; destination: string; permanent: boolean }> = [];
+  const re = /source:\s*'([^']+)',\s*destination:\s*'([^']+)',\s*permanent:\s*(true|false)/g;
   for (let m = re.exec(config); m; m = re.exec(config)) {
-    out.push({ source: m[1], destination: m[2] });
+    out.push({ source: m[1], destination: m[2], permanent: m[3] === "true" });
   }
   return out;
 }
@@ -74,6 +74,16 @@ describe("integridad de navegación", () => {
     expect(redirects.length).toBeGreaterThan(0);
     for (const { source, destination } of redirects) {
       expect(routeExists(destination), `${source} → ${destination}`).toBe(true);
+    }
+  });
+
+  it("los redirects de /asistente son temporales hacia /hoy (hasta que exista /tareas)", () => {
+    const asistente = extractRedirects().filter((r) => r.source.startsWith("/asistente"));
+    expect(asistente).toHaveLength(2);
+    for (const r of asistente) {
+      expect(r.destination, r.source).toBe("/hoy");
+      expect(r.destination, r.source).not.toBe("/tareas");
+      expect(r.permanent, `${r.source} debe ser temporal`).toBe(false);
     }
   });
 
