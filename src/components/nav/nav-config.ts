@@ -130,10 +130,6 @@ export function resolveActiveHref(
 ): string | null {
   let best: { href: string; length: number } | null = null;
   for (const item of items) {
-    if (item.href === "/dashboard") {
-      if (pathname === item.href) return item.href;
-      continue;
-    }
     const matches =
       pathname === item.href || pathname.startsWith(`${item.href}/`);
     if (matches && (!best || item.href.length > best.length)) {

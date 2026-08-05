@@ -122,7 +122,7 @@ export function UserMenu() {
 
         <DropdownMenuItem
           className="flex items-center gap-2 text-muted-foreground hover:text-foreground focus:text-foreground focus:bg-accent rounded-lg cursor-pointer px-2 py-2 text-sm"
-          onClick={() => router.push("/settings")}
+          onClick={() => router.push("/perfil")}
         >
           <Settings className="h-4 w-4 flex-shrink-0" />
           Configuración

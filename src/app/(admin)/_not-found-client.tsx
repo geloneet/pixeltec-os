@@ -2,14 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, CalendarDays, Users, Wrench } from "lucide-react";
+import { CalendarDays, Users, KeyRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const QUICK_LINKS = [
-  { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-  { href: "/hoy",       icon: CalendarDays,    label: "Hoy"       },
-  { href: "/clientes",  icon: Users,           label: "Clientes"  },
-  { href: "/herramientas", icon: Wrench,       label: "Herramientas" },
+export const QUICK_LINKS = [
+  { href: "/hoy",      icon: CalendarDays, label: "Hoy"          },
+  { href: "/clientes", icon: Users,        label: "Clientes"     },
+  { href: "/accesos",  icon: KeyRound,     label: "Conocimiento" },
 ] as const;
 
 export function AdminNotFoundClient() {
