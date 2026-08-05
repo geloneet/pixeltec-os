@@ -293,6 +293,26 @@ export function PostEditorClient({ post }: PostEditorClientProps) {
 
   function handlePublish() {
     startTransition(async () => {
+      // El auto-save tiene un debounce de AUTO_SAVE_DEBOUNCE_MS: si se publica
+      // justo después de cambiar la portada (u otro campo), publishPost podía
+      // leer la fila todavía sin ese cambio. Se persiste el estado actual del
+      // formulario primero, igual que handleSaveDraft, y solo entonces se publica.
+      const data = form.getValues();
+      const parsed = BlogPostEditSchema.safeParse(data);
+      if (!parsed.success) {
+        const issue = parsed.error.errors[0];
+        const message = issue
+          ? `${issue.path.join(".") || "formulario"}: ${issue.message}`
+          : "Datos inválidos";
+        toast.error(`No se pudo guardar antes de publicar — ${message}`);
+        return;
+      }
+      const saveResult = await updatePost(post.id, parsed.data);
+      if (!saveResult.ok) {
+        toast.error(saveResult.error ?? "Error al guardar antes de publicar");
+        return;
+      }
+
       const result = await publishPost(post.id);
       if (result.ok) {
         toast.success("¡Post publicado!");
@@ -365,7 +385,10 @@ export function PostEditorClient({ post }: PostEditorClientProps) {
       <Form {...form}>
       <form className="grid grid-cols-1 gap-6 pb-16 lg:grid-cols-3">
         {/* ── Main editor (2/3) ── */}
-        <div className="space-y-5 lg:col-span-2">
+        {/* min-w-0: sin esto, un valor largo y sin espacios en el input de
+            portada (una URL) puede forzar el ancho mínimo de esta columna
+            del grid por encima del espacio disponible. */}
+        <div className="min-w-0 space-y-5 lg:col-span-2">
           <div className="flex items-center justify-between">
             <h1 className="text-xl font-bold text-foreground">Editar post</h1>
             {/* Save status indicator */}
