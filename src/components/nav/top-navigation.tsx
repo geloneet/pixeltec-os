@@ -1,19 +1,13 @@
 "use client";
 
-import { useRouter, usePathname } from "next/navigation";
+import { usePathname } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { MoreHorizontal, Search, LayoutGrid } from "lucide-react";
+import { Search, LayoutGrid } from "lucide-react";
 import { useCmdK } from "@/components/cmd-k/CmdKProvider";
 import { useCRM } from "@/components/crm/CRMContextCore";
 import { cn } from "@/lib/utils";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { NotificationsMenu } from "./notifications-menu";
 import { UserMenu } from "./user-menu";
 import {
@@ -21,8 +15,6 @@ import {
   NAV_AREA_LABELS,
   getAreaHref,
   getActiveArea,
-  getActiveItem,
-  OVERFLOW_ITEMS,
 } from "./nav-config";
 
 function OnlineDot() {
@@ -35,14 +27,11 @@ function OnlineDot() {
 }
 
 export function TopNavigation() {
-  const router = useRouter();
   const pathname = usePathname();
   const { setOpen } = useCmdK();
   const { clients } = useCRM();
 
   const activeArea = getActiveArea(pathname);
-  const activeItem = getActiveItem(pathname);
-  const isOverflowActive = !!activeItem?.hidden;
 
   const openTasksCount = clients
     .flatMap((c) => c.projects)
@@ -67,9 +56,11 @@ export function TopNavigation() {
         />
         <span className="font-logo whitespace-nowrap text-xl font-extrabold uppercase tracking-tight text-foreground">
           Pixel<span className="text-brand-blue">Tec</span>
-          <span className="ml-2 hidden font-sans text-lg normal-case text-muted-foreground lg:inline">
-            / {activeArea ? NAV_AREA_LABELS[activeArea] : "Dashboard"}
-          </span>
+          {activeArea && (
+            <span className="ml-2 hidden font-sans text-lg normal-case text-muted-foreground lg:inline">
+              / {NAV_AREA_LABELS[activeArea]}
+            </span>
+          )}
         </span>
       </div>
 
@@ -108,42 +99,6 @@ export function TopNavigation() {
               </Link>
             );
           })}
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                className={cn(
-                  "relative flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors",
-                  isOverflowActive
-                    ? "bg-foreground text-background"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                Más
-                <MoreHorizontal className="h-3.5 w-3.5" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="center"
-              sideOffset={10}
-              className="w-56 rounded-xl border border-border bg-popover/95 p-1 text-popover-foreground backdrop-blur-xl"
-            >
-              {OVERFLOW_ITEMS.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <DropdownMenuItem
-                    key={item.href}
-                    onClick={() => router.push(item.href)}
-                    className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-2 text-sm text-muted-foreground focus:bg-secondary focus:text-foreground"
-                  >
-                    <Icon className="h-4 w-4 flex-shrink-0" strokeWidth={1.75} />
-                    {item.label}
-                  </DropdownMenuItem>
-                );
-              })}
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
       </nav>
 

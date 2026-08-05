@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { LogOut, User, Settings } from "lucide-react";
+import { LogOut, User } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { useUser } from "@/hooks/use-user";
 import { useUserProfile } from "@/hooks/use-user-profile";
@@ -117,15 +117,7 @@ export function UserMenu() {
           onClick={() => router.push("/perfil")}
         >
           <User className="h-4 w-4 flex-shrink-0" />
-          Mi perfil
-        </DropdownMenuItem>
-
-        <DropdownMenuItem
-          className="flex items-center gap-2 text-muted-foreground hover:text-foreground focus:text-foreground focus:bg-accent rounded-lg cursor-pointer px-2 py-2 text-sm"
-          onClick={() => router.push("/perfil")}
-        >
-          <Settings className="h-4 w-4 flex-shrink-0" />
-          Configuración
+          Perfil y seguridad
         </DropdownMenuItem>
 
         <DropdownMenuSeparator className="bg-border" />

@@ -3,11 +3,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { PALETTE_NAV_ITEMS } from "./command-palette-items";
+import { PALETTE_NAV_ITEMS, getNavLabel } from "./command-palette-items";
 import {
   NAV_AREA_ORDER,
-  OVERFLOW_ITEMS,
+  NAV_AREA_LABELS,
   getAreaHref,
+  getActiveArea,
+  getItemArea,
   getSecondaryItems,
   resolveActiveHref,
 } from "./nav-config";
@@ -39,6 +41,73 @@ function extractRedirects(): Array<{ source: string; destination: string; perman
   return out;
 }
 
+describe("taxonomía Gate 1 (ADR-0030)", () => {
+  it("exactamente seis áreas L1, en orden, con las etiquetas operativas", () => {
+    expect(NAV_AREA_ORDER.map((a) => NAV_AREA_LABELS[a])).toEqual([
+      "Hoy",
+      "Trabajo",
+      "Clientes",
+      "Finanzas",
+      "Marketing",
+      "Sistema",
+    ]);
+  });
+
+  it("IA, Infra, CRM, Ventas y Tareas no existen como etiquetas L1", () => {
+    const labels = Object.values(NAV_AREA_LABELS);
+    for (const prohibida of ["IA", "Infra", "CRM", "Ventas", "Tareas"]) {
+      expect(labels, `etiqueta prohibida: ${prohibida}`).not.toContain(prohibida);
+    }
+  });
+
+  it("L2 exacto por área (etiquetas de secondary nav)", () => {
+    const l2 = (area: (typeof NAV_AREA_ORDER)[number]) =>
+      getSecondaryItems(area).map((i) => i.secondaryLabel);
+    expect(l2("hoy")).toEqual(["Hoy"]);
+    expect(l2("proyectos")).toEqual(["Proyectos", "Definición", "PixelForge"]);
+    expect(l2("crm")).toEqual(["Cuentas", "PixelBot"]);
+    expect(l2("finanzas")).toEqual(["Cobros"]);
+    expect(l2("marketing")).toEqual([
+      "Resumen",
+      "Blog",
+      "Contenido",
+      "Campañas",
+      "Calendario",
+      "Publicación",
+    ]);
+    expect(l2("infra")).toEqual(["Infraestructura", "Conocimiento", "Plantillas"]);
+  });
+
+  it("Configuración de marca: en ⌘K y en el área Marketing, pero fuera de la secondary nav", () => {
+    expect(getNavLabel("/crecimiento/brand-brain")).toBe("Configuración de marca");
+    expect(getItemArea("/crecimiento/brand-brain")).toBe("marketing");
+    const tabs = getSecondaryItems("marketing").map((i) => i.href);
+    expect(tabs).not.toContain("/crecimiento/brand-brain");
+  });
+
+  it("/documentos está fuera de la navegación y en ⌘K como Archivo documental", () => {
+    expect(getItemArea("/documentos")).toBeUndefined();
+    expect(getNavLabel("/documentos")).toBe("Archivo documental");
+    for (const area of NAV_AREA_ORDER) {
+      expect(getSecondaryItems(area).map((i) => i.href)).not.toContain("/documentos");
+    }
+  });
+
+  it("Notificaciones y Perfil son transversales: en ⌘K, sin área ni overflow", () => {
+    expect(getItemArea("/notificaciones")).toBeUndefined();
+    expect(getItemArea("/perfil")).toBeUndefined();
+    expect(getNavLabel("/notificaciones")).toBe("Notificaciones");
+    expect(getNavLabel("/perfil")).toBe("Perfil y seguridad");
+  });
+
+  it("el catálogo no contiene rutas legacy ni inexistentes", () => {
+    const hrefs = PALETTE_NAV_ITEMS.map((i) => i.href);
+    for (const prohibido of ["/crecimiento/analytics", "/dashboard", "/herramientas", "/crm", "/tareas", "/asistente"]) {
+      expect(hrefs, `href prohibido: ${prohibido}`).not.toContain(prohibido);
+    }
+  });
+});
+
 describe("integridad de navegación", () => {
   it("todo item del catálogo apunta a una ruta real", () => {
     for (const item of PALETTE_NAV_ITEMS) {
@@ -52,12 +121,6 @@ describe("integridad de navegación", () => {
       for (const tab of getSecondaryItems(area)) {
         expect(routeExists(tab.href), `${area} → ${tab.href}`).toBe(true);
       }
-    }
-  });
-
-  it("los items de overflow (Más…) apuntan a rutas reales", () => {
-    for (const item of OVERFLOW_ITEMS) {
-      expect(routeExists(item.href), `overflow → ${item.href}`).toBe(true);
     }
   });
 
@@ -87,28 +150,47 @@ describe("integridad de navegación", () => {
     }
   });
 
-  it("los destinos de navegación del menú de usuario existen", () => {
+  it("el menú de usuario tiene una sola entrada de navegación y apunta a /perfil", () => {
     const src = fs.readFileSync(
       path.join(REPO_ROOT, "src/components/nav/user-menu.tsx"),
       "utf8"
     );
     const targets = [...src.matchAll(/router\.push\("([^"]+)"\)/g)].map((m) => m[1]);
-    expect(targets.length).toBeGreaterThan(0);
-    for (const href of targets) {
-      expect(routeExists(href), `user-menu → ${href}`).toBe(true);
-    }
+    expect(targets).toEqual(["/perfil"]);
+    expect(routeExists("/perfil")).toBe(true);
   });
 });
 
-describe("resolveActiveHref", () => {
-  it("gana el prefijo más largo", () => {
+describe("resolución de área activa", () => {
+  it("rutas anidadas encienden el área correcta", () => {
+    expect(getActiveArea("/proyectos/pixelforge/abc/contexto")).toBe("proyectos");
+    expect(getActiveArea("/proyectos/123")).toBe("proyectos");
+    expect(getActiveArea("/clientes/cli-1")).toBe("crm");
+    expect(getActiveArea("/whatsapp")).toBe("crm");
+    expect(getActiveArea("/cobros")).toBe("finanzas");
+    expect(getActiveArea("/blog-admin/p9/editar")).toBe("marketing");
+    expect(getActiveArea("/crecimiento")).toBe("marketing");
+    expect(getActiveArea("/crecimiento/campanas/c1")).toBe("marketing");
+    expect(getActiveArea("/crecimiento/brand-brain/b1")).toBe("marketing");
+    expect(getActiveArea("/vps")).toBe("infra");
+    expect(getActiveArea("/accesos/tool-1")).toBe("infra");
+    expect(getActiveArea("/ia-factory")).toBe("infra");
+  });
+
+  it("las rutas transversales no encienden ningún pill", () => {
+    expect(getActiveArea("/documentos")).toBeNull();
+    expect(getActiveArea("/notificaciones")).toBeNull();
+    expect(getActiveArea("/perfil")).toBeNull();
+    expect(getActiveArea("/ruta-inexistente")).toBeNull();
+  });
+
+  it("resolveActiveHref: gana el prefijo más largo", () => {
     expect(resolveActiveHref(PALETTE_NAV_ITEMS, "/proyectos/pixelforge/abc")).toBe(
       "/proyectos/pixelforge"
     );
-    expect(resolveActiveHref(PALETTE_NAV_ITEMS, "/proyectos/123")).toBe("/proyectos");
-  });
-
-  it("match exacto y sin match", () => {
+    expect(resolveActiveHref(PALETTE_NAV_ITEMS, "/crecimiento/campanas/c1")).toBe(
+      "/crecimiento/campanas"
+    );
     expect(resolveActiveHref(PALETTE_NAV_ITEMS, "/hoy")).toBe("/hoy");
     expect(resolveActiveHref(PALETTE_NAV_ITEMS, "/ruta-inexistente")).toBeNull();
   });

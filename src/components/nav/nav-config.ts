@@ -1,81 +1,84 @@
 import { PALETTE_NAV_ITEMS, type PaletteNavItem } from "./command-palette-items";
 
 /**
- * Product-level taxonomy for the Top Navigation (L1 pills). Replaces the old
- * operational grouping (Trabajo/Finanzas/Producción/Sistema/Crecimiento) that
- * lived only in the (now removed) DesktopSidebar.
+ * Taxonomía operativa de la navegación (ADR-0030): las áreas L1 representan
+ * dominios del ciclo de negocio (demanda → venta → cliente → trabajo → cobro →
+ * soporte → crecimiento), no tecnologías. Los slugs internos se conservan por
+ * estabilidad (crm/proyectos/infra); la etiqueta visible vive en NAV_AREA_LABELS.
  */
 export type NavArea =
   | "hoy"
-  | "crm"
   | "proyectos"
+  | "crm"
   | "finanzas"
-  | "ia"
   | "marketing"
   | "infra";
 
 export const NAV_AREA_ORDER: NavArea[] = [
   "hoy",
-  "crm",
   "proyectos",
+  "crm",
   "finanzas",
-  "ia",
   "marketing",
   "infra",
 ];
 
 export const NAV_AREA_LABELS: Record<NavArea, string> = {
   hoy: "Hoy",
-  crm: "CRM",
-  proyectos: "Proyectos",
+  proyectos: "Trabajo",
+  crm: "Clientes",
   finanzas: "Finanzas",
-  ia: "IA",
   marketing: "Marketing",
-  infra: "Infra",
+  infra: "Sistema",
 };
 
 interface AreaItemRef {
   href: string;
   /**
-   * Overrides `item.label` when rendered in the secondary nav, to avoid
-   * repeating the L1 pill's word (e.g. area "Proyectos" → item "Todos"
-   * instead of "Proyectos").
+   * Overrides `item.label` cuando se renderiza en la secondary nav
+   * (p.ej. "Resumen" en vez de "Resumen de marketing").
    */
   secondaryLabel?: string;
+  /**
+   * Pertenece al área (agrupación en ⌘K y pill activa) pero no se muestra
+   * como tab de la secondary nav — p.ej. Configuración de marca, accesible
+   * desde Marketing → Resumen y ⌘K (ADR-0030 §10).
+   */
+  navHidden?: boolean;
 }
 
 /**
  * Nivel 2: qué sub-rutas cuelgan de cada área y en qué orden se muestran.
  * Solo referencia hrefs que YA existen como rutas reales — no se inventan
  * páginas nuevas ni se refactorizan los tabs internos de CRM/Proyectos.
+ * Las rutas transversales (/documentos, /notificaciones, /perfil) viven fuera
+ * de toda área: campana, menú de usuario, enlaces contextuales y ⌘K.
  */
 const AREA_ITEMS: Record<NavArea, AreaItemRef[]> = {
   hoy: [{ href: "/hoy" }],
+  proyectos: [
+    { href: "/proyectos" },
+    { href: "/proyectos/definicion", secondaryLabel: "Definición" },
+    { href: "/proyectos/pixelforge" },
+  ],
   crm: [
     { href: "/clientes" },
     { href: "/whatsapp" },
   ],
-  proyectos: [
-    { href: "/proyectos", secondaryLabel: "Todos" },
-    { href: "/proyectos/definicion", secondaryLabel: "Definición" },
-    { href: "/proyectos/pixelforge", secondaryLabel: "PixelForge" },
-  ],
-  finanzas: [{ href: "/cobros" }, { href: "/documentos" }],
-  ia: [
-    { href: "/ia-factory", secondaryLabel: "Centro IA" },
-    { href: "/accesos" },
-  ],
+  finanzas: [{ href: "/cobros" }],
   marketing: [
-    { href: "/crecimiento/brand-brain" },
+    { href: "/crecimiento", secondaryLabel: "Resumen" },
+    { href: "/blog-admin" },
     { href: "/crecimiento/content-studio" },
     { href: "/crecimiento/campanas" },
     { href: "/crecimiento/calendario" },
     { href: "/crecimiento/publisher" },
+    { href: "/crecimiento/brand-brain", navHidden: true },
   ],
   infra: [
-    { href: "/vps", secondaryLabel: "Infraestructura" },
-    { href: "/blog-admin", secondaryLabel: "Blog" },
-    { href: "/perfil", secondaryLabel: "Configuración" },
+    { href: "/vps" },
+    { href: "/accesos" },
+    { href: "/ia-factory" },
   ],
 };
 
@@ -101,28 +104,19 @@ export interface SecondaryNavItem extends PaletteNavItem {
 /** Sub-módulos visibles (nivel 2) de un área, en el orden definido arriba. */
 export function getSecondaryItems(area: NavArea): SecondaryNavItem[] {
   return AREA_ITEMS[area]
+    .filter((ref) => !ref.navHidden)
     .map((ref) => {
       const item = PALETTE_NAV_ITEMS.find((i) => i.href === ref.href);
-      if (!item || item.hidden) return null;
+      if (!item) return null;
       return { ...item, secondaryLabel: ref.secondaryLabel ?? item.label };
     })
     .filter((i): i is SecondaryNavItem => !!i);
 }
 
 /**
- * Items que no cuelgan de ninguna área visible: catálogo marcado `hidden`
- * (Analytics) más rutas de acceso directo (Notificaciones).
- * Se muestran únicamente en el menú desplegable "Más…" de la Top Navigation.
- */
-export const OVERFLOW_ITEMS: PaletteNavItem[] = PALETTE_NAV_ITEMS.filter(
-  (item) => item.hidden
-);
-
-/**
  * Resolves which single href in the catalog should light up for a given
  * pathname. Longest-prefix-wins so a parent route (e.g. /proyectos) doesn't
- * fight an active sub-route (/proyectos/123). Moved here from the (now
- * removed) desktop-sidebar.tsx.
+ * fight an active sub-route (/proyectos/123).
  */
 export function resolveActiveHref(
   items: PaletteNavItem[],
@@ -144,10 +138,10 @@ export function getActiveItem(pathname: string): PaletteNavItem | null {
   return PALETTE_NAV_ITEMS.find((i) => i.href === href) ?? null;
 }
 
-/** Área activa para el pathname actual, o null si no hay match o si el
- * item activo es un item "Más…" (hidden). */
+/** Área activa para el pathname actual, o null si no hay match (las rutas
+ * transversales como /documentos, /notificaciones o /perfil no encienden pill). */
 export function getActiveArea(pathname: string): NavArea | null {
   const item = getActiveItem(pathname);
-  if (!item || item.hidden) return null;
+  if (!item) return null;
   return getItemArea(item.href) ?? null;
 }
