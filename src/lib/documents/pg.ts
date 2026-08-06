@@ -86,6 +86,30 @@ export async function resolveClientPgId(publicClientId: string): Promise<string 
   return byId?.id ?? null;
 }
 
+/**
+ * Igual que `resolveClientPgId` pero exigiendo que el cliente pertenezca al
+ * dueño de la sesión.
+ *
+ * Anti-IDOR: `resolveClientPgId` busca en TODA la tabla. En una lectura eso es
+ * inocuo porque la query posterior vuelve a filtrar por `ownerId`, pero en una
+ * ESCRITURA el `ownerId` que se inserta es el del atacante y el `clientId` el
+ * de la víctima, así que ningún filtro posterior lo detecta. Toda función que
+ * reciba un clientId del llamador y persista algo debe usar esta.
+ */
+export async function resolveOwnedClientPgId(
+  publicClientId: string,
+  ownerId: string,
+): Promise<string | null> {
+  const clientPgId = await resolveClientPgId(publicClientId);
+  if (!clientPgId) return null;
+  const [owned] = await db
+    .select({ id: clients.id })
+    .from(clients)
+    .where(and(eq(clients.id, clientPgId), eq(clients.ownerId, ownerId)))
+    .limit(1);
+  return owned?.id ?? null;
+}
+
 /** Id público del proyecto (firestore_id ?? uuid) → projects.id (ADR-0034). */
 export async function resolveProjectPgId(publicProjectId: string): Promise<string | null> {
   const id = publicProjectId.trim();
@@ -227,6 +251,22 @@ export async function resolveIATemplateRow(docId: string): Promise<IATemplateRow
 export async function resolveProposalPgId(publicId: string): Promise<string | null> {
   const row = await resolveProposalRow(publicId);
   return row?.id ?? null;
+}
+
+/**
+ * Id público de propuesta → proposals.id, exigiendo que sea del dueño.
+ *
+ * Anti-IDOR (mismo criterio que `resolveOwnedClientPgId`): vincular o mutar una
+ * propuesta ajena desde el wizard de contratos era posible porque el resolver
+ * plano no mira `ownerId`.
+ */
+export async function resolveOwnedProposalPgId(
+  publicId: string,
+  ownerId: string,
+): Promise<string | null> {
+  const row = await resolveProposalRow(publicId);
+  if (!row || row.ownerId !== ownerId) return null;
+  return row.id;
 }
 
 /** Id público de plantilla IA → ia_templates.id (uuid) o null. */

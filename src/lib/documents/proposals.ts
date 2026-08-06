@@ -12,6 +12,7 @@ import { logClientActivity } from "@/lib/db/repos/client-activity";
 import {
   requireOwner,
   resolveClientPgId,
+  resolveOwnedClientPgId,
   resolveContractRow,
   resolveProposalRow,
   serializeProposal,
@@ -41,7 +42,11 @@ export async function createProposal(
   data: Omit<Proposal, "id" | "uid" | "clientId" | "clientName" | "reference" | "createdAt" | "updatedAt">,
 ): Promise<string> {
   const { ownerId } = await requireOwner();
-  const clientPgId = await resolveClientPgId(clientId);
+  // Verificado contra el dueño: al persistir, el ownerId es el del llamador y
+  // el clientId el que él mande, así que ningún filtro posterior detecta una
+  // propuesta creada sobre el cliente de otro owner (y `publishProposal` le
+  // daría además un enlace público).
+  const clientPgId = await resolveOwnedClientPgId(clientId, ownerId);
   if (!clientPgId) throw new Error("Cliente no encontrado");
 
   const [row] = await db
@@ -98,8 +103,10 @@ export async function updateProposal(
   if (data.acceptedAt !== undefined) set.acceptedAt = new Date(data.acceptedAt);
   if (data.contractId !== undefined) {
     // El dominio maneja el id público del contrato; la columna es uuid FK.
+    // El dueño se verifica igual que en el resto: vincular la propia propuesta
+    // al contrato de otro owner es una escritura cross-owner.
     const contract = await resolveContractRow(data.contractId);
-    if (!contract) throw new Error("Contrato no encontrado");
+    if (!contract || contract.ownerId !== ownerId) throw new Error("Contrato no encontrado");
     set.contractId = contract.id;
   }
 

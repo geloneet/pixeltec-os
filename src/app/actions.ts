@@ -550,9 +550,12 @@ export async function resetPasswordAction(token: string, newPassword: string): P
     const passwordHash = await bcrypt.hash(newPassword, 12);
 
     await pgDb.transaction(async (tx) => {
+      // `sessionsValidFrom` echa a cualquiera que tuviera una sesión abierta con
+      // la contraseña anterior — que es justo el motivo por el que alguien
+      // restablece su contraseña. Con estrategia JWT no basta con cambiar el hash.
       await tx
         .update(usersTable)
-        .set({ passwordHash, updatedAt: new Date() })
+        .set({ passwordHash, sessionsValidFrom: new Date(), updatedAt: new Date() })
         .where(eq(usersTable.id, row.userId));
       await tx
         .update(passwordResetTokens)

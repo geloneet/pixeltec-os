@@ -10,9 +10,10 @@ import type { BillingItemDraft, Contract, ContractSection } from "@/types/docume
 import {
   requireOwner,
   resolveClientPgId,
+  resolveOwnedClientPgId,
   resolveContractRow,
   resolveIATemplatePgId,
-  resolveProposalPgId,
+  resolveOwnedProposalPgId,
   publicDocId,
   serializeContract,
 } from "./pg";
@@ -73,11 +74,14 @@ export async function createContract(
   data: Omit<Contract, "id" | "uid" | "clientId" | "version" | "createdAt" | "updatedAt">,
 ): Promise<string> {
   const { ownerId } = await requireOwner();
-  const clientPgId = await resolveClientPgId(clientId);
+  // Cliente verificado contra el dueño: un contrato colgado del cliente de otro
+  // owner acaba visible —y descargable en PDF— en el portal de ese cliente,
+  // que solo filtra por clientId + status firmado.
+  const clientPgId = await resolveOwnedClientPgId(clientId, ownerId);
   if (!clientPgId) throw new Error("Cliente no encontrado");
 
   // proposalId/templateId llegan como ids públicos → columnas uuid
-  const proposalPgId = data.proposalId ? await resolveProposalPgId(data.proposalId) : null;
+  const proposalPgId = data.proposalId ? await resolveOwnedProposalPgId(data.proposalId, ownerId) : null;
   const templatePgId = data.templateId
     ? (UUID_RE.test(data.templateId) ? data.templateId : await resolveIATemplatePgId(data.templateId))
     : null;
@@ -128,7 +132,15 @@ export async function updateContract(
   if (data.notes !== undefined) set.notes = data.notes;
   if (data.version !== undefined) set.version = data.version;
   if (data.proposalId !== undefined) {
-    set.proposalId = data.proposalId ? await resolveProposalPgId(data.proposalId) : null;
+    // Verificado contra el dueño: vincular el contrato propio a la propuesta de
+    // otro owner también es una escritura cross-owner.
+    if (data.proposalId) {
+      const proposalPgId = await resolveOwnedProposalPgId(data.proposalId, ownerId);
+      if (!proposalPgId) throw new Error("Propuesta no encontrada");
+      set.proposalId = proposalPgId;
+    } else {
+      set.proposalId = null;
+    }
   }
 
   await db.update(contracts).set(set).where(eq(contracts.id, row.id));
@@ -203,7 +215,11 @@ export async function confirmContractFromWizard(data: ConfirmContractFromWizardI
   }
 
   const { ownerId } = await requireOwner();
-  const clientPgId = await resolveClientPgId(data.clientId);
+  // Cliente y propuesta verificados contra el dueño: sin esto, un usuario podía
+  // fabricar un contrato sobre el cliente de otro owner (que termina visible en
+  // el portal de ese cliente al firmarse) y marcar como "aceptada" una
+  // propuesta ajena.
+  const clientPgId = await resolveOwnedClientPgId(data.clientId, ownerId);
   if (!clientPgId) throw new Error("Cliente no encontrado");
 
   const [client] = await db
@@ -213,7 +229,7 @@ export async function confirmContractFromWizard(data: ConfirmContractFromWizardI
     .limit(1);
   if (!client) throw new Error("Cliente no encontrado");
 
-  const proposalPgId = data.proposalId ? await resolveProposalPgId(data.proposalId) : null;
+  const proposalPgId = data.proposalId ? await resolveOwnedProposalPgId(data.proposalId, ownerId) : null;
   let proposalReference: string | undefined;
   if (proposalPgId) {
     const [p] = await db

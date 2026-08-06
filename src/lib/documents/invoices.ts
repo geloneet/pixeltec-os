@@ -11,6 +11,7 @@ import { logClientActivity } from "@/lib/db/repos/client-activity";
 import {
   requireOwner,
   resolveClientPgId,
+  resolveOwnedClientPgId,
   resolveInvoiceRow,
   serializeInvoice,
   orderedItemIds,
@@ -103,7 +104,10 @@ export async function createInvoice(
   data: Omit<Invoice, "id" | "uid" | "clientId" | "createdAt" | "updatedAt">,
 ): Promise<string> {
   const { ownerId } = await requireOwner();
-  const clientPgId = await resolveClientPgId(clientId);
+  // Verificado contra el dueño (mismo criterio que propuestas y contratos): una
+  // factura es un documento fiscal y no debe poder emitirse sobre el cliente de
+  // otro owner.
+  const clientPgId = await resolveOwnedClientPgId(clientId, ownerId);
   if (!clientPgId) throw new Error("Cliente no encontrado");
 
   const { normalizedItems, subtotal, ivaAmount, total } = computeInvoiceTotals(

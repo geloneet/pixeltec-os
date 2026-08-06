@@ -22,6 +22,12 @@ declare module "next-auth" {
        */
       id: string;
       role?: string;
+      /**
+       * `iat` del JWT en segundos epoch. Se expone para poder comparar la
+       * antigüedad del token contra `users.sessions_valid_from` y revocar
+       * sesiones emitidas antes de un cambio de contraseña.
+       */
+      sessionIssuedAt?: number;
     } & DefaultSession["user"];
   }
 }

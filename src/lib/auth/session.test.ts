@@ -12,6 +12,14 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 const authMock = vi.fn();
 vi.mock("@/lib/auth/config", () => ({ auth: () => authMock() }));
 vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
+// La frontera de sesión consulta `users.sessions_valid_from` para descartar
+// tokens anteriores a un cambio de contraseña. Aquí no se prueba la revocación
+// (tiene su propio archivo): el corte se mockea siempre ausente.
+const sessionsValidFromMock = vi.fn(async (): Promise<Date | null> => null);
+vi.mock("@/lib/auth/revocation", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./revocation")>()),
+  sessionsValidFromFor: () => sessionsValidFromMock(),
+}));
 
 const { getSessionUserId, requireUserSession } = await import("./session");
 const { authConfig, AUTH_SESSION_USER_ID_MISSING } = await import("./auth.config");

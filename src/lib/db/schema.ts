@@ -232,6 +232,12 @@ export const users = pgTable(
     // Puente durante la migración de datos (Fase 3): permite reconectar todo
     // lo que hoy está scoped por Firebase UID. Se puede dropear al terminar.
     firebaseUid: text("firebase_uid"),
+    // Corte de sesiones: todo JWT emitido ANTES de esta marca queda rechazado.
+    // Se estampa al cambiar o restablecer la contraseña. Con estrategia `jwt`
+    // no hay tabla de sesiones que borrar, así que sin esto una cookie robada
+    // sobrevivía al "restablecer contraseña" hasta expirar (30 días).
+    // NULL = nunca se ha invalidado nada (comportamiento previo, sin efecto).
+    sessionsValidFrom: timestamp("sessions_valid_from", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },

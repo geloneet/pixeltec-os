@@ -34,9 +34,12 @@ export async function changePasswordAction(
   if (!valid) return { ok: false, error: "wrong-password" };
 
   const passwordHash = await bcrypt.hash(newPassword, 12);
+  // `sessionsValidFrom` corta las sesiones vigentes: con estrategia JWT no hay
+  // tabla de sesiones que borrar, así que sin esta marca una cookie robada
+  // seguiría autenticando después de cambiar la contraseña.
   await db
     .update(users)
-    .set({ passwordHash, updatedAt: new Date() })
+    .set({ passwordHash, sessionsValidFrom: new Date(), updatedAt: new Date() })
     .where(eq(users.id, userId));
 
   return { ok: true };

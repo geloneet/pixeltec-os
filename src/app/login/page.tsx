@@ -130,7 +130,16 @@ export default function LoginPage() {
   const passwordRef = useRef<HTMLInputElement>(null);
 
   const searchParams = useSearchParams();
-  const redirectParam = searchParams.get('redirect');
+  // Solo rutas relativas del propio sitio: `window.location.assign` con el
+  // parámetro crudo era un open redirect — abrir /login?redirect=https://…
+  // con sesión activa mandaba al visitante fuera del sitio sin tocar nada, y
+  // tras autenticarse de verdad, a una página de "sesión expirada" falsa.
+  // `//host` es protocol-relative y también sale del sitio.
+  const rawRedirect = searchParams.get('redirect');
+  const redirectTarget =
+    rawRedirect && rawRedirect.startsWith('/') && !rawRedirect.startsWith('//')
+      ? rawRedirect
+      : '/hoy';
   const { data: session, status } = useSession();
 
   // Redirect if already logged in vía NextAuth (equipo interno). Independiente
@@ -142,9 +151,9 @@ export default function LoginPage() {
 
     if (status === 'authenticated' && session?.user) {
       setIsRedirecting(true);
-      window.location.assign(redirectParam || '/hoy');
+      window.location.assign(redirectTarget);
     }
-  }, [status, session, isLoading, isRedirecting, redirectParam]);
+  }, [status, session, isLoading, isRedirecting, redirectTarget]);
 
   useEffect(() => {
     if (!isLoading) {
@@ -196,7 +205,7 @@ export default function LoginPage() {
 
       if (!result?.error) {
         setIsRedirecting(true);
-        window.location.assign(redirectParam || '/hoy');
+        window.location.assign(redirectTarget);
         return;
       }
 

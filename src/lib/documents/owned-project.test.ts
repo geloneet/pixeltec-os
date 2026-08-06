@@ -23,15 +23,31 @@ function bodyOf(src: string, fnName: string): string {
   return src.slice(start, next === -1 ? undefined : next);
 }
 
-const WRITERS: Array<{ file: string; fn: string }> = [
+const PROJECT_WRITERS: Array<{ file: string; fn: string }> = [
   { file: "./discovery.ts", fn: "createDiscoverySession" },
   { file: "./discovery.ts", fn: "assignDiscoveryToProject" },
   { file: "./strategies.ts", fn: "createStrategy" },
   { file: "./strategies.ts", fn: "assignStrategyToProject" },
 ];
 
+/**
+ * Escrituras que reciben un clientId del llamador. En una LECTURA usar el
+ * resolver plano es inocuo (la query vuelve a filtrar por ownerId), pero al
+ * persistir el ownerId es el del llamador y el clientId el que él mande: nada
+ * posterior lo detecta. Un contrato así, una vez firmado, aparece además en el
+ * portal del cliente real.
+ */
+const CLIENT_WRITERS: Array<{ file: string; fn: string }> = [
+  { file: "./contracts.ts", fn: "createContract" },
+  { file: "./contracts.ts", fn: "confirmContractFromWizard" },
+  { file: "./proposals.ts", fn: "createProposal" },
+  { file: "./invoices.ts", fn: "createInvoice" },
+  { file: "./discovery.ts", fn: "createDiscoverySession" },
+  { file: "./strategies.ts", fn: "createStrategy" },
+];
+
 describe("contrato anti-IDOR de projectId", () => {
-  test.each(WRITERS)("$fn resuelve el proyecto verificando el dueño", ({ file, fn }) => {
+  test.each(PROJECT_WRITERS)("$fn resuelve el proyecto verificando el dueño", ({ file, fn }) => {
     const body = bodyOf(readSrc(file), fn);
     expect(body).toContain("resolveOwnedProjectPgId");
     // El resolver sin filtro de dueño no debe usarse para persistir.
@@ -42,5 +58,23 @@ describe("contrato anti-IDOR de projectId", () => {
     const body = bodyOf(readSrc("./pg.ts"), "resolveOwnedProjectPgId");
     expect(body).toContain("innerJoin(clients");
     expect(body).toContain("clients.ownerId");
+  });
+});
+
+describe("contrato anti-IDOR de clientId", () => {
+  test.each(CLIENT_WRITERS)("$fn resuelve el cliente verificando el dueño", ({ file, fn }) => {
+    const body = bodyOf(readSrc(file), fn);
+    expect(body).toContain("resolveOwnedClientPgId");
+    expect(body).not.toMatch(/await resolveClientPgId\(/);
+  });
+
+  test("resolveOwnedClientPgId filtra por clients.ownerId", () => {
+    const body = bodyOf(readSrc("./pg.ts"), "resolveOwnedClientPgId");
+    expect(body).toContain("clients.ownerId");
+  });
+
+  test("resolveOwnedProposalPgId compara ownerId de la propuesta", () => {
+    const body = bodyOf(readSrc("./pg.ts"), "resolveOwnedProposalPgId");
+    expect(body).toContain("row.ownerId !== ownerId");
   });
 });

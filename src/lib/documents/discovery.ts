@@ -11,6 +11,7 @@ import type { DiscoverySession } from "@/types/documents";
 import {
   requireOwner,
   resolveClientPgId,
+  resolveOwnedClientPgId,
   resolveProjectPgId,
   resolveOwnedProjectPgId,
   resolveDiscoveryRow,
@@ -83,7 +84,7 @@ export async function createDiscoverySession(
   projectId?: string,
 ): Promise<string> {
   const { ownerId } = await requireOwner();
-  const clientPgId = await resolveClientPgId(clientId);
+  const clientPgId = await resolveOwnedClientPgId(clientId, ownerId);
   if (!clientPgId) throw new Error("Cliente no encontrado");
   // Proyecto verificado contra el dueño: si no, se podría crear la sesión
   // colgando del proyecto de otro owner.

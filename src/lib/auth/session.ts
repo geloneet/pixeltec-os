@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth/config";
 import { AUTH_SESSION_USER_ID_MISSING } from "@/lib/auth/auth.config";
+import { isTokenRevoked, sessionsValidFromFor } from "@/lib/auth/revocation";
 
 /**
  * Resolución de identidad de sesión.
@@ -38,6 +39,17 @@ export async function getSessionUserId(): Promise<string | null> {
     console.error("[auth] sesión sin users.id — identidad no resoluble");
     throw new Error(AUTH_SESSION_USER_ID_MISSING);
   }
+
+  // Token anterior al último cambio de contraseña: se trata como "sin sesión"
+  // —que es lo que los callers ya saben manejar— y no como violación de
+  // invariante. Con `sessions_valid_from` NULL no hay consulta que falle ni
+  // cambio de comportamiento.
+  const validFrom = await sessionsValidFromFor(userId);
+  if (isTokenRevoked(session.user.sessionIssuedAt, validFrom)) {
+    console.warn("[auth] sesión revocada por cambio de contraseña — se rechaza el token");
+    return null;
+  }
+
   return userId;
 }
 
@@ -74,6 +86,15 @@ export async function requireUserSession(): Promise<UserSession | null> {
     console.error("[auth] sesión sin users.id/email — identidad no resoluble");
     throw new Error(AUTH_SESSION_USER_ID_MISSING);
   }
+
+  // Mismo corte que `getSessionUserId`: un token anterior al último cambio de
+  // contraseña equivale a no tener sesión.
+  const validFrom = await sessionsValidFromFor(id);
+  if (isTokenRevoked(session.user.sessionIssuedAt, validFrom)) {
+    console.warn("[auth] sesión revocada por cambio de contraseña — se rechaza el token");
+    return null;
+  }
+
   return { userId: id, email, role: role ?? undefined };
 }
 

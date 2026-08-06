@@ -204,6 +204,13 @@
       "when": 1785978181235,
       "tag": "0028_client_workspace_redesign",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1786026696907,
+      "tag": "0029_lumpy_thaddeus_ross",
+      "breakpoints": true
     }
   ]
 }

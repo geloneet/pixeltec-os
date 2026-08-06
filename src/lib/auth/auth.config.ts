@@ -60,6 +60,10 @@ export const authConfig: NextAuthConfig = {
       }
       session.user.id = userId;
       if (token.role) session.user.role = token.role;
+      // `iat` viaja para que el servidor pueda descartar tokens emitidos antes
+      // de un cambio de contraseña (`users.sessions_valid_from`). Aquí no se
+      // consulta la base: este callback también corre en el edge del middleware.
+      if (typeof token.iat === "number") session.user.sessionIssuedAt = token.iat;
       // Alias heredado: viaja solo informativamente.
       return session;
     },

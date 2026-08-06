@@ -9,6 +9,7 @@ import type { Strategy } from "@/types/documents";
 import {
   requireOwner,
   resolveClientPgId,
+  resolveOwnedClientPgId,
   resolveProjectPgId,
   resolveOwnedProjectPgId,
   resolveStrategyRow,
@@ -52,7 +53,7 @@ export async function getStrategy(_uid: string, clientId: string, projectId?: st
 
 export async function createStrategy(_uid: string, clientId: string, projectId?: string): Promise<string> {
   const { ownerId } = await requireOwner();
-  const clientPgId = await resolveClientPgId(clientId);
+  const clientPgId = await resolveOwnedClientPgId(clientId, ownerId);
   if (!clientPgId) throw new Error("Cliente no encontrado");
   // Proyecto verificado contra el dueño: si no, se podría crear la estrategia
   // colgando del proyecto de otro owner.
