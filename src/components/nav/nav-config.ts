@@ -79,6 +79,10 @@ const AREA_ITEMS: Record<NavArea, AreaItemRef[]> = {
     { href: "/vps" },
     { href: "/accesos" },
     { href: "/ia-factory" },
+    // C-PR5: administración del equipo interno (solo admins — la página
+    // rebota a /hoy y cada action pasa por requireAdmin). L2 permitido;
+    // la L1 queda intacta (ADR-0030).
+    { href: "/usuarios" },
   ],
 };
 

@@ -75,7 +75,12 @@ describe("taxonomía Gate 1 (ADR-0030)", () => {
       "Calendario",
       "Publicación",
     ]);
-    expect(l2("infra")).toEqual(["Infraestructura", "Conocimiento", "Plantillas"]);
+    expect(l2("infra")).toEqual([
+      "Infraestructura",
+      "Conocimiento",
+      "Plantillas",
+      "Usuarios y acceso",
+    ]);
   });
 
   it("Configuración de marca: en ⌘K y en el área Marketing, pero fuera de la secondary nav", () => {
@@ -175,6 +180,7 @@ describe("resolución de área activa", () => {
     expect(getActiveArea("/vps")).toBe("infra");
     expect(getActiveArea("/accesos/tool-1")).toBe("infra");
     expect(getActiveArea("/ia-factory")).toBe("infra");
+    expect(getActiveArea("/usuarios")).toBe("infra");
   });
 
   it("las rutas transversales no encienden ningún pill", () => {

@@ -48,6 +48,15 @@ import { relations, sql } from "drizzle-orm";
 
 export const userRoleEnum = pgEnum("user_role", ["admin", "staff"]);
 
+// C-PR5 (0036): ciclo de vida de la cuenta interna — 'invited' desde la
+// invitación hasta fijar contraseña; 'suspended' bloquea el login y (junto a
+// la revocación de sesiones al suspender) expulsa sesiones activas en ≤60s.
+export const userStatusEnum = pgEnum("user_status", [
+  "active",
+  "invited",
+  "suspended",
+]);
+
 export const ivaEnum = pgEnum("iva_mode", ["none", "plus", "included"]);
 
 export const taskStatusEnum = pgEnum("task_status", [
@@ -223,6 +232,10 @@ export const users = pgTable(
     passwordHash: text("password_hash").notNull(),
     name: text("name").notNull(),
     role: userRoleEnum("role").notNull().default("staff"),
+    // C-PR5 (0036): solo 'active' puede iniciar sesión (authorize() rechaza
+    // el resto con mensaje genérico). DEFAULT 'active' preserva las cuentas
+    // existentes al aplicar la migración.
+    status: userStatusEnum("status").notNull().default("active"),
     // Perfil (Fase 4) — antes displayName/photoURL en Firebase Auth y
     // phone/bio en el doc Firestore `users/{uid}`. El archivo del avatar
     // sigue en Firebase Storage; aquí solo vive la URL pública.
@@ -352,6 +365,32 @@ export const userMfaRecoveryCodes = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("user_mfa_recovery_codes_user_idx").on(t.userId)]
+);
+
+/**
+ * Invitaciones al equipo interno (C-PR5, migración 0036). Mismo principio que
+ * `passwordResetTokens`: solo el sha256 del token toca la base — un leak de
+ * esta tabla no permite aceptar ninguna invitación. El usuario invitado nace
+ * en `users` con `status='invited'` y un password hash aleatorio inusable;
+ * aceptar la invitación (/invitacion/[token]) fija contraseña + status
+ * 'active' + quema el token en una sola transacción. `createdBy` con SET
+ * NULL para no destruir el rastro si se borra al admin que invitó.
+ */
+export const userInvitations = pgTable(
+  "user_invitations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("user_invitations_user_idx").on(t.userId),
+    uniqueIndex("user_invitations_token_hash_idx").on(t.tokenHash),
+  ]
 );
 
 export const userStreak = pgTable("user_streak", {

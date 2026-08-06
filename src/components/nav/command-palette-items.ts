@@ -17,6 +17,7 @@ import {
   Send,
   Bell,
   Wand2,
+  UserCog,
   type LucideIcon,
 } from "lucide-react";
 
@@ -141,6 +142,12 @@ export const PALETTE_NAV_ITEMS: PaletteNavItem[] = [
     label: "Plantillas",
     description: "Plantillas maestras (Centro IA) para contratos, facturas, discovery y documentos",
     icon: Sparkles,
+  },
+  {
+    href: "/usuarios",
+    label: "Usuarios y acceso",
+    description: "Equipo interno: invitaciones, roles, suspensión y seguridad por cuenta",
+    icon: UserCog,
   },
   // ── Transversales (solo ⌘K / controles globales) ────────────────────────────
   {

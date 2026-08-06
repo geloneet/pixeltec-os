@@ -22,6 +22,15 @@ export type SecurityEventType =
   | "password_changed"
   | "password_reset_requested"
   | "password_reset_completed"
+  // C-PR5 — Sistema → Usuarios y acceso
+  | "user_invited"
+  | "invitation_resent"
+  | "invitation_accepted"
+  | "role_changed"
+  | "user_suspended"
+  | "user_reactivated"
+  | "sessions_revoked"
+  | "mfa_reset_by_admin"
   | (string & {});
 
 export interface RecordSecurityEventInput {

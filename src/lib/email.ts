@@ -20,6 +20,7 @@ import { renderContactNotificationEmail, type ContactNotificationEmailProps } fr
 import { renderDiagnosticNotificationEmail, type DiagnosticNotificationEmailProps } from '@/emails/DiagnosticNotificationEmail';
 import { renderPasswordResetEmail, type PasswordResetEmailProps } from '@/emails/PasswordResetEmail';
 import { renderPasswordChangedEmail, type PasswordChangedEmailProps } from '@/emails/PasswordChangedEmail';
+import { renderUserInvitationEmail, type UserInvitationEmailProps } from '@/emails/UserInvitationEmail';
 import { renderNewsletterWelcomeEmail, type NewsletterWelcomeEmailProps } from '@/emails/NewsletterWelcomeEmail';
 import { renderProposalEmail, type ProposalEmailProps } from '@/emails/ProposalEmail';
 import { renderProposalDecisionEmail, type ProposalDecisionEmailProps } from '@/emails/ProposalDecisionEmail';
@@ -207,6 +208,19 @@ export async function sendPasswordResetEmail(
   const { email, ...templateProps } = props;
   const html = renderPasswordResetEmail(templateProps);
   return sendEmail(email, 'Restablece tu contraseña — PixelTEC OS', html);
+}
+
+/**
+ * Invitación a un nuevo miembro del equipo interno (C-PR5, Sistema →
+ * Usuarios y acceso). Mismo egress guard fail-closed que el resto: pasa por
+ * `sendEmail`, y sin `EGRESS_EMAIL_MODE` no sale nada.
+ */
+export async function sendUserInvitationEmail(
+  props: UserInvitationEmailProps & { email: string }
+): Promise<EmailResult> {
+  const { email, ...templateProps } = props;
+  const html = renderUserInvitationEmail(templateProps);
+  return sendEmail(email, 'Te invitaron a PixelTEC OS', html);
 }
 
 /**
