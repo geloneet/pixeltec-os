@@ -1,21 +1,34 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import type { CRMClient } from "@/types/crm";
 import {
   deriveClientStats,
   clientStatusBadge,
   formatPhone,
-  type ClientStats,
   type ClientBadge,
   type ActionablePhone,
 } from "@/lib/crm/client-stats";
 import {
   nextActionChip,
   activeProjectsInfo,
+  clientNeedsAttention,
+  syntheticLastActivity,
+  lastActivityLabel,
+  matchesClientQuery,
+  applyClientsFilter,
+  sortClientsEntries,
+  deriveDirectoryMetrics,
+  parseClientsFilter,
+  parseClientsSort,
   type NextActionChip,
   type ActiveProjectsInfo,
+  type ClientListEntry,
+  type ClientsFilter,
+  type ClientsSort,
 } from "@/lib/crm/clients-list-logic";
+import { getClientListSignalsAction } from "@/components/crm/crm-actions";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -33,7 +46,7 @@ import {
 import {
   Users,
   FolderKanban,
-  ListTodo,
+  AlertTriangle,
   Search,
   MoreHorizontal,
   Phone,
@@ -60,22 +73,18 @@ function initials(name: string) {
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type FilterKey = "todos" | "con-tareas" | "sin-tareas" | "activos";
-type SortKey = "recientes" | "nombre" | "mas-proyectos";
-
 interface ClientsViewProps {
   clients: CRMClient[];
   navigateToClient: (id: string) => void;
   setModal: (m: { type: string; data?: Record<string, string> } | null) => void;
 }
 
-interface ClientItem {
-  client: CRMClient;
-  stats: ClientStats;
+interface ClientItem extends ClientListEntry {
   badge: ClientBadge;
   nextChip: NextActionChip;
   projects: ActiveProjectsInfo;
   phone: ActionablePhone | null;
+  lastLabel: string;
 }
 
 // ── ClientRow ─────────────────────────────────────────────────────────────────
@@ -87,7 +96,7 @@ interface ClientRowProps {
 }
 
 function ClientRow({ item, navigateToClient, setModal }: ClientRowProps) {
-  const { client: c, badge, nextChip, projects, phone } = item;
+  const { client: c, badge, nextChip, projects, phone, lastLabel } = item;
   const color = avatarColor(c.name);
   const meta = [c.contactName, c.location, phone?.display ?? (c.phone || null)]
     .filter(Boolean)
@@ -164,9 +173,9 @@ function ClientRow({ item, navigateToClient, setModal }: ClientRowProps) {
         <p className="mt-0.5 text-[10px] text-muted-foreground/70">proyectos</p>
       </div>
 
-      {/* Última actividad (A2 la llena) */}
+      {/* Última actividad */}
       <div className="md:text-center">
-        <p className="text-[11px] font-medium text-muted-foreground">—</p>
+        <p className="truncate text-[11px] font-medium text-muted-foreground">{lastLabel}</p>
         <p className="mt-0.5 text-[10px] text-muted-foreground/70">última actividad</p>
       </div>
 
@@ -250,73 +259,78 @@ function ClientRow({ item, navigateToClient, setModal }: ClientRowProps) {
 
 // ── Filters config ────────────────────────────────────────────────────────────
 
-const FILTERS: { key: FilterKey; label: string }[] = [
+const FILTERS: { key: ClientsFilter; label: string }[] = [
   { key: "todos", label: "Todos" },
-  { key: "con-tareas", label: "Con tareas" },
-  { key: "sin-tareas", label: "Sin tareas" },
-  { key: "activos", label: "Activos" },
+  { key: "atencion", label: "Requieren atención" },
+  { key: "sin-proyecto", label: "Sin proyecto" },
+  { key: "archivados", label: "Archivados" },
 ];
 
 // ── ClientsView ───────────────────────────────────────────────────────────────
 
 export function ClientsView({ clients, navigateToClient, setModal }: ClientsViewProps) {
-  const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<FilterKey>("todos");
-  const [sort, setSort] = useState<SortKey>("recientes");
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  // Estado inicial desde la URL (filtro/búsqueda/orden persisten al recargar
+  // o compartir el enlace); después la URL se mantiene con router.replace.
+  const [query, setQuery] = useState(() => searchParams.get("q") ?? "");
+  const [filter, setFilter] = useState<ClientsFilter>(() => parseClientsFilter(searchParams.get("filtro")));
+  const [sort, setSort] = useState<ClientsSort>(() => parseClientsSort(searchParams.get("orden")));
+
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    const apply = (key: string, value: string, defaultValue: string) => {
+      if (value && value !== defaultValue) params.set(key, value);
+      else params.delete(key);
+    };
+    apply("q", query.trim(), "");
+    apply("filtro", filter, "todos");
+    apply("orden", sort, "atencion");
+    const next = params.toString();
+    if (next !== searchParams.toString()) {
+      router.replace(next ? `${pathname}?${next}` : pathname, { scroll: false });
+    }
+  }, [query, filter, sort, pathname, router, searchParams]);
+
+  // Última actividad real (client_activity, agregada por owner): una sola
+  // llamada al montar; los clientes sin fila usan el fallback sintético.
+  const [signals, setSignals] = useState<Record<string, string>>({});
+  useEffect(() => {
+    let alive = true;
+    getClientListSignalsAction()
+      .then((map) => { if (alive) setSignals(map); })
+      .catch(() => { /* fallback sintético ya cubre la columna */ });
+    return () => { alive = false; };
+  }, []);
 
   const now = useMemo(() => new Date(), []);
 
   const allItems = useMemo<ClientItem[]>(() =>
     clients.map(c => {
       const stats = deriveClientStats(c);
+      const lastActivityAt = signals[c.id] ?? syntheticLastActivity(c);
       return {
         client: c,
         stats,
+        attention: clientNeedsAttention(c, stats, now),
+        lastActivityAt,
         badge: clientStatusBadge(c.crmStatus, stats),
         nextChip: nextActionChip(c.nextAction, now),
         projects: activeProjectsInfo(c),
         phone: formatPhone(c.phone),
+        lastLabel: lastActivityLabel(lastActivityAt, now),
       };
     }),
-    [clients, now]
+    [clients, signals, now]
   );
 
-  const metrics = useMemo(() => ({
-    totalClients: clients.length,
-    totalProjects: allItems.reduce((s, { stats }) => s + stats.projectsCount, 0),
-    totalOpenTasks: allItems.reduce((s, { stats }) => s + stats.openTasks, 0),
-  }), [clients.length, allItems]);
+  const metrics = useMemo(() => deriveDirectoryMetrics(allItems), [allItems]);
 
   const filtered = useMemo(() => {
-    let result = allItems;
-
-    const q = query.trim().toLowerCase();
-    if (q) {
-      result = result.filter(({ client: c }) =>
-        c.name.toLowerCase().includes(q) ||
-        (c.contactName?.toLowerCase().includes(q) ?? false) ||
-        c.location.toLowerCase().includes(q) ||
-        c.phone.toLowerCase().includes(q) ||
-        c.email.toLowerCase().includes(q)
-      );
-    }
-
-    if (filter === "con-tareas") result = result.filter(({ stats }) => stats.openTasks > 0);
-    else if (filter === "sin-tareas") result = result.filter(({ stats }) => stats.openTasks === 0);
-    else if (filter === "activos") result = result.filter(({ stats }) => stats.projectsCount > 0);
-
-    const sorted = [...result];
-    if (sort === "nombre") {
-      sorted.sort((a, b) => a.client.name.localeCompare(b.client.name, "es"));
-    } else if (sort === "mas-proyectos") {
-      sorted.sort((a, b) => b.stats.projectsCount - a.stats.projectsCount);
-    } else {
-      sorted.sort((a, b) =>
-        new Date(b.client.createdAt).getTime() - new Date(a.client.createdAt).getTime()
-      );
-    }
-
-    return sorted;
+    const byQuery = allItems.filter((item) => matchesClientQuery(item.client, query));
+    return sortClientsEntries(applyClientsFilter(byQuery, filter), sort);
   }, [allItems, query, filter, sort]);
 
   return (
@@ -331,30 +345,52 @@ export function ClientsView({ clients, navigateToClient, setModal }: ClientsView
           onClick={() => setModal({ type: "addClient" })}
           className="flex-shrink-0 rounded-lg border border-cyan-500/20 bg-cyan-500/10 px-4 py-2 text-sm font-medium text-cyan-700 dark:text-cyan-300 transition-all duration-150 hover:bg-cyan-500/20"
         >
-          + Cliente
+          Nuevo cliente
         </button>
       </div>
 
-      {/* Global metrics */}
+      {/* Global metrics (cada cifra aplica su filtro) */}
       {clients.length > 0 && (
-        <div className="mb-5 flex items-center gap-5 text-sm">
-          <span className="flex items-center gap-1.5">
+        <div className="mb-5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+          <button
+            onClick={() => setFilter("todos")}
+            className="flex items-center gap-1.5 rounded-md px-1.5 py-0.5 transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40"
+            aria-label="Ver todos los clientes"
+          >
             <Users className="h-3.5 w-3.5 text-cyan-400" strokeWidth={1.75} />
-            <span className="tabular-nums font-semibold text-foreground">{metrics.totalClients}</span>
-            <span className="text-muted-foreground">clientes</span>
-          </span>
+            <span className="tabular-nums font-semibold text-foreground">{metrics.activeClients}</span>
+            <span className="text-muted-foreground">clientes activos</span>
+          </button>
           <span className="text-muted-foreground/50">·</span>
-          <span className="flex items-center gap-1.5">
+          <button
+            onClick={() => setFilter("todos")}
+            className="flex items-center gap-1.5 rounded-md px-1.5 py-0.5 transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40"
+            aria-label="Ver clientes con proyectos activos"
+          >
             <FolderKanban className="h-3.5 w-3.5 text-cyan-400" strokeWidth={1.75} />
-            <span className="tabular-nums font-semibold text-foreground">{metrics.totalProjects}</span>
-            <span className="text-muted-foreground">proyectos</span>
-          </span>
+            <span className="tabular-nums font-semibold text-foreground">{metrics.activeProjects}</span>
+            <span className="text-muted-foreground">proyectos activos</span>
+          </button>
           <span className="text-muted-foreground/50">·</span>
-          <span className="flex items-center gap-1.5">
-            <ListTodo className="h-3.5 w-3.5 text-cyan-400" strokeWidth={1.75} />
-            <span className="tabular-nums font-semibold text-foreground">{metrics.totalOpenTasks}</span>
-            <span className="text-muted-foreground">tareas abiertas</span>
-          </span>
+          <button
+            onClick={() => setFilter("atencion")}
+            className="flex items-center gap-1.5 rounded-md px-1.5 py-0.5 transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40"
+            aria-label="Ver clientes que requieren atención"
+          >
+            <AlertTriangle
+              className={cn("h-3.5 w-3.5", metrics.attention > 0 ? "text-red-500" : "text-cyan-400")}
+              strokeWidth={1.75}
+            />
+            <span
+              className={cn(
+                "tabular-nums font-semibold",
+                metrics.attention > 0 ? "text-red-600 dark:text-red-400" : "text-foreground"
+              )}
+            >
+              {metrics.attention}
+            </span>
+            <span className="text-muted-foreground">requieren atención</span>
+          </button>
         </div>
       )}
 
@@ -364,14 +400,14 @@ export function ClientsView({ clients, navigateToClient, setModal }: ClientsView
           <div className="relative min-w-48 max-w-xs flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Buscar cliente…"
+              placeholder="Buscar cliente o proyecto…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               className="h-8 border-border bg-muted/40 pl-9 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-cyan-500/40 focus-visible:ring-cyan-500/20"
             />
           </div>
 
-          <div className="flex items-center gap-0.5 rounded-lg border border-border p-0.5">
+          <div className="flex flex-wrap items-center gap-0.5 rounded-lg border border-border p-0.5">
             {FILTERS.map(({ key, label }) => (
               <button
                 key={key}
@@ -388,14 +424,15 @@ export function ClientsView({ clients, navigateToClient, setModal }: ClientsView
             ))}
           </div>
 
-          <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
+          <Select value={sort} onValueChange={(v) => setSort(v as ClientsSort)}>
             <SelectTrigger className="h-8 w-44 border-border bg-muted/40 text-xs text-muted-foreground focus:ring-cyan-500/20">
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="border-border bg-popover/95 backdrop-blur-xl">
-              <SelectItem value="recientes" className="text-sm text-muted-foreground focus:bg-accent focus:text-foreground">Más recientes</SelectItem>
+              <SelectItem value="atencion" className="text-sm text-muted-foreground focus:bg-accent focus:text-foreground">Atención primero</SelectItem>
+              <SelectItem value="actividad" className="text-sm text-muted-foreground focus:bg-accent focus:text-foreground">Actividad reciente</SelectItem>
+              <SelectItem value="nuevos" className="text-sm text-muted-foreground focus:bg-accent focus:text-foreground">Nuevos primero</SelectItem>
               <SelectItem value="nombre" className="text-sm text-muted-foreground focus:bg-accent focus:text-foreground">Nombre A–Z</SelectItem>
-              <SelectItem value="mas-proyectos" className="text-sm text-muted-foreground focus:bg-accent focus:text-foreground">Más proyectos</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -406,8 +443,14 @@ export function ClientsView({ clients, navigateToClient, setModal }: ClientsView
         <p className="py-20 text-center text-sm text-muted-foreground">No hay clientes aún</p>
       ) : filtered.length === 0 ? (
         <p className="py-12 text-center text-sm text-muted-foreground">
-          Sin resultados para{" "}
-          <span className="text-foreground">&ldquo;{query}&rdquo;</span>
+          {query.trim() ? (
+            <>
+              Sin resultados para{" "}
+              <span className="text-foreground">&ldquo;{query}&rdquo;</span>
+            </>
+          ) : (
+            "Sin clientes en este filtro"
+          )}
         </p>
       ) : (
         <div className="space-y-1.5">
