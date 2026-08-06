@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/collapsible";
 import { TagInput } from "../../../tag-input";
 import { UnsplashPicker } from "../unsplash-picker";
+import { BodyEditor } from "./body-editor";
 
 const CATEGORY_OPTIONS: { value: BlogCategory; label: string }[] = [
   { value: "arquitectura", label: "Arquitectura" },
@@ -326,24 +327,17 @@ export function EscribirStage({ form, postId, onUnsplashSelect, briefSource }: E
       />
       </div>
 
-      {/* Body */}
+      {/* Body — B-PR8: editor visual (Tiptap) sobre Markdown con toggle
+          «Ver Markdown»; BodyEditor decide el modo con la guardia de
+          roundtrip y emite por field.onChange (mismo contrato de autosave). */}
       <div id="anchor-body">
       <FormField
         control={form.control}
         name="body"
         render={({ field }) => (
           <FormItem>
-            <FormLabel className="text-muted-foreground">
-              Cuerpo (Markdown)
-            </FormLabel>
-            <FormControl>
-              <Textarea
-                {...field}
-                rows={24}
-                placeholder="# Título&#10;&#10;Escribe el contenido en Markdown…"
-                className="bg-background border-border text-foreground placeholder:text-muted-foreground focus:border-blue-500/50 resize-y font-mono text-sm"
-              />
-            </FormControl>
+            <FormLabel className="text-muted-foreground">Cuerpo</FormLabel>
+            <BodyEditor value={field.value} onChange={field.onChange} />
             <FormMessage />
           </FormItem>
         )}
