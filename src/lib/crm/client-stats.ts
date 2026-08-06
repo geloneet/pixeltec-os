@@ -63,21 +63,6 @@ export function clientStatusBadge(status: ClientCrmStatus | undefined, stats: Cl
   }
 }
 
-/** @deprecated ADR-0034 — usar `clientStatusBadge`. Se conserva mientras la
- *  lista de clientes migra (su filtro `sin-tareas` depende de estas labels). */
-export function clientBadge(stats: ClientStats): ClientBadge {
-  if (stats.stopped > 0) {
-    return { label: "Atención", colorClass: "bg-red-500/15 text-red-700 dark:text-red-400 border border-red-500/20" };
-  }
-  if (stats.totalTasks === 0) {
-    return { label: "Sin tareas", colorClass: "bg-muted text-muted-foreground border border-border" };
-  }
-  if (stats.openTasks > 0) {
-    return { label: "En progreso", colorClass: "bg-cyan-500/15 text-cyan-700 dark:text-cyan-400 border border-cyan-500/20" };
-  }
-  return { label: "Al día", colorClass: "bg-green-500/15 text-green-700 dark:text-green-400 border border-green-500/20" };
-}
-
 // ── Teléfono accionable (ADR-0034) ───────────────────────────────────────────
 
 export interface ActionablePhone {

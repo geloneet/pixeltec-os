@@ -4,10 +4,18 @@ import { useState, useMemo } from "react";
 import type { CRMClient } from "@/types/crm";
 import {
   deriveClientStats,
-  clientBadge,
+  clientStatusBadge,
+  formatPhone,
   type ClientStats,
   type ClientBadge,
+  type ActionablePhone,
 } from "@/lib/crm/client-stats";
+import {
+  nextActionChip,
+  activeProjectsInfo,
+  type NextActionChip,
+  type ActiveProjectsInfo,
+} from "@/lib/crm/clients-list-logic";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -22,9 +30,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Users, FolderKanban, ListTodo, Search, MoreHorizontal } from "lucide-react";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
+import {
+  Users,
+  FolderKanban,
+  ListTodo,
+  Search,
+  MoreHorizontal,
+  Phone,
+  MessageCircle,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -44,14 +58,6 @@ function initials(name: string) {
   return name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
 }
 
-function formatSince(dateStr: string): string {
-  try {
-    return format(new Date(dateStr), "MMM yyyy", { locale: es });
-  } catch {
-    return "—";
-  }
-}
-
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type FilterKey = "todos" | "con-tareas" | "sin-tareas" | "activos";
@@ -67,7 +73,9 @@ interface ClientItem {
   client: CRMClient;
   stats: ClientStats;
   badge: ClientBadge;
-  since: string;
+  nextChip: NextActionChip;
+  projects: ActiveProjectsInfo;
+  phone: ActionablePhone | null;
 }
 
 // ── ClientRow ─────────────────────────────────────────────────────────────────
@@ -79,20 +87,28 @@ interface ClientRowProps {
 }
 
 function ClientRow({ item, navigateToClient, setModal }: ClientRowProps) {
-  const { client: c, stats, badge, since } = item;
+  const { client: c, badge, nextChip, projects, phone } = item;
   const color = avatarColor(c.name);
-  const meta = [c.contactName, c.location, c.phone].filter(Boolean).join(" · ");
+  const meta = [c.contactName, c.location, phone?.display ?? (c.phone || null)]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <div
       role="button"
       tabIndex={0}
+      aria-label={`Abrir cliente ${c.name}`}
       onClick={() => navigateToClient(c.id)}
-      onKeyDown={(e) => { if (e.key === "Enter") navigateToClient(c.id); }}
-      className="group flex items-center rounded-xl border border-border bg-card dark:bg-zinc-900/20 shadow-sm dark:shadow-none cursor-pointer transition-all duration-150 hover:border-cyan-400/30 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40"
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          navigateToClient(c.id);
+        }
+      }}
+      className="group flex cursor-pointer flex-col gap-3 rounded-xl border border-border bg-card p-4 shadow-sm transition-all duration-150 hover:border-cyan-400/30 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 dark:bg-zinc-900/20 dark:shadow-none md:grid md:grid-cols-[minmax(0,1fr)_8.5rem_11rem_6.5rem_7rem_5.5rem] md:items-center md:gap-3 md:px-4 md:py-3"
     >
       {/* Identity */}
-      <div className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3">
+      <div className="flex min-w-0 items-center gap-3">
         <span
           className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
           style={{ backgroundColor: color }}
@@ -108,72 +124,83 @@ function ClientRow({ item, navigateToClient, setModal }: ClientRowProps) {
       </div>
 
       {/* Badge */}
-      <div className="flex-shrink-0 px-3 py-3">
+      <div className="md:justify-self-start">
         <span className={cn("inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-semibold", badge.colorClass)}>
           {badge.label}
         </span>
       </div>
 
-      <div className="my-2 w-px self-stretch bg-border" />
+      {/* Próxima acción */}
+      <div className="min-w-0">
+        {nextChip.tone === "muted" ? (
+          <p className="text-[11px] text-muted-foreground/60">{nextChip.label}</p>
+        ) : (
+          <>
+            <p className="truncate text-[11px] font-medium text-foreground">{nextChip.label}</p>
+            {nextChip.detail && (
+              <p
+                className={cn(
+                  "mt-0.5 truncate text-[10px]",
+                  nextChip.tone === "overdue"
+                    ? "font-semibold text-red-600 dark:text-red-400"
+                    : "text-muted-foreground/70"
+                )}
+              >
+                {nextChip.detail}
+              </p>
+            )}
+          </>
+        )}
+        <p className="mt-0.5 text-[10px] text-muted-foreground/50 md:hidden">próxima acción</p>
+      </div>
 
-      {/* Projects */}
-      <div className="w-20 flex-shrink-0 px-3 py-3 text-center">
-        <p className="tabular-nums text-sm font-semibold text-foreground">{stats.projectsCount}</p>
+      {/* Proyectos activos */}
+      <div className="md:text-center">
+        {projects.hasProjects ? (
+          <p className="tabular-nums text-sm font-semibold text-foreground">{projects.label}</p>
+        ) : (
+          <p className="text-[11px] text-muted-foreground/60">{projects.label}</p>
+        )}
         <p className="mt-0.5 text-[10px] text-muted-foreground/70">proyectos</p>
       </div>
 
-      <div className="my-2 w-px self-stretch bg-border" />
-
-      {/* Tasks */}
-      <div className="w-28 flex-shrink-0 px-3 py-3 text-center">
-        <p className="tabular-nums text-sm font-semibold text-foreground">
-          {stats.totalTasks > 0 ? stats.openTasks : "—"}
-        </p>
-        <p className="mt-0.5 text-[10px] text-muted-foreground/70">abiertas</p>
-      </div>
-
-      <div className="my-2 w-px self-stretch bg-border" />
-
-      {/* Since */}
-      <div className="w-24 flex-shrink-0 px-3 py-3 text-center">
-        <p className="text-[11px] font-medium capitalize text-muted-foreground">{since}</p>
-        <p className="mt-0.5 text-[10px] text-muted-foreground/70">cliente desde</p>
-      </div>
-
-      <div className="my-2 w-px self-stretch bg-border" />
-
-      {/* Progress */}
-      <div className="w-28 flex-shrink-0 px-4 py-3">
-        {stats.totalTasks > 0 ? (
-          <div className="space-y-1">
-            <div className="flex items-center justify-between">
-              <span className="tabular-nums text-[10px] font-medium text-muted-foreground">{stats.pct}%</span>
-              <span className="text-[10px] text-muted-foreground/70">avance</span>
-            </div>
-            <div className="h-[3px] w-full overflow-hidden rounded-full bg-muted">
-              <div
-                className={cn("h-full rounded-full transition-all", stats.pct >= 100 ? "bg-green-500" : "bg-cyan-500")}
-                style={{ width: `${stats.pct}%` }}
-              />
-            </div>
-          </div>
-        ) : (
-          <div className="flex h-full items-center justify-center">
-            <span className="text-[11px] text-muted-foreground/50">—</span>
-          </div>
-        )}
+      {/* Última actividad (A2 la llena) */}
+      <div className="md:text-center">
+        <p className="text-[11px] font-medium text-muted-foreground">—</p>
+        <p className="mt-0.5 text-[10px] text-muted-foreground/70">última actividad</p>
       </div>
 
       {/* Actions */}
       <div
-        className="flex-shrink-0 px-3 py-3"
+        className="flex items-center gap-1 md:justify-end"
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
         role="presentation"
       >
+        {phone && (
+          <>
+            <a
+              href={phone.telHref}
+              aria-label={`Llamar a ${c.name}`}
+              className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-all hover:bg-accent hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none md:opacity-0 md:group-hover:opacity-100"
+            >
+              <Phone className="h-3.5 w-3.5" aria-hidden />
+            </a>
+            <a
+              href={phone.waHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`Abrir WhatsApp con ${c.name}`}
+              className="flex h-7 w-7 items-center justify-center rounded-md text-green-600 transition-all hover:bg-accent hover:text-green-500 focus-visible:opacity-100 focus-visible:outline-none dark:text-green-500 dark:hover:text-green-400 md:opacity-0 md:group-hover:opacity-100"
+            >
+              <MessageCircle className="h-3.5 w-3.5" aria-hidden />
+            </a>
+          </>
+        )}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
-              className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-accent hover:text-foreground group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none"
+              className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-all hover:bg-accent hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none md:opacity-0 md:group-hover:opacity-100"
               aria-label={`Acciones para ${c.name}`}
             >
               <MoreHorizontal className="h-3.5 w-3.5" />
@@ -199,6 +226,9 @@ function ClientRow({ item, navigateToClient, setModal }: ClientRowProps) {
                     phone: c.phone,
                     location: c.location,
                     notes: c.notes,
+                    // Espejo de editClientModalData en ClientDetail: sin esto
+                    // el modal degradaba el estado comercial a «prospecto».
+                    crmStatus: c.crmStatus ?? "prospecto",
                   },
                 })
               }
@@ -234,12 +264,21 @@ export function ClientsView({ clients, navigateToClient, setModal }: ClientsView
   const [filter, setFilter] = useState<FilterKey>("todos");
   const [sort, setSort] = useState<SortKey>("recientes");
 
+  const now = useMemo(() => new Date(), []);
+
   const allItems = useMemo<ClientItem[]>(() =>
     clients.map(c => {
       const stats = deriveClientStats(c);
-      return { client: c, stats, badge: clientBadge(stats), since: formatSince(c.createdAt) };
+      return {
+        client: c,
+        stats,
+        badge: clientStatusBadge(c.crmStatus, stats),
+        nextChip: nextActionChip(c.nextAction, now),
+        projects: activeProjectsInfo(c),
+        phone: formatPhone(c.phone),
+      };
     }),
-    [clients]
+    [clients, now]
   );
 
   const metrics = useMemo(() => ({
