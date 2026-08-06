@@ -18,6 +18,8 @@ import {
   getPublicationReadiness,
 } from "@/lib/blog/actions/posts";
 import { regenerateDraft } from "@/lib/blog/actions/drafts";
+import { createRevision } from "@/lib/blog/actions/versions";
+import type { BlogPostVersionMeta } from "@/lib/blog/versions";
 import { editorActions, type WorkflowAction } from "@/lib/blog/workflow";
 import { useAdmin } from "@/hooks/use-admin";
 import { BlogPostEditSchema, type BlogPostEditInput } from "@/lib/blog/schemas";
@@ -44,6 +46,7 @@ import { EscribirStage } from "./stages/escribir-stage";
 import { OptimizarStage } from "./stages/optimizar-stage";
 import { VerificarStage } from "./stages/verificar-stage";
 import { PreviewStage } from "./stages/preview-stage";
+import { AiToolsMenu } from "./ai-tools-menu";
 import type { BlogActivityEntry } from "@/lib/blog/activity";
 import type { UnsplashPhoto } from "@/lib/unsplash-egress";
 
@@ -63,9 +66,16 @@ interface PostEditorClientProps {
   lastReturn?: { message: string; actorName: string | null; createdAt: string } | null;
   /** Historial editorial (blog_activity, fire-safe: [] si no está disponible). */
   activity?: BlogActivityEntry[];
+  /** B-PR6 — versiones del artículo (fire-safe: [] si no está disponible). */
+  versions?: BlogPostVersionMeta[];
 }
 
-export function PostEditorClient({ post, lastReturn = null, activity = [] }: PostEditorClientProps) {
+export function PostEditorClient({
+  post,
+  lastReturn = null,
+  activity = [],
+  versions = [],
+}: PostEditorClientProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
@@ -352,10 +362,26 @@ export function PostEditorClient({ post, lastReturn = null, activity = [] }: Pos
     startTransition(async () => {
       const result = await regenerateDraft(post.id);
       if (result.ok) {
-        toast.success("Borrador regenerado. Recargando…");
+        toast.success("Artículo regenerado — la versión anterior quedó en el historial. Recargando…");
         router.refresh();
       } else {
         toast.error(result.error ?? "Error al regenerar");
+      }
+    });
+  }
+
+  // B-PR6: congela lo publicado como versión `nueva-revision`; la edición
+  // sigue in situ (el artículo no cambia de estado ni se duplica).
+  function handleCreateRevision() {
+    startTransition(async () => {
+      const result = await createRevision(post.id);
+      if (result.ok && result.data) {
+        toast.success(
+          `Versión ${result.data.version} guardada — edita con calma: lo publicado quedó congelado en el historial.`,
+        );
+        router.refresh();
+      } else {
+        toast.error(result.error ?? "Error al crear la revisión");
       }
     });
   }
@@ -405,6 +431,20 @@ export function PostEditorClient({ post, lastReturn = null, activity = [] }: Pos
         </Button>
       );
     }
+    // B-PR6: el botón plano «Regenerar con IA» se sustituye por el menú
+    // «Herramientas de IA» (proponen sin escribir; regenerar pide confirmación
+    // y guarda versión previa).
+    if (action.id === "regenerate") {
+      return (
+        <AiToolsMenu
+          key={action.id}
+          postId={post.id}
+          form={form}
+          onRegenerate={handleRegenerate}
+          disabled={isPending}
+        />
+      );
+    }
     const handler: Record<string, () => void> = {
       "request-review": handleRequestReview,
       approve: handleApprove,
@@ -412,7 +452,7 @@ export function PostEditorClient({ post, lastReturn = null, activity = [] }: Pos
       publish: handlePublish,
       archive: handleArchive,
       unarchive: handleUnarchive,
-      regenerate: handleRegenerate,
+      "create-revision": handleCreateRevision,
     };
     const disabled =
       isPending || (action.id === "publish" && hasBlockers);
@@ -569,9 +609,9 @@ export function PostEditorClient({ post, lastReturn = null, activity = [] }: Pos
               />
             </TabsContent>
 
-            {/* ── Etapa 3: Verificar (evidencia + editorial + historial) ── */}
+            {/* ── Etapa 3: Verificar (evidencia + editorial + versiones + historial) ── */}
             <TabsContent value="verificar">
-              <VerificarStage form={form} activity={activity} />
+              <VerificarStage form={form} activity={activity} postId={post.id} versions={versions} />
             </TabsContent>
 
             {/* ── Etapa 4: Vista previa ── */}

@@ -3,6 +3,7 @@
 import type { UseFormReturn } from "react-hook-form";
 import type { BlogPostEditInput } from "@/lib/blog/schemas";
 import type { BlogActivityEntry } from "@/lib/blog/activity";
+import type { BlogPostVersionMeta } from "@/lib/blog/versions";
 import {
   FormControl,
   FormField,
@@ -11,6 +12,7 @@ import {
 } from "@/components/ui/form";
 import { SourcesEditor } from "../sources-editor";
 import { EditorialPanel } from "../editorial-panel";
+import { VersionsCard } from "../versions-card";
 
 /** Etiquetas legibles del vocabulario de blog_activity; un tipo fuera del
  *  vocabulario se muestra tal cual (extensible sin tocar la UI). */
@@ -43,11 +45,14 @@ function formatActivityDate(iso: string): string {
 interface VerificarStageProps {
   form: UseFormReturn<BlogPostEditInput>;
   activity: BlogActivityEntry[];
+  /** B-PR6 — versionado del artículo (fire-safe: [] si no está disponible). */
+  postId: string;
+  versions: BlogPostVersionMeta[];
 }
 
-/** Etapa 3 — Verificar: evidencia (fuentes), editorial e historial
- *  (dictamen UX 2026-08-05 §3). */
-export function VerificarStage({ form, activity }: VerificarStageProps) {
+/** Etapa 3 — Verificar: evidencia (fuentes), editorial, historial y versiones
+ *  (dictamen UX 2026-08-05 §3 + B-PR6). */
+export function VerificarStage({ form, activity, postId, versions }: VerificarStageProps) {
   return (
     <div className="space-y-6">
       {/* Fuentes / evidencia. id=anchor-*: destinos de los deep-links del
@@ -70,6 +75,9 @@ export function VerificarStage({ form, activity }: VerificarStageProps) {
       <div id="anchor-editorial">
         <EditorialPanel form={form} />
       </div>
+
+      {/* Historial de versiones (B-PR6): snapshots con diff y restauración */}
+      <VersionsCard postId={postId} versions={versions} form={form} />
 
       {/* Historial editorial */}
       <section className="rounded-xl border border-border bg-card p-4 space-y-3">
