@@ -21,6 +21,7 @@ import {
 } from '../publication-gate';
 import { EMPTY_EDITORIAL, EMPTY_SEO, type PostEditorial } from '../types';
 import { logBlogActivity } from '../activity';
+import { snapshotPost } from '../versions';
 
 type Row = typeof blogPosts.$inferSelect;
 
@@ -383,12 +384,26 @@ export async function publishPost(postId: string): Promise<ActionResult<Publicat
 
   revalidatePublicSurfaces(slug);
 
+  const publisherName = await getUserDisplayName(guard.uid);
+
+  // B-PR6: snapshot `publicacion` de lo que quedó publicado. Fire-safe: el
+  // versionado jamás tumba una publicación YA hecha (y la tabla puede no
+  // existir aún si la 0034 no se ha aplicado en la base).
+  try {
+    const [fresh] = await db.select().from(blogPosts).where(eq(blogPosts.id, row.id)).limit(1);
+    if (fresh) {
+      await snapshotPost(db, fresh, 'publicacion', { id: guard.uid, name: publisherName });
+    }
+  } catch (err) {
+    console.error('[blog-versions] snapshot post-publicación falló (no bloquea):', err);
+  }
+
   await logBlogActivity({
     postId: row.id,
     type: 'publicado',
     message: `Publicado en /blog/${slug}`,
     actorId: guard.uid,
-    actorName: await getUserDisplayName(guard.uid),
+    actorName: publisherName,
     metadata: verdict.warnings.length > 0 ? { warningsAceptadas: verdict.warnings.map((w) => w.code) } : null,
   });
 

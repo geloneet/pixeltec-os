@@ -60,8 +60,10 @@ const A: Record<WorkflowActionId, WorkflowAction> = {
   regenerate: { id: 'regenerate', label: 'Regenerar con IA', tone: 'muted' },
 };
 
-/** Ids que la UI aún no debe pintar aunque el estado los liste. */
-const HIDDEN: ReadonlySet<WorkflowActionId> = new Set(['schedule-publish', 'create-revision']);
+/** Ids que la UI aún no debe pintar aunque el estado los liste.
+ *  B-PR6: `create-revision` salió de aquí — el versionado ya existe y el botón
+ *  del editor lo cablea a la action `createRevision` (snapshot `nueva-revision`). */
+const HIDDEN: ReadonlySet<WorkflowActionId> = new Set(['schedule-publish']);
 
 export function editorActions(status: string, opts: { isAdmin: boolean }): EditorActions {
   let primary: WorkflowAction[];
