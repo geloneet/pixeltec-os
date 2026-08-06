@@ -54,6 +54,38 @@ import type { UnsplashPhoto } from "@/lib/unsplash-egress";
 
 const AUTO_SAVE_DEBOUNCE_MS = 5000;
 
+// ─── Helpers ───────────────────────────────────────────────────────────────────
+
+/** B-PR8 — best-effort: localiza `excerpt` (crudo o sin marcadores Markdown)
+ *  en los nodos de texto del editor visual, lo selecciona y hace scroll. */
+function selectExcerptInEditorDom(root: HTMLElement, excerpt: string) {
+  // El excerpt viene del Markdown; el DOM no tiene marcadores (`**`, `_`, …).
+  const candidates = [
+    excerpt,
+    excerpt.replace(/[*_`~]/g, "").replace(/\[([^\]]*)\]\([^)]*\)/g, "$1").trim(),
+  ].filter((c) => c.length > 0);
+
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    const text = node.textContent ?? "";
+    for (const candidate of candidates) {
+      const idx = text.indexOf(candidate);
+      if (idx < 0) continue;
+      const range = document.createRange();
+      range.setStart(node, idx);
+      range.setEnd(node, idx + candidate.length);
+      const selection = window.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+      (node.parentElement ?? root).scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+      return;
+    }
+  }
+}
+
 /** «dirty» = hay cambios desde el último guardado OK (autosave pendiente). */
 type SaveStatus = "idle" | "dirty" | "saving" | "saved" | "error";
 
@@ -176,11 +208,18 @@ export function PostEditorClient({
       if (excerpt) {
         const textarea = el.querySelector("textarea");
         if (textarea) {
+          // Modo Markdown (comportamiento original de B-PR4).
           const idx = textarea.value.indexOf(excerpt);
           if (idx >= 0) {
             textarea.focus({ preventScroll: true });
             textarea.setSelectionRange(idx, idx + excerpt.length);
           }
+        } else {
+          // B-PR8 — modo visual: búsqueda de texto best-effort en el DOM del
+          // editor (el excerpt viene del Markdown crudo; se busca también su
+          // versión sin marcadores porque el DOM renderizado no los tiene).
+          const editorRoot = el.querySelector<HTMLElement>(".ProseMirror");
+          if (editorRoot) selectExcerptInEditorDom(editorRoot, excerpt);
         }
       }
     }, 50);
