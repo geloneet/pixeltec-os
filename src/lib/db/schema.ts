@@ -1249,6 +1249,11 @@ export const blogPosts = pgTable(
     wordCount: integer("word_count").notNull().default(0),
     readingTimeMin: integer("reading_time_min").notNull().default(1),
     approvedBy: text("approved_by"),
+    // B-PR7: vínculo REAL brief→post (antes solo data.generatedDraftId
+    // serializado en el jsonb del brief). Nullable: posts manuales no tienen
+    // brief. Migración drizzle/0035_blog_brief_id.sql (incluye el backfill
+    // desde generatedDraftId; SQL aditivo, journal en el saneo del drift).
+    briefId: uuid("brief_id").references(() => blogBriefs.id, { onDelete: "set null" }),
     publishedAt: timestamp("published_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -1256,6 +1261,7 @@ export const blogPosts = pgTable(
   (t) => [
     uniqueIndex("blog_posts_slug_idx").on(t.slug),
     uniqueIndex("blog_posts_firestore_id_idx").on(t.firestoreId),
+    index("blog_posts_brief_id_idx").on(t.briefId),
   ]
 );
 

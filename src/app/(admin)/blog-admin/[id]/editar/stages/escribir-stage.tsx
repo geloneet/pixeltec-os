@@ -2,11 +2,11 @@
 
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
-import { Upload } from "lucide-react";
+import { ChevronDown, Upload } from "lucide-react";
 import { toast } from "sonner";
 import type { UseFormReturn } from "react-hook-form";
 import type { BlogPostEditInput } from "@/lib/blog/schemas";
-import type { BlogCategory } from "@/lib/blog/types";
+import type { BlogCategory, BlogPostSerialized } from "@/lib/blog/types";
 import type { UnsplashPhoto } from "@/lib/unsplash-egress";
 import { cn } from "@/lib/utils";
 import {
@@ -27,6 +27,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { TagInput } from "../../../tag-input";
 import { UnsplashPicker } from "../unsplash-picker";
 
@@ -44,13 +49,23 @@ interface EscribirStageProps {
   form: UseFormReturn<BlogPostEditInput>;
   postId: string;
   onUnsplashSelect: (photo: UnsplashPhoto, searchQuery: string) => void;
+  /** B-PR7 — brief congelado del artículo (`brief_source`); {} en posts manuales. */
+  briefSource?: BlogPostSerialized["briefSource"] | null;
 }
 
 /** Etapa 1 — Escribir: portada, título, extracto, cuerpo, categoría y
  *  etiquetas (dictamen UX 2026-08-05 §3). La portada se elige visualmente
  *  (UnsplashPicker) o se sube un archivo propio a R2 (B-PR5); la URL cruda
- *  queda en «Opciones avanzadas». */
-export function EscribirStage({ form, postId, onUnsplashSelect }: EscribirStageProps) {
+ *  queda en «Opciones avanzadas». B-PR7: panel «Origen (brief)» colapsado con
+ *  el brief congelado, solo cuando el artículo nació de uno. */
+export function EscribirStage({ form, postId, onUnsplashSelect, briefSource }: EscribirStageProps) {
+  const hasBriefSource = Boolean(
+    briefSource &&
+      (briefSource.topic ||
+        briefSource.angle ||
+        briefSource.targetAudience ||
+        (briefSource.keyPoints?.length ?? 0) > 0),
+  );
   const watchedCoverImage = form.watch("coverImage");
   const [coverError, setCoverError] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -88,6 +103,51 @@ export function EscribirStage({ form, postId, onUnsplashSelect }: EscribirStageP
 
   return (
     <div className="space-y-5">
+      {/* ── Origen (brief) — B-PR7: el brief congelado que generó el artículo.
+          Colapsado por defecto: es contexto de consulta, no un campo a editar. */}
+      {hasBriefSource && briefSource && (
+        <Collapsible>
+          <section className="rounded-xl border border-border bg-card">
+            <CollapsibleTrigger className="group flex w-full items-center justify-between p-4 text-left">
+              <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                Origen (brief)
+              </h3>
+              <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-3 px-4 pb-4 text-sm">
+              {briefSource.topic && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">Tema</p>
+                  <p className="text-foreground">{briefSource.topic}</p>
+                </div>
+              )}
+              {briefSource.angle && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">Ángulo</p>
+                  <p className="text-foreground">{briefSource.angle}</p>
+                </div>
+              )}
+              {briefSource.targetAudience && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">Audiencia</p>
+                  <p className="text-foreground">{briefSource.targetAudience}</p>
+                </div>
+              )}
+              {(briefSource.keyPoints?.length ?? 0) > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">Puntos clave</p>
+                  <ul className="mt-1 list-disc space-y-0.5 pl-5 text-foreground">
+                    {briefSource.keyPoints.map((point, i) => (
+                      <li key={i}>{point}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </CollapsibleContent>
+          </section>
+        </Collapsible>
+      )}
+
       {/* ── Portada ── */}
       {/* id=anchor-*: destinos de los deep-links del panel de publicación (B-PR4). */}
       <section id="anchor-cover" className="rounded-xl border border-border bg-card p-4 space-y-3">

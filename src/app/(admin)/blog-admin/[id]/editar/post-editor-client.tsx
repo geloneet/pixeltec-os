@@ -595,7 +595,12 @@ export function PostEditorClient({
 
             {/* ── Etapa 1: Escribir ── */}
             <TabsContent value="escribir">
-              <EscribirStage form={form} postId={post.id} onUnsplashSelect={handleUnsplashSelect} />
+              <EscribirStage
+                form={form}
+                postId={post.id}
+                onUnsplashSelect={handleUnsplashSelect}
+                briefSource={post.briefSource}
+              />
             </TabsContent>
 
             {/* ── Etapa 2: Optimizar (SEO + enlaces internos + slug) ── */}
