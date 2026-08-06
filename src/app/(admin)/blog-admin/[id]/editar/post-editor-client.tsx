@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition, useEffect, useRef, useCallback } from "react";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -22,27 +21,12 @@ import { regenerateDraft } from "@/lib/blog/actions/drafts";
 import { editorActions, type WorkflowAction } from "@/lib/blog/workflow";
 import { useAdmin } from "@/hooks/use-admin";
 import { BlogPostEditSchema, type BlogPostEditInput } from "@/lib/blog/schemas";
-import type { BlogPostSerialized, BlogPostStatus, BlogCategory } from "@/lib/blog/types";
+import type { BlogPostSerialized, BlogPostStatus } from "@/lib/blog/types";
 import type { PublicationVerdict } from "@/lib/blog/publication-gate";
 import { cn } from "@/lib/utils";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+import { Form } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -54,25 +38,17 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TagInput } from "./tag-input";
 import { SeoPanel } from "./seo-panel";
-import { SourcesEditor } from "./sources-editor";
-import { InternalLinksEditor } from "./internal-links-editor";
 import { EditorialPanel } from "./editorial-panel";
 import { ReadinessPanel } from "./readiness-panel";
-import { PreviewPanel } from "./preview-panel";
 import { SlugCard } from "./slug-card";
-import { UnsplashPicker } from "./unsplash-picker";
+import { ContenidoTab } from "./stages/contenido-tab";
+import { EvidenciaTab } from "./stages/evidencia-tab";
+import { EnlacesTab } from "./stages/enlaces-tab";
+import { PreviewTab } from "./stages/preview-tab";
 import type { UnsplashPhoto } from "@/lib/unsplash-egress";
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
-
-const CATEGORY_OPTIONS: { value: BlogCategory; label: string }[] = [
-  { value: "arquitectura", label: "Arquitectura" },
-  { value: "automatización", label: "Automatización" },
-  { value: "case-study", label: "Case Study" },
-  { value: "opinión", label: "Opinión" },
-];
 
 const STATUS_LABEL: Record<BlogPostStatus, string> = {
   draft: "Borrador",
@@ -114,7 +90,6 @@ export function PostEditorClient({ post, lastReturn = null }: PostEditorClientPr
   const [returnOpen, setReturnOpen] = useState(false);
   const [returnComment, setReturnComment] = useState("");
   const { isAdmin } = useAdmin();
-  const [coverError, setCoverError] = useState(false);
   const [verdict, setVerdict] = useState<PublicationVerdict | null>(null);
   const [readinessLoading, setReadinessLoading] = useState(true);
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -150,17 +125,7 @@ export function PostEditorClient({ post, lastReturn = null }: PostEditorClientPr
     },
   });
 
-  const watchedTitle = form.watch("title");
-  const watchedExcerpt = form.watch("excerpt");
   const watchedBody = form.watch("body");
-  const watchedCoverImage = form.watch("coverImage");
-  const watchedSeoMetaTitle = form.watch("seoMetaTitle") ?? "";
-  const watchedSeoMetaDescription = form.watch("seoMetaDescription") ?? "";
-  const watchedCoverImageAlt = form.watch("coverImageAlt") ?? "";
-
-  useEffect(() => {
-    setCoverError(false);
-  }, [watchedCoverImage]);
 
   // ── Unsplash picker ──────────────────────────────────────────────────────────
   const handleUnsplashSelect = useCallback(
@@ -552,166 +517,8 @@ export function PostEditorClient({ post, lastReturn = null }: PostEditorClientPr
             </TabsList>
 
             {/* ── Tab: Contenido ── */}
-            <TabsContent value="contenido" className="space-y-5">
-              {/* Cover Image */}
-              <FormField
-                control={form.control}
-                name="coverImage"
-                render={({ field }) => (
-                  <FormItem>
-                    <div className="flex items-center justify-between">
-                      <FormLabel className="text-muted-foreground">Imagen de portada (URL)</FormLabel>
-                      <UnsplashPicker onSelect={handleUnsplashSelect} />
-                    </div>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        value={field.value ?? ""}
-                        onChange={(e) => field.onChange(e.target.value || null)}
-                        className="bg-background border-border text-foreground placeholder:text-muted-foreground focus:border-blue-500/50"
-                        placeholder="https://images.unsplash.com/…"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                    {watchedCoverImage && !coverError && (
-                      <div className="relative mt-2 h-40 w-full overflow-hidden rounded-lg border border-border">
-                        <Image
-                          src={watchedCoverImage}
-                          alt="Cover preview"
-                          fill
-                          className="object-cover"
-                          onError={() => setCoverError(true)}
-                        />
-                      </div>
-                    )}
-                    {watchedCoverImage && coverError && (
-                      <p className="mt-1 text-xs text-red-400">No se pudo cargar la imagen. Verifica la URL.</p>
-                    )}
-                  </FormItem>
-                )}
-              />
-
-              {/* Title */}
-              <FormField
-                control={form.control}
-                name="title"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-muted-foreground">Título</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        className="bg-background border-border text-foreground text-2xl font-bold placeholder:text-muted-foreground focus:border-blue-500/50 h-auto py-3"
-                        placeholder="Título del artículo"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Excerpt */}
-              <FormField
-                control={form.control}
-                name="excerpt"
-                render={({ field }) => (
-                  <FormItem>
-                    <div className="flex items-center justify-between">
-                      <FormLabel className="text-muted-foreground">Extracto</FormLabel>
-                      <span
-                        className={cn(
-                          "text-xs",
-                          (field.value?.length ?? 0) > 160
-                            ? "text-red-400"
-                            : "text-muted-foreground",
-                        )}
-                      >
-                        {field.value?.length ?? 0}/160
-                      </span>
-                    </div>
-                    <FormControl>
-                      <Textarea
-                        {...field}
-                        rows={2}
-                        maxLength={160}
-                        placeholder="Resumen del artículo para SEO y listados"
-                        className="bg-background border-border text-foreground placeholder:text-muted-foreground focus:border-blue-500/50 resize-none"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Body */}
-              <FormField
-                control={form.control}
-                name="body"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-muted-foreground">
-                      Cuerpo (Markdown)
-                    </FormLabel>
-                    <FormControl>
-                      <Textarea
-                        {...field}
-                        rows={24}
-                        placeholder="# Título&#10;&#10;Escribe el contenido en Markdown…"
-                        className="bg-background border-border text-foreground placeholder:text-muted-foreground focus:border-blue-500/50 resize-y font-mono text-sm"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Tags */}
-              <FormField
-                control={form.control}
-                name="tags"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-muted-foreground">Etiquetas</FormLabel>
-                    <FormControl>
-                      <TagInput value={field.value} onChange={field.onChange} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Category */}
-              <FormField
-                control={form.control}
-                name="category"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-muted-foreground">Categoría</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger className="bg-background border-border text-foreground focus:border-blue-500/50">
-                          <SelectValue placeholder="Selecciona una categoría" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent className="border-border bg-popover/95 backdrop-blur-xl">
-                        {CATEGORY_OPTIONS.map((opt) => (
-                          <SelectItem
-                            key={opt.value}
-                            value={opt.value}
-                            className="text-popover-foreground focus:bg-secondary focus:text-foreground"
-                          >
-                            {opt.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            <TabsContent value="contenido">
+              <ContenidoTab form={form} onUnsplashSelect={handleUnsplashSelect} />
             </TabsContent>
 
             {/* ── Tab: SEO ── */}
@@ -721,34 +528,12 @@ export function PostEditorClient({ post, lastReturn = null }: PostEditorClientPr
 
             {/* ── Tab: Evidencia (fuentes) ── */}
             <TabsContent value="evidencia">
-              <FormField
-                control={form.control}
-                name="sources"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormControl>
-                      <SourcesEditor value={field.value ?? []} onChange={field.onChange} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <EvidenciaTab form={form} />
             </TabsContent>
 
             {/* ── Tab: Enlaces internos ── */}
             <TabsContent value="enlaces">
-              <FormField
-                control={form.control}
-                name="internalLinks"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormControl>
-                      <InternalLinksEditor value={field.value ?? []} onChange={field.onChange} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <EnlacesTab form={form} />
             </TabsContent>
 
             {/* ── Tab: Editorial ── */}
@@ -758,16 +543,7 @@ export function PostEditorClient({ post, lastReturn = null }: PostEditorClientPr
 
             {/* ── Tab: Vista previa ── */}
             <TabsContent value="preview">
-              <PreviewPanel
-                title={watchedTitle}
-                excerpt={watchedExcerpt}
-                body={watchedBody}
-                slug={slug}
-                coverImage={watchedCoverImage ?? null}
-                coverImageAlt={watchedCoverImageAlt}
-                metaTitle={watchedSeoMetaTitle}
-                metaDescription={watchedSeoMetaDescription}
-              />
+              <PreviewTab form={form} slug={slug} />
             </TabsContent>
           </Tabs>
         </div>
