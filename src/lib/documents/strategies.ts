@@ -10,6 +10,7 @@ import {
   requireOwner,
   resolveClientPgId,
   resolveProjectPgId,
+  resolveOwnedProjectPgId,
   resolveStrategyRow,
   serializeStrategy,
 } from "./pg";
@@ -53,7 +54,10 @@ export async function createStrategy(_uid: string, clientId: string, projectId?:
   const { ownerId } = await requireOwner();
   const clientPgId = await resolveClientPgId(clientId);
   if (!clientPgId) throw new Error("Cliente no encontrado");
-  const projectPgId = projectId ? await resolveProjectPgId(projectId) : null;
+  // Proyecto verificado contra el dueño: si no, se podría crear la estrategia
+  // colgando del proyecto de otro owner.
+  const projectPgId = projectId ? await resolveOwnedProjectPgId(projectId, ownerId) : null;
+  if (projectId && !projectPgId) throw new Error("Proyecto no encontrado");
 
   // Idempotencia: un doble-click (o retry) creaba dos estrategias para el
   // mismo cliente/proyecto y getStrategy (.limit(1)) devolvía una al azar.
@@ -113,7 +117,9 @@ export async function assignStrategyToProject(strategyId: string, projectId: str
   const { ownerId } = await requireOwner();
   const row = await resolveStrategyRow(strategyId);
   if (!row || row.ownerId !== ownerId) throw new Error("Estrategia no encontrada");
-  const projectPgId = await resolveProjectPgId(projectId);
+  // El proyecto destino también debe ser del dueño: verificar solo el origen
+  // dejaba adjuntar documentos propios al proyecto de otro owner.
+  const projectPgId = await resolveOwnedProjectPgId(projectId, ownerId);
   if (!projectPgId) throw new Error("Proyecto no encontrado");
   await db.update(strategies).set({ projectId: projectPgId }).where(eq(strategies.id, row.id));
 }

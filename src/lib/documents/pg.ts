@@ -12,7 +12,7 @@
 //   - El shape de dominio (src/types/documents.ts) usa `uid` (Firebase UID)
 //     y `clientId` (id público del cliente). Postgres usa ownerId
 //     (users.id) y clientId (clients.id). Se traduce aquí.
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   users,
@@ -98,6 +98,33 @@ export async function resolveProjectPgId(publicProjectId: string): Promise<strin
   if (!UUID_RE.test(id)) return null;
   const [byId] = await db.select({ id: projects.id }).from(projects).where(eq(projects.id, id)).limit(1);
   return byId?.id ?? null;
+}
+
+/**
+ * Igual que `resolveProjectPgId` pero exigiendo que el proyecto pertenezca al
+ * dueño de la sesión.
+ *
+ * Anti-IDOR (mismo criterio que `resolveOwnedClient` del CRM): `projects` no
+ * tiene `owner_id` propio —cuelga de `clients`—, así que resolver por id suelto
+ * alcanza proyectos de CUALQUIER dueño. Toda función que reciba un projectId
+ * del llamador y lo persista debe usar esta, no la de arriba: si no, un usuario
+ * autenticado puede colgar sus documentos del proyecto de otro y usar el error
+ * como oráculo de existencia. Los `firestore_id` legacy no son uuid, así que
+ * tampoco se puede confiar en su inadivinabilidad.
+ */
+export async function resolveOwnedProjectPgId(
+  publicProjectId: string,
+  ownerId: string,
+): Promise<string | null> {
+  const projectPgId = await resolveProjectPgId(publicProjectId);
+  if (!projectPgId) return null;
+  const [owned] = await db
+    .select({ id: projects.id })
+    .from(projects)
+    .innerJoin(clients, eq(projects.clientId, clients.id))
+    .where(and(eq(projects.id, projectPgId), eq(clients.ownerId, ownerId)))
+    .limit(1);
+  return owned?.id ?? null;
 }
 
 /** projects.id (uuid) → id público (firestore_id si existe). */

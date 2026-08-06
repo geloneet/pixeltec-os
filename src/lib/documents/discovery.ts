@@ -12,6 +12,7 @@ import {
   requireOwner,
   resolveClientPgId,
   resolveProjectPgId,
+  resolveOwnedProjectPgId,
   resolveDiscoveryRow,
   serializeDiscovery,
 } from "./pg";
@@ -84,7 +85,10 @@ export async function createDiscoverySession(
   const { ownerId } = await requireOwner();
   const clientPgId = await resolveClientPgId(clientId);
   if (!clientPgId) throw new Error("Cliente no encontrado");
-  const projectPgId = projectId ? await resolveProjectPgId(projectId) : null;
+  // Proyecto verificado contra el dueño: si no, se podría crear la sesión
+  // colgando del proyecto de otro owner.
+  const projectPgId = projectId ? await resolveOwnedProjectPgId(projectId, ownerId) : null;
+  if (projectId && !projectPgId) throw new Error("Proyecto no encontrado");
   const [row] = await db
     .insert(discoverySessions)
     .values({
@@ -127,7 +131,9 @@ export async function assignDiscoveryToProject(sessionId: string, projectId: str
   const { ownerId } = await requireOwner();
   const row = await resolveDiscoveryRow(sessionId);
   if (!row || row.ownerId !== ownerId) throw new Error("Sesión no encontrada");
-  const projectPgId = await resolveProjectPgId(projectId);
+  // El proyecto destino también debe ser del dueño: verificar solo el origen
+  // dejaba adjuntar documentos propios al proyecto de otro owner.
+  const projectPgId = await resolveOwnedProjectPgId(projectId, ownerId);
   if (!projectPgId) throw new Error("Proyecto no encontrado");
   await db.update(discoverySessions).set({ projectId: projectPgId }).where(eq(discoverySessions.id, row.id));
 }
