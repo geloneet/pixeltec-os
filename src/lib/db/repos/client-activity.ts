@@ -1,9 +1,9 @@
 // Historial verificable del cliente (ADR-0034): qué ocurrió, quién y cuándo.
 // Los writers viven en las server actions de cada dominio (proposals,
 // contracts, invoices, portal, crm-actions) — este repo solo inserta y lee.
-import { desc, eq, and } from "drizzle-orm";
+import { desc, eq, and, max } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { clientActivity, type ClientActivityRow } from "@/lib/db/schema";
+import { clientActivity, clients, type ClientActivityRow } from "@/lib/db/schema";
 
 /** Vocabulario cerrado en TS (la columna es text: extensible sin migración). */
 export type ClientActivityType =
@@ -51,6 +51,33 @@ export async function logClientActivity(input: ClientActivityInput): Promise<voi
   } catch (error) {
     console.error("[logClientActivity]", input.type, error);
   }
+}
+
+export interface ClientLastActivityRow {
+  /** clients.id (uuid de Postgres). */
+  clientId: string;
+  /** Id original de Firestore si la fila fue migrada (id público preferente). */
+  firestoreId: string | null;
+  lastActivityAt: Date | string | null;
+}
+
+/**
+ * Última actividad por cliente del owner en UNA consulta agregada
+ * (`MAX(created_at) GROUP BY client_id`, cubierta por el índice
+ * `(client_id, created_at)`), con join a clients para poder devolver el id
+ * público (firestore_id ?? uuid) sin N consultas de resolución.
+ */
+export async function getClientsLastActivityRows(ownerId: string): Promise<ClientLastActivityRow[]> {
+  return db
+    .select({
+      clientId: clientActivity.clientId,
+      firestoreId: clients.firestoreId,
+      lastActivityAt: max(clientActivity.createdAt),
+    })
+    .from(clientActivity)
+    .innerJoin(clients, eq(clients.id, clientActivity.clientId))
+    .where(eq(clientActivity.ownerId, ownerId))
+    .groupBy(clientActivity.clientId, clients.firestoreId);
 }
 
 export async function getClientActivityRows(

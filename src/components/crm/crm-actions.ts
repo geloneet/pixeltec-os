@@ -21,6 +21,7 @@ import { resolveClientPgId } from "@/lib/documents/pg";
 import {
   logClientActivity,
   getClientActivityRows,
+  getClientsLastActivityRows,
   type ClientActivityType,
 } from "@/lib/db/repos/client-activity";
 import type { CRMClient, ClientCrmStatus, ClientNextAction, Tool, ServerClientLink } from "@/types/crm";
@@ -193,6 +194,28 @@ export async function getClientDocumentsAction(publicClientId: string): Promise<
   } catch (error) {
     console.error("[getClientDocumentsAction]", error);
     return [];
+  }
+}
+
+/**
+ * Señales agregadas para la lista de clientes (rediseño 2026-08-05): mapa
+ * `{ [idPúblicoDelCliente]: lastActivityAt ISO }` en una sola consulta
+ * (MAX/GROUP BY del owner de la sesión). Los clientes sin historial no
+ * aparecen en el mapa — la lista usa su fallback sintético.
+ */
+export async function getClientListSignalsAction(): Promise<Record<string, string>> {
+  try {
+    const ownerId = await requireOwnerId();
+    const rows = await getClientsLastActivityRows(ownerId);
+    const map: Record<string, string> = {};
+    for (const r of rows) {
+      if (!r.lastActivityAt) continue;
+      map[r.firestoreId ?? r.clientId] = new Date(r.lastActivityAt).toISOString();
+    }
+    return map;
+  } catch (error) {
+    console.error("[getClientListSignalsAction]", error);
+    return {};
   }
 }
 
