@@ -35,6 +35,12 @@ declare module "next-auth" {
        * Opcional: tokens legacy pueden no tenerlo aún.
        */
       sid?: string;
+      /**
+       * `iat` del JWT en segundos epoch. Lo consume la autoridad canónica
+       * (`src/lib/auth/authority.ts`) para descartar tokens anteriores al
+       * corte global de credenciales (`users.sessions_valid_from`).
+       */
+      sessionIssuedAt?: number;
     } & DefaultSession["user"];
   }
 }

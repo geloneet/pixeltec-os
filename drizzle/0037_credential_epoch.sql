@@ -1,0 +1,33 @@
+-- 0037 — Epoch global de credenciales en `users` (auditoría de seguridad 2026-08-06)
+--
+-- SQL plano ADITIVO. No toca drizzle/meta/ a propósito: el journal y el
+-- snapshot se regeneran en el saneo del drift de migraciones — misma
+-- convención que 0029–0036. NO aplicar a ninguna base desde esta rama; se
+-- aplica en el deploy gobernado, ANTES de arrancar la imagen nueva (el código
+-- de esta rama lee la columna en cada verificación de autorización).
+--
+-- `sessions_valid_from`: todo JWT con `iat` ANTERIOR a esta marca queda
+-- rechazado por la autoridad canónica (src/lib/auth/authority.ts). Se estampa
+-- al cambiar o restablecer la contraseña.
+--
+-- Complementa —no sustituye— a `user_sessions` (0032), que revoca por
+-- DISPOSITIVO. Las dos capas cubren cosas distintas:
+--
+--   user_sessions (sid)   → un dispositivo · fail-OPEN · revalidado ≤60s
+--   sessions_valid_from   → todos los tokens previos · fail-CLOSED · inmediato
+--
+-- El sid es quirúrgico ("cierra la sesión del portátil que perdí") y se
+-- sacrifica deliberadamente a la disponibilidad. Ese diseño deja dos huecos
+-- que este corte cierra: (1) `mintSession` es fire-safe, así que un token
+-- acuñado durante un outage viaja SIN sid y el acuñado perezoso posterior le
+-- daría una fila nueva en vez de revocarlo; (2) `validateSession` es fail-open,
+-- así que un outage silencia la revocación por dispositivo. Cambiar la
+-- contraseña debe echar al intruso aunque ocurran ambas.
+--
+-- NULL = nunca se invalidó. Aplicar esta migración NO expulsa ninguna sesión
+-- vigente: el corte solo empieza a existir cuando alguien cambia su contraseña.
+--
+-- IF NOT EXISTS: idempotente por si el saneo del drift la reordena o se
+-- reaplica en una base que ya la tenga.
+
+ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "sessions_valid_from" timestamptz;

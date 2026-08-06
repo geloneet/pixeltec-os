@@ -109,6 +109,10 @@ export const authConfig: NextAuthConfig = {
       if (typeof token.sid === "string" && token.sid.length > 0) {
         session.user.sid = token.sid;
       }
+      // `iat` viaja para que la autoridad canónica (src/lib/auth/authority.ts)
+      // pueda descartar tokens anteriores a un cambio de credenciales. Aquí no
+      // se consulta la base: este callback también corre en el middleware.
+      if (typeof token.iat === "number") session.user.sessionIssuedAt = token.iat;
       // Alias heredado: viaja solo informativamente.
       return session;
     },

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { sendWhatsApp } from "@/lib/whatsapp/sender";
 import { assertCronExecutionAllowed, cronBlockedResponse } from "@/lib/cron-guard";
-import { createNotification } from "@/lib/notifications/actions";
+import { createNotification } from "@/lib/notifications/create";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { getFullCrmData } from "@/lib/db/repos/crm-sync";

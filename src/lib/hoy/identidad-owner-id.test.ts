@@ -50,6 +50,19 @@ vi.mock("@/lib/db", () => ({
 const sessionMock = vi.fn();
 vi.mock("@/lib/auth/config", () => ({ auth: () => sessionMock() }));
 
+// La frontera de sesión consulta la autoridad canónica. Se mockea "cuenta
+// activa" para que `dbSelectMock` siga midiendo solo lo que este test vigila:
+// que la identidad NO se resuelva consultando `users.firebase_uid`.
+vi.mock("@/lib/auth/authority", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/auth/authority")>()),
+  resolveAuthority: async (userId: string) => ({
+    ok: true as const,
+    userId,
+    role: "staff" as const,
+    isAdmin: false,
+  }),
+}));
+
 // Los otros dos repos de Proyectos ya recibían ownerId; se neutralizan para
 // aislar la fuente CRM, que es la que cambia de contrato.
 vi.mock("@/lib/db/repos/pixelforge", () => ({ listPixelforgeProjectsByOwner: async () => [] }));

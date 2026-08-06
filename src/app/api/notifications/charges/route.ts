@@ -4,7 +4,7 @@ import { sendWhatsApp } from "@/lib/whatsapp/sender";
 import { assertCronExecutionAllowed, cronBlockedResponse } from "@/lib/cron-guard";
 import { sendEmail } from "@/lib/email";
 import { getNextChargeDate } from "@/lib/crm/next-charge-date";
-import { createNotification } from "@/lib/notifications/actions";
+import { createNotification } from "@/lib/notifications/create";
 import { db } from "@/lib/db";
 import { users, recurringCharges } from "@/lib/db/schema";
 import { getFullCrmData } from "@/lib/db/repos/crm-sync";

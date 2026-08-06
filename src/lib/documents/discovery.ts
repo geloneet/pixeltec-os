@@ -10,6 +10,8 @@ import { discoverySessions, projects } from "@/lib/db/schema";
 import type { DiscoverySession } from "@/types/documents";
 import {
   requireOwner,
+  resolveOwnedClientPgId,
+  resolveOwnedProjectPgId,
   resolveClientPgId,
   resolveProjectPgId,
   resolveDiscoveryRow,
@@ -72,9 +74,12 @@ export async function createDiscoverySession(
   projectId?: string,
 ): Promise<string> {
   const { ownerId } = await requireOwner();
-  const clientPgId = await resolveClientPgId(clientId);
+  const clientPgId = await resolveOwnedClientPgId(clientId, ownerId);
   if (!clientPgId) throw new Error("Cliente no encontrado");
-  const projectPgId = projectId ? await resolveProjectPgId(projectId) : null;
+  // Un projectId ajeno debe fallar, no degradar a `null`: si no, la sesión se
+  // crearía huérfana en vez de rechazarse, ocultando el intento.
+  const projectPgId = projectId ? await resolveOwnedProjectPgId(projectId, ownerId) : null;
+  if (projectId && !projectPgId) throw new Error("Proyecto no encontrado");
   const [row] = await db
     .insert(discoverySessions)
     .values({
@@ -117,7 +122,7 @@ export async function assignDiscoveryToProject(sessionId: string, projectId: str
   const { ownerId } = await requireOwner();
   const row = await resolveDiscoveryRow(sessionId);
   if (!row || row.ownerId !== ownerId) throw new Error("Sesión no encontrada");
-  const projectPgId = await resolveProjectPgId(projectId);
+  const projectPgId = await resolveOwnedProjectPgId(projectId, ownerId);
   if (!projectPgId) throw new Error("Proyecto no encontrado");
   await db.update(discoverySessions).set({ projectId: projectPgId }).where(eq(discoverySessions.id, row.id));
 }

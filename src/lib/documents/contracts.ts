@@ -9,6 +9,8 @@ import { contracts, clients, proposals, projects, billingItems } from "@/lib/db/
 import type { BillingItemDraft, Contract, ContractSection } from "@/types/documents";
 import {
   requireOwner,
+  resolveOwnedClientPgId,
+  resolveOwnedProposalPgId,
   resolveClientPgId,
   resolveContractRow,
   resolveIATemplatePgId,
@@ -73,11 +75,11 @@ export async function createContract(
   data: Omit<Contract, "id" | "uid" | "clientId" | "version" | "createdAt" | "updatedAt">,
 ): Promise<string> {
   const { ownerId } = await requireOwner();
-  const clientPgId = await resolveClientPgId(clientId);
+  const clientPgId = await resolveOwnedClientPgId(clientId, ownerId);
   if (!clientPgId) throw new Error("Cliente no encontrado");
 
   // proposalId/templateId llegan como ids públicos → columnas uuid
-  const proposalPgId = data.proposalId ? await resolveProposalPgId(data.proposalId) : null;
+  const proposalPgId = data.proposalId ? await resolveOwnedProposalPgId(data.proposalId, ownerId) : null;
   const templatePgId = data.templateId
     ? (UUID_RE.test(data.templateId) ? data.templateId : await resolveIATemplatePgId(data.templateId))
     : null;
@@ -128,7 +130,15 @@ export async function updateContract(
   if (data.notes !== undefined) set.notes = data.notes;
   if (data.version !== undefined) set.version = data.version;
   if (data.proposalId !== undefined) {
-    set.proposalId = data.proposalId ? await resolveProposalPgId(data.proposalId) : null;
+    // Verificado contra el dueño: vincular el contrato propio a la propuesta de
+    // otro owner también es una escritura cross-owner (ADR-0036).
+    if (data.proposalId) {
+      const proposalPgId = await resolveOwnedProposalPgId(data.proposalId, ownerId);
+      if (!proposalPgId) throw new Error("Propuesta no encontrada");
+      set.proposalId = proposalPgId;
+    } else {
+      set.proposalId = null;
+    }
   }
 
   await db.update(contracts).set(set).where(eq(contracts.id, row.id));
@@ -203,7 +213,7 @@ export async function confirmContractFromWizard(data: ConfirmContractFromWizardI
   }
 
   const { ownerId } = await requireOwner();
-  const clientPgId = await resolveClientPgId(data.clientId);
+  const clientPgId = await resolveOwnedClientPgId(data.clientId, ownerId);
   if (!clientPgId) throw new Error("Cliente no encontrado");
 
   const [client] = await db
@@ -213,7 +223,7 @@ export async function confirmContractFromWizard(data: ConfirmContractFromWizardI
     .limit(1);
   if (!client) throw new Error("Cliente no encontrado");
 
-  const proposalPgId = data.proposalId ? await resolveProposalPgId(data.proposalId) : null;
+  const proposalPgId = data.proposalId ? await resolveOwnedProposalPgId(data.proposalId, ownerId) : null;
   let proposalReference: string | undefined;
   if (proposalPgId) {
     const [p] = await db
