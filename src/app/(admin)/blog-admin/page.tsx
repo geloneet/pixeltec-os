@@ -1,9 +1,8 @@
-import Link from "next/link";
 import { getViewCounts, listAllPosts } from "@/lib/blog/queries/posts";
 import { listBriefs } from "@/lib/blog/actions/briefs";
 import type { BlogPostSerialized, BlogBriefSerialized } from "@/lib/blog/types";
-import { editorialSummary } from "./blog-admin-logic";
 import { BlogAdminWorkspace } from "./blog-admin-workspace";
+import { NewArticleMenu } from "./new-article-menu";
 
 /**
  * Blog Admin (rediseño minimalista 2026-08-04): Server Component que carga los
@@ -40,12 +39,7 @@ export default async function BlogAdminPage() {
             Gestiona ideas, borradores y publicaciones.
           </p>
         </div>
-        <Link
-          href="/blog-admin/nuevo"
-          className="inline-flex h-11 items-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-blue-500 md:h-10"
-        >
-          + Nuevo brief
-        </Link>
+        <NewArticleMenu />
       </div>
 
       {fetchError && (
@@ -54,12 +48,9 @@ export default async function BlogAdminPage() {
         </div>
       )}
 
-      {/* Resumen editorial compacto — sustituye a las tarjetas KPI. Agrupado
-          con el workspace para que el contenido de trabajo empiece antes. */}
-      <div className="space-y-3">
-        <p className="text-sm text-foreground/70">{editorialSummary(posts)}</p>
-        <BlogAdminWorkspace posts={posts} briefs={briefs} views={views} />
-      </div>
+      {/* El resumen editorial (contadores pulsables) vive dentro del workspace
+          para poder aplicar filtros al pulsarlos. */}
+      <BlogAdminWorkspace posts={posts} briefs={briefs} views={views} />
     </div>
   );
 }

@@ -291,7 +291,7 @@ const inputCls =
 
 // ─── Form component ────────────────────────────────────────────────────────────
 
-export function NuevoBriefForm() {
+export function NuevoBriefForm({ ideaMode = false }: { ideaMode?: boolean } = {}) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [loadingMessage, setLoadingMessage] = useState("");
@@ -512,6 +512,15 @@ export function NuevoBriefForm() {
       if (!briefResult.ok || !briefResult.data) {
         toast.error(briefResult.error ?? "Error al crear brief");
         setLoadingMessage("");
+        return;
+      }
+
+      // Modo IDEA (dictamen 2026-08-05): se guarda el tema para retomarlo
+      // después — sin disparar generación ni consumir IA.
+      if (ideaMode) {
+        setLoadingMessage("");
+        toast.success("Idea guardada — la retomas desde la pestaña Ideas.");
+        router.push("/blog-admin");
         return;
       }
 
@@ -1481,8 +1490,10 @@ export function NuevoBriefForm() {
               {isPending ? (
                 <span className="flex items-center gap-2">
                   <Spinner size="sm" />
-                  Generando…
+                  {ideaMode ? "Guardando…" : "Generando…"}
                 </span>
+              ) : ideaMode ? (
+                "Guardar idea"
               ) : (
                 "Generar borrador con IA"
               )}
