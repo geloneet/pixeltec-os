@@ -96,6 +96,8 @@ export function PostEditorClient({ post, lastReturn = null, activity = [] }: Pos
       seoMetaDescription: post.seo.metaDescription,
       // WS2 — SEO
       coverImageAlt: post.seo.ogImageAlt ?? "",
+      // B-PR5 — atribución de la portada (vive en seo.coverAttribution)
+      coverAttribution: post.seo.coverAttribution ?? "",
       canonicalUrl: post.seo.canonicalUrl ?? null,
       noindex: post.seo.noindex ?? true,
       primaryKeyword: post.seo.primaryKeyword ?? "",
@@ -553,7 +555,7 @@ export function PostEditorClient({ post, lastReturn = null, activity = [] }: Pos
 
             {/* ── Etapa 1: Escribir ── */}
             <TabsContent value="escribir">
-              <EscribirStage form={form} onUnsplashSelect={handleUnsplashSelect} />
+              <EscribirStage form={form} postId={post.id} onUnsplashSelect={handleUnsplashSelect} />
             </TabsContent>
 
             {/* ── Etapa 2: Optimizar (SEO + enlaces internos + slug) ── */}

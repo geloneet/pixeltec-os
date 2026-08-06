@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
+import { Upload } from "lucide-react";
+import { toast } from "sonner";
 import type { UseFormReturn } from "react-hook-form";
 import type { BlogPostEditInput } from "@/lib/blog/schemas";
 import type { BlogCategory } from "@/lib/blog/types";
@@ -14,7 +16,9 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -33,21 +37,54 @@ const CATEGORY_OPTIONS: { value: BlogCategory; label: string }[] = [
   { value: "opinión", label: "Opinión" },
 ];
 
+/** MIME aceptado por /api/blog/cover (sin SVG a propósito). */
+const COVER_ACCEPT = "image/jpeg,image/png,image/webp";
+
 interface EscribirStageProps {
   form: UseFormReturn<BlogPostEditInput>;
+  postId: string;
   onUnsplashSelect: (photo: UnsplashPhoto, searchQuery: string) => void;
 }
 
 /** Etapa 1 — Escribir: portada, título, extracto, cuerpo, categoría y
  *  etiquetas (dictamen UX 2026-08-05 §3). La portada se elige visualmente
- *  (UnsplashPicker); la URL cruda queda en «Opciones avanzadas». */
-export function EscribirStage({ form, onUnsplashSelect }: EscribirStageProps) {
+ *  (UnsplashPicker) o se sube un archivo propio a R2 (B-PR5); la URL cruda
+ *  queda en «Opciones avanzadas». */
+export function EscribirStage({ form, postId, onUnsplashSelect }: EscribirStageProps) {
   const watchedCoverImage = form.watch("coverImage");
   const [coverError, setCoverError] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setCoverError(false);
   }, [watchedCoverImage]);
+
+  async function handleCoverFile(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    // Reset: permite re-seleccionar el mismo archivo tras un error.
+    event.target.value = "";
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const body = new FormData();
+      body.set("postId", postId);
+      body.set("file", file);
+      const res = await fetch("/api/blog/cover", { method: "POST", body });
+      const json = (await res.json().catch(() => null)) as { ok?: boolean; url?: string; error?: string } | null;
+      if (!res.ok || !json?.ok || !json.url) {
+        toast.error(json?.error ?? "No se pudo subir la portada");
+        return;
+      }
+      form.setValue("coverImage", json.url, { shouldDirty: true });
+      toast.success("Portada subida");
+    } catch {
+      toast.error("No se pudo subir la portada");
+    } finally {
+      setUploading(false);
+    }
+  }
 
   return (
     <div className="space-y-5">
@@ -58,7 +95,28 @@ export function EscribirStage({ form, onUnsplashSelect }: EscribirStageProps) {
           <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
             Portada
           </h3>
-          <UnsplashPicker onSelect={onUnsplashSelect} triggerLabel="Cambiar imagen" />
+          <div className="flex items-center gap-2">
+            {/* Subida directa a R2 (B-PR5) */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={COVER_ACCEPT}
+              className="hidden"
+              onChange={handleCoverFile}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={uploading}
+              onClick={() => fileInputRef.current?.click()}
+              className="border-border bg-secondary/50 text-foreground hover:bg-secondary"
+            >
+              {uploading ? <Spinner size="sm" className="mr-2" /> : <Upload className="mr-2 h-4 w-4" />}
+              Subir archivo
+            </Button>
+            <UnsplashPicker onSelect={onUnsplashSelect} triggerLabel="Cambiar imagen" />
+          </div>
         </div>
 
         {watchedCoverImage && !coverError ? (
@@ -98,6 +156,27 @@ export function EscribirStage({ form, onUnsplashSelect }: EscribirStageProps) {
               <p className="text-xs text-muted-foreground">
                 Si queda vacío se usará el título del post.
               </p>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {/* Atribución de la portada (B-PR5): crédito del autor/fuente. */}
+        <FormField
+          control={form.control}
+          name="coverAttribution"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-muted-foreground">Atribución (opcional)</FormLabel>
+              <FormControl>
+                <Input
+                  {...field}
+                  value={field.value ?? ""}
+                  maxLength={200}
+                  placeholder="Ej. Foto de Ana Pérez / archivo propio"
+                  className="bg-background border-border text-foreground placeholder:text-muted-foreground focus:border-blue-500/50"
+                />
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}
