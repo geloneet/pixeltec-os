@@ -3,7 +3,7 @@
 import { memo, useRef, useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Lock, Mail } from 'lucide-react';
+import { Lock, Mail, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -111,6 +111,10 @@ const RotatingWord = memo(function RotatingWord() {
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  // C-PR4: segundo factor — el campo solo se revela cuando el backend
+  // responde MFA_REQUIRED (cuenta con 2FA activa y password correcta).
+  const [totp, setTotp] = useState('');
+  const [showTotp, setShowTotp] = useState(false);
   const [honeypot, setHoneypot] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -190,6 +194,7 @@ export default function LoginPage() {
       const result = await signIn('credentials', {
         email,
         password,
+        ...(showTotp && totp.trim() ? { totp: totp.trim() } : {}),
         redirect: false,
       });
 
@@ -199,7 +204,26 @@ export default function LoginPage() {
         return;
       }
 
-      setError('El correo electrónico o la contraseña son incorrectos.');
+      // C-PR4: password correcta pero la cuenta exige segundo factor —
+      // `authorize()` lanza CredentialsSignin con code=MFA_REQUIRED y
+      // NextAuth lo entrega en `result.code`. Se revela el campo del código
+      // y se reenvía email+password+totp en el siguiente submit.
+      if (result.code === 'MFA_REQUIRED') {
+        setShowTotp(true);
+        setError(
+          showTotp
+            ? 'Ingresa tu código de verificación para continuar.'
+            : null
+        );
+        setIsLoading(false);
+        return;
+      }
+
+      setError(
+        showTotp && totp.trim()
+          ? 'El código de verificación es incorrecto o ya fue usado.'
+          : 'El correo electrónico o la contraseña son incorrectos.'
+      );
       setIsLoading(false);
     } catch {
       setError('Ocurrió un error inesperado. Por favor, intenta de nuevo.');
@@ -346,6 +370,40 @@ export default function LoginPage() {
                       className="h-14 w-full rounded-lg border-white/10 bg-black/50 pl-12 text-white ring-offset-0 transition-colors duration-200 placeholder:text-zinc-500 placeholder:transition-colors placeholder:duration-200 hover:bg-black/60 focus-visible:border-primary focus-visible:bg-black/60 focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:shadow-[0_0_0_4px_rgba(33,150,243,0.08)]"
                     />
                   </div>
+
+                  {/* C-PR4: segundo factor — solo visible tras MFA_REQUIRED. */}
+                  <AnimatePresence>
+                    {showTotp && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -6 }}
+                        transition={{ duration: 0.25 }}
+                      >
+                        <div className="group relative">
+                          <Label htmlFor="totp" className="sr-only">Código de verificación</Label>
+                          <ShieldCheck className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-500 transition-colors duration-200 group-focus-within:text-primary" />
+                          <Input
+                            id="totp"
+                            name="totp"
+                            type="text"
+                            inputMode="numeric"
+                            autoComplete="one-time-code"
+                            autoFocus
+                            placeholder="Código de verificación"
+                            required
+                            value={totp}
+                            onChange={(e) => setTotp(e.target.value)}
+                            disabled={isLoading}
+                            className="h-14 w-full rounded-lg border-white/10 bg-black/50 pl-12 text-white ring-offset-0 transition-colors duration-200 placeholder:text-zinc-500 placeholder:transition-colors placeholder:duration-200 hover:bg-black/60 focus-visible:border-primary focus-visible:bg-black/60 focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:shadow-[0_0_0_4px_rgba(33,150,243,0.08)]"
+                          />
+                        </div>
+                        <p className="mt-2 text-xs text-zinc-500">
+                          Ingresa el código de 6 dígitos de tu app de autenticación o un código de recuperación.
+                        </p>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
 
                   <AnimatePresence>
                     {error && (

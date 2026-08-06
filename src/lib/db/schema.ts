@@ -320,6 +320,40 @@ export const userSessions = pgTable(
   ]
 );
 
+/**
+ * Verificación en dos pasos TOTP (C-PR4, migración 0033). `secretEnc` es el
+ * secreto cifrado con AES-256-GCM (src/lib/mfa/crypto.ts) — nunca en claro.
+ * `enabledAt` NULL = enrolamiento pendiente de confirmar. `lastUsedStep`
+ * implementa el anti-replay: solo se aceptan time-steps estrictamente
+ * mayores que el último usado.
+ */
+export const userMfa = pgTable("user_mfa", {
+  userId: uuid("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  secretEnc: text("secret_enc").notNull(),
+  enabledAt: timestamp("enabled_at", { withTimezone: true }),
+  lastUsedStep: bigint("last_used_step", { mode: "number" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * Códigos de recuperación 2FA (C-PR4): sha256 del código normalizado, jamás
+ * en claro (mismo principio que passwordResetTokens.tokenHash). Un código se
+ * quema con `usedAt` al primer uso.
+ */
+export const userMfaRecoveryCodes = pgTable(
+  "user_mfa_recovery_codes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    codeHash: text("code_hash").notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("user_mfa_recovery_codes_user_idx").on(t.userId)]
+);
+
 export const userStreak = pgTable("user_streak", {
   userId: uuid("user_id")
     .primaryKey()
