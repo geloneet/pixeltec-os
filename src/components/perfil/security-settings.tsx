@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { signOut } from 'next-auth/react';
 import { useUser } from '@/hooks/use-user';
 import { changePasswordAction } from '@/lib/auth/actions';
 
@@ -14,10 +13,6 @@ export function SecuritySettings() {
   const [pwLoading, setPwLoading] = useState(false);
   const [pwSuccess, setPwSuccess] = useState('');
   const [pwError, setPwError] = useState('');
-
-  // Sign out state
-  const [revokeLoading, setRevokeLoading] = useState(false);
-  const [revokeError, setRevokeError] = useState('');
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,22 +55,8 @@ export function SecuritySettings() {
     }
   };
 
-  const handleSignOut = async () => {
-    setRevokeError('');
-    setRevokeLoading(true);
-    try {
-      // Nota: con la estrategia de sesión JWT de NextAuth no hay revocación
-      // instantánea del lado del servidor — esto cierra la sesión actual
-      // (esta cookie), no invalida otras sesiones ya emitidas en otros
-      // dispositivos hasta que expiren por sí solas. Para revocación real
-      // multi-dispositivo hace falta `session.strategy: "database"` (con
-      // @auth/drizzle-adapter, ya instalado) — pendiente si esto importa.
-      await signOut({ redirectTo: '/login' });
-    } catch {
-      setRevokeError('No se pudo completar la operación. Inténtalo de nuevo.');
-      setRevokeLoading(false);
-    }
-  };
+  // C-PR1: la tarjeta de «Cerrar sesión» se eliminó de esta pantalla — el
+  // logout vive únicamente en el menú del avatar (src/components/nav/user-menu.tsx).
 
   return (
     <div className="space-y-8">
@@ -135,29 +116,6 @@ export function SecuritySettings() {
             {pwLoading ? 'Guardando…' : 'Cambiar contraseña'}
           </button>
         </form>
-      </div>
-
-      {/* Sign out */}
-      <div>
-        <h3 className="mb-1 text-sm font-medium text-foreground">
-          Cerrar sesión
-        </h3>
-        <p className="mb-3 text-xs text-muted-foreground">
-          Cierra tu sesión actual. Tendrás que iniciar sesión de nuevo.
-        </p>
-
-        {revokeError && (
-          <p className="mb-2 text-xs text-red-400">{revokeError}</p>
-        )}
-
-        <button
-          type="button"
-          onClick={handleSignOut}
-          disabled={revokeLoading}
-          className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm font-medium text-red-400 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {revokeLoading ? 'Cerrando sesión…' : 'Cerrar sesión'}
-        </button>
       </div>
     </div>
   );

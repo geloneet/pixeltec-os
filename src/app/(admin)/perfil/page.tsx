@@ -27,8 +27,14 @@ export default async function PerfilPage() {
     displayName: row.name,
     email: row.email,
     phone: row.phone ?? "",
-    bio: row.bio ?? "",
+    jobTitle: row.jobTitle ?? "",
   };
+
+  const fechaLarga = new Intl.DateTimeFormat("es-MX", { dateStyle: "long" });
+  const fechaConHora = new Intl.DateTimeFormat("es-MX", {
+    dateStyle: "long",
+    timeStyle: "short",
+  });
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 pb-16">
@@ -49,6 +55,40 @@ export default async function PerfilPage() {
       <section className="rounded-xl border border-border bg-card p-6">
         <h2 className="mb-4 text-base font-semibold text-foreground">Información personal</h2>
         <ProfileForm initialValues={initialValues} />
+      </section>
+
+      {/* Acceso asignado (C-PR1) — solo lectura: rol y rastro de acceso.
+          `last_login_at` lo escribirá el flujo de login en un PR posterior;
+          mientras tanto se muestra «—». */}
+      <section className="rounded-xl border border-border bg-card p-6">
+        <h2 className="mb-4 text-base font-semibold text-foreground">Acceso asignado</h2>
+        <dl className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
+          <div>
+            <dt className="text-xs text-muted-foreground">Rol</dt>
+            <dd className="mt-1 text-sm font-medium text-foreground">
+              {row.role === "admin" ? "Administrador" : "Staff"}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs text-muted-foreground">Estado</dt>
+            <dd className="mt-1 text-sm font-medium text-foreground">Activa</dd>
+          </div>
+          <div>
+            <dt className="text-xs text-muted-foreground">Cuenta creada</dt>
+            <dd className="mt-1 text-sm font-medium text-foreground">
+              {fechaLarga.format(row.createdAt)}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs text-muted-foreground">Último acceso</dt>
+            <dd className="mt-1 text-sm font-medium text-foreground">
+              {row.lastLoginAt ? fechaConHora.format(row.lastLoginAt) : "—"}
+            </dd>
+          </div>
+        </dl>
+        <p className="mt-4 text-xs text-muted-foreground">
+          Tu rol y áreas los administra un administrador.
+        </p>
       </section>
 
       {/* Seguridad */}

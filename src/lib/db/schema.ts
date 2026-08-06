@@ -227,8 +227,15 @@ export const users = pgTable(
     // phone/bio en el doc Firestore `users/{uid}`. El archivo del avatar
     // sigue en Firebase Storage; aquí solo vive la URL pública.
     phone: text("phone"),
+    // Columna MUERTA desde C-PR1 (0030): la UI y updateProfile ya no la
+    // escriben. Su DROP se difiere al Gate B8 (junto con firebase_uid).
     bio: text("bio"),
     image: text("image"),
+    // C-PR1 (0030): cargo/puesto visible en el perfil + rastro de último
+    // acceso (last_login_* los escribirá el flujo de login en un PR posterior).
+    jobTitle: text("job_title"),
+    lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
+    lastLoginIp: text("last_login_ip"),
     // Puente durante la migración de datos (Fase 3): permite reconectar todo
     // lo que hoy está scoped por Firebase UID. Se puede dropear al terminar.
     firebaseUid: text("firebase_uid"),
