@@ -28,10 +28,9 @@ describe('editorActions — acciones por estado (admin)', () => {
     expect(ids(a.secondary)).toContain('return-with-comments');
   });
 
-  it('published: ver artículo; crear-revisión oculto hasta que exista versionado', () => {
+  it('published: ver artículo y crear nueva revisión (B-PR6: el versionado ya existe)', () => {
     const a = editorActions('published', admin);
-    expect(ids(a.primary)).toEqual(['view-public']);
-    expect(ids([...a.primary, ...a.secondary])).not.toContain('create-revision');
+    expect(ids(a.primary)).toEqual(['view-public', 'create-revision']);
     expect(ids([...a.primary, ...a.secondary])).not.toContain('publish');
   });
 

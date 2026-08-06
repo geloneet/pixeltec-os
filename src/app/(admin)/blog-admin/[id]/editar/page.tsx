@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { getPostById } from "@/lib/blog/queries/posts";
 import { getBlogActivityRows, type BlogActivityEntry } from "@/lib/blog/activity";
+import { listVersions, type BlogPostVersionMeta } from "@/lib/blog/versions";
 import { resolvePostRow } from "@/lib/blog/pg";
 import { PostEditorClient } from "./post-editor-client";
 
@@ -24,11 +25,17 @@ export default async function EditarPostPage({ params }: Props) {
   // fire-safe: si la tabla no existe aún o falla la query, el editor abre
   // con historial vacío y sin banner.
   let activity: BlogActivityEntry[] = [];
+  // B-PR6: versiones del artículo — mismo criterio fire-safe (la tabla puede
+  // no existir hasta que la 0034 se aplique en la base).
+  let versions: BlogPostVersionMeta[] = [];
   try {
     // blog_activity referencia el uuid de PG; post.id puede ser el id
     // público legacy (firestore) — se resuelve la fila real primero.
     const row = await resolvePostRow(id);
-    if (row) activity = await getBlogActivityRows(row.id, 20);
+    if (row) {
+      activity = await getBlogActivityRows(row.id, 20);
+      versions = await listVersions(row.id).catch(() => []);
+    }
   } catch {
     // Historial no disponible aún.
   }
@@ -41,5 +48,7 @@ export default async function EditarPostPage({ params }: Props) {
     }
   }
 
-  return <PostEditorClient post={post} lastReturn={lastReturn} activity={activity} />;
+  return (
+    <PostEditorClient post={post} lastReturn={lastReturn} activity={activity} versions={versions} />
+  );
 }

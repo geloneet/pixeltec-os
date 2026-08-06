@@ -11,6 +11,7 @@ import { EMPTY_EDITORIAL, type BlogBriefDoc } from '../types';
 import type { ActionResult } from '../schemas';
 import { toPublicFailure } from '@/lib/errors/public-failure';
 import { logBlogActivity } from '../activity';
+import { snapshotPost } from '../versions';
 
 function setBriefStatus(briefRowId: string, patch: Record<string, unknown>) {
   return db
@@ -285,31 +286,46 @@ export async function regenerateDraft(postId: string): Promise<ActionResult<{ po
     const wordCount = computeWordCount(generated.body);
     const readingTimeMin = computeReadingTime(wordCount);
     const prevAi = row.ai as Record<string, unknown>;
+    const actorName = await getUserDisplayName(session.userId);
 
-    await db
-      .update(blogPosts)
-      .set({
-        body: generated.body,
-        title: generated.title,
-        excerpt: generated.excerpt,
-        wordCount,
-        readingTimeMin,
-        status: 'draft',
-        ai: {
-          ...prevAi,
-          iterations: ((prevAi.iterations as number) ?? 1) + 1,
-          generatedAt: new Date().toISOString(),
-        },
-        updatedAt: new Date(),
-      })
-      .where(eq(blogPosts.id, row.id));
+    // B-PR6: snapshot `pre-regeneracion-ia` ANTES de sobrescribir, en la MISMA
+    // transacción que el update — regenerar ya no destruye la versión anterior
+    // (el bug: sin snapshot previo se perdían cuerpo, fuentes y estrategia).
+    // Fail-closed a propósito: si el snapshot no puede guardarse (p. ej. la
+    // 0034 aún sin aplicar), NO se sobrescribe nada.
+    await db.transaction(async (tx) => {
+      await snapshotPost(tx, row, 'pre-regeneracion-ia', {
+        id: session.userId,
+        name: actorName,
+      });
+      await tx
+        .update(blogPosts)
+        .set({
+          body: generated.body,
+          title: generated.title,
+          excerpt: generated.excerpt,
+          wordCount,
+          readingTimeMin,
+          // B-PR6: se MANTIENE el status actual — antes esto forzaba
+          // status:'draft' y un artículo en needs-review volvía a borrador sin
+          // que nadie lo pidiera. El flujo editorial solo cambia por actos
+          // explícitos (request-review/approve/…).
+          ai: {
+            ...prevAi,
+            iterations: ((prevAi.iterations as number) ?? 1) + 1,
+            generatedAt: new Date().toISOString(),
+          },
+          updatedAt: new Date(),
+        })
+        .where(eq(blogPosts.id, row.id));
+    });
 
     await logBlogActivity({
       postId: row.id,
       type: 'regenerado-ia',
       message: 'Artículo regenerado con IA (título, extracto y cuerpo sobrescritos)',
       actorId: session.userId,
-      actorName: await getUserDisplayName(session.userId),
+      actorName,
     });
 
     return { ok: true, data: { postId } };
