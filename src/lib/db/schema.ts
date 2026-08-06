@@ -278,6 +278,16 @@ export const userStreak = pgTable("user_streak", {
 
 export const clientSourceEnum = pgEnum("client_source", ["crm_blob", "portal"]);
 
+/** Ciclo de vida comercial del cliente CRM (ADR-0034). Distinto de
+ *  `clients.status` (text libre del roster portal) a propósito: vocabularios
+ *  de orígenes distintos no se mezclan. */
+export const clientCrmStatusEnum = pgEnum("client_crm_status", [
+  "prospecto",
+  "activo",
+  "pausado",
+  "cerrado",
+]);
+
 /**
  * Tabla unificada — Fase 3 reveló que Firestore tiene DOS conceptos de
  * "cliente" completamente separados (cero overlap de IDs, verificado contra
@@ -320,6 +330,11 @@ export const clients = pgTable(
     portalToken: text("portal_token"), // mecanismo legado /portal/[token]
     portalEnabled: boolean("portal_enabled").notNull().default(false),
     strategyId: uuid("strategy_id"), // FK a strategies, agregada tras crear esa tabla (ver abajo)
+    // ADR-0034 — campos SERVER-OWNED: fuera del values/set de syncCrmClients
+    // (un blob stale no debe poder pisarlos); se escriben solo por
+    // setClientStatusAction / setClientNextActionAction.
+    crmStatus: clientCrmStatusEnum("crm_status").notNull().default("prospecto"),
+    nextAction: jsonb("next_action"), // ClientNextAction { label, dueAt } | null
 
     // Solo origen `portal` (roster de negocio + OTP):
     whatsapp: text("whatsapp"),
@@ -905,6 +920,10 @@ export const discoverySessions = pgTable(
     clientId: uuid("client_id")
       .notNull()
       .references(() => clients.id, { onDelete: "cascade" }),
+    // ADR-0034: el discovery pertenece a un proyecto, no al cliente completo.
+    // Nullable: las sesiones históricas de clientes con 0 o >1 proyectos
+    // quedan sin asignar y se adoptan desde la UI del proyecto.
+    projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
     industry: text("industry").notNull(),
     status: discoveryStatusEnum("status").notNull().default("generando"),
     questions: jsonb("questions").notNull().default([]),
@@ -915,6 +934,7 @@ export const discoverySessions = pgTable(
   (t) => [
     index("discovery_sessions_owner_idx").on(t.ownerId),
     uniqueIndex("discovery_sessions_firestore_id_idx").on(t.firestoreId),
+    index("discovery_sessions_project_idx").on(t.projectId),
   ]
 );
 
@@ -929,6 +949,8 @@ export const strategies = pgTable(
     clientId: uuid("client_id")
       .notNull()
       .references(() => clients.id, { onDelete: "cascade" }),
+    // ADR-0034: misma regla que discovery_sessions.project_id (ver arriba).
+    projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
     objectives: jsonb("objectives").notNull().default([]),
     kpis: jsonb("kpis").notNull().default([]),
     roadmap: jsonb("roadmap").notNull().default([]),
@@ -940,8 +962,36 @@ export const strategies = pgTable(
   (t) => [
     index("strategies_owner_idx").on(t.ownerId),
     uniqueIndex("strategies_firestore_id_idx").on(t.firestoreId),
+    index("strategies_project_idx").on(t.projectId),
   ]
 );
+
+/**
+ * Historial verificable del cliente (ADR-0034) — qué ocurrió, quién y cuándo.
+ * Sustituye al feed sintético de client-stats y a la tabla legacy `activity`
+ * (muerta desde la migración Firestore). `type` es text validado por la unión
+ * TS ClientActivityType (repos/client-activity.ts): extensible sin migración.
+ */
+export const clientActivity = pgTable(
+  "client_activity",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    clientId: uuid("client_id")
+      .notNull()
+      .references(() => clients.id, { onDelete: "cascade" }),
+    type: text("type").notNull(),
+    message: text("message").notNull(),
+    actorName: text("actor_name"),
+    metadata: jsonb("metadata"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("client_activity_client_created_idx").on(t.clientId, t.createdAt)]
+);
+
+export type ClientActivityRow = typeof clientActivity.$inferSelect;
 
 export const iaTemplates = pgTable(
   "ia_templates",

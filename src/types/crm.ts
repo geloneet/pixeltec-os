@@ -57,6 +57,15 @@ export interface CRMProject {
   contractId?: string;
 }
 
+/** Ciclo de vida comercial del cliente (ADR-0034). */
+export type ClientCrmStatus = "prospecto" | "activo" | "pausado" | "cerrado";
+
+/** Próxima acción registrada sobre el cliente. `dueAt` ISO o null. */
+export interface ClientNextAction {
+  label: string;
+  dueAt: string | null;
+}
+
 export interface CRMClient {
   id: string;
   name: string;
@@ -70,6 +79,12 @@ export interface CRMClient {
   portalEnabled?: boolean;     // si el portal está activo para este cliente
   strategyId?: string;         // referencia al doc en strategies/ Firestore collection
   createdAt: string;
+  // Campos SERVER-OWNED (ADR-0034): viajan en el blob solo de lectura; se
+  // escriben por setClientStatusAction/setClientNextActionAction, nunca por
+  // syncCrmDataAction (syncCrmClients no los incluye a propósito).
+  crmStatus?: ClientCrmStatus;
+  nextAction?: ClientNextAction | null;
+  portalAccessEnabled?: boolean; // gate del tab Portal en el workspace
 }
 
 export interface KnowledgeTip {

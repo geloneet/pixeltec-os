@@ -10,6 +10,7 @@ import {
   getLatestDiscoverySession,
   createDiscoverySession,
   updateDiscoverySession,
+  assignDiscoveryToProject,
 } from "@/lib/documents/discovery";
 
 // ── Props ──────────────────────────────────────────────────────────────────────
@@ -17,6 +18,8 @@ import {
 interface Props {
   clientId: string;
   clientName: string;
+  /** Proyecto dueño (ADR-0034) — el tab vive en la vista de proyecto. */
+  projectId?: string;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -32,8 +35,9 @@ function groupByCategory(questions: DiscoverySession["questions"]): Record<strin
 
 // ── Component ──────────────────────────────────────────────────────────────────
 
-export function DiscoveryTab({ clientId, clientName }: Props) {
+export function DiscoveryTab({ clientId, clientName, projectId }: Props) {
   const user = useUser();
+  const [assigning, setAssigning] = useState(false);
 
   // Data
   const [session, setSession] = useState<DiscoverySession | null>(null);
@@ -53,13 +57,13 @@ export function DiscoveryTab({ clientId, clientName }: Props) {
     if (!user) { setLoading(false); return; }
     setLoading(true);
     try {
-      const data = await getLatestDiscoverySession(user.uid, clientId);
+      const data = await getLatestDiscoverySession(user.uid, clientId, projectId);
       setSession(data);
       if (data) setAnswers(data.answers);
     } finally {
       setLoading(false);
     }
-  }, [user, clientId]);
+  }, [user, clientId, projectId]);
 
   useEffect(() => { loadSession(); }, [loadSession]);
 
@@ -83,11 +87,12 @@ export function DiscoveryTab({ clientId, clientName }: Props) {
         questions: data.questions,
         answers: {},
         generatedAt: new Date().toISOString(),
-      });
+      }, projectId);
       setSession({
         id,
         uid: user.uid,
         clientId,
+        projectId: projectId ?? null,
         industry,
         status: "en_progreso",
         questions: data.questions,
@@ -121,6 +126,36 @@ export function DiscoveryTab({ clientId, clientName }: Props) {
       setSaving(false);
     }
   };
+
+  const handleAssignToProject = async () => {
+    if (!projectId || !session) return;
+    setAssigning(true);
+    try {
+      await assignDiscoveryToProject(session.id, projectId);
+      setSession((prev) => (prev ? { ...prev, projectId } : prev));
+    } finally {
+      setAssigning(false);
+    }
+  };
+
+  // Sesión huérfana (previa a ADR-0034) vista desde un proyecto: se ofrece
+  // adoptarla para que quede ligada al trabajo correcto.
+  const orphanBanner =
+    projectId && session && session.projectId == null ? (
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-500/20 bg-amber-500/[0.06] px-3 py-2">
+        <p className="text-xs text-amber-400">
+          Este discovery viene del expediente del cliente y no está asignado a ningún proyecto.
+        </p>
+        <button
+          type="button"
+          onClick={handleAssignToProject}
+          disabled={assigning}
+          className="rounded-md border border-amber-500/30 px-2.5 py-1 text-[11px] font-medium text-amber-300 transition-colors hover:bg-amber-500/10 disabled:opacity-50"
+        >
+          {assigning ? "Asignando…" : "Asignar a este proyecto"}
+        </button>
+      </div>
+    ) : null;
 
   // ── Loading ───────────────────────────────────────────────────────────────────
 
@@ -185,6 +220,7 @@ export function DiscoveryTab({ clientId, clientName }: Props) {
 
     return (
       <div className="space-y-5">
+        {orphanBanner}
         {/* Header */}
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
@@ -305,6 +341,7 @@ export function DiscoveryTab({ clientId, clientName }: Props) {
 
     return (
       <div className="space-y-5">
+        {orphanBanner}
         {/* Header */}
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-2 flex-wrap">

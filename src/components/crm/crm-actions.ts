@@ -14,7 +14,16 @@ import {
   syncCrmServerLinks,
   syncCrmSessions,
 } from "@/lib/db/repos/crm-sync";
-import type { CRMClient, Tool, ServerClientLink } from "@/types/crm";
+import { eq } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { clients } from "@/lib/db/schema";
+import { resolveClientPgId } from "@/lib/documents/pg";
+import {
+  logClientActivity,
+  getClientActivityRows,
+  type ClientActivityType,
+} from "@/lib/db/repos/client-activity";
+import type { CRMClient, ClientCrmStatus, ClientNextAction, Tool, ServerClientLink } from "@/types/crm";
 import type { WorkSession } from "@/types/session";
 import { toPublicFailure } from "@/lib/errors/public-failure";
 
@@ -64,5 +73,153 @@ export async function syncCrmDataAction(payload: CrmSyncPayload): Promise<{ ok: 
         message: "No se pudo sincronizar la información del CRM.",
       }).message,
     };
+  }
+}
+
+// ── Campos server-owned + historial (ADR-0034) ──────────────────────────────
+// Estas actions son la ÚNICA puerta de escritura de crm_status/next_action:
+// syncCrmClients no incluye esos campos, así un blob stale no puede pisarlos.
+
+type ActionResult = { ok: true } | { ok: false; error: string };
+
+const CRM_STATUSES: ClientCrmStatus[] = ["prospecto", "activo", "pausado", "cerrado"];
+
+const STATUS_LABEL: Record<ClientCrmStatus, string> = {
+  prospecto: "Prospecto",
+  activo: "Cliente activo",
+  pausado: "Pausado",
+  cerrado: "Cerrado",
+};
+
+async function resolveOwnedClient(publicClientId: string): Promise<{ ownerId: string; clientPgId: string }> {
+  const ownerId = await requireOwnerId();
+  const clientPgId = await resolveClientPgId(publicClientId);
+  if (!clientPgId) throw new Error("Cliente no encontrado");
+  return { ownerId, clientPgId };
+}
+
+export async function setClientStatusAction(
+  publicClientId: string,
+  status: ClientCrmStatus
+): Promise<ActionResult> {
+  try {
+    if (!CRM_STATUSES.includes(status)) throw new Error("Estado inválido");
+    const { ownerId, clientPgId } = await resolveOwnedClient(publicClientId);
+    await db.update(clients).set({ crmStatus: status }).where(eq(clients.id, clientPgId));
+    await logClientActivity({
+      ownerId,
+      clientId: clientPgId,
+      type: "estado_cambiado",
+      message: `Estado del cliente: ${STATUS_LABEL[status]}`,
+    });
+    return { ok: true };
+  } catch (error) {
+    console.error("[setClientStatusAction]", error);
+    return {
+      ok: false,
+      error: toPublicFailure(error, {
+        code: "client_status_failed",
+        message: "No se pudo actualizar el estado del cliente.",
+      }).message,
+    };
+  }
+}
+
+export async function setClientNextActionAction(
+  publicClientId: string,
+  nextAction: ClientNextAction | null
+): Promise<ActionResult> {
+  try {
+    const clean: ClientNextAction | null =
+      nextAction && nextAction.label.trim().length > 0
+        ? { label: nextAction.label.trim().slice(0, 200), dueAt: nextAction.dueAt }
+        : null;
+    const { ownerId, clientPgId } = await resolveOwnedClient(publicClientId);
+    await db.update(clients).set({ nextAction: clean }).where(eq(clients.id, clientPgId));
+    if (clean) {
+      await logClientActivity({
+        ownerId,
+        clientId: clientPgId,
+        type: "seguimiento",
+        message: `Seguimiento registrado: ${clean.label}`,
+        metadata: clean.dueAt ? { dueAt: clean.dueAt } : undefined,
+      });
+    }
+    return { ok: true };
+  } catch (error) {
+    console.error("[setClientNextActionAction]", error);
+    return {
+      ok: false,
+      error: toPublicFailure(error, {
+        code: "client_next_action_failed",
+        message: "No se pudo registrar la próxima acción.",
+      }).message,
+    };
+  }
+}
+
+/** Eventos de ciclo de vida emitidos desde la UI del CRM (alta/edición). */
+export async function logClientEventAction(
+  publicClientId: string,
+  type: Extract<ClientActivityType, "cliente_creado" | "cliente_editado">,
+  message: string
+): Promise<void> {
+  try {
+    const { ownerId, clientPgId } = await resolveOwnedClient(publicClientId);
+    await logClientActivity({ ownerId, clientId: clientPgId, type, message: message.slice(0, 300) });
+  } catch (error) {
+    // Historial secundario: nunca rompe el flujo que lo origina.
+    console.error("[logClientEventAction]", error);
+  }
+}
+
+/** Expediente documental del cliente (clients.documents jsonb) — v1 solo lectura. */
+export interface ClientDocumentEntry {
+  name: string;
+  url: string;
+  uploadedAt?: string;
+}
+
+export async function getClientDocumentsAction(publicClientId: string): Promise<ClientDocumentEntry[]> {
+  try {
+    const { clientPgId } = await resolveOwnedClient(publicClientId);
+    const [row] = await db
+      .select({ documents: clients.documents })
+      .from(clients)
+      .where(eq(clients.id, clientPgId))
+      .limit(1);
+    const docs = (row?.documents as ClientDocumentEntry[] | null) ?? [];
+    return docs.filter((d) => typeof d?.name === "string" && typeof d?.url === "string");
+  } catch (error) {
+    console.error("[getClientDocumentsAction]", error);
+    return [];
+  }
+}
+
+export interface ClientActivityEntry {
+  id: string;
+  type: string;
+  message: string;
+  actorName: string | null;
+  createdAt: string;
+}
+
+export async function getClientActivityAction(
+  publicClientId: string,
+  limit = 20
+): Promise<ClientActivityEntry[]> {
+  try {
+    const { ownerId, clientPgId } = await resolveOwnedClient(publicClientId);
+    const rows = await getClientActivityRows(ownerId, clientPgId, limit);
+    return rows.map((r) => ({
+      id: r.id,
+      type: r.type,
+      message: r.message,
+      actorName: r.actorName,
+      createdAt: r.createdAt.toISOString(),
+    }));
+  } catch (error) {
+    console.error("[getClientActivityAction]", error);
+    return [];
   }
 }

@@ -2,6 +2,7 @@
 
 import { z } from 'zod';
 import { requireOwner, resolveClientPgId } from '@/lib/documents/pg';
+import { logClientActivity } from '@/lib/db/repos/client-activity';
 import type { PortalActionResult } from '@/lib/action-types';
 import {
   getPortalStatusForClient,
@@ -32,6 +33,14 @@ export async function setPortalAccessEnabledAction(clientId: string, enabled: bo
 
   const updated = await setPortalAccessEnabledDb(clientPgId, ownerId, enabled);
   if (!updated) return { success: false, error: 'Cliente no encontrado.' };
+
+  await logClientActivity({
+    ownerId,
+    clientId: clientPgId,
+    type: enabled ? 'portal_activado' : 'portal_desactivado',
+    message: enabled ? 'Acceso al portal activado' : 'Acceso al portal desactivado',
+  });
+
   return { success: true, data: null };
 }
 

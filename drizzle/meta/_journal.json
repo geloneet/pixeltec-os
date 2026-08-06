@@ -197,6 +197,13 @@
       "when": 1785867091571,
       "tag": "0027_blog_view_counts",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1785978181235,
+      "tag": "0028_client_workspace_redesign",
+      "breakpoints": true
     }
   ]
 }
