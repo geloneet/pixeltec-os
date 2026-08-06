@@ -27,6 +27,11 @@ import { AiProviderError, type AiProviderErrorCode } from "./errors";
 
 const IDEOGRAM_ENDPOINT = "https://api.ideogram.ai/generate";
 
+// Generar una imagen tarda más que un fetch normal, pero no indefinidamente:
+// sin corte, un proveedor colgado retiene la Server Action que disparó la
+// generación. `sanitizeError` ya traduce el abort a `ai_timeout`.
+const IDEOGRAM_TIMEOUT_MS = 30_000;
+
 const OPERATION = "generate_image" as const;
 
 function hasName(err: unknown, name: string): boolean {
@@ -104,6 +109,7 @@ export async function ideogramGenerateImage(call: ProtectedIdeogramCall): Promis
       // fetch solo elimina Authorization, Cookie y Proxy-Authorization, así que
       // ésta viajaría íntegra al host que indique `Location`.
       redirect: "manual",
+      signal: AbortSignal.timeout(IDEOGRAM_TIMEOUT_MS),
     });
   } catch (err) {
     sanitizeError(err, "ideogram");

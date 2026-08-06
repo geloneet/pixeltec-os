@@ -3,7 +3,7 @@
 // Fase 4 (rebanada Documentos): Postgres — antes Firestore `invoices` vía
 // client SDK. El dominio embebe items[]; Postgres los normaliza en
 // invoice_items → se reensamblan al leer y se reemplazan todos al escribir.
-import { and, count, desc, eq, inArray } from "drizzle-orm";
+import { and, count, desc, eq, inArray, like } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { invoices, invoiceItems, clients } from "@/lib/db/schema";
 import type { Invoice, InvoiceItem } from "@/types/documents";
@@ -53,13 +53,50 @@ export async function getInvoices(_uid: string, clientId?: string): Promise<Invo
 
 export async function getNextInvoiceNumber(_uid: string): Promise<string> {
   const { ownerId } = await requireOwner();
+  const year = new Date().getFullYear();
+  // Escopado al año del folio: contar TODAS las facturas históricas hacía que
+  // la primera de un año nuevo saliera como FAC-2027-048 en vez de -001.
+  // Sigue siendo count-then-insert: ante doble submit el uniqueIndex de
+  // `invoices.number` rechaza el duplicado (fallo seguro, no corrupción).
   const [{ n }] = await db
     .select({ n: count() })
     .from(invoices)
-    .where(eq(invoices.ownerId, ownerId));
-  const year = new Date().getFullYear();
+    .where(and(eq(invoices.ownerId, ownerId), like(invoices.number, `FAC-${year}-%`)));
   return `FAC-${year}-${String(n + 1).padStart(3, "0")}`;
 }
+
+/** Redondeo a centavos: los floats de qty*unitPrice descuadraban total vs
+ * subtotal+iva al castear a numeric(12,2) columna por columna. */
+function roundCents(x: number): number {
+  return Math.round(x * 100) / 100;
+}
+
+/**
+ * Única fuente de los montos persistidos: la factura es un documento fiscal;
+ * los totales calculados en el navegador no se confían — se recalculan aquí
+ * desde las líneas (y cada línea desde qty × unitPrice).
+ */
+function computeInvoiceTotals(items: InvoiceItem[], ivaRate: number) {
+  const normalizedItems = items.map((it) => ({
+    ...it,
+    subtotal: roundCents(it.qty * it.unitPrice),
+  }));
+  const subtotal = roundCents(normalizedItems.reduce((s, it) => s + it.subtotal, 0));
+  const ivaAmount = roundCents(subtotal * ivaRate);
+  const total = roundCents(subtotal + ivaAmount);
+  return { normalizedItems, subtotal, ivaAmount, total };
+}
+
+/** Transiciones válidas de estado — `pagada` y `cancelada` son terminales:
+ * revertir una factura pagada a borrador borraba la evidencia del cobro. */
+const INVOICE_TRANSITIONS: Record<Invoice["status"], Invoice["status"][]> = {
+  borrador: ["enviada", "vista", "pagada", "cancelada"],
+  enviada: ["vista", "pagada", "vencida", "cancelada"],
+  vista: ["pagada", "vencida", "cancelada"],
+  vencida: ["pagada", "cancelada"],
+  pagada: [],
+  cancelada: [],
+};
 
 export async function createInvoice(
   _uid: string,
@@ -70,6 +107,11 @@ export async function createInvoice(
   const clientPgId = await resolveOwnedClientPgId(clientId, ownerId);
   if (!clientPgId) throw new Error("Cliente no encontrado");
 
+  const { normalizedItems, subtotal, ivaAmount, total } = computeInvoiceTotals(
+    data.items,
+    data.ivaRate,
+  );
+
   return db.transaction(async (tx) => {
     const [row] = await tx
       .insert(invoices)
@@ -78,10 +120,10 @@ export async function createInvoice(
         clientId: clientPgId,
         number: data.number,
         status: data.status,
-        subtotal: String(data.subtotal),
+        subtotal: String(subtotal),
         ivaRate: String(data.ivaRate),
-        ivaAmount: String(data.ivaAmount),
-        total: String(data.total),
+        ivaAmount: String(ivaAmount),
+        total: String(total),
         currency: data.currency ?? "MXN",
         issueDate: data.issueDate,
         dueDate: data.dueDate,
@@ -90,10 +132,10 @@ export async function createInvoice(
       })
       .returning({ id: invoices.id });
 
-    if (data.items.length > 0) {
-      const ids = orderedItemIds(data.items.length);
+    if (normalizedItems.length > 0) {
+      const ids = orderedItemIds(normalizedItems.length);
       await tx.insert(invoiceItems).values(
-        data.items.map((it, i) => ({
+        normalizedItems.map((it, i) => ({
           id: ids[i],
           invoiceId: row.id,
           description: it.description,
@@ -123,13 +165,19 @@ export async function updateInvoice(
   const row = await resolveInvoiceRow(id);
   if (!row || row.ownerId !== ownerId) throw new Error("Factura no encontrada");
 
+  // Máquina de estados server-side: sin esto el <select> del cliente podía
+  // revertir `pagada → borrador` y borrar la evidencia del cobro sin rastro.
+  if (data.status !== undefined && data.status !== row.status) {
+    const allowed = INVOICE_TRANSITIONS[row.status as Invoice["status"]] ?? [];
+    if (!allowed.includes(data.status)) {
+      throw new Error(`Transición de factura inválida: ${row.status} → ${data.status}`);
+    }
+  }
+
   const set: Partial<typeof invoices.$inferInsert> = { updatedAt: new Date() };
   if (data.number !== undefined) set.number = data.number;
   if (data.status !== undefined) set.status = data.status;
-  if (data.subtotal !== undefined) set.subtotal = String(data.subtotal);
   if (data.ivaRate !== undefined) set.ivaRate = String(data.ivaRate);
-  if (data.ivaAmount !== undefined) set.ivaAmount = String(data.ivaAmount);
-  if (data.total !== undefined) set.total = String(data.total);
   if (data.currency !== undefined) set.currency = data.currency;
   if (data.issueDate !== undefined) set.issueDate = data.issueDate;
   if (data.dueDate !== undefined) set.dueDate = data.dueDate;
@@ -139,6 +187,39 @@ export async function updateInvoice(
   const items: InvoiceItem[] | undefined = data.items;
 
   await db.transaction(async (tx) => {
+    // Los montos NO se toman del payload: se recalculan desde las líneas que
+    // quedarán persistidas (las nuevas si vienen, las existentes si no) para
+    // que subtotal/iva/total siempre cuadren con los items — documento fiscal.
+    const touchesMoney =
+      items !== undefined ||
+      data.ivaRate !== undefined ||
+      data.subtotal !== undefined ||
+      data.ivaAmount !== undefined ||
+      data.total !== undefined;
+    if (touchesMoney) {
+      const effectiveItems: InvoiceItem[] =
+        items !== undefined
+          ? items
+          : (
+              await tx
+                .select()
+                .from(invoiceItems)
+                .where(eq(invoiceItems.invoiceId, row.id))
+                .orderBy(invoiceItems.id)
+            ).map((it) => ({
+              id: it.id,
+              description: it.description,
+              qty: Number(it.qty),
+              unitPrice: Number(it.unitPrice),
+              subtotal: Number(it.subtotal),
+            }));
+      const ivaRate = data.ivaRate ?? Number(row.ivaRate);
+      const { subtotal, ivaAmount, total } = computeInvoiceTotals(effectiveItems, ivaRate);
+      set.subtotal = String(subtotal);
+      set.ivaAmount = String(ivaAmount);
+      set.total = String(total);
+    }
+
     await tx.update(invoices).set(set).where(eq(invoices.id, row.id));
     if (items !== undefined) {
       // Replace-all: el dominio manda la lista completa
@@ -152,7 +233,7 @@ export async function updateInvoice(
             description: it.description,
             qty: String(it.qty),
             unitPrice: String(it.unitPrice),
-            subtotal: String(it.subtotal),
+            subtotal: String(roundCents(it.qty * it.unitPrice)),
           })),
         );
       }

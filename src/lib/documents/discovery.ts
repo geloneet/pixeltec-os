@@ -39,8 +39,9 @@ export async function getDiscoverySessions(
   if (!clientPgId) return [];
 
   const filters = [eq(discoverySessions.ownerId, ownerId), eq(discoverySessions.clientId, clientPgId)];
+  let projectPgId: string | null = null;
   if (projectId) {
-    const projectPgId = await resolveProjectPgId(projectId);
+    projectPgId = await resolveProjectPgId(projectId);
     if (!projectPgId) return [];
     // Las huérfanas (NULL) se incluyen a propósito: no se pierde historia.
     filters.push(or(eq(discoverySessions.projectId, projectPgId), isNull(discoverySessions.projectId))!);
@@ -51,6 +52,15 @@ export async function getDiscoverySessions(
     .from(discoverySessions)
     .where(and(...filters))
     .orderBy(desc(discoverySessions.generatedAt));
+
+  // Mismo criterio que getStrategy: la sesión PROPIA del proyecto va antes que
+  // cualquier huérfana, aunque la huérfana sea más reciente. Sin esto, en un
+  // cliente multi-proyecto el tab Discovery del Proyecto A podía cargar (y
+  // luego sobrescribir o adoptar) una sesión que correspondía al Proyecto B.
+  if (projectPgId) {
+    const pid = projectPgId;
+    rows.sort((a, b) => Number(b.projectId === pid) - Number(a.projectId === pid));
+  }
 
   const pubMap = await projectPublicIdMap(rows.flatMap((r) => (r.projectId ? [r.projectId] : [])));
   return rows.map((row) =>

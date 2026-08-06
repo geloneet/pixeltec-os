@@ -3,6 +3,10 @@ import { assertMetaEgressAllowed, type MetaOperation, type MetaTarget } from "@/
 const GRAPH_VERSION = 'v21.0';
 const BASE = `https://graph.facebook.com/${GRAPH_VERSION}`;
 
+// Mismo criterio que pixelbot-client.ts (15s): sin esto, una conexión retenida
+// por Meta cuelga el callback OAuth o la publicación hasta el timeout del host.
+const META_TIMEOUT_MS = 15_000;
+
 /**
  * Frontera única hacia la Graph API de Meta.
  *
@@ -29,7 +33,21 @@ async function metaFetch(input: {
   // Seis de estos flujos llevan la credencial en la query string, así que un
   // redirect no solo reenviaría cabeceras: reenviaría la URL entera con el
   // token dentro. No se sigue ninguno.
-  const res = await fetch(`${BASE}${path}`, { ...init, redirect: "manual" });
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}${path}`, {
+      ...init,
+      redirect: "manual",
+      signal: AbortSignal.timeout(META_TIMEOUT_MS),
+    });
+  } catch (err) {
+    if (err instanceof DOMException && (err.name === "TimeoutError" || err.name === "AbortError")) {
+      throw new Error(`META_API_ERROR: ${input.operation} timed out after ${META_TIMEOUT_MS}ms`);
+    }
+    // Error de red sin cuerpo de respuesta: no hay datos sensibles que sanear,
+    // pero se normaliza al mismo formato para no filtrar detalles del runtime.
+    throw new Error(`META_API_ERROR: ${input.operation} network failure`);
+  }
 
   // Se corta antes de que ningún llamador lea la respuesta. Importa porque
   // `getInstagramUsername` devuelve '' ante `!res.ok`: sin esto, un redirect

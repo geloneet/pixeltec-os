@@ -80,18 +80,27 @@ export function EstrategiaTab({ clientId, projectId }: Props) {
     if (!user) throw new Error("Not ready");
     // Deduplicate concurrent calls — only one createStrategy runs at a time
     if (creatingStrategyRef.current) return creatingStrategyRef.current;
-    const p = createStrategy(user.uid, clientId, projectId).then((id) => {
-      const newStrategy: Strategy = {
-        id, uid: user.uid, clientId,
-        projectId: projectId ?? null,
-        objectives: [], kpis: [], roadmap: [],
-        priorities: [], channels: [], automations: [],
-        lastUpdated: new Date().toISOString(),
-      };
-      setStrategy(newStrategy);
-      creatingStrategyRef.current = null;
-      return newStrategy;
-    });
+    const p = createStrategy(user.uid, clientId, projectId).then(
+      (id) => {
+        const newStrategy: Strategy = {
+          id, uid: user.uid, clientId,
+          projectId: projectId ?? null,
+          objectives: [], kpis: [], roadmap: [],
+          priorities: [], channels: [], automations: [],
+          lastUpdated: new Date().toISOString(),
+        };
+        setStrategy(newStrategy);
+        creatingStrategyRef.current = null;
+        return newStrategy;
+      },
+      (err) => {
+        // Sin limpiar el ref, un fallo dejaba cacheada la promesa rechazada y
+        // todo reintento de "crear estrategia" devolvía el mismo error hasta
+        // recargar la página.
+        creatingStrategyRef.current = null;
+        throw err;
+      },
+    );
     creatingStrategyRef.current = p;
     return p;
   }, [strategy, user, clientId, projectId]);

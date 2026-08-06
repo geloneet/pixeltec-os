@@ -42,6 +42,10 @@ export interface SendWhatsAppResult {
 
 const MAX_BODY = 4096; // Meta hard limit on text.body
 
+// Mismo criterio que pixelbot-client.ts (15s). Los crons de notificaciones
+// iteran usuarios: una conexión retenida sin timeout bloquea toda la iteración.
+const SEND_TIMEOUT_MS = 15_000;
+
 interface MetaApiError {
   message?: string;
   code?: number | string;
@@ -122,8 +126,13 @@ export async function sendWhatsApp(
       // conviene depender de eso: el destino de `Location` lo elige el otro
       // extremo, y en el body viajan el teléfono y el texto del cliente.
       redirect: "manual",
+      signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
     });
-  } catch {
+  } catch (err) {
+    if (err instanceof DOMException && (err.name === "TimeoutError" || err.name === "AbortError")) {
+      console.error("[whatsapp] send failed (timeout)", { to: masked, timeoutMs: SEND_TIMEOUT_MS });
+      throw new Error(`Meta WhatsApp API timeout after ${SEND_TIMEOUT_MS}ms`);
+    }
     // El error de undici cita host y puerto en `cause`; nada de él se propaga.
     console.error("[whatsapp] send failed (network)", { to: masked });
     throw new Error("Meta WhatsApp API network error");

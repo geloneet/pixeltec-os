@@ -61,7 +61,15 @@ export function getCreditSummary(ownerId: string) {
 
 export async function debitCredits(ownerId: string, amount: number, description: string) {
   return db.transaction(async (tx) => {
-    const [current] = await tx.select().from(growthCredits).where(eq(growthCredits.ownerId, ownerId)).limit(1);
+    // FOR UPDATE: en READ COMMITTED dos débitos concurrentes leían el mismo
+    // balance, ambos pasaban el check y el saldo quedaba negativo (double
+    // spend). El lock serializa check-then-update por owner.
+    const [current] = await tx
+      .select()
+      .from(growthCredits)
+      .where(eq(growthCredits.ownerId, ownerId))
+      .limit(1)
+      .for("update");
     if (!current || current.balance < amount) {
       throw new Error(`Créditos insuficientes. Necesitas ${amount}, tienes ${current?.balance ?? 0}.`);
     }

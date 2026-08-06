@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { usePathname } from "next/navigation";
+import { toast } from "sonner";
 import { useCRM } from "./CRMContextCore";
 import { Modal } from "./Modal";
 import { logClientEventAction } from "./crm-actions";
@@ -173,7 +174,13 @@ export function CRMShellProvider({ children }: { children: ReactNode }) {
               await logClientEventAction(newClientId, "cliente_creado", `Cliente creado: ${clientName}`);
               if (chosenStatus !== "prospecto") await crm.setClientStatus(newClientId, chosenStatus);
             } catch (error) {
+              // El modal ya se cerró: sin este toast el cliente quedaba con
+              // badge local del estado elegido pero "prospecto" en servidor,
+              // sin ninguna señal de que la operación falló.
               console.error("[addClient post-sync]", error);
+              toast.error(`No se pudo sincronizar el cliente "${clientName}"`, {
+                description: "El estado elegido puede no haberse guardado. Revisa e intenta de nuevo.",
+              });
             }
           })();
         }

@@ -7,6 +7,7 @@ import Image from 'next/image';
 import { Phone } from 'lucide-react';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
+import { SITE } from '@/lib/site-config';
 import { AnimatedTextLink } from './ui/animated-menu';
 import { SocialLinks } from './ui/social-links';
 import { ShinyButton } from './ui/shiny-button';
@@ -54,13 +55,17 @@ export default function Header() {
 
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
     e.preventDefault();
-    if (window.scrollY === 0) {
+    if (window.scrollY < 2) {
       router.push(href);
       return;
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Tolerancia + techo de tiempo: en displays con scroll fraccional
+    // (Windows con escalado, iOS con overscroll) scrollY nunca llega a 0
+    // exacto — el loop giraba infinito y el click no navegaba jamás.
+    const deadline = performance.now() + 1000;
     const checkScroll = () => {
-      if (window.scrollY === 0) {
+      if (window.scrollY < 2 || performance.now() > deadline) {
         router.push(href);
       } else {
         requestAnimationFrame(checkScroll);
@@ -91,7 +96,7 @@ export default function Header() {
         <div className="w-full h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
             <Link href="/" className="flex items-center gap-3">
               <Image
-                src={process.env.NEXT_PUBLIC_LOGO_URL!}
+                src={process.env.NEXT_PUBLIC_LOGO_URL ?? SITE.logoPath}
                 alt="PixelTEC Logo"
                 width={40}
                 height={40}
@@ -145,7 +150,7 @@ export default function Header() {
                     <div className="flex flex-col min-h-full w-full p-6">
                         <div className="flex-1 flex flex-col justify-center items-center">
                             <div className="flex items-center gap-3 mb-16">
-                                <Image src={process.env.NEXT_PUBLIC_LOGO_URL!} alt="PixelTEC Logo" width={40} height={40} className="h-10 w-auto" />
+                                <Image src={process.env.NEXT_PUBLIC_LOGO_URL ?? SITE.logoPath} alt="PixelTEC Logo" width={40} height={40} className="h-10 w-auto" />
                                 <span className={cn(
                                     "font-logo text-4xl font-extrabold uppercase tracking-tighter translate-y-0.5"
                                 )}>

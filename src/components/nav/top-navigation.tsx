@@ -8,6 +8,7 @@ import { Search, LayoutGrid } from "lucide-react";
 import { useCmdK } from "@/components/cmd-k/CmdKProvider";
 import { useCRM } from "@/components/crm/CRMContextCore";
 import { cn } from "@/lib/utils";
+import { SITE } from "@/lib/site-config";
 import { NotificationsMenu } from "./notifications-menu";
 import { UserMenu } from "./user-menu";
 import {
@@ -48,7 +49,7 @@ export function TopNavigation() {
       {/* ── LEFT: logo + área actual ─────────────────────────────────────── */}
       <div className="flex flex-shrink-0 items-center gap-4">
         <Image
-          src={process.env.NEXT_PUBLIC_LOGO_URL!}
+          src={process.env.NEXT_PUBLIC_LOGO_URL ?? SITE.logoPath}
           alt="PixelTEC Logo"
           width={32}
           height={32}

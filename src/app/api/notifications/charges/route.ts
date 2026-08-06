@@ -133,8 +133,16 @@ export async function GET(req: NextRequest) {
               `*Cliente:* ${charge.clientEmail || "Sin email"}\n\n` +
               `pixeltec.mx/crm`;
 
-            await sendWhatsApp(whatsappMsg);
-            notifications.push(`WhatsApp sent for ${charge.concept} (${client.name})`);
+            // Aislado como el email y la in-app: sin este catch, un solo fallo
+            // de Meta (rate limit, timeout, número inválido) abortaba el cron
+            // completo y los cobros restantes se quedaban sin recordatorio.
+            try {
+              await sendWhatsApp(whatsappMsg);
+              notifications.push(`WhatsApp sent for ${charge.concept} (${client.name})`);
+            } catch (e) {
+              console.error('[charges] whatsapp send failed:', e instanceof Error ? e.name : typeof e);
+              notifications.push(`WhatsApp FAILED for ${charge.concept}: whatsapp_send_failed`);
+            }
 
             // 3. In-app notification
             try {

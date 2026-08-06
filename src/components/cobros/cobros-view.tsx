@@ -93,11 +93,31 @@ export function CobrosView() {
   });
 
   const activeItems = items.filter((i) => i.status !== "cancelado");
+
+  // Lo que falta del período vigente: a un item con pagos parciales se le
+  // resta lo ya cobrado de ese período (periodKey === dueDate actual).
+  const remainingFor = (i: (typeof items)[number]) => {
+    const paidThisPeriod = i.paymentHistory
+      .filter((p) => p.periodKey === i.dueDate)
+      .reduce((s, p) => s + p.amount, 0);
+    return Math.max(0, i.amount - paidThisPeriod);
+  };
+
   const totalPendiente = activeItems
     .filter((i) => i.status === "pendiente" || i.status === "vencido" || i.status === "parcial")
-    .reduce((sum, i) => sum + i.amount, 0);
-  const totalVencido = activeItems.filter((i) => i.status === "vencido").reduce((sum, i) => sum + i.amount, 0);
-  const totalPagado = items.filter((i) => i.status === "pagado").reduce((sum, i) => sum + i.amount, 0);
+    .reduce((sum, i) => sum + remainingFor(i), 0);
+  const totalVencido = activeItems.filter((i) => i.status === "vencido").reduce((sum, i) => sum + remainingFor(i), 0);
+
+  // "Pagado (histórico)" suma los pagos reales registrados: un recurrente
+  // totalmente pagado transiciona a "pendiente" del siguiente período (nunca
+  // queda en status "pagado"), así que sumar por status omitía todo contrato
+  // mensual/anual. Items legacy marcados "pagado" sin registros conservan
+  // su amount como aproximación.
+  const totalPagado = items.reduce((sum, i) => {
+    const paid = i.paymentHistory.reduce((s, p) => s + p.amount, 0);
+    if (paid > 0) return sum + paid;
+    return i.status === "pagado" ? sum + i.amount : sum;
+  }, 0);
 
   if (loading) {
     return (
