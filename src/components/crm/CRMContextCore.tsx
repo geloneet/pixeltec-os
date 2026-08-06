@@ -155,31 +155,24 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // Debounced save.
+  // Debounced save (Postgres vía syncCrmDataAction, sección por sección).
   //
-  // `crm_data/{uid}` is also written by the charges cron
-  // (src/app/api/notifications/charges/route.ts, via its own Admin SDK
-  // transaction that only touches the `clients` field) and can be open in
-  // multiple browser tabs at once. A blind `setDoc` of the whole document
-  // built from this tab's in-memory `dataRef` would silently revert
-  // whatever any other writer touched since this tab last loaded.
+  // Protección contra tabs stale — estado REAL tras el corte a Postgres:
+  // - Sección por sección: solo se envían las secciones con cambios
+  //   (`changedKeys`), nunca el estado completo — editar `tools` no puede
+  //   pisar `clients`.
+  // - Columnas server-owned excluidas del sync: `clients.crmStatus`/
+  //   `nextAction` (ADR-0034) y `recurringCharges.lastNotified` (cron de
+  //   cobros) no se escriben desde este blob — un tab stale no puede
+  //   revertirlas.
+  // - Cada reconciliación corre en una transacción de Postgres (crm-sync.ts):
+  //   o entra el árbol completo o no entra nada.
   //
-  // Fix: wrap the write in a client `runTransaction` that rereads the doc
-  // right before writing, and only overwrites the TOP-LEVEL section(s) this
-  // call actually changed (`changedKeys`) — every other section is taken
-  // from the just-read remote doc instead of this tab's possibly-stale
-  // copy. Firestore retries the transaction automatically if the doc
-  // changes concurrently.
+  // LIMITACIÓN vigente: dos tabs editando la MISMA sección siguen siendo
+  // last-write-wins fila por fila (no hay merge profundo por campo). El
+  // `runTransaction` de re-lectura/merge de la era Firestore YA NO EXISTE —
+  // no asumas esa protección al razonar sobre esta ruta.
   //
-  // LIMITATION: this is a shallow, section-level merge (clients / tools /
-  // streak / serverLinks / sessions), not a deep field-level merge. It
-  // fully protects cross-section races (e.g. cron editing
-  // `clients[].projects[].charges[].lastNotified` while this tab edits
-  // `tools`). It does NOT protect two tabs editing the SAME section at the
-  // same time (e.g. both editing `clients`) — within a section it's still
-  // last-write-wins. A true merge there would need to diff into
-  // clients→projects→tasks/charges, which is too deep/costly to do safely
-  // as part of this fix.
   // Las claves pendientes se ACUMULAN entre llamadas (union), no se
   // reemplazan: dos persist() distintos dentro de la misma ventana de
   // debounce (ej. "clients" y luego "tools") guardan ambas secciones en un

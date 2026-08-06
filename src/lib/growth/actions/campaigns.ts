@@ -164,11 +164,14 @@ export async function generateCampaignStrategy(
   try {
     return await generateStrategyBody(ownerId, campaignRow);
   } catch (err) {
+    // El error primario ya viaja saneado abajo; si ADEMÁS falla el revert, la
+    // campaña queda atascada en 'generating' sin sweep que la rescate — ese
+    // fallo secundario debe quedar en el log o es indiagnosticable.
     await db
       .update(growthCampaigns)
       .set({ status: 'planning', updatedAt: new Date() })
       .where(eq(growthCampaigns.id, campaignRow.id))
-      .catch(() => {});
+      .catch((e) => console.error('[growth/campaigns] revert a planning falló:', campaignRow.id, e instanceof Error ? e.name : typeof e));
     // El `message` de un error desconocido no cruza hacia el cliente: el de un
     // proveedor de IA cita el cuerpo de su respuesta, que puede contener el
     // prompt —y el prompt lleva el Brand Brain completo—.
@@ -191,7 +194,7 @@ async function generateStrategyBody(
       .update(growthCampaigns)
       .set({ status: 'planning', updatedAt: new Date() })
       .where(eq(growthCampaigns.id, campaignRow.id))
-      .catch(() => {});
+      .catch((e) => console.error('[growth/campaigns] revert a planning falló:', campaignRow.id, e instanceof Error ? e.name : typeof e));
     return { ok: false, error: 'Marca no encontrada' };
   }
 

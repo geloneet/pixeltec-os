@@ -13,13 +13,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkEmailEnv } from '@/lib/email-env-guard';
 import { assertCronExecutionAllowed, cronBlockedResponse } from '@/lib/cron-guard';
+import { bearerToken, cronSecretMatches } from '@/lib/cron-secret';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
-  const auth = req.headers.get('authorization');
-  if (!process.env.CRON_SECRET || auth !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!cronSecretMatches(bearerToken(req.headers.get('authorization')))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

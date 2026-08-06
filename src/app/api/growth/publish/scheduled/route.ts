@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { publishScheduledPosts } from '@/lib/growth/social/publish';
 import { assertCronExecutionAllowed, cronBlockedResponse } from '@/lib/cron-guard';
+import { bearerToken, cronSecretMatches } from '@/lib/cron-secret';
 
 export async function POST(req: NextRequest) {
-  const authHeader = req.headers.get('authorization');
-  const expected = process.env.CRON_SECRET ? `Bearer ${process.env.CRON_SECRET}` : null;
-
-  if (!expected || authHeader !== expected) {
+  if (!cronSecretMatches(bearerToken(req.headers.get('authorization')))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

@@ -29,7 +29,13 @@ export const CreateNotificationInputSchema = z.object({
   type: NotificationTypeSchema,
   title: z.string().min(1),
   body: z.string().min(1),
-  href: z.string().optional(),
+  // Solo rutas relativas de la app ("/cobros", "/clientes/x?tab=..."): sin
+  // esto un `href` podría ser javascript:/https://phishing y la campana lo
+  // renderizaría como link confiable. "//host" también queda fuera.
+  href: z
+    .string()
+    .regex(/^\/(?!\/)/, "href debe ser una ruta relativa de la app")
+    .optional(),
   source: z.string().min(1),
   metadata: z.record(z.unknown()).optional(),
 });

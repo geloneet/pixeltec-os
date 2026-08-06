@@ -54,6 +54,23 @@ export async function createStrategy(_uid: string, clientId: string, projectId?:
   const clientPgId = await resolveClientPgId(clientId);
   if (!clientPgId) throw new Error("Cliente no encontrado");
   const projectPgId = projectId ? await resolveProjectPgId(projectId) : null;
+
+  // Idempotencia: un doble-click (o retry) creaba dos estrategias para el
+  // mismo cliente/proyecto y getStrategy (.limit(1)) devolvía una al azar.
+  // Si ya existe la del mismo alcance, se devuelve esa.
+  const [existing] = await db
+    .select({ id: strategies.id })
+    .from(strategies)
+    .where(
+      and(
+        eq(strategies.ownerId, ownerId),
+        eq(strategies.clientId, clientPgId),
+        projectPgId ? eq(strategies.projectId, projectPgId) : isNull(strategies.projectId),
+      ),
+    )
+    .limit(1);
+  if (existing) return existing.id;
+
   const [row] = await db
     .insert(strategies)
     .values({

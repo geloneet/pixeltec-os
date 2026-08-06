@@ -13,6 +13,17 @@
 import type { ContactPatch } from "@/lib/db/repos/whatsapp-contacts";
 import type { ContactNote, WhatsAppContact } from "@/types/whatsapp-inbox";
 
+/**
+ * Un 502/504 del proxy responde HTML, no JSON: sin esto, `res.json()` lanza
+ * un `SyntaxError` críptico en vez del status HTTP accionable.
+ */
+async function parseJsonResponse(res: Response): Promise<Record<string, any>> {
+  const data = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(data?.error ?? `HTTP ${res.status}`);
+  if (data === null) throw new Error(`HTTP ${res.status}: respuesta no-JSON`);
+  return data;
+}
+
 export async function upsertContact(
   phone: string,
   patch: ContactPatch,
@@ -23,8 +34,7 @@ export async function upsertContact(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ phone, patch, action }),
   });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+  const data = await parseJsonResponse(res);
   return data.contact as WhatsAppContact;
 }
 
@@ -34,8 +44,7 @@ export async function addContactNote(phone: string, text: string): Promise<Conta
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ text }),
   });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+  const data = await parseJsonResponse(res);
   return data.note as ContactNote;
 }
 
@@ -49,7 +58,6 @@ export async function createWhatsappTicket(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ phone, problema, contactName }),
   });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+  const data = await parseJsonResponse(res);
   return { ticketId: data.ticket.ticketId as string };
 }

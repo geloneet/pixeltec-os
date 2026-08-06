@@ -2,18 +2,12 @@
 
 import { z } from 'zod';
 import {
-  sendWelcomeEmail,
-  sendInvoiceEmail,
-  sendTaskNotification,
-  sendSupportTicketNotification,
-  sendTestEmail,
   sendEmail,
   sendContactConfirmation,
   sendContactNotification,
   sendDiagnosticNotification,
   sendPasswordResetEmail,
   sendNewsletterWelcome,
-  type EmailResult,
 } from '@/lib/email';
 import { assertEmailEnv } from '@/lib/email-env-guard';
 import { enforceRateLimit, formatRetryAfter } from '@/lib/rate-limit';
@@ -23,10 +17,6 @@ import { sendWhatsApp } from '@/lib/whatsapp/sender';
 import { subscribeOrReactivate, normalizeEmail } from '@/lib/newsletter-repo';
 import { logSystemAlert } from '@/lib/system-alerts';
 import { hashIp } from '@/lib/privacy';
-import type { WelcomeEmailProps } from '@/emails/WelcomeEmail';
-import type { InvoiceEmailProps } from '@/emails/InvoiceEmail';
-import type { TaskAssignedEmailProps } from '@/emails/TaskAssignedEmail';
-import type { SupportTicketEmailProps } from '@/emails/SupportTicketEmail';
 import { headers } from 'next/headers';
 import crypto from 'node:crypto';
 import { eq, and, isNull, gt } from 'drizzle-orm';
@@ -683,71 +673,8 @@ export async function subscribeToNewsletterAction(
   return { success: true };
 }
 
-// ─── Email Server Actions ─────────────────────��────────────────────────────────
-
-const welcomeEmailSchema = z.object({
-  email:       z.string().email(),
-  clientName:  z.string().min(1),
-  companyName: z.string().min(1),
-  services:    z.array(z.string()),
-  assignedTo:  z.string(),
-});
-
-export async function sendNewClientEmailAction(
-  input: WelcomeEmailProps & { email: string }
-): Promise<EmailResult> {
-  const parsed = welcomeEmailSchema.safeParse(input);
-  if (!parsed.success) return { success: false, error: 'Datos de cliente inválidos.' };
-  return sendWelcomeEmail(parsed.data);
-}
-
-const invoiceEmailSchema = z.object({
-  clientName:  z.string().min(1),
-  projectName: z.string().min(1),
-  amount:      z.number().positive(),
-  method:      z.string(),
-  type:        z.string(),
-  date:        z.string(),
-});
-
-export async function sendPaymentEmailAction(input: InvoiceEmailProps): Promise<EmailResult> {
-  const parsed = invoiceEmailSchema.safeParse(input);
-  if (!parsed.success) return { success: false, error: 'Datos de transacción inválidos.' };
-  return sendInvoiceEmail(parsed.data);
-}
-
-const taskEmailSchema = z.object({
-  taskTitle:   z.string().min(1),
-  responsible: z.string(),
-  status:      z.string(),
-  dueDate:     z.string().optional(),
-});
-
-export async function sendTaskEmailAction(input: TaskAssignedEmailProps): Promise<EmailResult> {
-  const parsed = taskEmailSchema.safeParse(input);
-  if (!parsed.success) return { success: false, error: 'Datos de tarea inválidos.' };
-  return sendTaskNotification(parsed.data);
-}
-
-const ticketEmailSchema = z.object({
-  ticketId:  z.string(),
-  cliente:   z.string().min(1),
-  problema:  z.string().min(1),
-  categoria: z.string(),
-  prioridad: z.enum(['Baja', 'Media', 'Alta']),
-  createdAt: z.string(),
-});
-
-export async function sendTicketEmailAction(input: SupportTicketEmailProps): Promise<EmailResult> {
-  const parsed = ticketEmailSchema.safeParse(input);
-  if (!parsed.success) return { success: false, error: 'Datos de ticket inválidos.' };
-  return sendSupportTicketNotification(parsed.data);
-}
-
-const testEmailSchema = z.object({ to: z.string().email() });
-
-export async function sendTestEmailAction(input: { to: string }): Promise<EmailResult> {
-  const parsed = testEmailSchema.safeParse(input);
-  if (!parsed.success) return { success: false, error: 'Email de destino inválido.' };
-  return sendTestEmail(parsed.data.to);
-}
+// Las «Email Server Actions» que vivían aquí (sendNewClientEmailAction,
+// sendPaymentEmailAction, sendTaskEmailAction, sendTicketEmailAction,
+// sendTestEmailAction) se eliminaron: nadie las importaba y, al ser endpoints
+// 'use server' sin sesión ni rate limit, eran un relay de correo abierto en
+// potencia. El envío de prueba autenticado vive en /api/send-email.

@@ -6,6 +6,7 @@ import { FacebookIcon, InstagramIcon, Phone } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { NewsletterFooterForm } from '@/components/ui/newsletter-footer-form';
+import { SITE } from '@/lib/site-config';
 
 interface FooterLink {
 	title: string;
@@ -62,7 +63,7 @@ export function Footer() {
 			<div className="grid w-full max-w-7xl gap-8 xl:grid-cols-3 xl:gap-8 mx-auto">
 				<AnimatedContainer className="space-y-4">
 					<div className="flex items-center gap-3">
-                        <Image src={process.env.NEXT_PUBLIC_LOGO_URL!} alt="PixelTEC Logo" width={32} height={32} className="size-8" />
+                        <Image src={process.env.NEXT_PUBLIC_LOGO_URL ?? SITE.logoPath} alt="PixelTEC Logo" width={32} height={32} className="size-8" />
 						<span className="font-logo text-2xl font-extrabold uppercase tracking-tight text-foreground">
 							Pixel<span className="text-brand-blue">Tec</span>
 						</span>

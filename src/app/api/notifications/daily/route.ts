@@ -2,14 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { sendWhatsApp } from "@/lib/whatsapp/sender";
 import { assertCronExecutionAllowed, cronBlockedResponse } from "@/lib/cron-guard";
-import { createNotification } from "@/lib/notifications/actions";
+import { bearerToken, cronSecretMatches } from "@/lib/cron-secret";
+import { createNotification } from "@/lib/notifications/create";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { getFullCrmData } from "@/lib/db/repos/crm-sync";
 
 export async function GET(req: NextRequest) {
-  const provided = req.headers.get("authorization")?.replace("Bearer ", "") ?? req.nextUrl.searchParams.get("secret");
-  if (!process.env.CRON_SECRET || provided !== process.env.CRON_SECRET) {
+  const provided = bearerToken(req.headers.get("authorization")) ?? req.nextUrl.searchParams.get("secret");
+  if (!cronSecretMatches(provided)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -108,7 +109,13 @@ export async function GET(req: NextRequest) {
 
       msg += `\n\n👉 pixeltec.mx/crm`;
 
-      await sendWhatsApp(msg);
+      // Aislado como la in-app de abajo: sin este catch, el fallo de WhatsApp
+      // de un usuario abortaba el resumen diario de todos los siguientes.
+      try {
+        await sendWhatsApp(msg);
+      } catch (e) {
+        console.error("Daily WhatsApp send FAILED for user:", u.id, e instanceof Error ? e.name : typeof e);
+      }
 
       // In-app daily summary notification
       const summaryBody = `Progreso general: ${pct}% — ${completed}/${totalTasks} tareas completadas. En proceso: ${inProgress}. Detenidas: ${stopped}. Pendientes: ${pendiente}.`;

@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sendWhatsApp } from "@/lib/whatsapp/sender";
 import { assertCronExecutionAllowed, cronBlockedResponse } from "@/lib/cron-guard";
+import { bearerToken, cronSecretMatches } from "@/lib/cron-secret";
 
 export async function POST(req: NextRequest) {
-  const auth = req.headers.get("authorization");
-  const expected = process.env.CRON_SECRET ? `Bearer ${process.env.CRON_SECRET}` : null;
-  if (!expected || auth !== expected) {
+  if (!cronSecretMatches(bearerToken(req.headers.get("authorization")))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -28,6 +27,8 @@ export async function POST(req: NextRequest) {
     const result = await sendWhatsApp(message);
     return NextResponse.json(result);
   } catch (error) {
+    // Igual que charges/daily: sin este log un fallo aquí era indiagnosticable.
+    console.error("[notifications/send] failed:", error instanceof Error ? error.name : typeof error);
     return NextResponse.json({ error: "Failed" }, { status: 500 });
   }
 }

@@ -2,17 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { sendWhatsApp } from "@/lib/whatsapp/sender";
 import { assertCronExecutionAllowed, cronBlockedResponse } from "@/lib/cron-guard";
+import { bearerToken, cronSecretMatches } from "@/lib/cron-secret";
 import { sendEmail } from "@/lib/email";
 import { getNextChargeDate } from "@/lib/crm/next-charge-date";
-import { createNotification } from "@/lib/notifications/actions";
+import { createNotification } from "@/lib/notifications/create";
 import { db } from "@/lib/db";
 import { users, recurringCharges } from "@/lib/db/schema";
 import { getFullCrmData } from "@/lib/db/repos/crm-sync";
 import { toRouteFailure } from "@/lib/errors/route-failure";
 
 export async function GET(req: NextRequest) {
-  const provided = req.headers.get("authorization")?.replace("Bearer ", "") ?? req.nextUrl.searchParams.get("secret");
-  if (!process.env.CRON_SECRET || provided !== process.env.CRON_SECRET) {
+  const provided = bearerToken(req.headers.get("authorization")) ?? req.nextUrl.searchParams.get("secret");
+  if (!cronSecretMatches(provided)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -133,8 +134,16 @@ export async function GET(req: NextRequest) {
               `*Cliente:* ${charge.clientEmail || "Sin email"}\n\n` +
               `pixeltec.mx/crm`;
 
-            await sendWhatsApp(whatsappMsg);
-            notifications.push(`WhatsApp sent for ${charge.concept} (${client.name})`);
+            // Aislado como el email y la in-app: sin este catch, un solo fallo
+            // de Meta (rate limit, timeout, número inválido) abortaba el cron
+            // completo y los cobros restantes se quedaban sin recordatorio.
+            try {
+              await sendWhatsApp(whatsappMsg);
+              notifications.push(`WhatsApp sent for ${charge.concept} (${client.name})`);
+            } catch (e) {
+              console.error('[charges] whatsapp send failed:', e instanceof Error ? e.name : typeof e);
+              notifications.push(`WhatsApp FAILED for ${charge.concept}: whatsapp_send_failed`);
+            }
 
             // 3. In-app notification
             try {

@@ -23,7 +23,7 @@ vi.mock("@/lib/db/schema", () => ({ users: {}, recurringCharges: {} }));
 vi.mock("@/lib/db/repos/crm-sync", () => ({ getFullCrmData: getFullCrmDataMock }));
 vi.mock("@/lib/email", () => ({ sendEmail: sendEmailMock }));
 vi.mock("@/lib/whatsapp/sender", () => ({ sendWhatsApp: sendWhatsAppMock }));
-vi.mock("@/lib/notifications/actions", () => ({ createNotification: vi.fn() }));
+vi.mock("@/lib/notifications/create", () => ({ createNotification: vi.fn() }));
 vi.mock("@/lib/crm/next-charge-date", () => ({ getNextChargeDate: vi.fn(() => new Date()) }));
 vi.mock("@/lib/cron-guard", () => ({
   assertCronExecutionAllowed: vi.fn(),

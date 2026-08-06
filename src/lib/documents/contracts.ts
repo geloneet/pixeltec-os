@@ -305,6 +305,17 @@ export async function signContract(id: string): Promise<SignContractResult> {
   }
 
   await db.transaction(async (tx) => {
+    // Lock + re-check DENTRO de la transacción: el check de "ya firmado" de
+    // arriba corre fuera de ella, así que dos clicks concurrentes en "Firmar"
+    // lo pasaban ambos y duplicaban los billing items (doble cargo). El
+    // segundo espera el lock, relee "firmado" y sale sin escribir.
+    const [locked] = await tx
+      .select({ status: contracts.status })
+      .from(contracts)
+      .where(eq(contracts.id, row.id))
+      .for("update");
+    if (!locked || locked.status === "firmado") return;
+
     await tx
       .update(contracts)
       .set({ status: "firmado", signedAt: new Date(), updatedAt: new Date() })

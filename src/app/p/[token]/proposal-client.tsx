@@ -9,6 +9,7 @@ import { Check, X, Download, ChevronDown, ChevronUp } from "lucide-react";
 import { ObfuscatedMailto } from "@/components/ui/obfuscated-mailto";
 import { Spinner } from "@/components/ui/spinner";
 import { formatCurrency } from "@/lib/utils";
+import { SITE } from "@/lib/site-config";
 import { BILLING_FREQUENCY_LABELS, type Proposal } from "@/types/documents";
 
 interface Props {
@@ -46,8 +47,13 @@ const TERMS: Array<{ label: string; value: string }> = [
 ];
 
 function formatDate(iso: string) {
+  // Timezone fija (mismo criterio que src/lib/blog/format-date.ts): sin ella
+  // el SSR (UTC) y el navegador del cliente producen fechas distintas cerca de
+  // medianoche — fecha visible incorrecta + hydration mismatch en un documento
+  // comercial frente al cliente.
   return new Date(iso).toLocaleDateString("es-MX", {
     day: "2-digit", month: "long", year: "numeric",
+    timeZone: "America/Mexico_City",
   });
 }
 
@@ -203,7 +209,7 @@ export function ProposalClient({ proposal, token }: Props) {
 
         <div className="relative z-10 mx-auto flex max-w-2xl items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <Image src={process.env.NEXT_PUBLIC_LOGO_URL!} alt="" width={28} height={28} className="h-7 w-7" />
+            <Image src={process.env.NEXT_PUBLIC_LOGO_URL ?? SITE.logoPath} alt="" width={28} height={28} className="h-7 w-7" />
             <div>
               <div className="text-sm font-bold tracking-wide text-white">PixelTEC</div>
               <div className="text-[0.65rem] text-[#8B93A7]">Propuesta Comercial</div>
@@ -491,7 +497,7 @@ export function ProposalClient({ proposal, token }: Props) {
 
         {/* Cierre */}
         <div className="mt-14 flex flex-col items-center border-t border-slate-200 pt-8 text-center">
-          <Image src={process.env.NEXT_PUBLIC_LOGO_URL!} alt="" width={24} height={24} className="mb-3 h-6 w-6" />
+          <Image src={process.env.NEXT_PUBLIC_LOGO_URL ?? SITE.logoPath} alt="" width={24} height={24} className="mb-3 h-6 w-6" />
           <p className="text-sm font-bold text-slate-900">Gracias por confiar en nosotros.</p>
           <p className="mt-1 text-xs text-slate-500">Estamos listos para comenzar cuando tú lo estés.</p>
           <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-xs">

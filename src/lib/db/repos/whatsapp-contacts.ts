@@ -87,10 +87,14 @@ export async function upsertContact(
   action?: string
 ): Promise<WhatsAppContact> {
   return db.transaction(async (tx) => {
+    // FOR UPDATE: dos upserts concurrentes del mismo phone leían la misma
+    // actionHistory y el segundo commit borraba el evento del primero
+    // (lost update en el audit trail). El lock serializa el read-modify-write.
     const existingRows = await tx
       .select()
       .from(whatsappContacts)
-      .where(eq(whatsappContacts.phone, phone));
+      .where(eq(whatsappContacts.phone, phone))
+      .for("update");
     const existing = existingRows[0];
 
     const prevHistory = (existing?.actionHistory as ContactAction[] | null) ?? [];
