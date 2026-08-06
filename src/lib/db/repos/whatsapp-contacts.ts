@@ -87,9 +87,19 @@ export async function upsertContact(
   action?: string
 ): Promise<WhatsAppContact> {
   return db.transaction(async (tx) => {
-    // FOR UPDATE: dos upserts concurrentes del mismo phone leían la misma
-    // actionHistory y el segundo commit borraba el evento del primero
-    // (lost update en el audit trail). El lock serializa el read-modify-write.
+    // Garantiza una fila ANTES del lock: `SELECT ... FOR UPDATE` sobre un
+    // phone que todavía no existe no bloquea nada (no hay fila que lockear),
+    // así que dos primeros upserts concurrentes del mismo phone nuevo veían
+    // ambos `existingRows = []`, calculaban su propio `actionHistory` desde
+    // cero, y el segundo `ON CONFLICT DO UPDATE` pisaba por completo el del
+    // primero — se perdía su acción. Mismo patrón que `addNote` abajo.
+    await tx
+      .insert(whatsappContacts)
+      .values({ phone })
+      .onConflictDoNothing({ target: whatsappContacts.phone });
+
+    // FOR UPDATE: con la fila ya garantizada, el lock sí serializa el
+    // read-modify-write de `actionHistory` entre upserts concurrentes.
     const existingRows = await tx
       .select()
       .from(whatsappContacts)

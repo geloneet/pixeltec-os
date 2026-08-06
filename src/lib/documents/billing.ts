@@ -183,11 +183,19 @@ export async function recordPayment(billingItemId: string, input: RecordPaymentI
   const { ownerId } = await requireOwner();
 
   return db.transaction(async (tx) => {
+    // FOR UPDATE: sin lock, dos pagos concurrentes sobre el mismo período leen
+    // el mismo `amountPaidSoFar`, ambos calculan la transición como si fueran
+    // el único pago, y el segundo `update` pisa el estado del primero — el
+    // dinero del primer pago queda registrado en payment_records pero el
+    // billing item nunca refleja que ya se cubrió. El lock serializa
+    // check-then-update por item: el segundo espera, relee con el pago del
+    // primero ya contado, y su propio sobrepago/transición se calcula bien.
     const [row] = await tx
       .select()
       .from(billingItems)
       .where(and(eq(billingItems.id, billingItemId), eq(billingItems.ownerId, ownerId)))
-      .limit(1);
+      .limit(1)
+      .for("update");
     if (!row) throw new Error("Cobro no encontrado");
     if (row.status === "pagado" || row.status === "cancelado") {
       throw new Error("Este cobro ya no admite pagos");
@@ -198,6 +206,17 @@ export async function recordPayment(billingItemId: string, input: RecordPaymentI
       .from(paymentRecords)
       .where(and(eq(paymentRecords.billingItemId, row.id), eq(paymentRecords.periodKey, row.dueDate)));
     const amountPaidSoFar = paidThisPeriod.reduce((sum, p) => sum + Number(p.amount), 0);
+
+    // Sin decisión de negocio que soporte sobrepagos/créditos (verificado en
+    // NeuroPIXEL: no existe), un pago que exceda el saldo del período se
+    // rechaza — evita que el excedente se pierda silenciosamente en el
+    // status "pagado"/"pendiente" sin quedar registrado como crédito.
+    const remaining = Math.round((Number(row.amount) - amountPaidSoFar) * 100) / 100;
+    if (Math.round(input.amount * 100) / 100 > remaining) {
+      throw new Error(
+        `El pago (${input.amount}) excede el saldo pendiente del período (${remaining}).`,
+      );
+    }
 
     const transition = computePaymentTransition(
       { frequency: row.frequency, dueDate: row.dueDate, amountDue: Number(row.amount), amountPaidSoFar },

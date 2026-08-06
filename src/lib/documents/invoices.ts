@@ -52,8 +52,18 @@ export async function getInvoices(_uid: string, clientId?: string): Promise<Invo
 }
 
 export async function getNextInvoiceNumber(_uid: string): Promise<string> {
-  const { ownerId } = await requireOwner();
+  await requireOwner();
   const year = new Date().getFullYear();
+  // El folio es COMPANY-GLOBAL, no por owner: `invoices_number_idx` es un
+  // unique index SIN owner_id (schema.ts), así que dos usuarios de PixelTEC
+  // generando facturas el mismo año ya competían por el mismo número bajo el
+  // conteo anterior (filtrado por ownerId) — semánticas contradictorias
+  // entre la generación y la restricción real en DB. Para un documento
+  // fiscal de una sola entidad emisora (PixelTEC), la secuencia es de toda
+  // la empresa, no por usuario que la generó. Sin ADR escrita que lo
+  // confirme explícitamente — inferido del constraint ya existente; queda
+  // para que Miguel lo ratifique.
+  //
   // Escopado al año del folio: contar TODAS las facturas históricas hacía que
   // la primera de un año nuevo saliera como FAC-2027-048 en vez de -001.
   // Sigue siendo count-then-insert: ante doble submit el uniqueIndex de
@@ -61,7 +71,7 @@ export async function getNextInvoiceNumber(_uid: string): Promise<string> {
   const [{ n }] = await db
     .select({ n: count() })
     .from(invoices)
-    .where(and(eq(invoices.ownerId, ownerId), like(invoices.number, `FAC-${year}-%`)));
+    .where(like(invoices.number, `FAC-${year}-%`));
   return `FAC-${year}-${String(n + 1).padStart(3, "0")}`;
 }
 
@@ -162,31 +172,44 @@ export async function updateInvoice(
   data: Partial<Omit<Invoice, "id" | "uid" | "clientId" | "createdAt">>,
 ): Promise<void> {
   const { ownerId } = await requireOwner();
-  const row = await resolveInvoiceRow(id);
-  if (!row || row.ownerId !== ownerId) throw new Error("Factura no encontrada");
-
-  // Máquina de estados server-side: sin esto el <select> del cliente podía
-  // revertir `pagada → borrador` y borrar la evidencia del cobro sin rastro.
-  if (data.status !== undefined && data.status !== row.status) {
-    const allowed = INVOICE_TRANSITIONS[row.status as Invoice["status"]] ?? [];
-    if (!allowed.includes(data.status)) {
-      throw new Error(`Transición de factura inválida: ${row.status} → ${data.status}`);
-    }
-  }
-
-  const set: Partial<typeof invoices.$inferInsert> = { updatedAt: new Date() };
-  if (data.number !== undefined) set.number = data.number;
-  if (data.status !== undefined) set.status = data.status;
-  if (data.ivaRate !== undefined) set.ivaRate = String(data.ivaRate);
-  if (data.currency !== undefined) set.currency = data.currency;
-  if (data.issueDate !== undefined) set.issueDate = data.issueDate;
-  if (data.dueDate !== undefined) set.dueDate = data.dueDate;
-  if (data.pdfUrl !== undefined) set.pdfUrl = data.pdfUrl;
-  if (data.notes !== undefined) set.notes = data.notes;
+  const invoiceRef = await resolveInvoiceRow(id);
+  if (!invoiceRef || invoiceRef.ownerId !== ownerId) throw new Error("Factura no encontrada");
 
   const items: InvoiceItem[] | undefined = data.items;
 
-  await db.transaction(async (tx) => {
+  const activityInfo = await db.transaction(async (tx) => {
+    // SELECT FOR UPDATE + revalidar DENTRO de la transacción: el `row` leído
+    // antes de abrir el tx queda stale ante una carrera. Sin el lock, dos
+    // requests concurrentes podían validar cada una contra el status viejo
+    // ("enviada") y la segunda en escribir pisaba en silencio una transición
+    // terminal (pagada/cancelada) que la primera ya había aplicado.
+    const [row] = await tx
+      .select()
+      .from(invoices)
+      .where(eq(invoices.id, invoiceRef.id))
+      .limit(1)
+      .for("update");
+    if (!row) throw new Error("Factura no encontrada");
+
+    // Máquina de estados server-side: sin esto el <select> del cliente podía
+    // revertir `pagada → borrador` y borrar la evidencia del cobro sin rastro.
+    if (data.status !== undefined && data.status !== row.status) {
+      const allowed = INVOICE_TRANSITIONS[row.status as Invoice["status"]] ?? [];
+      if (!allowed.includes(data.status)) {
+        throw new Error(`Transición de factura inválida: ${row.status} → ${data.status}`);
+      }
+    }
+
+    const set: Partial<typeof invoices.$inferInsert> = { updatedAt: new Date() };
+    if (data.number !== undefined) set.number = data.number;
+    if (data.status !== undefined) set.status = data.status;
+    if (data.ivaRate !== undefined) set.ivaRate = String(data.ivaRate);
+    if (data.currency !== undefined) set.currency = data.currency;
+    if (data.issueDate !== undefined) set.issueDate = data.issueDate;
+    if (data.dueDate !== undefined) set.dueDate = data.dueDate;
+    if (data.pdfUrl !== undefined) set.pdfUrl = data.pdfUrl;
+    if (data.notes !== undefined) set.notes = data.notes;
+
     // Los montos NO se toman del payload: se recalculan desde las líneas que
     // quedarán persistidas (las nuevas si vienen, las existentes si no) para
     // que subtotal/iva/total siempre cuadren con los items — documento fiscal.
@@ -238,16 +261,24 @@ export async function updateInvoice(
         );
       }
     }
+
+    // "¿Se volvió pagada?" se decide con el status LOCKED (previo real, no el
+    // leído antes del tx) — misma razón que la validación de arriba.
+    return {
+      becamePaid: data.status === "pagada" && row.status !== "pagada",
+      clientId: row.clientId,
+      number: row.number,
+    };
   });
 
   // Solo la TRANSICIÓN a pagada genera actividad — un update neutro
   // (notas, items) no ensucia el historial.
-  if (data.status === "pagada" && row.status !== "pagada") {
+  if (activityInfo.becamePaid) {
     await logClientActivity({
       ownerId,
-      clientId: row.clientId,
+      clientId: activityInfo.clientId,
       type: "factura_pagada",
-      message: `Factura pagada: ${row.number}`,
+      message: `Factura pagada: ${activityInfo.number}`,
     });
   }
 }

@@ -77,7 +77,7 @@ export async function syncCrmDataAction(payload: CrmSyncPayload): Promise<{ ok: 
   }
 }
 
-// ── Campos server-owned + historial (ADR-0034) ──────────────────────────────
+// ── Campos server-owned + historial (ADR-0035) ──────────────────────────────
 // Estas actions son la ÚNICA puerta de escritura de crm_status/next_action:
 // syncCrmClients no incluye esos campos, así un blob stale no puede pisarlos.
 

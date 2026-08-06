@@ -238,7 +238,11 @@ async function syncCharges(tx: Tx, projectPgId: string, payload: RecurringCharge
         startDate: toIso(c.startDate).slice(0, 10),
         clientEmail: c.clientEmail ?? "",
         active: c.active ?? true,
-        lastNotified: c.lastNotified ? new Date(c.lastNotified) : null,
+        // `lastNotified` NO se escribe aquí tampoco (columna cron-owned, ver
+        // el comentario en onConflictDoUpdate abajo): el INSERT deja el
+        // default NULL. Antes solo se excluía del UPDATE — un blob-sync que
+        // ENTRARA por la rama INSERT (fila recién creada o recreada tras un
+        // delete+insert) seguía pudiendo sembrar el valor del cliente.
         createdAt: new Date(toIso(c.createdAt)),
       })
       .onConflictDoUpdate({
@@ -254,7 +258,7 @@ async function syncCharges(tx: Tx, projectPgId: string, payload: RecurringCharge
           // de cobros la avanza con un UPDATE dirigido). Un tab stale que
           // guardara cualquier edición la revertía y el cliente recibía el
           // recordatorio de cobro duplicado. Mismo criterio que los campos
-          // server-owned de clients (ADR-0034).
+          // server-owned de clients (ADR-0035).
         },
       });
   }
@@ -512,7 +516,7 @@ export async function getFullCrmData(ownerId: string): Promise<{
     portalEnabled: c.portalEnabled,
     strategyId: c.strategyId ?? undefined,
     createdAt: c.createdAt.toISOString(),
-    // Server-owned (ADR-0034): solo lectura aquí; syncCrmClients NO los toca.
+    // Server-owned (ADR-0035): solo lectura aquí; syncCrmClients NO los toca.
     crmStatus: c.crmStatus,
     nextAction: (c.nextAction as ClientNextAction | null) ?? null,
     portalAccessEnabled: c.portalAccessEnabled,

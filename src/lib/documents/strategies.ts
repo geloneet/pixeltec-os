@@ -3,21 +3,40 @@
 // Fase 4 (rebanada Documentos): Postgres — antes Firestore `strategies` vía
 // client SDK.
 import { and, eq, isNull } from "drizzle-orm";
+import postgres from "postgres";
 import { db } from "@/lib/db";
 import { strategies } from "@/lib/db/schema";
 import type { Strategy } from "@/types/documents";
 import {
   requireOwner,
   resolveOwnedClientPgId,
-  resolveOwnedProjectPgId,
+  resolveOwnedProjectForClientPgId,
   resolveClientPgId,
   resolveProjectPgId,
   resolveStrategyRow,
   serializeStrategy,
 } from "./pg";
 
+// A lo sumo una estrategia por (owner, cliente, proyecto) y a lo sumo una
+// huérfana por (owner, cliente) — garantizado en DB (drizzle/0038), no solo
+// en la capa de repo. Mismo patrón que `pixelforge_qa_runs_active_idx`
+// (src/lib/db/repos/pixelforge.ts): createStrategy traduce el 23505 a
+// "reutilizar la fila existente" en vez de dejarlo subir crudo.
+const STRATEGY_SCOPED_CONSTRAINT = "strategies_owner_client_project_uidx";
+const STRATEGY_ORPHAN_CONSTRAINT = "strategies_owner_client_orphan_uidx";
+
+function isStrategyUniqueViolation(err: unknown): boolean {
+  const cause = err instanceof Error ? err.cause : undefined;
+  return (
+    cause instanceof postgres.PostgresError &&
+    cause.code === "23505" &&
+    (cause.constraint_name === STRATEGY_SCOPED_CONSTRAINT ||
+      cause.constraint_name === STRATEGY_ORPHAN_CONSTRAINT)
+  );
+}
+
 /**
- * ADR-0034: la estrategia pertenece a un PROYECTO. Con `projectId` se busca
+ * ADR-0035: la estrategia pertenece a un PROYECTO. Con `projectId` se busca
  * primero la del proyecto; si no existe, cae a la huérfana del cliente
  * (project_id NULL, la estrategia histórica pre-migración) para no perderla.
  */
@@ -55,43 +74,47 @@ export async function createStrategy(_uid: string, clientId: string, projectId?:
   const { ownerId } = await requireOwner();
   const clientPgId = await resolveOwnedClientPgId(clientId, ownerId);
   if (!clientPgId) throw new Error("Cliente no encontrado");
-  // Un projectId ajeno debe fallar, no degradar a `null`: si no, la estrategia
-  // se crearía huérfana en vez de rechazarse, ocultando el intento.
-  const projectPgId = projectId ? await resolveOwnedProjectPgId(projectId, ownerId) : null;
+  // Un projectId ajeno —o de OTRO cliente del mismo owner— debe fallar, no
+  // degradar a `null` ni enlazar mal: resolveOwnedProjectForClientPgId exige
+  // que el proyecto sea de ESTE clientPgId, no solo de este owner.
+  const projectPgId = projectId ? await resolveOwnedProjectForClientPgId(projectId, clientPgId, ownerId) : null;
   if (projectId && !projectPgId) throw new Error("Proyecto no encontrado");
 
-  // Idempotencia: un doble-click (o retry) creaba dos estrategias para el
-  // mismo cliente/proyecto y getStrategy (.limit(1)) devolvía una al azar.
-  // Si ya existe la del mismo alcance, se devuelve esa.
-  const [existing] = await db
-    .select({ id: strategies.id })
-    .from(strategies)
-    .where(
-      and(
-        eq(strategies.ownerId, ownerId),
-        eq(strategies.clientId, clientPgId),
-        projectPgId ? eq(strategies.projectId, projectPgId) : isNull(strategies.projectId),
-      ),
-    )
-    .limit(1);
-  if (existing) return existing.id;
-
-  const [row] = await db
-    .insert(strategies)
-    .values({
-      ownerId,
-      clientId: clientPgId,
-      projectId: projectPgId,
-      objectives: [],
-      kpis: [],
-      roadmap: [],
-      priorities: [],
-      channels: [],
-      automations: [],
-      lastUpdated: new Date(),
-    })
-    .returning({ id: strategies.id });
-  return row.id;
+  try {
+    const [row] = await db
+      .insert(strategies)
+      .values({
+        ownerId,
+        clientId: clientPgId,
+        projectId: projectPgId,
+        objectives: [],
+        kpis: [],
+        roadmap: [],
+        priorities: [],
+        channels: [],
+        automations: [],
+        lastUpdated: new Date(),
+      })
+      .returning({ id: strategies.id });
+    return row.id;
+  } catch (err) {
+    if (!isStrategyUniqueViolation(err)) throw err;
+    // Perdimos la carrera contra otra request concurrente para el mismo
+    // alcance: reutilizamos la fila que sí se insertó, no duplicamos.
+    const [existing] = await db
+      .select({ id: strategies.id })
+      .from(strategies)
+      .where(
+        and(
+          eq(strategies.ownerId, ownerId),
+          eq(strategies.clientId, clientPgId),
+          projectPgId ? eq(strategies.projectId, projectPgId) : isNull(strategies.projectId),
+        ),
+      )
+      .limit(1);
+    if (!existing) throw err;
+    return existing.id;
+  }
 }
 
 export async function updateStrategy(
@@ -118,7 +141,9 @@ export async function assignStrategyToProject(strategyId: string, projectId: str
   const { ownerId } = await requireOwner();
   const row = await resolveStrategyRow(strategyId);
   if (!row || row.ownerId !== ownerId) throw new Error("Estrategia no encontrada");
-  const projectPgId = await resolveOwnedProjectPgId(projectId, ownerId);
+  // El proyecto debe ser del MISMO cliente que ya tiene la estrategia — no
+  // basta con que sea del mismo owner.
+  const projectPgId = await resolveOwnedProjectForClientPgId(projectId, row.clientId, ownerId);
   if (!projectPgId) throw new Error("Proyecto no encontrado");
   await db.update(strategies).set({ projectId: projectPgId }).where(eq(strategies.id, row.id));
 }

@@ -421,7 +421,7 @@ export const userStreak = pgTable("user_streak", {
 
 export const clientSourceEnum = pgEnum("client_source", ["crm_blob", "portal"]);
 
-/** Ciclo de vida comercial del cliente CRM (ADR-0034). Distinto de
+/** Ciclo de vida comercial del cliente CRM (ADR-0035). Distinto de
  *  `clients.status` (text libre del roster portal) a propósito: vocabularios
  *  de orígenes distintos no se mezclan. */
 export const clientCrmStatusEnum = pgEnum("client_crm_status", [
@@ -473,7 +473,7 @@ export const clients = pgTable(
     portalToken: text("portal_token"), // mecanismo legado /portal/[token]
     portalEnabled: boolean("portal_enabled").notNull().default(false),
     strategyId: uuid("strategy_id"), // FK a strategies, agregada tras crear esa tabla (ver abajo)
-    // ADR-0034 — campos SERVER-OWNED: fuera del values/set de syncCrmClients
+    // ADR-0035 — campos SERVER-OWNED: fuera del values/set de syncCrmClients
     // (un blob stale no debe poder pisarlos); se escriben solo por
     // setClientStatusAction / setClientNextActionAction.
     crmStatus: clientCrmStatusEnum("crm_status").notNull().default("prospecto"),
@@ -1063,7 +1063,7 @@ export const discoverySessions = pgTable(
     clientId: uuid("client_id")
       .notNull()
       .references(() => clients.id, { onDelete: "cascade" }),
-    // ADR-0034: el discovery pertenece a un proyecto, no al cliente completo.
+    // ADR-0035: el discovery pertenece a un proyecto, no al cliente completo.
     // Nullable: las sesiones históricas de clientes con 0 o >1 proyectos
     // quedan sin asignar y se adoptan desde la UI del proyecto.
     projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
@@ -1092,7 +1092,7 @@ export const strategies = pgTable(
     clientId: uuid("client_id")
       .notNull()
       .references(() => clients.id, { onDelete: "cascade" }),
-    // ADR-0034: misma regla que discovery_sessions.project_id (ver arriba).
+    // ADR-0035: misma regla que discovery_sessions.project_id (ver arriba).
     projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
     objectives: jsonb("objectives").notNull().default([]),
     kpis: jsonb("kpis").notNull().default([]),
@@ -1106,11 +1106,20 @@ export const strategies = pgTable(
     index("strategies_owner_idx").on(t.ownerId),
     uniqueIndex("strategies_firestore_id_idx").on(t.firestoreId),
     index("strategies_project_idx").on(t.projectId),
+    // Invariancia real en DB (no solo SELECT→INSERT en el repo, que no es
+    // idempotencia bajo concurrencia real): a lo sumo una estrategia por
+    // owner/cliente/proyecto, y a lo sumo una huérfana por owner/cliente.
+    // Dos índices porque NULL no es comparable consigo mismo en un unique
+    // normal — el segundo es parcial, solo para project_id IS NULL.
+    uniqueIndex("strategies_owner_client_project_uidx").on(t.ownerId, t.clientId, t.projectId),
+    uniqueIndex("strategies_owner_client_orphan_uidx")
+      .on(t.ownerId, t.clientId)
+      .where(sql`${t.projectId} is null`),
   ]
 );
 
 /**
- * Historial verificable del cliente (ADR-0034) — qué ocurrió, quién y cuándo.
+ * Historial verificable del cliente (ADR-0035) — qué ocurrió, quién y cuándo.
  * Sustituye al feed sintético de client-stats y a la tabla legacy `activity`
  * (muerta desde la migración Firestore). `type` es text validado por la unión
  * TS ClientActivityType (repos/client-activity.ts): extensible sin migración.

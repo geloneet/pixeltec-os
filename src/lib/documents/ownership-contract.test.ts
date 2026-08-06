@@ -66,7 +66,13 @@ describe("ADR-0036 — pertenencia en escrituras con clientId del llamador", () 
 describe("ADR-0036 — pertenencia en escrituras con projectId del llamador", () => {
   test.each(PROJECT_WRITERS)("$fn verifica el dueño del proyecto", ({ file, fn }) => {
     const body = bodyOf(read(file), fn);
-    expect(body).toContain("resolveOwnedProjectPgId");
+    // `resolveOwnedProjectForClientPgId` (PR #98, item 3) es un resolver MÁS
+    // estricto: además del owner, exige que el proyecto sea del MISMO
+    // clientId que el llamador ya pasó — sin eso, un proyecto de OTRO
+    // cliente del mismo owner pasaba y enlazaba mal los datos. Cualquiera de
+    // los dos satisface la garantía de este contrato (pertenencia); el
+    // resolver plano, no.
+    expect(body).toMatch(/resolveOwnedProjectPgId|resolveOwnedProjectForClientPgId/);
     expect(body).not.toMatch(/await resolveProjectPgId\(/);
   });
 });
@@ -95,5 +101,11 @@ describe("los resolvers seguros filtran de verdad", () => {
 
   test("resolveOwnedProposalPgId compara el ownerId de la fila", () => {
     expect(bodyOf(pg, "resolveOwnedProposalPgId")).toContain("row.ownerId !== ownerId");
+  });
+
+  test("resolveOwnedProjectForClientPgId verifica owner Y que el proyecto sea del cliente indicado", () => {
+    const body = bodyOf(pg, "resolveOwnedProjectForClientPgId");
+    expect(body).toContain("clients.ownerId");
+    expect(body).toContain("projects.clientId, clientPgId");
   });
 });

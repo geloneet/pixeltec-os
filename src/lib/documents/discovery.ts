@@ -1,7 +1,7 @@
 'use server';
 
 // Fase 4 (rebanada Documentos): Postgres — antes Firestore `discovery_sessions`
-// vía client SDK. ADR-0034: el discovery pertenece a un PROYECTO; las
+// vía client SDK. ADR-0035: el discovery pertenece a un PROYECTO; las
 // sesiones históricas sin proyecto (project_id NULL) siguen visibles desde
 // cualquier proyecto del cliente y se adoptan con `assignDiscoveryToProject`.
 import { and, desc, eq, inArray, isNull, or } from "drizzle-orm";
@@ -11,7 +11,7 @@ import type { DiscoverySession } from "@/types/documents";
 import {
   requireOwner,
   resolveOwnedClientPgId,
-  resolveOwnedProjectPgId,
+  resolveOwnedProjectForClientPgId,
   resolveClientPgId,
   resolveProjectPgId,
   resolveDiscoveryRow,
@@ -86,9 +86,10 @@ export async function createDiscoverySession(
   const { ownerId } = await requireOwner();
   const clientPgId = await resolveOwnedClientPgId(clientId, ownerId);
   if (!clientPgId) throw new Error("Cliente no encontrado");
-  // Un projectId ajeno debe fallar, no degradar a `null`: si no, la sesión se
-  // crearía huérfana en vez de rechazarse, ocultando el intento.
-  const projectPgId = projectId ? await resolveOwnedProjectPgId(projectId, ownerId) : null;
+  // Un projectId ajeno —o de OTRO cliente del mismo owner— debe fallar, no
+  // degradar a `null` ni enlazar mal: resolveOwnedProjectForClientPgId exige
+  // que el proyecto sea de ESTE clientPgId.
+  const projectPgId = projectId ? await resolveOwnedProjectForClientPgId(projectId, clientPgId, ownerId) : null;
   if (projectId && !projectPgId) throw new Error("Proyecto no encontrado");
   const [row] = await db
     .insert(discoverySessions)
@@ -132,7 +133,9 @@ export async function assignDiscoveryToProject(sessionId: string, projectId: str
   const { ownerId } = await requireOwner();
   const row = await resolveDiscoveryRow(sessionId);
   if (!row || row.ownerId !== ownerId) throw new Error("Sesión no encontrada");
-  const projectPgId = await resolveOwnedProjectPgId(projectId, ownerId);
+  // El proyecto debe ser del MISMO cliente que ya tiene la sesión — no basta
+  // con que sea del mismo owner.
+  const projectPgId = await resolveOwnedProjectForClientPgId(projectId, row.clientId, ownerId);
   if (!projectPgId) throw new Error("Proyecto no encontrado");
   await db.update(discoverySessions).set({ projectId: projectPgId }).where(eq(discoverySessions.id, row.id));
 }

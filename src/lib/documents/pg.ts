@@ -86,7 +86,7 @@ export async function resolveClientPgId(publicClientId: string): Promise<string 
   return byId?.id ?? null;
 }
 
-/** Id público del proyecto (firestore_id ?? uuid) → projects.id (ADR-0034). */
+/** Id público del proyecto (firestore_id ?? uuid) → projects.id (ADR-0035). */
 export async function resolveProjectPgId(publicProjectId: string): Promise<string | null> {
   const id = publicProjectId.trim();
   const [byFs] = await db
@@ -145,6 +145,40 @@ export async function resolveOwnedProjectPgId(
     .from(projects)
     .innerJoin(clients, eq(projects.clientId, clients.id))
     .where(and(eq(projects.id, projectPgId), eq(clients.ownerId, ownerId)))
+    .limit(1);
+  return owned?.id ?? null;
+}
+
+/**
+ * Id público del proyecto → projects.id, exigiendo simultáneamente que sea
+ * del dueño Y que cuelgue del cliente indicado (`clientPgId`, ya resuelto).
+ *
+ * `resolveOwnedProjectPgId` por sí solo verifica el owner pero no que el
+ * proyecto sea de ESE cliente: `createStrategy(clienteA, proyectoDeClienteB)`
+ * —mismo owner, cliente distinto— resolvía ambos ids por separado y pasaba,
+ * enlazando la estrategia/discovery al proyecto equivocado. Úsalo en toda
+ * escritura que reciba clientId Y projectId del llamador para el mismo
+ * recurso (createStrategy, assignStrategyToProject, createDiscoverySession,
+ * assignDiscoveryToProject).
+ */
+export async function resolveOwnedProjectForClientPgId(
+  publicProjectId: string,
+  clientPgId: string,
+  ownerId: string,
+): Promise<string | null> {
+  const projectPgId = await resolveProjectPgId(publicProjectId);
+  if (!projectPgId) return null;
+  const [owned] = await db
+    .select({ id: projects.id })
+    .from(projects)
+    .innerJoin(clients, eq(projects.clientId, clients.id))
+    .where(
+      and(
+        eq(projects.id, projectPgId),
+        eq(projects.clientId, clientPgId),
+        eq(clients.ownerId, ownerId),
+      ),
+    )
     .limit(1);
   return owned?.id ?? null;
 }

@@ -325,7 +325,7 @@ export async function signContract(id: string): Promise<SignContractResult> {
     return { status: row.status, projectId: row.projectId };
   }
 
-  await db.transaction(async (tx) => {
+  const signed = await db.transaction(async (tx) => {
     // Lock + re-check DENTRO de la transacción: el check de "ya firmado" de
     // arriba corre fuera de ella, así que dos clicks concurrentes en "Firmar"
     // lo pasaban ambos y duplicaban los billing items (doble cargo). El
@@ -335,7 +335,7 @@ export async function signContract(id: string): Promise<SignContractResult> {
       .from(contracts)
       .where(eq(contracts.id, row.id))
       .for("update");
-    if (!locked || locked.status === "firmado") return;
+    if (!locked || locked.status === "firmado") return false;
 
     await tx
       .update(contracts)
@@ -349,14 +349,20 @@ export async function signContract(id: string): Promise<SignContractResult> {
       proposalPgId: row.proposalId,
       items: (row.billingItemDrafts as BillingItemDraft[]) ?? [],
     });
+    return true;
   });
 
-  await logClientActivity({
-    ownerId,
-    clientId: row.clientId,
-    type: "contrato_firmado",
-    message: `Contrato firmado: ${row.title}`,
-  });
+  // Solo la request que REALMENTE ganó la carrera y escribió la transición
+  // registra la actividad — sin `signed`, dos clicks concurrentes duplicaban
+  // el evento aunque solo uno de los dos hubiera tocado status/billing items.
+  if (signed) {
+    await logClientActivity({
+      ownerId,
+      clientId: row.clientId,
+      type: "contrato_firmado",
+      message: `Contrato firmado: ${row.title}`,
+    });
+  }
 
   return { status: "firmado", projectId: row.projectId };
 }
