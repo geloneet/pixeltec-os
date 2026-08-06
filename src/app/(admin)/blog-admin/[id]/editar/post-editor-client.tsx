@@ -10,13 +10,17 @@ import { Check, CircleAlert } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import {
   updatePost,
-  setPostStatus,
   approvePost,
   publishPost,
   archivePost,
+  unarchivePost,
+  requestReview,
+  returnWithComments,
   getPublicationReadiness,
 } from "@/lib/blog/actions/posts";
 import { regenerateDraft } from "@/lib/blog/actions/drafts";
+import { editorActions, type WorkflowAction } from "@/lib/blog/workflow";
+import { useAdmin } from "@/hooks/use-admin";
 import { BlogPostEditSchema, type BlogPostEditInput } from "@/lib/blog/schemas";
 import type { BlogPostSerialized, BlogPostStatus, BlogCategory } from "@/lib/blog/types";
 import type { PublicationVerdict } from "@/lib/blog/publication-gate";
@@ -94,9 +98,12 @@ type SaveStatus = "idle" | "saving" | "saved" | "error";
 
 interface PostEditorClientProps {
   post: BlogPostSerialized;
+  /** Último «devuelto con comentarios» vigente (solo cuando el post volvió a
+   *  borrador por una devolución) — se muestra como banner para el autor. */
+  lastReturn?: { message: string; actorName: string | null; createdAt: string } | null;
 }
 
-export function PostEditorClient({ post }: PostEditorClientProps) {
+export function PostEditorClient({ post, lastReturn = null }: PostEditorClientProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
@@ -104,6 +111,9 @@ export function PostEditorClient({ post }: PostEditorClientProps) {
   const [postStatus, setCurrentStatus] = useState<BlogPostStatus>(post.status);
   const [slug, setSlug] = useState(post.slug);
   const [archiveOpen, setArchiveOpen] = useState(false);
+  const [returnOpen, setReturnOpen] = useState(false);
+  const [returnComment, setReturnComment] = useState("");
+  const { isAdmin } = useAdmin();
   const [coverError, setCoverError] = useState(false);
   const [verdict, setVerdict] = useState<PublicationVerdict | null>(null);
   const [readinessLoading, setReadinessLoading] = useState(true);
@@ -202,8 +212,7 @@ export function PostEditorClient({ post }: PostEditorClientProps) {
     const result = await updatePost(post.id, parsed.data);
     if (result.ok) {
       setSaveStatus("saved");
-      // El servidor mueve todo post no publicado a "needs-review" al guardar.
-      setCurrentStatus((prev) => (prev === "published" ? prev : "needs-review"));
+      // B-PR2: guardar NO cambia el estado — «Enviar a revisión» es explícito.
       setTimeout(() => setSaveStatus((s) => (s === "saved" ? "idle" : s)), 3000);
       void refreshReadiness();
     } else {
@@ -254,7 +263,6 @@ export function PostEditorClient({ post }: PostEditorClientProps) {
         toast.success("Borrador guardado");
         setSaveStatus("saved");
         setSaveError(null);
-        setCurrentStatus((prev) => (prev === "published" ? prev : "needs-review"));
         setTimeout(() => setSaveStatus((s) => (s === "saved" ? "idle" : s)), 3000);
         void refreshReadiness();
       } else {
@@ -265,15 +273,43 @@ export function PostEditorClient({ post }: PostEditorClientProps) {
     });
   }
 
-  function handleMarkReview() {
+  function handleRequestReview() {
     startTransition(async () => {
-      const result = await setPostStatus(post.id, "needs-review");
+      const result = await requestReview(post.id);
       if (result.ok) {
         setCurrentStatus("needs-review");
-        toast.success("Marcado para revisión");
+        toast.success("Enviado a revisión");
         void refreshReadiness();
       } else {
         toast.error(result.error ?? "Error");
+      }
+    });
+  }
+
+  function executeReturn() {
+    startTransition(async () => {
+      const result = await returnWithComments(post.id, returnComment);
+      if (result.ok) {
+        setReturnOpen(false);
+        setReturnComment("");
+        setCurrentStatus("draft");
+        toast.success("Devuelto al autor con comentarios");
+        void refreshReadiness();
+      } else {
+        toast.error(result.error ?? "Error al devolver");
+      }
+    });
+  }
+
+  function handleUnarchive() {
+    startTransition(async () => {
+      const result = await unarchivePost(post.id);
+      if (result.ok) {
+        setCurrentStatus("draft");
+        toast.success("Artículo restaurado como borrador");
+        void refreshReadiness();
+      } else {
+        toast.error(result.error ?? "Error al restaurar");
       }
     });
   }
@@ -358,8 +394,89 @@ export function PostEditorClient({ post }: PostEditorClientProps) {
     void refreshReadiness();
   }
 
+  // ── Acciones por estado (workflow.ts) ──────────────────────────────────────
+  const actions = editorActions(postStatus, { isAdmin });
+
+  const TONE_CLASS: Record<WorkflowAction["tone"], string> = {
+    primary: "w-full bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-40",
+    success: "w-full bg-green-600 hover:bg-green-500 text-white font-semibold disabled:opacity-50",
+    warning:
+      "w-full border border-yellow-500/30 bg-transparent text-yellow-400 hover:bg-yellow-500/10 hover:text-yellow-300 disabled:opacity-40",
+    danger:
+      "w-full border border-red-500/30 bg-transparent text-red-400 hover:bg-red-500/10 hover:text-red-300 disabled:opacity-40",
+    muted:
+      "w-full border border-border bg-transparent text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-40",
+  };
+
+  function renderWorkflowButton(action: WorkflowAction) {
+    if (action.id === "view-public") {
+      return (
+        <Button key={action.id} asChild className={TONE_CLASS[action.tone]}>
+          <a href={`/blog/${slug}`} target="_blank" rel="noopener noreferrer">
+            {action.label}
+          </a>
+        </Button>
+      );
+    }
+    const handler: Record<string, () => void> = {
+      "request-review": handleRequestReview,
+      approve: handleApprove,
+      "return-with-comments": () => setReturnOpen(true),
+      publish: handlePublish,
+      archive: handleArchive,
+      unarchive: handleUnarchive,
+      regenerate: handleRegenerate,
+    };
+    const disabled =
+      isPending || (action.id === "publish" && hasBlockers);
+    return (
+      <Button
+        key={action.id}
+        type="button"
+        onClick={handler[action.id]}
+        disabled={disabled}
+        className={TONE_CLASS[action.tone]}
+      >
+        {isPending ? <Spinner size="sm" className="mr-2" /> : null}
+        {action.label}
+      </Button>
+    );
+  }
+
   return (
     <>
+      <AlertDialog open={returnOpen} onOpenChange={setReturnOpen}>
+        <AlertDialogContent className="border-border bg-background text-foreground">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-foreground">Devolver con comentarios</AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground">
+              El artículo vuelve a borrador y el autor verá tu comentario al abrirlo.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Textarea
+            value={returnComment}
+            onChange={(e) => setReturnComment(e.target.value)}
+            rows={4}
+            placeholder="Qué debe corregirse antes de volver a enviar a revisión…"
+            className="bg-secondary/30"
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-border bg-secondary/50 text-foreground hover:bg-secondary">
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                executeReturn();
+              }}
+              className="bg-yellow-600 text-white hover:bg-yellow-500"
+            >
+              Devolver al autor
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AlertDialog open={archiveOpen} onOpenChange={setArchiveOpen}>
         <AlertDialogContent className="border-border bg-background text-foreground">
           <AlertDialogHeader>
@@ -381,6 +498,16 @@ export function PostEditorClient({ post }: PostEditorClientProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Banner de devolución: el comentario del revisor acompaña al autor */}
+      {postStatus === "draft" && lastReturn && (
+        <div className="mb-4 rounded-lg border border-yellow-500/25 bg-yellow-500/10 px-4 py-3 text-sm">
+          <p className="font-medium text-yellow-700 dark:text-yellow-300">
+            Devuelto con comentarios{lastReturn.actorName ? ` por ${lastReturn.actorName}` : ""}:
+          </p>
+          <p className="mt-1 text-yellow-700/90 dark:text-yellow-200/90">{lastReturn.message}</p>
+        </div>
+      )}
 
       <Form {...form}>
       <form className="grid grid-cols-1 gap-6 pb-16 lg:grid-cols-3">
@@ -688,13 +815,14 @@ export function PostEditorClient({ post }: PostEditorClientProps) {
             onSlugChanged={handleSlugChanged}
           />
 
-          {/* Actions card */}
+          {/* Actions card — derivadas del estado real (workflow.ts, B-PR2):
+              cada estado muestra SOLO lo que le corresponde. */}
           <section className="rounded-xl border border-border bg-card p-4 space-y-2">
             <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">
               Acciones
             </h3>
 
-            {/* Save draft */}
+            {/* Guardar es transversal: no cambia estado, solo persiste. */}
             <Button
               type="button"
               variant="outline"
@@ -707,78 +835,22 @@ export function PostEditorClient({ post }: PostEditorClientProps) {
               ) : saveStatus === "saved" ? (
                 <Check className="mr-2 h-4 w-4" />
               ) : null}
-              {saveStatus === "saved" ? "Guardado ✓" : "Guardar borrador"}
+              {saveStatus === "saved" ? "Guardado ✓" : "Guardar"}
             </Button>
 
-            {/* Mark for review */}
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleMarkReview}
-              disabled={isPending || postStatus === "needs-review"}
-              className="w-full border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/10 hover:text-yellow-300 disabled:opacity-40"
-            >
-              Marcar para revisión
-            </Button>
+            {actions.primary.map((a) => renderWorkflowButton(a))}
 
-            {/* Approve */}
-            <Button
-              type="button"
-              onClick={handleApprove}
-              disabled={isPending || postStatus === "approved" || postStatus === "published"}
-              className="w-full bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-40"
-            >
-              Aprobar
-            </Button>
-
-            {/* Publish — only if approved; disabled while the gate reports blockers */}
-            {postStatus === "approved" && (
-              <div className="space-y-1">
-                <Button
-                  type="button"
-                  onClick={handlePublish}
-                  disabled={isPending || hasBlockers}
-                  className="w-full bg-green-600 hover:bg-green-500 text-white font-semibold disabled:opacity-50"
-                >
-                  {isPending ? (
-                    <Spinner size="sm" className="mr-2" />
-                  ) : null}
-                  Publicar
-                </Button>
-                {hasBlockers && (
-                  <p className="text-xs text-red-400">
-                    Hay bloqueos activos — revisa el panel de publicación.
-                  </p>
-                )}
-              </div>
+            {postStatus === "approved" && hasBlockers && (
+              <p className="text-xs text-red-400">
+                Hay bloqueos activos — revisa el panel de publicación.
+              </p>
             )}
 
-            <div className="border-t border-border pt-2 space-y-2">
-              {/* Regenerate */}
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleRegenerate}
-                disabled={isPending}
-                className="w-full border-border text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-40"
-              >
-                {isPending ? (
-                  <Spinner size="sm" className="mr-2" />
-                ) : null}
-                Regenerar con IA
-              </Button>
-
-              {/* Archive */}
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleArchive}
-                disabled={isPending}
-                className="w-full border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300 disabled:opacity-40"
-              >
-                Archivar
-              </Button>
-            </div>
+            {actions.secondary.length > 0 && (
+              <div className="border-t border-border pt-2 space-y-2">
+                {actions.secondary.map((a) => renderWorkflowButton(a))}
+              </div>
+            )}
           </section>
         </div>
       </form>

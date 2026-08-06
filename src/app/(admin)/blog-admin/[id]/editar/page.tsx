@@ -1,10 +1,18 @@
 import { notFound } from "next/navigation";
 import { getPostById } from "@/lib/blog/queries/posts";
+import { getBlogActivityRows } from "@/lib/blog/activity";
+import { resolvePostRow } from "@/lib/blog/pg";
 import { PostEditorClient } from "./post-editor-client";
 
 interface Props {
   params: Promise<{ id: string }>;
 }
+
+/** El comentario de una devolución acompaña al autor mientras el post siga en
+ *  borrador: es «devolución vigente» solo si es el evento de flujo más
+ *  reciente (un nuevo envío/aprobación la apaga). Fire-safe: si el historial
+ *  no está disponible (tabla aún sin migrar), el editor abre sin banner. */
+const FLOW_TYPES = new Set(["devuelto", "enviado-a-revision", "aprobado", "publicado", "archivado"]);
 
 export default async function EditarPostPage({ params }: Props) {
   const { id } = await params;
@@ -12,5 +20,22 @@ export default async function EditarPostPage({ params }: Props) {
 
   if (!post) notFound();
 
-  return <PostEditorClient post={post} />;
+  let lastReturn: { message: string; actorName: string | null; createdAt: string } | null = null;
+  if (post.status === "draft") {
+    try {
+      // blog_activity referencia el uuid de PG; post.id puede ser el id
+      // público legacy (firestore) — se resuelve la fila real primero.
+      const row = await resolvePostRow(id);
+      if (!row) return <PostEditorClient post={post} lastReturn={null} />;
+      const rows = await getBlogActivityRows(row.id, 20);
+      const lastFlow = rows.find((r) => FLOW_TYPES.has(r.type));
+      if (lastFlow?.type === "devuelto") {
+        lastReturn = { message: lastFlow.message, actorName: lastFlow.actorName, createdAt: lastFlow.createdAt };
+      }
+    } catch {
+      // Historial no disponible aún — sin banner.
+    }
+  }
+
+  return <PostEditorClient post={post} lastReturn={lastReturn} />;
 }
