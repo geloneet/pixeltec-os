@@ -49,6 +49,7 @@ vi.mock("@/emails/ContactConfirmationEmail", () => ({ renderContactConfirmationE
 vi.mock("@/emails/ContactNotificationEmail", () => ({ renderContactNotificationEmail: () => "<html/>" }));
 vi.mock("@/emails/DiagnosticNotificationEmail", () => ({ renderDiagnosticNotificationEmail: () => "<html/>" }));
 vi.mock("@/emails/PasswordResetEmail", () => ({ renderPasswordResetEmail: () => "<html/>" }));
+vi.mock("@/emails/PasswordChangedEmail", () => ({ renderPasswordChangedEmail: () => "<html/>" }));
 vi.mock("@/emails/NewsletterWelcomeEmail", () => ({ renderNewsletterWelcomeEmail: () => "<html/>" }));
 vi.mock("@/emails/ProposalEmail", () => ({ renderProposalEmail: () => "<html/>" }));
 vi.mock("@/emails/ProposalDecisionEmail", () => ({ renderProposalDecisionEmail: () => "<html/>" }));
