@@ -10,7 +10,7 @@ import { db } from '@/lib/db';
 import { blogPosts, postRedirects } from '@/lib/db/schema';
 import { requireUserSession } from '@/lib/auth/session';
 import { requireAdmin } from '@/lib/auth-guards';
-import { resolvePostRow } from '../pg';
+import { getUserDisplayName, resolvePostRow } from '../pg';
 import { BlogPostEditSchema, type BlogPostEditInput, type ActionResult } from '../schemas';
 import { computeWordCount, computeReadingTime, generateSlug } from '../ai/generate-post';
 import {
@@ -75,6 +75,45 @@ function mergedEditorial(row: Row, input: BlogPostEditInput): PostEditorial {
     ...(input.claimsVerified !== undefined ? { claimsVerified: input.claimsVerified } : {}),
     ...(input.sourcesVerified !== undefined ? { sourcesVerified: input.sourcesVerified } : {}),
   };
+}
+
+/** «Escribir desde cero»: crea un borrador manual mínimo y devuelve su id para
+ *  abrir el editor. Sin brief ni IA — `ai` vacío deja claro que es 100% humano
+ *  (el gate de revisión humana no aplica). El título y la categoría son
+ *  placeholders editables; el slug definitivo se resuelve al publicar. */
+export async function createManualPost(): Promise<ActionResult<{ id: string }>> {
+  const session = await requireUserSession();
+  if (!session) return { ok: false, error: 'No autenticado' };
+
+  const authorName = await getUserDisplayName(session.userId);
+  const title = 'Borrador sin título';
+  const slug = await uniqueSlug(generateSlug(title));
+
+  const [inserted] = await db
+    .insert(blogPosts)
+    .values({
+      slug,
+      title,
+      excerpt: '',
+      body: '',
+      category: 'automatización',
+      tags: [],
+      coverImage: null,
+      author: { name: authorName, uid: session.userId },
+      status: 'draft',
+      briefSource: {},
+      ai: {},
+      seo: { ...EMPTY_SEO, metaTitle: title, noindex: true },
+      editorial: { ...EMPTY_EDITORIAL, reviewerId: session.userId },
+      sources: [],
+      internalLinks: [],
+      wordCount: 0,
+      readingTimeMin: 1,
+    })
+    .returning({ id: blogPosts.id });
+
+  if (!inserted) return { ok: false, error: 'No se pudo crear el borrador' };
+  return { ok: true, data: { id: inserted.id } };
 }
 
 export async function updatePost(postId: string, input: BlogPostEditInput): Promise<ActionResult> {

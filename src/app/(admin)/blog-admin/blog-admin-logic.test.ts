@@ -2,11 +2,14 @@ import { describe, expect, it } from 'vitest';
 import type { BlogBriefSerialized, BlogPostSerialized } from '@/lib/blog/types';
 import {
   attentionCount,
+  attentionSpotlight,
+  briefIsIdea,
   briefNextAction,
   briefStatusLabel,
-  editorialSummary,
+  editorialSummarySegments,
   filterBriefs,
   filterPosts,
+  ideasCount,
   needsAttention,
   postDateInfo,
   postNextAction,
@@ -171,18 +174,30 @@ describe('filterPosts — búsqueda, estado y orden', () => {
   });
 });
 
-describe('filterBriefs', () => {
+describe('filterBriefs — `all` = solo IDEAS (sin artículo generado)', () => {
   const briefs = [
     brief({ id: 'b1', topic: 'Reservas por WhatsApp', status: 'pending', createdAt: '2026-08-03T00:00:00.000Z' }),
     brief({ id: 'b2', topic: 'Inventario automático', status: 'generated', generatedDraftId: 'p9', createdAt: '2026-08-01T00:00:00.000Z' }),
+    brief({ id: 'b3', topic: 'Huérfano sin borrador', status: 'generated', generatedDraftId: null, createdAt: '2026-08-02T00:00:00.000Z' }),
+    brief({ id: 'b4', topic: 'Idea descartada', status: 'discarded', createdAt: '2026-07-30T00:00:00.000Z' }),
   ];
-  it('búsqueda por tema y filtro por estado', () => {
-    expect(filterBriefs(briefs, { query: 'reservas', status: 'all', order: 'recent' })).toHaveLength(1);
-    expect(filterBriefs(briefs, { query: '', status: 'generated', order: 'recent' })[0].id).toBe('b2');
-  });
-  it('no duplica y ordena por creación', () => {
+  it('all excluye los generated con borrador (viven dentro del artículo) y los descartados', () => {
     const r = filterBriefs(briefs, { query: '', status: 'all', order: 'recent' });
-    expect(r.map((b) => b.id)).toEqual(['b1', 'b2']);
+    expect(r.map((b) => b.id)).toEqual(['b1', 'b3']);
+  });
+  it('un generated huérfano sigue visible como idea — no se esconde trabajo', () => {
+    expect(briefIsIdea(brief({ status: 'generated', generatedDraftId: null }))).toBe(true);
+    expect(briefIsIdea(brief({ status: 'generated', generatedDraftId: 'p9' }))).toBe(false);
+  });
+  it('descartadas se consultan a demanda con su filtro explícito', () => {
+    const r = filterBriefs(briefs, { query: '', status: 'discarded', order: 'recent' });
+    expect(r.map((b) => b.id)).toEqual(['b4']);
+  });
+  it('búsqueda por tema dentro de ideas', () => {
+    expect(filterBriefs(briefs, { query: 'reservas', status: 'all', order: 'recent' })).toHaveLength(1);
+  });
+  it('ideasCount coincide con el tab Ideas', () => {
+    expect(ideasCount(briefs)).toBe(2);
   });
 });
 
@@ -195,17 +210,38 @@ describe('resumen y atención', () => {
     post({ status: 'approved' }),
     post({ status: 'archived' }),
   ];
-  it('editorialSummary muestra el total REAL y desglosa archivados (coincide con el tab)', () => {
-    expect(editorialSummary(posts)).toBe('6 posts · 2 publicados · 1 borradores · 1 por revisar · 1 archivados');
+  it('segmentos en español con total REAL, cada uno con su filtro (pulsable)', () => {
+    const segs = editorialSummarySegments(posts);
+    expect(segs.map((s) => `${s.count} ${s.label}`)).toEqual([
+      '6 artículos',
+      '2 publicados',
+      '1 borrador',
+      '1 en revisión',
+      '1 archivado',
+    ]);
+    expect(segs.find((s) => s.key === 'total')?.filter).toBe('all');
+    expect(segs.find((s) => s.key === 'review')?.filter).toBe('needs-review');
+    expect(segs.find((s) => s.key === 'archived')?.filter).toBe('archived');
   });
 
-  it('editorialSummary omite el segmento de archivados cuando no hay', () => {
-    expect(editorialSummary(posts.filter((p) => p.status !== 'archived'))).toBe(
-      '5 posts · 2 publicados · 1 borradores · 1 por revisar'
-    );
+  it('omite el segmento de archivados cuando no hay', () => {
+    const segs = editorialSummarySegments(posts.filter((p) => p.status !== 'archived'));
+    expect(segs.some((s) => s.key === 'archived')).toBe(false);
+    expect(segs).toHaveLength(4);
   });
+
   it('attentionCount = needs-review + approved', () => {
     expect(attentionCount(posts)).toBe(2);
     expect(needsAttention(post({ status: 'draft' }))).toBe(false);
+  });
+
+  it('attentionSpotlight nombra al pendiente MÁS VIEJO (por fecha de trabajo)', () => {
+    const list = [
+      post({ id: 'n1', title: 'Nuevo en revisión', status: 'needs-review', updatedAt: '2026-08-04T00:00:00.000Z' }),
+      post({ id: 'n2', title: 'Aprobado olvidado', status: 'approved', updatedAt: '2026-07-20T00:00:00.000Z' }),
+      post({ id: 'n3', title: 'Borrador', status: 'draft', updatedAt: '2026-07-01T00:00:00.000Z' }),
+    ];
+    expect(attentionSpotlight(list)).toEqual({ id: 'n2', title: 'Aprobado olvidado' });
+    expect(attentionSpotlight([post({ status: 'draft' })])).toBeNull();
   });
 });

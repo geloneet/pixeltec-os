@@ -29,11 +29,14 @@ import { cn } from '@/lib/utils';
 import type { BlogBriefSerialized, BlogPostSerialized } from '@/lib/blog/types';
 import {
   attentionCount,
+  attentionSpotlight,
   briefNextAction,
   briefStatusClass,
   briefStatusLabel,
+  editorialSummarySegments,
   filterBriefs,
   filterPosts,
+  ideasCount,
   postDateInfo,
   postNextAction,
   postStatusClass,
@@ -61,12 +64,13 @@ const POST_FILTER_OPTIONS: Array<{ value: PostFilterStatus; label: string }> = [
   { value: 'archived', label: 'Archivado' },
 ];
 
+// Sin «Generado»: una idea con artículo deja de listarse aquí (vive en el
+// artículo como su origen); las descartadas se consultan a demanda.
 const BRIEF_FILTER_OPTIONS: Array<{ value: BriefFilterStatus; label: string }> = [
-  { value: 'all', label: 'Todos' },
+  { value: 'all', label: 'Todas' },
   { value: 'pending', label: 'Pendiente' },
   { value: 'generating', label: 'Generando' },
-  { value: 'generated', label: 'Generado' },
-  { value: 'discarded', label: 'Descartado' },
+  { value: 'discarded', label: 'Descartadas' },
 ];
 
 const numberFmt = new Intl.NumberFormat('es-MX');
@@ -107,6 +111,16 @@ export function BlogAdminWorkspace({
     [briefs, briefQuery, briefStatus, order]
   );
   const attention = attentionCount(posts);
+  const spotlight = attentionSpotlight(posts);
+  const summary = editorialSummarySegments(posts);
+  const ideas = ideasCount(briefs);
+
+  /** Un contador del resumen aplica su filtro — una cifra que no conduce a
+   *  ninguna acción aporta poco (dictamen 2026-08-05). */
+  function applySummaryFilter(filter: PostFilterStatus) {
+    setTab('posts');
+    setPostStatus(filter);
+  }
 
   // ── Archivar (dos pasos dentro del menú ⋯) ─────────────────────────────────
   const [confirmingArchiveId, setConfirmingArchiveId] = useState<string | null>(null);
@@ -114,10 +128,10 @@ export function BlogAdminWorkspace({
     setConfirmingArchiveId(null);
     const res = await archivePost(postId);
     if (!res.ok) {
-      toast.error(res.error ?? 'No se pudo archivar el post');
+      toast.error(res.error ?? 'No se pudo archivar el artículo');
       return;
     }
-    toast.success('Post archivado — deja de listarse como activo');
+    toast.success('Artículo archivado — deja de listarse como activo');
     router.refresh();
   }
 
@@ -183,11 +197,33 @@ export function BlogAdminWorkspace({
 
   return (
     <Tabs value={tab} onValueChange={(v) => setTab(v as 'posts' | 'briefs')} className="space-y-4">
-      {/* Franja de atención — solo si hay pendientes reales */}
-      {attention > 0 && (
+      {/* Resumen editorial: cada estado es pulsable y aplica su filtro */}
+      <p className="text-sm text-foreground/70">
+        {summary.map((seg, i) => (
+          <span key={seg.key}>
+            {i > 0 && ' · '}
+            <button
+              type="button"
+              className="rounded-sm underline-offset-4 transition-colors hover:text-foreground hover:underline focus-visible:underline"
+              onClick={() => applySummaryFilter(seg.filter)}
+            >
+              {seg.count} {seg.label}
+            </button>
+          </span>
+        ))}
+      </p>
+
+      {/* Franja de atención — nombra al pendiente más viejo, filtra in situ */}
+      {attention > 0 && spotlight && (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-yellow-500/25 bg-yellow-500/10 px-4 py-2.5 text-sm text-yellow-700 dark:text-yellow-300">
-          <span>
-            {attention} contenido{attention === 1 ? '' : 's'} necesita{attention === 1 ? '' : 'n'} atención
+          <span className="min-w-0">
+            {attention === 1 ? (
+              <>1 artículo espera tu revisión — «{spotlight.title}»</>
+            ) : (
+              <>
+                {attention} artículos esperan tu revisión — el más antiguo: «{spotlight.title}»
+              </>
+            )}
           </span>
           <Button
             type="button"
@@ -206,10 +242,10 @@ export function BlogAdminWorkspace({
 
       <TabsList aria-label="Vistas del blog">
         <TabsTrigger value="posts">
-          Posts <span className="ml-1.5 text-xs text-muted-foreground">{posts.length}</span>
+          Artículos <span className="ml-1.5 text-xs text-muted-foreground">{posts.length}</span>
         </TabsTrigger>
         <TabsTrigger value="briefs">
-          Briefs <span className="ml-1.5 text-xs text-muted-foreground">{briefs.length}</span>
+          Ideas <span className="ml-1.5 text-xs text-muted-foreground">{ideas}</span>
         </TabsTrigger>
       </TabsList>
 
@@ -219,7 +255,7 @@ export function BlogAdminWorkspace({
           <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             type="search"
-            aria-label={tab === 'posts' ? 'Buscar posts por título' : 'Buscar briefs por tema'}
+            aria-label={tab === 'posts' ? 'Buscar artículos por título' : 'Buscar ideas por tema'}
             placeholder={tab === 'posts' ? 'Buscar por título…' : 'Buscar por tema…'}
             className="h-11 pl-9 md:h-9"
             value={searchValue}
@@ -283,7 +319,9 @@ export function BlogAdminWorkspace({
           <EmptyState
             hasFilters={postQuery.trim() !== '' || (postStatus !== 'active' && postStatus !== 'all')}
             noFilterTitle="Todavía no hay artículos."
-            noFilterHint="Crea un brief para comenzar."
+            noFilterHint="Crea tu primer artículo para comenzar."
+            ctaHref="/blog-admin/nuevo"
+            ctaLabel="Nuevo artículo"
           />
         ) : (
           <ul className="divide-y divide-border">
@@ -294,7 +332,13 @@ export function BlogAdminWorkspace({
               return (
                 <li
                   key={post.id}
-                  className="-mx-3 flex flex-col gap-3 rounded-lg px-3 py-4 transition-colors hover:bg-secondary/40 md:grid md:grid-cols-[1fr_auto] md:items-center md:gap-4"
+                  className="-mx-3 flex cursor-pointer flex-col gap-3 rounded-lg px-3 py-4 transition-colors hover:bg-secondary/40 md:grid md:grid-cols-[1fr_auto] md:items-center md:gap-4"
+                  onClick={(e) => {
+                    // Todo el renglón abre el artículo — salvo clics en los
+                    // controles propios (acción, menú ⋯, enlaces).
+                    if ((e.target as HTMLElement).closest('a,button,[role="menuitem"]')) return;
+                    router.push(`/blog-admin/${post.id}/editar`);
+                  }}
                 >
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
@@ -369,7 +413,7 @@ export function BlogAdminWorkspace({
                                 void handleArchive(post.id);
                               }}
                             >
-                              {confirming ? 'Confirmar: archivar este post' : 'Archivar…'}
+                              {confirming ? 'Confirmar: archivar este artículo' : 'Archivar…'}
                             </DropdownMenuItem>
                           </>
                         )}
@@ -388,8 +432,10 @@ export function BlogAdminWorkspace({
         {visibleBriefs.length === 0 ? (
           <EmptyState
             hasFilters={briefQuery.trim() !== '' || briefStatus !== 'all'}
-            noFilterTitle="No tienes briefs pendientes."
-            noFilterHint="Crea una nueva idea cuando estés listo."
+            noFilterTitle="No tienes ideas pendientes."
+            noFilterHint="Guarda una idea cuando estés listo."
+            ctaHref="/blog-admin/nuevo?modo=idea"
+            ctaLabel="Nueva idea"
           />
         ) : (
           <ul className="divide-y divide-border">
@@ -453,10 +499,14 @@ function EmptyState({
   hasFilters,
   noFilterTitle,
   noFilterHint,
+  ctaHref,
+  ctaLabel,
 }: {
   hasFilters: boolean;
   noFilterTitle: string;
   noFilterHint: string;
+  ctaHref: string;
+  ctaLabel: string;
 }) {
   return (
     <div className="rounded-lg border border-dashed border-border px-6 py-12 text-center">
@@ -468,7 +518,7 @@ function EmptyState({
       </p>
       {!hasFilters && (
         <Button asChild variant="outline" size="sm" className="mt-4 h-11 md:h-9">
-          <Link href="/blog-admin/nuevo">+ Nuevo brief</Link>
+          <Link href={ctaHref}>+ {ctaLabel}</Link>
         </Button>
       )}
     </div>
