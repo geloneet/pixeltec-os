@@ -7,6 +7,7 @@ import { users } from "@/lib/db/schema";
 import { authConfig } from "./auth.config";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { isEmailLocked, recordAuthFailure, clearAuthFailures } from "@/lib/auth-brute-force";
+import { recordSecurityEvent } from "@/lib/security/events";
 
 function getClientIp(request?: Request): string {
   return (
@@ -66,10 +67,39 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const valid = await bcrypt.compare(password, user.passwordHash);
         if (!valid) {
           await recordAuthFailure(normalizedEmail);
+          // Auditoría (C-PR2) — fire-safe: solo cuando el usuario existe y
+          // falló la contraseña; jamás altera la respuesta del login.
+          try {
+            await recordSecurityEvent({
+              userId: user.id,
+              type: "login_failed",
+              ip,
+              userAgent: request?.headers.get("user-agent") ?? undefined,
+            });
+          } catch (err) {
+            console.error("[auth] login_failed event error — ignoring:", err);
+          }
           return null;
         }
 
         await clearAuthFailures(normalizedEmail);
+
+        // Rastro de último acceso + auditoría (C-PR2) — fire-safe: un fallo
+        // de estas escrituras JAMÁS impide el login.
+        try {
+          await db
+            .update(users)
+            .set({ lastLoginAt: new Date(), lastLoginIp: ip })
+            .where(eq(users.id, user.id));
+          await recordSecurityEvent({
+            userId: user.id,
+            type: "login_success",
+            ip,
+            userAgent: request?.headers.get("user-agent") ?? undefined,
+          });
+        } catch (err) {
+          console.error("[auth] last-login/login_success write error — ignoring:", err);
+        }
 
         return {
           id: user.id,

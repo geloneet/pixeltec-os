@@ -19,6 +19,7 @@ import { renderContactConfirmationEmail, type ContactConfirmationEmailProps } fr
 import { renderContactNotificationEmail, type ContactNotificationEmailProps } from '@/emails/ContactNotificationEmail';
 import { renderDiagnosticNotificationEmail, type DiagnosticNotificationEmailProps } from '@/emails/DiagnosticNotificationEmail';
 import { renderPasswordResetEmail, type PasswordResetEmailProps } from '@/emails/PasswordResetEmail';
+import { renderPasswordChangedEmail, type PasswordChangedEmailProps } from '@/emails/PasswordChangedEmail';
 import { renderNewsletterWelcomeEmail, type NewsletterWelcomeEmailProps } from '@/emails/NewsletterWelcomeEmail';
 import { renderProposalEmail, type ProposalEmailProps } from '@/emails/ProposalEmail';
 import { renderProposalDecisionEmail, type ProposalDecisionEmailProps } from '@/emails/ProposalDecisionEmail';
@@ -206,6 +207,19 @@ export async function sendPasswordResetEmail(
   const { email, ...templateProps } = props;
   const html = renderPasswordResetEmail(templateProps);
   return sendEmail(email, 'Restablece tu contraseña — PixelTEC OS', html);
+}
+
+/**
+ * Aviso de seguridad tras un cambio de contraseña exitoso desde /perfil
+ * (C-PR2). Mismo egress guard fail-closed que el resto: pasa por `sendEmail`,
+ * y sin `EGRESS_EMAIL_MODE` no sale nada.
+ */
+export async function sendPasswordChangedEmail(
+  props: PasswordChangedEmailProps & { email: string }
+): Promise<EmailResult> {
+  const { email, ...templateProps } = props;
+  const html = renderPasswordChangedEmail(templateProps);
+  return sendEmail(email, 'Tu contraseña de PixelTEC OS cambió', html);
 }
 
 /** Sent to a visitor who subscribes to the newsletter. */

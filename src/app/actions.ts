@@ -22,6 +22,7 @@ import { computeDiagnostic, type DiagnosticAnswers, type DiagnosticResult } from
 import { sendWhatsApp } from '@/lib/whatsapp/sender';
 import { subscribeOrReactivate, normalizeEmail } from '@/lib/newsletter-repo';
 import { logSystemAlert } from '@/lib/system-alerts';
+import { recordSecurityEvent } from '@/lib/security/events';
 import { hashIp } from '@/lib/privacy';
 import type { WelcomeEmailProps } from '@/emails/WelcomeEmail';
 import type { InvoiceEmailProps } from '@/emails/InvoiceEmail';
@@ -471,7 +472,7 @@ export async function requestPasswordResetAction(email: string): Promise<{ messa
     return { message: GENERIC_RESET_MESSAGE };
   }
 
-  const { ip } = await getRequestContext();
+  const { ip, userAgent } = await getRequestContext();
   const rl = await enforceRateLimit({
     ip,
     bucket: 'password_reset',
@@ -483,6 +484,11 @@ export async function requestPasswordResetAction(email: string): Promise<{ messa
   try {
     const [user] = await pgDb.select().from(usersTable).where(eq(usersTable.email, normalizedEmail)).limit(1);
     if (!user) return { message: GENERIC_RESET_MESSAGE };
+
+    // Auditoría (C-PR2) — fire-safe y SOLO si el usuario existe. La respuesta
+    // al visitante es idéntica exista o no el correo (anti-enumeración): el
+    // evento solo queda en la tabla interna, jamás cambia el mensaje.
+    await recordSecurityEvent({ userId: user.id, type: 'password_reset_requested', ip, userAgent });
 
     const envCheck = await assertEmailEnv('password_reset');
     if (!envCheck.ok) return { message: GENERIC_RESET_MESSAGE };
@@ -528,7 +534,7 @@ export async function resetPasswordAction(token: string, newPassword: string): P
     return { ok: false, message: 'La contraseña debe tener al menos 8 caracteres.' };
   }
 
-  const { ip } = await getRequestContext();
+  const { ip, userAgent } = await getRequestContext();
   const rl = await enforceRateLimit({
     ip,
     bucket: 'password_reset_confirm',
@@ -569,6 +575,10 @@ export async function resetPasswordAction(token: string, newPassword: string): P
         .set({ usedAt: new Date() })
         .where(eq(passwordResetTokens.id, row.id));
     });
+
+    // Auditoría (C-PR2) — fire-safe: el reset ya se aplicó; un fallo del
+    // registro no debe convertir el resultado en error.
+    await recordSecurityEvent({ userId: row.userId, type: 'password_reset_completed', ip, userAgent });
 
     return { ok: true };
   } catch (err) {

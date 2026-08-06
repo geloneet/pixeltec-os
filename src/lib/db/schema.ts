@@ -270,6 +270,31 @@ export const passwordResetTokens = pgTable(
   ]
 );
 
+/**
+ * Auditoría de seguridad de cuentas internas (C-PR2, migración 0031) —
+ * login_success/login_failed/password_changed/password_reset_*. Escritor
+ * único fire-safe en `src/lib/security/events.ts`. FKs con SET NULL para que
+ * borrar un usuario no destruya el rastro; `actorUserId` registra quién
+ * ejecutó la acción cuando difiere del afectado (ej. admin futuro).
+ */
+export const securityEvents = pgTable(
+  "security_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    actorUserId: uuid("actor_user_id").references(() => users.id, { onDelete: "set null" }),
+    type: text("type").notNull(),
+    ip: text("ip"),
+    userAgent: text("user_agent"),
+    metadata: jsonb("metadata"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("security_events_user_created_idx").on(t.userId, t.createdAt),
+    index("security_events_type_created_idx").on(t.type, t.createdAt),
+  ]
+);
+
 export const userStreak = pgTable("user_streak", {
   userId: uuid("user_id")
     .primaryKey()
