@@ -1,4 +1,4 @@
-import NextAuth from "next-auth";
+import NextAuth, { CredentialsSignin } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
@@ -9,6 +9,19 @@ import { enforceRateLimit } from "@/lib/rate-limit";
 import { isEmailLocked, recordAuthFailure, clearAuthFailures } from "@/lib/auth-brute-force";
 import { recordSecurityEvent } from "@/lib/security/events";
 import { mintSession } from "@/lib/auth/sessions";
+import { enforceMfaGate } from "@/lib/mfa/login-gate";
+
+/**
+ * C-PR4: cuenta con 2FA activa y credenciales password válidas pero SIN el
+ * segundo factor. Subclase de `CredentialsSignin`: @auth/core la deja pasar
+ * intacta (`if (e instanceof AuthError) throw e`) y serializa su `code` en
+ * el redirect (`?error=CredentialsSignin&code=MFA_REQUIRED`); el cliente lo
+ * recibe en `SignInResponse.code` con `signIn(..., { redirect: false })` —
+ * el login UI lo usa para revelar el campo del código.
+ */
+class MfaRequiredError extends CredentialsSignin {
+  code = "MFA_REQUIRED";
+}
 
 function getClientIp(request?: Request): string {
   return (
@@ -33,6 +46,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Contraseña", type: "password" },
+        // C-PR4: segundo factor opcional — TOTP de 6 dígitos o código de
+        // recuperación. Solo se exige si la cuenta tiene 2FA activa.
+        totp: { label: "Código de verificación", type: "text" },
       },
       async authorize(credentials, request) {
         const email = credentials?.email as string | undefined;
@@ -79,6 +95,33 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             });
           } catch (err) {
             console.error("[auth] login_failed event error — ignoring:", err);
+          }
+          return null;
+        }
+
+        // ── C-PR4: puerta MFA — corre DESPUÉS de validar la contraseña y
+        // ANTES de limpiar fallos/acuñar sesión. "required" lanza
+        // MfaRequiredError (el code viaja al cliente); "failed" cuenta como
+        // fallo de autenticación (lockout + auditoría con metadata.mfa). ──
+        const userAgent = request?.headers.get("user-agent") ?? undefined;
+        const mfaVerdict = await enforceMfaGate(
+          user.id,
+          credentials?.totp as string | undefined,
+          { ip, userAgent }
+        );
+        if (mfaVerdict === "required") throw new MfaRequiredError();
+        if (mfaVerdict === "failed") {
+          await recordAuthFailure(normalizedEmail);
+          try {
+            await recordSecurityEvent({
+              userId: user.id,
+              type: "login_failed",
+              ip,
+              userAgent,
+              metadata: { mfa: true },
+            });
+          } catch (err) {
+            console.error("[auth] login_failed(mfa) event error — ignoring:", err);
           }
           return null;
         }
