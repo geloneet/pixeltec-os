@@ -369,6 +369,16 @@ export const userStreak = pgTable("user_streak", {
 
 export const clientSourceEnum = pgEnum("client_source", ["crm_blob", "portal"]);
 
+/** Ciclo de vida comercial del cliente CRM (ADR-0034). Distinto de
+ *  `clients.status` (text libre del roster portal) a propósito: vocabularios
+ *  de orígenes distintos no se mezclan. */
+export const clientCrmStatusEnum = pgEnum("client_crm_status", [
+  "prospecto",
+  "activo",
+  "pausado",
+  "cerrado",
+]);
+
 /**
  * Tabla unificada — Fase 3 reveló que Firestore tiene DOS conceptos de
  * "cliente" completamente separados (cero overlap de IDs, verificado contra
@@ -411,6 +421,11 @@ export const clients = pgTable(
     portalToken: text("portal_token"), // mecanismo legado /portal/[token]
     portalEnabled: boolean("portal_enabled").notNull().default(false),
     strategyId: uuid("strategy_id"), // FK a strategies, agregada tras crear esa tabla (ver abajo)
+    // ADR-0034 — campos SERVER-OWNED: fuera del values/set de syncCrmClients
+    // (un blob stale no debe poder pisarlos); se escriben solo por
+    // setClientStatusAction / setClientNextActionAction.
+    crmStatus: clientCrmStatusEnum("crm_status").notNull().default("prospecto"),
+    nextAction: jsonb("next_action"), // ClientNextAction { label, dueAt } | null
 
     // Solo origen `portal` (roster de negocio + OTP):
     whatsapp: text("whatsapp"),
@@ -996,6 +1011,10 @@ export const discoverySessions = pgTable(
     clientId: uuid("client_id")
       .notNull()
       .references(() => clients.id, { onDelete: "cascade" }),
+    // ADR-0034: el discovery pertenece a un proyecto, no al cliente completo.
+    // Nullable: las sesiones históricas de clientes con 0 o >1 proyectos
+    // quedan sin asignar y se adoptan desde la UI del proyecto.
+    projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
     industry: text("industry").notNull(),
     status: discoveryStatusEnum("status").notNull().default("generando"),
     questions: jsonb("questions").notNull().default([]),
@@ -1006,6 +1025,7 @@ export const discoverySessions = pgTable(
   (t) => [
     index("discovery_sessions_owner_idx").on(t.ownerId),
     uniqueIndex("discovery_sessions_firestore_id_idx").on(t.firestoreId),
+    index("discovery_sessions_project_idx").on(t.projectId),
   ]
 );
 
@@ -1020,6 +1040,8 @@ export const strategies = pgTable(
     clientId: uuid("client_id")
       .notNull()
       .references(() => clients.id, { onDelete: "cascade" }),
+    // ADR-0034: misma regla que discovery_sessions.project_id (ver arriba).
+    projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
     objectives: jsonb("objectives").notNull().default([]),
     kpis: jsonb("kpis").notNull().default([]),
     roadmap: jsonb("roadmap").notNull().default([]),
@@ -1031,8 +1053,36 @@ export const strategies = pgTable(
   (t) => [
     index("strategies_owner_idx").on(t.ownerId),
     uniqueIndex("strategies_firestore_id_idx").on(t.firestoreId),
+    index("strategies_project_idx").on(t.projectId),
   ]
 );
+
+/**
+ * Historial verificable del cliente (ADR-0034) — qué ocurrió, quién y cuándo.
+ * Sustituye al feed sintético de client-stats y a la tabla legacy `activity`
+ * (muerta desde la migración Firestore). `type` es text validado por la unión
+ * TS ClientActivityType (repos/client-activity.ts): extensible sin migración.
+ */
+export const clientActivity = pgTable(
+  "client_activity",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    clientId: uuid("client_id")
+      .notNull()
+      .references(() => clients.id, { onDelete: "cascade" }),
+    type: text("type").notNull(),
+    message: text("message").notNull(),
+    actorName: text("actor_name"),
+    metadata: jsonb("metadata"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("client_activity_client_created_idx").on(t.clientId, t.createdAt)]
+);
+
+export type ClientActivityRow = typeof clientActivity.$inferSelect;
 
 export const iaTemplates = pgTable(
   "ia_templates",
@@ -1290,6 +1340,11 @@ export const blogPosts = pgTable(
     wordCount: integer("word_count").notNull().default(0),
     readingTimeMin: integer("reading_time_min").notNull().default(1),
     approvedBy: text("approved_by"),
+    // B-PR7: vínculo REAL brief→post (antes solo data.generatedDraftId
+    // serializado en el jsonb del brief). Nullable: posts manuales no tienen
+    // brief. Migración drizzle/0035_blog_brief_id.sql (incluye el backfill
+    // desde generatedDraftId; SQL aditivo, journal en el saneo del drift).
+    briefId: uuid("brief_id").references(() => blogBriefs.id, { onDelete: "set null" }),
     publishedAt: timestamp("published_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -1297,6 +1352,7 @@ export const blogPosts = pgTable(
   (t) => [
     uniqueIndex("blog_posts_slug_idx").on(t.slug),
     uniqueIndex("blog_posts_firestore_id_idx").on(t.firestoreId),
+    index("blog_posts_brief_id_idx").on(t.briefId),
   ]
 );
 
@@ -1325,6 +1381,74 @@ export const blogPostViewCounts = pgTable("blog_post_view_counts", {
   views: bigint("views", { mode: "number" }).notNull().default(0),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+/**
+ * Historial editorial del blog (dictamen 2026-08-05, espejo de client_activity):
+ * quién creó/generó/editó/envió/devolvió/aprobó/publicó cada artículo. `type`
+ * es text con unión cerrada en TS (extensible sin migración). El writer es
+ * fire-safe: el historial jamás tumba la operación que lo origina.
+ * Migración: drizzle/0029_blog_activity.sql (SQL aditivo; el bookkeeping del
+ * journal se regenera con el saneo del drift de __drizzle_migrations).
+ */
+export const blogActivity = pgTable(
+  "blog_activity",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    postId: uuid("post_id")
+      .notNull()
+      .references(() => blogPosts.id, { onDelete: "cascade" }),
+    type: text("type").notNull(),
+    message: text("message").notNull(),
+    actorId: uuid("actor_id").references(() => users.id, { onDelete: "set null" }),
+    actorName: text("actor_name"),
+    metadata: jsonb("metadata"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("blog_activity_post_created_idx").on(t.postId, t.createdAt)]
+);
+
+/**
+ * Versionado de artículos del blog (B-PR6): snapshot INMUTABLE del contenido
+ * en los momentos de riesgo — antes de regenerar con IA, al publicar, al abrir
+ * una nueva revisión y antes de restaurar. Patrón de pixelforge_page_versions:
+ * `version` es incremental por post, calculado max+1 en el repo DENTRO de la
+ * misma transacción que el insert; el unique index es la red ante una carrera.
+ * Migración: drizzle/0034_blog_post_versions.sql (SQL aditivo; el bookkeeping
+ * del journal se regenera con el saneo del drift de __drizzle_migrations).
+ */
+export const blogPostVersions = pgTable(
+  "blog_post_versions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    postId: uuid("post_id")
+      .notNull()
+      .references(() => blogPosts.id, { onDelete: "cascade" }),
+    version: integer("version").notNull(),
+    /** 'pre-regeneracion-ia' | 'publicacion' | 'nueva-revision' |
+     *  'pre-restauracion' | 'manual' — unión cerrada en TS (versions.ts). */
+    reason: text("reason").notNull(),
+    title: text("title").notNull(),
+    excerpt: text("excerpt").notNull(),
+    body: text("body").notNull(),
+    slug: text("slug").notNull(),
+    category: text("category").notNull(),
+    tags: text("tags").array().notNull().default([]),
+    coverImage: text("cover_image"),
+    seo: jsonb("seo").notNull().default({}),
+    editorial: jsonb("editorial").notNull().default({}),
+    sources: jsonb("sources").notNull().default([]),
+    internalLinks: jsonb("internal_links").notNull().default([]),
+    ai: jsonb("ai").notNull().default({}),
+    // Autoría desnormalizada — mismo criterio que pixelforge_page_versions.
+    createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+    createdByName: text("created_by_name").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("blog_post_versions_post_idx").on(t.postId),
+    uniqueIndex("blog_post_versions_post_version_idx").on(t.postId, t.version),
+  ]
+);
 
 // ════════════════════════════════════════════════════════════════════════
 // Funnel público — src/lib/leads-repo.ts, src/lib/newsletter-repo.ts

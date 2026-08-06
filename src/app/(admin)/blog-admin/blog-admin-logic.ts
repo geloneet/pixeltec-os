@@ -156,6 +156,34 @@ export function attentionCount(posts: Array<Pick<BlogPostSerialized, 'status'>>)
   return posts.filter(needsAttention).length;
 }
 
+/** El pendiente MÁS VIEJO que espera atención — el banner lo nombra para que
+ *  ningún artículo se quede abandonado detrás de un contador genérico. */
+export function attentionSpotlight(
+  posts: Array<Pick<BlogPostSerialized, 'id' | 'title' | 'status' | 'updatedAt' | 'createdAt'>>
+): { id: string; title: string } | null {
+  const pending = posts.filter(needsAttention);
+  if (pending.length === 0) return null;
+  const oldest = [...pending].sort((a, b) => postSortDate(a).localeCompare(postSortDate(b)))[0];
+  return { id: oldest.id, title: oldest.title };
+}
+
+/** Una IDEA es un brief que aún no produjo artículo. Cuando el borrador existe,
+ *  el brief queda integrado al artículo como su origen y deja de competir como
+ *  entidad en la lista. Un `generated` huérfano (sin draftId) sigue siendo idea
+ *  visible — jamás se esconde trabajo. */
+export function briefIsIdea(
+  brief: Pick<BlogBriefSerialized, 'status' | 'generatedDraftId'>
+): boolean {
+  if (brief.status === 'pending' || brief.status === 'generating') return true;
+  return brief.status === 'generated' && !brief.generatedDraftId;
+}
+
+export function ideasCount(
+  briefs: Array<Pick<BlogBriefSerialized, 'status' | 'generatedDraftId'>>
+): number {
+  return briefs.filter(briefIsIdea).length;
+}
+
 export function filterPosts(
   posts: BlogPostSerialized[],
   opts: { query: string; status: PostFilterStatus; order: SortOrder }
@@ -181,13 +209,19 @@ export function filterPosts(
   });
 }
 
+/** `all` = solo IDEAS (briefs sin artículo); `discarded` se consulta a demanda.
+ *  Los `generated` con borrador no se listan aquí: viven dentro del artículo. */
 export function filterBriefs(
   briefs: BlogBriefSerialized[],
   opts: { query: string; status: BriefFilterStatus; order: SortOrder }
 ): BlogBriefSerialized[] {
   const q = opts.query.trim().toLowerCase();
   const filtered = briefs.filter((b) => {
-    if (opts.status !== 'all' && b.status !== opts.status) return false;
+    if (opts.status === 'all') {
+      if (!briefIsIdea(b)) return false;
+    } else if (b.status !== opts.status) {
+      return false;
+    }
     if (q && !b.topic.toLowerCase().includes(q)) return false;
     return true;
   });
@@ -199,15 +233,32 @@ export function filterBriefs(
 
 // ── Resumen editorial compacto ───────────────────────────────────────────────
 
-/** «8 posts · 3 publicados · 3 borradores · 0 por revisar · 2 archivados» —
- *  el total es el REAL (coincide con el conteo del tab); los archivados se
- *  desglosan solo cuando existen. Decisión de Miguel 2026-08-04: mostrar el
- *  total y desglosarlo, en vez de ocultar archivados en el número. */
-export function editorialSummary(posts: Array<Pick<BlogPostSerialized, 'status'>>): string {
-  const published = posts.filter((p) => p.status === 'published').length;
-  const drafts = posts.filter((p) => p.status === 'draft').length;
-  const review = posts.filter((p) => p.status === 'needs-review').length;
-  const archived = posts.filter((p) => p.status === 'archived').length;
-  const base = `${posts.length} posts · ${published} publicados · ${drafts} borradores · ${review} por revisar`;
-  return archived > 0 ? `${base} · ${archived} archivados` : base;
+export interface SummarySegment {
+  key: 'total' | 'published' | 'draft' | 'review' | 'archived';
+  label: string;
+  count: number;
+  /** Filtro que aplica el segmento al pulsarse (dictamen 2026-08-05). */
+  filter: PostFilterStatus;
+}
+
+/** «9 artículos · 3 publicados · 3 borradores · 1 en revisión · 2 archivados»
+ *  — español consistente y cada estado PULSABLE (aplica su filtro). El total
+ *  es el REAL (coincide con el tab); archivados se desglosa solo si existe.
+ *  Decisión de Miguel 2026-08-04 (total desglosado) + dictamen 2026-08-05
+ *  (segmentos clicables, «artículos» en vez de «posts»). */
+export function editorialSummarySegments(
+  posts: Array<Pick<BlogPostSerialized, 'status'>>
+): SummarySegment[] {
+  const count = (s: BlogPostStatus) => posts.filter((p) => p.status === s).length;
+  const archived = count('archived');
+  const segments: SummarySegment[] = [
+    { key: 'total', label: posts.length === 1 ? 'artículo' : 'artículos', count: posts.length, filter: 'all' },
+    { key: 'published', label: count('published') === 1 ? 'publicado' : 'publicados', count: count('published'), filter: 'published' },
+    { key: 'draft', label: count('draft') === 1 ? 'borrador' : 'borradores', count: count('draft'), filter: 'draft' },
+    { key: 'review', label: 'en revisión', count: count('needs-review'), filter: 'needs-review' },
+  ];
+  if (archived > 0) {
+    segments.push({ key: 'archived', label: archived === 1 ? 'archivado' : 'archivados', count: archived, filter: 'archived' });
+  }
+  return segments;
 }

@@ -2,38 +2,64 @@
 
 // Fase 4 (rebanada Documentos): Postgres — antes Firestore `strategies` vía
 // client SDK.
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { strategies } from "@/lib/db/schema";
 import type { Strategy } from "@/types/documents";
 import {
   requireOwner,
   resolveClientPgId,
+  resolveProjectPgId,
   resolveStrategyRow,
   serializeStrategy,
 } from "./pg";
 
-export async function getStrategy(_uid: string, clientId: string): Promise<Strategy | null> {
+/**
+ * ADR-0034: la estrategia pertenece a un PROYECTO. Con `projectId` se busca
+ * primero la del proyecto; si no existe, cae a la huérfana del cliente
+ * (project_id NULL, la estrategia histórica pre-migración) para no perderla.
+ */
+export async function getStrategy(_uid: string, clientId: string, projectId?: string): Promise<Strategy | null> {
   const { uid, ownerId } = await requireOwner();
   const clientPgId = await resolveClientPgId(clientId);
   if (!clientPgId) return null;
+
+  if (projectId) {
+    const projectPgId = await resolveProjectPgId(projectId);
+    if (!projectPgId) return null;
+    const [own] = await db
+      .select()
+      .from(strategies)
+      .where(and(eq(strategies.ownerId, ownerId), eq(strategies.clientId, clientPgId), eq(strategies.projectId, projectPgId)))
+      .limit(1);
+    if (own) return serializeStrategy(own, clientId, uid, projectId);
+    const [orphan] = await db
+      .select()
+      .from(strategies)
+      .where(and(eq(strategies.ownerId, ownerId), eq(strategies.clientId, clientPgId), isNull(strategies.projectId)))
+      .limit(1);
+    return orphan ? serializeStrategy(orphan, clientId, uid, null) : null;
+  }
+
   const [row] = await db
     .select()
     .from(strategies)
     .where(and(eq(strategies.ownerId, ownerId), eq(strategies.clientId, clientPgId)))
     .limit(1);
-  return row ? serializeStrategy(row, clientId, uid) : null;
+  return row ? serializeStrategy(row, clientId, uid, null) : null;
 }
 
-export async function createStrategy(_uid: string, clientId: string): Promise<string> {
+export async function createStrategy(_uid: string, clientId: string, projectId?: string): Promise<string> {
   const { ownerId } = await requireOwner();
   const clientPgId = await resolveClientPgId(clientId);
   if (!clientPgId) throw new Error("Cliente no encontrado");
+  const projectPgId = projectId ? await resolveProjectPgId(projectId) : null;
   const [row] = await db
     .insert(strategies)
     .values({
       ownerId,
       clientId: clientPgId,
+      projectId: projectPgId,
       objectives: [],
       kpis: [],
       roadmap: [],
@@ -63,4 +89,14 @@ export async function updateStrategy(
   if (data.automations !== undefined) set.automations = data.automations;
 
   await db.update(strategies).set(set).where(eq(strategies.id, row.id));
+}
+
+/** Adopta una estrategia huérfana (o re-asigna una existente) a un proyecto. */
+export async function assignStrategyToProject(strategyId: string, projectId: string): Promise<void> {
+  const { ownerId } = await requireOwner();
+  const row = await resolveStrategyRow(strategyId);
+  if (!row || row.ownerId !== ownerId) throw new Error("Estrategia no encontrada");
+  const projectPgId = await resolveProjectPgId(projectId);
+  if (!projectPgId) throw new Error("Proyecto no encontrado");
+  await db.update(strategies).set({ projectId: projectPgId }).where(eq(strategies.id, row.id));
 }

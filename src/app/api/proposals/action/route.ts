@@ -65,7 +65,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
             type: messages.inApp.type,
             title: messages.inApp.title,
             body: messages.inApp.body,
-            href: `/clientes/${proposal.clientId}?tab=propuesta`,
+            href: `/clientes/${proposal.clientId}?tab=comercial&sub=propuestas`,
             source: "proposal-decision",
           });
         }

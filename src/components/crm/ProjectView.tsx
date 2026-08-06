@@ -3,6 +3,8 @@
 import { useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { ProjectBitacora } from "./ProjectBitacora";
+import { DiscoveryTab } from "./workspace-tabs/DiscoveryTab";
+import { EstrategiaTab } from "./workspace-tabs/EstrategiaTab";
 import { useCRM } from "./CRMContextCore";
 import { SessionHistory } from "@/components/workspace/SessionHistory";
 import { ProjectTaskCard } from "./ProjectTaskCard";
@@ -167,6 +169,9 @@ interface ProjectViewProps {
 const TABS = [
   { key: "resumen", label: "Resumen" },
   { key: "tareas", label: "Tareas" },
+  // ADR-0034: Discovery y Estrategia pertenecen al proyecto, no al cliente.
+  { key: "discovery", label: "Discovery" },
+  { key: "estrategia", label: "Estrategia" },
   { key: "recursos", label: "Recursos" },
   { key: "sesiones", label: "Sesiones" },
   { key: "finanzas", label: "Finanzas" },
@@ -652,6 +657,16 @@ export function ProjectView({
       )}
 
       {/* ══════════════════ SESIONES ═════════════════════════════════════════ */}
+      {/* ══════════════════ DISCOVERY (ADR-0034) ═════════════════════════════ */}
+      {projectTab === "discovery" && (
+        <DiscoveryTab clientId={client.id} clientName={client.name} projectId={project.id} />
+      )}
+
+      {/* ══════════════════ ESTRATEGIA (ADR-0034) ════════════════════════════ */}
+      {projectTab === "estrategia" && (
+        <EstrategiaTab clientId={client.id} projectId={project.id} />
+      )}
+
       {projectTab === "sesiones" && (
         <SessionHistory sessions={crm.getProjectSessions(project.id)} />
       )}

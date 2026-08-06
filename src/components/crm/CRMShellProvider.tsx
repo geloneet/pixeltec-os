@@ -12,8 +12,9 @@ import {
 import { usePathname } from "next/navigation";
 import { useCRM } from "./CRMContextCore";
 import { Modal } from "./Modal";
+import { logClientEventAction } from "./crm-actions";
 import { PRIORITIES } from "@/types/crm";
-import type { CRMTask } from "@/types/crm";
+import type { CRMTask, ClientCrmStatus } from "@/types/crm";
 
 type ModalType = { type: string; data?: Record<string, string> } | null;
 type PomoMode = "work" | "break";
@@ -151,9 +152,9 @@ export function CRMShellProvider({ children }: { children: ReactNode }) {
       (formRefs.current[key] as HTMLInputElement)?.value || "";
 
     switch (modal.type) {
-      case "addClient":
+      case "addClient": {
         if (!val("name").trim()) return;
-        crm.addClient({
+        const newClientId = crm.addClient({
           name: val("name"),
           contactName: val("contactName") || undefined,
           email: val("email"),
@@ -161,10 +162,27 @@ export function CRMShellProvider({ children }: { children: ReactNode }) {
           location: val("location"),
           notes: val("notes"),
         });
+        if (newClientId) {
+          const chosenStatus = (val("crmStatus") || "prospecto") as ClientCrmStatus;
+          const clientName = val("name");
+          // La fila PG no existe hasta el sync: flushSave ANTES de cualquier
+          // action server-owned (ADR-0034).
+          void (async () => {
+            try {
+              await crm.flushSave();
+              await logClientEventAction(newClientId, "cliente_creado", `Cliente creado: ${clientName}`);
+              if (chosenStatus !== "prospecto") await crm.setClientStatus(newClientId, chosenStatus);
+            } catch (error) {
+              console.error("[addClient post-sync]", error);
+            }
+          })();
+        }
         break;
-      case "editClient":
+      }
+      case "editClient": {
         if (!modal.data?.id) return;
-        crm.updateClient(modal.data.id, {
+        const editedId = modal.data.id;
+        crm.updateClient(editedId, {
           name: val("name"),
           contactName: val("contactName") || undefined,
           email: val("email"),
@@ -172,7 +190,13 @@ export function CRMShellProvider({ children }: { children: ReactNode }) {
           location: val("location"),
           notes: val("notes"),
         });
+        const newStatus = (val("crmStatus") || "prospecto") as ClientCrmStatus;
+        if (newStatus !== (modal.data?.crmStatus || "prospecto")) {
+          void crm.setClientStatus(editedId, newStatus);
+        }
+        void logClientEventAction(editedId, "cliente_editado", "Datos del cliente actualizados");
         break;
+      }
       case "addProject":
         if (!urlClientId || !val("name").trim()) return;
         {
@@ -379,14 +403,29 @@ export function CRMShellProvider({ children }: { children: ReactNode }) {
                 />
               </div>
             </div>
-            <div>
-              <label className={labelClass}>Ubicación</label>
-              <input
-                ref={ref("location")}
-                className={inputClass}
-                placeholder="Puerto Vallarta, Jalisco"
-                defaultValue={modal.data?.location || ""}
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={labelClass}>Ubicación</label>
+                <input
+                  ref={ref("location")}
+                  className={inputClass}
+                  placeholder="Puerto Vallarta, Jalisco"
+                  defaultValue={modal.data?.location || ""}
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Estado</label>
+                <select
+                  ref={ref("crmStatus")}
+                  className={inputClass}
+                  defaultValue={modal.data?.crmStatus || "prospecto"}
+                >
+                  <option value="prospecto">Prospecto</option>
+                  <option value="activo">Cliente activo</option>
+                  <option value="pausado">Pausado</option>
+                  <option value="cerrado">Cerrado</option>
+                </select>
+              </div>
             </div>
             <div>
               <label className={labelClass}>

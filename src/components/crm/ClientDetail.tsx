@@ -1,6 +1,13 @@
 "use client";
 
-import { useState, useMemo } from "react";
+/**
+ * Resumen del cliente (ADR-0034, dictamen 2026-08-05): de contenedor de
+ * funciones a asistente operativo. Header con estado comercial y próxima
+ * acción; tarjetas dinámicas según estado (nunca cuatro ceros); tarjeta de
+ * arranque para clientes vacíos; historial persistente (client_activity) con
+ * fallback al feed sintético para clientes sin eventos.
+ */
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import {
   AlertDialog,
@@ -16,8 +23,16 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Tooltip,
   TooltipContent,
@@ -26,24 +41,41 @@ import {
 } from "@/components/ui/tooltip";
 import {
   FolderKanban,
-  ListTodo,
-  CheckCircle2,
-  PauseCircle,
   MoreHorizontal,
   ArrowLeft,
   CircleDot,
   FileText,
+  FileSignature,
+  Receipt,
+  Globe,
+  Phone,
+  MessageCircle,
   Sparkles,
+  ChevronDown,
+  CheckCircle2,
+  Circle,
+  CalendarClock,
 } from "lucide-react";
-import type { CRMClient, CRMProject } from "@/types/crm";
+import { toast } from "sonner";
+import type { CRMClient } from "@/types/crm";
+import type { Proposal, BillingItem } from "@/types/documents";
 import {
   deriveClientStats,
   deriveProjectStats,
-  projectStatus,
+  deriveResumenCards,
+  deriveOnboardingChecklist,
+  clientStatusBadge,
   buildActivityFeed,
-  type ProjectStats,
-  type ClientBadge,
+  formatPhone,
+  type ResumenCard,
 } from "@/lib/crm/client-stats";
+import { ProjectCardShared } from "./ProjectCardShared";
+import { useCRM } from "./CRMContextCore";
+import { useUser } from "@/hooks/use-user";
+import { getProposals } from "@/lib/documents/proposals";
+import { getBillingItemsForClient } from "@/lib/documents/billing";
+import { getClientActivityAction, type ClientActivityEntry } from "./crm-actions";
+import { setPortalAccessEnabledAction } from "@/lib/client-portal/admin-actions";
 import { formatDistanceToNow, format } from "date-fns";
 import { es } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -81,117 +113,24 @@ function exactDate(dateStr: string): string {
   }
 }
 
-// ── Header badge (client-level) ───────────────────────────────────────────────
+const OPEN_PROPOSAL_STATUSES = new Set(["borrador", "enviada", "vista"]);
+const PENDING_BILLING_STATUSES = new Set(["pendiente", "vencido", "parcial"]);
 
-function clientDetailBadge(stopped: number, totalTasks: number): ClientBadge {
-  if (stopped > 0) {
-    return { label: "Atención requerida", colorClass: "bg-red-500/15 text-red-400 border border-red-500/20" };
-  }
-  if (totalTasks === 0) {
-    return { label: "Sin tareas", colorClass: "bg-muted text-muted-foreground border border-border" };
-  }
-  return { label: "Activo", colorClass: "bg-green-500/15 text-green-400 border border-green-500/20" };
+function activityIcon(type: string) {
+  if (type.startsWith("propuesta")) return <FileText className="h-3.5 w-3.5 text-cyan-400" strokeWidth={1.75} />;
+  if (type.startsWith("contrato")) return <FileSignature className="h-3.5 w-3.5 text-violet-400" strokeWidth={1.75} />;
+  if (type.startsWith("factura")) return <Receipt className="h-3.5 w-3.5 text-green-400" strokeWidth={1.75} />;
+  if (type.startsWith("portal")) return <Globe className="h-3.5 w-3.5 text-amber-400" strokeWidth={1.75} />;
+  if (type === "seguimiento") return <CalendarClock className="h-3.5 w-3.5 text-cyan-400" strokeWidth={1.75} />;
+  return <CircleDot className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.75} />;
 }
 
-// ── ProjectCard ───────────────────────────────────────────────────────────────
-
-interface ProjectCardProps {
-  project: CRMProject;
-  stats: ProjectStats;
-  clientId: string;
-  navigateToProject: (cid: string, pid: string) => void;
-  setModal: (m: { type: string; data?: Record<string, string> } | null) => void;
-}
-
-function ProjectCard({ project: p, stats, clientId, navigateToProject, setModal }: ProjectCardProps) {
-  const status = projectStatus(stats);
-
-  return (
-    <div className="flex flex-col rounded-xl border border-border bg-card p-4 transition-all duration-150 hover:bg-secondary/40">
-      {/* Card header */}
-      <div className="mb-3 flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-foreground">{p.name}</p>
-          {p.domain && (
-            <p className="truncate text-[11px] text-muted-foreground">{p.domain}</p>
-          )}
-        </div>
-        <span className={cn("flex-shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap", status.colorClass)}>
-          {status.label}
-        </span>
-      </div>
-
-      {/* Progress */}
-      {stats.totalTasks > 0 ? (
-        <div className="mb-3 space-y-1.5">
-          <div className="flex items-center justify-between text-[10px]">
-            <span className="text-muted-foreground">{stats.pct}% completado</span>
-            <span className="text-muted-foreground">{stats.completed}/{stats.totalTasks} tareas</span>
-          </div>
-          <div className="h-[3px] w-full overflow-hidden rounded-full bg-secondary">
-            <div
-              className={cn("h-full rounded-full transition-all", stats.pct >= 100 ? "bg-green-500" : "bg-cyan-500")}
-              style={{ width: `${stats.pct}%` }}
-            />
-          </div>
-          <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
-            {stats.openTasks > 0 && <span>{stats.openTasks} abierta{stats.openTasks !== 1 ? "s" : ""}</span>}
-            {stats.stopped > 0 && <span className="text-red-400">{stats.stopped} detenida{stats.stopped !== 1 ? "s" : ""}</span>}
-          </div>
-        </div>
-      ) : (
-        <p className="mb-3 text-[11px] text-muted-foreground italic">Sin tareas</p>
-      )}
-
-      {/* Footer */}
-      <div className="mt-auto flex items-center justify-between">
-        <TooltipProvider delayDuration={300}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="cursor-default text-[10px] text-muted-foreground">
-                Últ. alta {relativeTime(stats.lastTaskAt)}
-              </span>
-            </TooltipTrigger>
-            <TooltipContent side="bottom" className="border-border bg-card text-foreground text-xs">
-              {exactDate(stats.lastTaskAt)}
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-
-        <div className="flex items-center gap-1.5">
-          <button
-            onClick={() => navigateToProject(clientId, p.id)}
-            className="rounded-md px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary/60 hover:text-foreground"
-          >
-            Ver
-          </button>
-          <button
-            onClick={() =>
-              setModal({
-                type: "editProject",
-                data: {
-                  id: p.id,
-                  name: p.name,
-                  domain: p.domain,
-                  budget: p.budget.toString(),
-                  annual: p.annual.toString(),
-                  budgetIva: p.budgetIva,
-                  annualIva: p.annualIva,
-                  tech: p.tech,
-                  accounts: p.accounts,
-                  guides: p.guides,
-                },
-              })
-            }
-            className="rounded-md px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary/60 hover:text-foreground"
-          >
-            Editar
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
+const CARD_TONE_CLASSES: Record<ResumenCard["tone"], string> = {
+  default: "border-border bg-card",
+  accent: "border-cyan-500/20 bg-cyan-500/[0.04]",
+  warning: "border-amber-500/20 bg-amber-500/[0.04]",
+  danger: "border-red-500/20 bg-red-500/[0.04]",
+};
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -201,16 +140,86 @@ interface ClientDetailProps {
   navigateToProject: (cid: string, pid: string) => void;
   setModal: (m: { type: string; data?: Record<string, string> } | null) => void;
   deleteClient: (id: string) => void;
+  /** Gate del tab Portal (lo controla ClientWorkspace). */
+  portalEnabled?: boolean;
+  onPortalEnabledChange?: (enabled: boolean) => void;
+  /** Abre el tab Comercial (CTA "Crear propuesta" del onboarding). */
+  onOpenComercial?: () => void;
 }
 
 // ── ClientDetail ──────────────────────────────────────────────────────────────
 
-export function ClientDetail({ client, setView, navigateToProject, setModal, deleteClient }: ClientDetailProps) {
+export function ClientDetail({
+  client,
+  setView,
+  navigateToProject,
+  setModal,
+  deleteClient,
+  portalEnabled,
+  onPortalEnabledChange,
+  onOpenComercial,
+}: ClientDetailProps) {
+  const crm = useCRM();
+  const user = useUser();
   const [deleteOpen, setDeleteOpen] = useState(false);
+
+  // Registro de seguimiento (chip "Sin próxima acción")
+  const [followUpOpen, setFollowUpOpen] = useState(false);
+  const [followUpLabel, setFollowUpLabel] = useState("");
+  const [followUpDate, setFollowUpDate] = useState("");
+  const [followUpSaving, setFollowUpSaving] = useState(false);
+
+  // Datos dinámicos del Resumen (propuestas/cobros/historial) — patrón I/O de
+  // los otros tabs: una carga al montar, con degradación a datos locales.
+  const [dyn, setDyn] = useState<{
+    proposals: Proposal[];
+    billing: BillingItem[];
+    activity: ClientActivityEntry[];
+  } | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    Promise.all([
+      getProposals(user.uid, client.id).catch(() => [] as Proposal[]),
+      getBillingItemsForClient(client.id).catch(() => [] as BillingItem[]),
+      getClientActivityAction(client.id, 8).catch(() => [] as ClientActivityEntry[]),
+    ]).then(([proposals, billing, activity]) => {
+      if (!cancelled) setDyn({ proposals, billing, activity });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [client.id, user]);
 
   const handleDeleteConfirmed = () => {
     deleteClient(client.id);
     setView("clients");
+  };
+
+  const handleSaveFollowUp = async () => {
+    if (!followUpLabel.trim()) return;
+    setFollowUpSaving(true);
+    const ok = await crm.setClientNextAction(client.id, {
+      label: followUpLabel.trim(),
+      dueAt: followUpDate ? new Date(`${followUpDate}T12:00:00`).toISOString() : null,
+    });
+    setFollowUpSaving(false);
+    if (ok) {
+      setFollowUpOpen(false);
+      setFollowUpLabel("");
+      setFollowUpDate("");
+    }
+  };
+
+  const handleEnablePortal = async () => {
+    const result = await setPortalAccessEnabledAction(client.id, true);
+    if (result.success) {
+      onPortalEnabledChange?.(true);
+      toast.success("Portal activado");
+    } else {
+      toast.error("No se pudo activar el portal", { description: result.error });
+    }
   };
 
   const color = avatarColor(client.name);
@@ -219,9 +228,39 @@ export function ClientDetail({ client, setView, navigateToProject, setModal, del
     () => client.projects.map(p => ({ project: p, stats: deriveProjectStats(p) })),
     [client.projects]
   );
-  const feed = useMemo(() => buildActivityFeed(client, 8), [client]);
-  const headerBadge = clientDetailBadge(clientStats.stopped, clientStats.totalTasks);
-  const contact = [client.location, client.phone].filter(Boolean).join(" · ");
+  const headerBadge = clientStatusBadge(client.crmStatus, clientStats);
+  const phone = formatPhone(client.phone);
+  const nextAction = client.nextAction ?? null;
+  const status = client.crmStatus ?? "prospecto";
+
+  const openProposalsCount = dyn?.proposals.filter(p => OPEN_PROPOSAL_STATUSES.has(p.status)).length ?? 0;
+  const pendingBillingCount = dyn?.billing.filter(b => PENDING_BILLING_STATUSES.has(b.status)).length ?? 0;
+
+  const isEmptyClient = client.projects.length === 0 && openProposalsCount === 0;
+  const onboarding = useMemo(
+    () => deriveOnboardingChecklist(client, openProposalsCount),
+    [client, openProposalsCount]
+  );
+  const cards = useMemo(
+    () =>
+      deriveResumenCards(client, clientStats, {
+        openProposalsCount,
+        pendingBillingCount,
+        lastActivityAt: dyn?.activity[0]?.createdAt ?? null,
+      }),
+    [client, clientStats, openProposalsCount, pendingBillingCount, dyn]
+  );
+
+  const editClientModalData = {
+    id: client.id,
+    name: client.name,
+    contactName: client.contactName ?? "",
+    email: client.email,
+    phone: client.phone,
+    location: client.location,
+    notes: client.notes,
+    crmStatus: status,
+  };
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-6">
@@ -250,55 +289,123 @@ export function ClientDetail({ client, setView, navigateToProject, setModal, del
             <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold", headerBadge.colorClass)}>
               {headerBadge.label}
             </span>
+            <button
+              onClick={() => setFollowUpOpen(true)}
+              className={cn(
+                "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold transition-colors",
+                nextAction
+                  ? "border-cyan-500/20 bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500/20"
+                  : "border-amber-500/20 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20"
+              )}
+            >
+              <CalendarClock className="h-3 w-3" aria-hidden />
+              {nextAction ? nextAction.label : "Sin próxima acción"}
+            </button>
           </div>
-          {contact && <p className="mt-0.5 text-sm text-muted-foreground">{contact}</p>}
-          {client.contactName && (
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm text-muted-foreground">
+            {client.location && <span>{client.location}</span>}
+            {phone && (
+              <span className="inline-flex items-center gap-1.5">
+                <a href={phone.telHref} className="inline-flex items-center gap-1 transition-colors hover:text-foreground">
+                  <Phone className="h-3 w-3" aria-hidden />
+                  {phone.display}
+                </a>
+                <a
+                  href={phone.waHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Abrir WhatsApp"
+                  className="text-green-500 transition-colors hover:text-green-400"
+                >
+                  <MessageCircle className="h-3.5 w-3.5" aria-hidden />
+                </a>
+              </span>
+            )}
+          </div>
+          {(client.contactName || client.email) && (
             <p className="mt-0.5 text-sm text-muted-foreground">
-              Contacto: <span className="text-foreground">{client.contactName}</span>
+              {client.contactName && (
+                <>Contacto: <span className="text-foreground">{client.contactName}</span></>
+              )}
+              {client.contactName && client.email && " · "}
+              {client.email && (
+                <a href={`mailto:${client.email}`} className="transition-colors hover:text-foreground">{client.email}</a>
+              )}
             </p>
           )}
         </div>
 
         <div className="flex flex-shrink-0 items-center gap-2">
-          <button
-            onClick={() =>
-              setModal({
-                type: "editClient",
-                data: {
-                  id: client.id,
-                  name: client.name,
-                  contactName: client.contactName ?? "",
-                  email: client.email,
-                  phone: client.phone,
-                  location: client.location,
-                  notes: client.notes,
-                },
-              })
-            }
-            className="rounded-lg border border-border bg-secondary/40 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-all hover:bg-secondary/70 hover:text-foreground"
-          >
-            Editar
-          </button>
-          <Link
-            href={`/proyectos/definicion/nueva?client=${encodeURIComponent(client.id)}&name=${encodeURIComponent(client.name)}`}
-            className="flex items-center gap-1 rounded-lg border border-cyan-500/20 bg-cyan-500/10 px-3 py-1.5 text-xs font-medium text-cyan-300 transition-all hover:bg-cyan-500/20"
-          >
-            <Sparkles className="h-3 w-3" />
-            Nuevo Proyecto
-          </Link>
-          <button
-            onClick={() => setModal({ type: "addProject" })}
-            className="rounded-lg border border-border bg-secondary/40 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-all hover:bg-secondary/70 hover:text-foreground"
-          >
-            + Proyecto con avance
-          </button>
+          {/* Acción principal única: crear proyecto (dos variantes) */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex items-center gap-1 rounded-lg border border-cyan-500/20 bg-cyan-500/10 px-3 py-1.5 text-xs font-medium text-cyan-300 transition-all hover:bg-cyan-500/20 focus-visible:outline-none">
+                <Sparkles className="h-3 w-3" aria-hidden />
+                Crear proyecto
+                <ChevronDown className="h-3 w-3" aria-hidden />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56 border-border bg-popover/95 backdrop-blur-xl">
+              <DropdownMenuItem asChild className="cursor-pointer text-sm">
+                <Link href={`/proyectos/definicion/nueva?client=${encodeURIComponent(client.id)}&name=${encodeURIComponent(client.name)}`}>
+                  Crear desde cero
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="cursor-pointer text-sm"
+                onSelect={() => setModal({ type: "addProject", data: { clientId: client.id } })}
+              >
+                Registrar proyecto existente
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="flex h-7 w-7 items-center justify-center rounded-lg border border-border bg-secondary/40 text-muted-foreground transition-all hover:bg-secondary/70 hover:text-foreground focus-visible:outline-none">
                 <MoreHorizontal className="h-3.5 w-3.5" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-40 border-border bg-popover/95 backdrop-blur-xl">
+            <DropdownMenuContent align="end" className="w-52 border-border bg-popover/95 backdrop-blur-xl">
+              <DropdownMenuItem
+                className="cursor-pointer text-sm"
+                onSelect={() => setModal({ type: "editClient", data: editClientModalData })}
+              >
+                Editar cliente
+              </DropdownMenuItem>
+              {status !== "activo" && (
+                <DropdownMenuItem
+                  className="cursor-pointer text-sm"
+                  onSelect={() => void crm.setClientStatus(client.id, "activo")}
+                >
+                  Marcar como cliente activo
+                </DropdownMenuItem>
+              )}
+              {status !== "pausado" && (
+                <DropdownMenuItem
+                  className="cursor-pointer text-sm"
+                  onSelect={() => void crm.setClientStatus(client.id, "pausado")}
+                >
+                  Pausar cliente
+                </DropdownMenuItem>
+              )}
+              {status !== "cerrado" && (
+                <DropdownMenuItem
+                  className="cursor-pointer text-sm"
+                  onSelect={() => void crm.setClientStatus(client.id, "cerrado")}
+                >
+                  Marcar como cerrado
+                </DropdownMenuItem>
+              )}
+              {!portalEnabled && (
+                <DropdownMenuItem
+                  className="cursor-pointer text-sm"
+                  onSelect={() => void handleEnablePortal()}
+                >
+                  Activar portal del cliente
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator className="bg-border" />
               <DropdownMenuItem
                 className="cursor-pointer text-sm text-red-400 focus:bg-red-500/10 focus:text-red-300"
                 onSelect={() => setDeleteOpen(true)}
@@ -311,32 +418,70 @@ export function ClientDetail({ client, setView, navigateToProject, setModal, del
       </div>
 
       {/* ── SECCIÓN 2: SNAPSHOT ──────────────────────────────────────────── */}
-      <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {/* Proyectos */}
-        <div className="rounded-xl border border-border bg-card p-4">
-          <FolderKanban className="mb-2 h-4 w-4 text-cyan-400" strokeWidth={1.75} />
-          <p className="tabular-nums text-2xl font-bold text-foreground">{clientStats.projectsCount}</p>
-          <p className="mt-0.5 text-[11px] text-muted-foreground">Proyectos</p>
+      {isEmptyClient ? (
+        /* Cliente recién creado: guía de arranque en lugar de cuatro ceros. */
+        <div className="mb-5 rounded-xl border border-cyan-500/20 bg-cyan-500/[0.03] p-5">
+          <h3 className="text-sm font-semibold text-foreground">Completa la cuenta</h3>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Esta cuenta está recién creada. Sigue estos pasos para dejarla operativa:
+          </p>
+          <ol className="mt-3 space-y-2">
+            {onboarding.steps.map((step) => (
+              <li key={step.label} className="flex items-center gap-2 text-sm">
+                {step.done ? (
+                  <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-green-400" aria-hidden />
+                ) : (
+                  <Circle className="h-4 w-4 flex-shrink-0 text-muted-foreground/50" aria-hidden />
+                )}
+                <span className={step.done ? "text-muted-foreground line-through" : "text-foreground"}>
+                  {step.label}
+                </span>
+              </li>
+            ))}
+          </ol>
+          <div className="mt-4">
+            {onboarding.cta.action === "crear-propuesta" && (
+              <button
+                onClick={onOpenComercial}
+                className="rounded-lg bg-cyan-500 px-4 py-2 text-xs font-semibold text-black transition-colors hover:bg-cyan-400"
+              >
+                {onboarding.cta.label}
+              </button>
+            )}
+            {onboarding.cta.action === "crear-proyecto" && (
+              <Link
+                href={`/proyectos/definicion/nueva?client=${encodeURIComponent(client.id)}&name=${encodeURIComponent(client.name)}`}
+                className="inline-block rounded-lg bg-cyan-500 px-4 py-2 text-xs font-semibold text-black transition-colors hover:bg-cyan-400"
+              >
+                {onboarding.cta.label}
+              </Link>
+            )}
+            {onboarding.cta.action === "abrir-proyecto" && onboarding.projectId && (
+              <button
+                onClick={() => navigateToProject(client.id, onboarding.projectId!)}
+                className="rounded-lg bg-cyan-500 px-4 py-2 text-xs font-semibold text-black transition-colors hover:bg-cyan-400"
+              >
+                {onboarding.cta.label}
+              </button>
+            )}
+          </div>
         </div>
-        {/* Tareas abiertas */}
-        <div className="rounded-xl border border-border bg-card p-4">
-          <ListTodo className="mb-2 h-4 w-4 text-cyan-400" strokeWidth={1.75} />
-          <p className="tabular-nums text-2xl font-bold text-foreground">{clientStats.openTasks}</p>
-          <p className="mt-0.5 text-[11px] text-muted-foreground">Tareas abiertas</p>
+      ) : (
+        <div className={cn("mb-5 grid grid-cols-1 gap-3 sm:grid-cols-3", cards.length === 4 && "sm:grid-cols-4")}>
+          {cards.map((card) => (
+            <div key={card.key} className={cn("rounded-xl border p-4", CARD_TONE_CLASSES[card.tone])}>
+              <p className="text-[11px] text-muted-foreground">{card.label}</p>
+              <p className={cn(
+                "mt-1 truncate text-lg font-bold",
+                card.tone === "danger" ? "text-red-300" : "text-foreground"
+              )}>
+                {card.value}
+              </p>
+              {card.hint && <p className="mt-0.5 text-[10px] text-muted-foreground">{card.hint}</p>}
+            </div>
+          ))}
         </div>
-        {/* Completadas */}
-        <div className="rounded-xl border border-border bg-card p-4">
-          <CheckCircle2 className="mb-2 h-4 w-4 text-cyan-400" strokeWidth={1.75} />
-          <p className="tabular-nums text-2xl font-bold text-foreground">{clientStats.completed}</p>
-          <p className="mt-0.5 text-[11px] text-muted-foreground">Completadas</p>
-        </div>
-        {/* Detenidas */}
-        <div className={cn("rounded-xl border p-4 transition-colors", clientStats.stopped > 0 ? "border-red-500/20 bg-red-500/[0.04]" : "border-border bg-card")}>
-          <PauseCircle className={cn("mb-2 h-4 w-4", clientStats.stopped > 0 ? "text-red-400" : "text-cyan-400")} strokeWidth={1.75} />
-          <p className={cn("tabular-nums text-2xl font-bold", clientStats.stopped > 0 ? "text-red-300" : "text-foreground")}>{clientStats.stopped}</p>
-          <p className={cn("mt-0.5 text-[11px]", clientStats.stopped > 0 ? "text-red-400/70" : "text-muted-foreground")}>Detenidas</p>
-        </div>
-      </div>
+      )}
 
       {/* ── SECCIÓN 3: PROYECTOS ACTIVOS ─────────────────────────────────── */}
       <div className="mb-5">
@@ -347,24 +492,24 @@ export function ClientDetail({ client, setView, navigateToProject, setModal, del
 
         {client.projects.length === 0 ? (
           <div className="rounded-xl border border-border bg-card py-10 text-center">
-            <p className="text-sm text-muted-foreground">No hay proyectos</p>
-            <button
-              onClick={() => setModal({ type: "addProject" })}
-              className="mt-3 text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
-            >
-              + Crear primer proyecto
-            </button>
+            <FolderKanban className="mx-auto mb-2 h-6 w-6 text-muted-foreground/40" aria-hidden />
+            <p className="text-sm text-muted-foreground">Este cliente todavía no tiene proyectos.</p>
+            <p className="mt-1 text-xs text-muted-foreground/70">
+              Usa <span className="font-medium text-cyan-400">Crear proyecto</span> arriba — desde cero,
+              o registrando uno que ya esté en ejecución.
+            </p>
           </div>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
             {projectsWithStats.map(({ project, stats }) => (
-              <ProjectCard
+              <ProjectCardShared
                 key={project.id}
                 project={project}
                 stats={stats}
                 clientId={client.id}
                 navigateToProject={navigateToProject}
                 setModal={setModal}
+                openLabel="Ver"
               />
             ))}
           </div>
@@ -372,33 +517,18 @@ export function ClientDetail({ client, setView, navigateToProject, setModal, del
       </div>
 
       {/* ── SECCIÓN 4: ACTIVIDAD RECIENTE ────────────────────────────────── */}
-      {feed.length > 0 && (
+      {dyn && dyn.activity.length > 0 ? (
         <div className="mb-5">
           <h3 className="mb-3 text-sm font-semibold text-foreground">Actividad reciente</h3>
           <div className="rounded-xl border border-border bg-card divide-y divide-border">
-            {feed.map((event, i) => (
-              <div key={i} className="flex items-start gap-3 px-4 py-3">
-                <div className="mt-0.5 flex-shrink-0">
-                  {event.type === "client" && (
-                    <CircleDot className="h-3.5 w-3.5 text-cyan-400" strokeWidth={2} />
-                  )}
-                  {event.type === "project" && (
-                    <FolderKanban className="h-3.5 w-3.5 text-violet-400" strokeWidth={1.75} />
-                  )}
-                  {event.type === "task" && (
-                    <FileText className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.75} />
-                  )}
-                </div>
+            {dyn.activity.map((event) => (
+              <div key={event.id} className="flex items-start gap-3 px-4 py-3">
+                <div className="mt-0.5 flex-shrink-0">{activityIcon(event.type)}</div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs text-muted-foreground">
-                    <span className="text-muted-foreground">
-                      {event.type === "client" && "Cliente creado · "}
-                      {event.type === "project" && "Proyecto creado · "}
-                      {event.type === "task" && "Tarea creada · "}
-                    </span>
-                    <span className="font-medium text-foreground">{event.label}</span>
-                    {event.context && (
-                      <span className="ml-1 text-muted-foreground">· {event.context}</span>
+                  <p className="text-xs">
+                    <span className="font-medium text-foreground">{event.message}</span>
+                    {event.actorName && (
+                      <span className="ml-1 text-muted-foreground">· {event.actorName}</span>
                     )}
                   </p>
                 </div>
@@ -406,11 +536,11 @@ export function ClientDetail({ client, setView, navigateToProject, setModal, del
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <span className="flex-shrink-0 cursor-default text-[10px] text-muted-foreground tabular-nums">
-                        {relativeTime(event.at)}
+                        {relativeTime(event.createdAt)}
                       </span>
                     </TooltipTrigger>
                     <TooltipContent side="left" className="border-border bg-card text-foreground text-xs">
-                      {exactDate(event.at)}
+                      {exactDate(event.createdAt)}
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -418,6 +548,50 @@ export function ClientDetail({ client, setView, navigateToProject, setModal, del
             ))}
           </div>
         </div>
+      ) : (
+        /* Fallback: clientes previos al historial persistente conservan el
+           feed sintético (creaciones de cliente/proyecto/tarea). */
+        (() => {
+          const feed = buildActivityFeed(client, 8);
+          if (feed.length === 0) return null;
+          return (
+            <div className="mb-5">
+              <h3 className="mb-3 text-sm font-semibold text-foreground">Actividad reciente</h3>
+              <div className="rounded-xl border border-border bg-card divide-y divide-border">
+                {feed.map((event, i) => (
+                  <div key={i} className="flex items-start gap-3 px-4 py-3">
+                    <div className="mt-0.5 flex-shrink-0">
+                      {event.type === "client" && <CircleDot className="h-3.5 w-3.5 text-cyan-400" strokeWidth={2} />}
+                      {event.type === "project" && <FolderKanban className="h-3.5 w-3.5 text-violet-400" strokeWidth={1.75} />}
+                      {event.type === "task" && <FileText className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.75} />}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs text-muted-foreground">
+                        {event.type === "client" && "Cliente creado · "}
+                        {event.type === "project" && "Proyecto creado · "}
+                        {event.type === "task" && "Tarea creada · "}
+                        <span className="font-medium text-foreground">{event.label}</span>
+                        {event.context && <span className="ml-1 text-muted-foreground">· {event.context}</span>}
+                      </p>
+                    </div>
+                    <TooltipProvider delayDuration={300}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="flex-shrink-0 cursor-default text-[10px] text-muted-foreground tabular-nums">
+                            {relativeTime(event.at)}
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="left" className="border-border bg-card text-foreground text-xs">
+                          {exactDate(event.at)}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()
       )}
 
       {/* ── SECCIÓN 5: NOTAS ─────────────────────────────────────────────── */}
@@ -427,6 +601,56 @@ export function ClientDetail({ client, setView, navigateToProject, setModal, del
           <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap">{client.notes}</p>
         </div>
       )}
+
+      {/* Registrar seguimiento */}
+      <Dialog open={followUpOpen} onOpenChange={setFollowUpOpen}>
+        <DialogContent className="border-border bg-background text-foreground sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Registrar seguimiento</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <label className="mb-1 block text-xs text-muted-foreground">¿Qué sigue con este cliente? *</label>
+              <input
+                value={followUpLabel}
+                onChange={(e) => setFollowUpLabel(e.target.value)}
+                placeholder="Llamar para revisar la propuesta"
+                className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm text-foreground transition-colors focus:border-[#0EA5E9] focus:outline-none"
+                autoFocus
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-muted-foreground">Fecha (opcional)</label>
+              <input
+                type="date"
+                value={followUpDate}
+                onChange={(e) => setFollowUpDate(e.target.value)}
+                className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm text-foreground transition-colors focus:border-[#0EA5E9] focus:outline-none"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            {nextAction && (
+              <button
+                onClick={async () => {
+                  await crm.setClientNextAction(client.id, null);
+                  setFollowUpOpen(false);
+                }}
+                className="rounded-lg border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+              >
+                Quitar seguimiento
+              </button>
+            )}
+            <button
+              onClick={() => void handleSaveFollowUp()}
+              disabled={followUpSaving || !followUpLabel.trim()}
+              className="rounded-lg bg-cyan-500 px-4 py-1.5 text-xs font-semibold text-black transition-colors hover:bg-cyan-400 disabled:opacity-50"
+            >
+              {followUpSaving ? "Guardando…" : "Guardar"}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete confirmation */}
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>

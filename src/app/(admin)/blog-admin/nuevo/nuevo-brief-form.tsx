@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState, useTransition, KeyboardEvent, ReactNode } from "react";
+import { useEffect, useState, useTransition, ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, type FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { ChevronDown, Plus, Sparkles, Trash2, X } from "lucide-react";
+import { ChevronDown, Plus, Sparkles, Trash2 } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { createBrief, generateBriefWithAI } from "@/lib/blog/actions/briefs";
 import { getBriefGenerationStatus, startDraftGeneration } from "@/lib/blog/actions/drafts";
@@ -43,6 +43,7 @@ import {
 } from "@/components/ui/collapsible";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
+import { TagInput } from "../tag-input";
 
 // ─── Opciones (labels en español para no-especialistas SEO) ────────────────────
 
@@ -83,96 +84,6 @@ const NONE = "__none__";
 
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
-}
-
-// ─── Tag Input (patrón de keyPoints, parametrizado) ────────────────────────────
-
-interface TagInputProps {
-  value: string[];
-  onChange: (tags: string[]) => void;
-  error?: string;
-  max?: number;
-  footer?: string;
-  emptyPlaceholder?: string;
-}
-
-function TagInput({
-  value,
-  onChange,
-  error,
-  max = 8,
-  footer,
-  emptyPlaceholder = "Escribe un punto y presiona Enter o coma…",
-}: TagInputProps) {
-  const [inputValue, setInputValue] = useState("");
-
-  function addTag(raw: string) {
-    const tag = raw.trim();
-    if (!tag || value.includes(tag) || value.length >= max) return;
-    onChange([...value, tag]);
-    setInputValue("");
-  }
-
-  function removeTag(tag: string) {
-    onChange(value.filter((t) => t !== tag));
-  }
-
-  function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "Enter" || e.key === ",") {
-      e.preventDefault();
-      addTag(inputValue);
-    } else if (e.key === "Backspace" && !inputValue && value.length > 0) {
-      onChange(value.slice(0, -1));
-    }
-  }
-
-  return (
-    <div className="space-y-2">
-      <div
-        className={cn(
-          "flex min-h-[42px] flex-wrap gap-1.5 rounded-md border bg-background px-3 py-2",
-          error ? "border-red-500/60" : "border-border",
-        )}
-      >
-        {value.map((tag) => (
-          <span
-            key={tag}
-            className="inline-flex items-center gap-1 rounded-full bg-blue-500/20 px-2.5 py-0.5 text-xs font-medium text-blue-700 dark:text-blue-300"
-          >
-            {tag}
-            <button
-              type="button"
-              onClick={() => removeTag(tag)}
-              className="text-blue-400 hover:text-blue-200 transition-colors"
-              aria-label={`Eliminar ${tag}`}
-            >
-              <X className="h-3 w-3" />
-            </button>
-          </span>
-        ))}
-        <input
-          type="text"
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          onKeyDown={handleKeyDown}
-          onBlur={() => {
-            if (inputValue.trim()) addTag(inputValue);
-          }}
-          placeholder={
-            value.length === 0
-              ? emptyPlaceholder
-              : value.length < max
-                ? "Agregar otro…"
-                : `Máximo ${max}`
-          }
-          disabled={value.length >= max}
-          className="min-w-[200px] flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none disabled:cursor-not-allowed"
-        />
-      </div>
-      {footer && <p className="text-xs text-muted-foreground/60">{footer}</p>}
-      {error && <p className="text-xs text-red-400">{error}</p>}
-    </div>
-  );
 }
 
 // ─── Loading overlay ───────────────────────────────────────────────────────────
@@ -291,7 +202,7 @@ const inputCls =
 
 // ─── Form component ────────────────────────────────────────────────────────────
 
-export function NuevoBriefForm() {
+export function NuevoBriefForm({ ideaMode = false }: { ideaMode?: boolean } = {}) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [loadingMessage, setLoadingMessage] = useState("");
@@ -512,6 +423,15 @@ export function NuevoBriefForm() {
       if (!briefResult.ok || !briefResult.data) {
         toast.error(briefResult.error ?? "Error al crear brief");
         setLoadingMessage("");
+        return;
+      }
+
+      // Modo IDEA (dictamen 2026-08-05): se guarda el tema para retomarlo
+      // después — sin disparar generación ni consumir IA.
+      if (ideaMode) {
+        setLoadingMessage("");
+        toast.success("Idea guardada — la retomas desde la pestaña Ideas.");
+        router.push("/blog-admin");
         return;
       }
 
@@ -836,9 +756,9 @@ export function NuevoBriefForm() {
                     <TagInput
                       value={field.value}
                       onChange={field.onChange}
-                      max={10}
+                      maxTags={10}
                       footer={`${field.value.length}/10 keywords`}
-                      emptyPlaceholder="Escribe una keyword y presiona Enter o coma…"
+                      placeholder="Escribe una keyword y presiona Enter o coma…"
                       error={form.formState.errors.secondaryKeywords?.message}
                     />
                   </FormControl>
@@ -971,6 +891,7 @@ export function NuevoBriefForm() {
                     <TagInput
                       value={field.value}
                       onChange={field.onChange}
+                      placeholder="Escribe un punto y presiona Enter o coma…"
                       footer={`${field.value.length}/8 puntos · mínimo 2`}
                       error={
                         form.formState.errors.keyPoints?.message ??
@@ -1481,8 +1402,10 @@ export function NuevoBriefForm() {
               {isPending ? (
                 <span className="flex items-center gap-2">
                   <Spinner size="sm" />
-                  Generando…
+                  {ideaMode ? "Guardando…" : "Generando…"}
                 </span>
+              ) : ideaMode ? (
+                "Guardar idea"
               ) : (
                 "Generar borrador con IA"
               )}

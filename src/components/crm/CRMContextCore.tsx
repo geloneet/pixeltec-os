@@ -4,8 +4,8 @@ import { createContext, useContext, useState, useEffect, useRef, useCallback, ty
 import { useUser } from "@/hooks/use-user";
 import { toast } from "sonner";
 import { clientSchema, projectSchema, taskSchema } from "@/lib/crm-schemas";
-import { getCrmDataAction, syncCrmDataAction, type CrmSyncPayload } from "./crm-actions";
-import type { CRMClient, CRMProject, CRMTask, CRMKey, Tool, KnowledgeTip, ServerClientLink, RecurringCharge, ProjectLogEntry } from "@/types/crm";
+import { getCrmDataAction, syncCrmDataAction, setClientStatusAction, setClientNextActionAction, type CrmSyncPayload } from "./crm-actions";
+import type { CRMClient, CRMProject, CRMTask, CRMKey, ClientCrmStatus, ClientNextAction, Tool, KnowledgeTip, ServerClientLink, RecurringCharge, ProjectLogEntry } from "@/types/crm";
 import type { WorkSession, BlockerType, BlockerStatus, BlockerImpact, BlockerSource, ObservationType, SessionGoal } from "@/types/session";
 
 const MAX_LOG_ENTRIES = 500;
@@ -42,6 +42,9 @@ interface CRMContextValue {
   addClient: (data: Omit<CRMClient, "id" | "projects" | "createdAt">) => string | null;
   updateClient: (id: string, data: Partial<CRMClient>) => void;
   deleteClient: (id: string) => void;
+  /** Server-owned (ADR-0034): escriben directo a Postgres, sin pasar por el blob-sync. */
+  setClientStatus: (id: string, status: ClientCrmStatus) => Promise<boolean>;
+  setClientNextAction: (id: string, nextAction: ClientNextAction | null) => Promise<boolean>;
   addProject: (clientId: string, data: Omit<CRMProject, "id" | "keys" | "tasks" | "charges" | "createdAt" | "guides" | "accounts" | "readme" | "prompt" | "quickNotes">) => string | null;
   /** Guarda YA lo pendiente del debounce y espera a que termine (propaga error). */
   flushSave: () => Promise<void>;
@@ -270,6 +273,35 @@ export function CRMProvider({ children }: { children: ReactNode }) {
   const deleteClient = useCallback((id: string) => {
     update(dataRef.current.clients.filter(c => c.id !== id));
   }, [update]);
+
+  // Server-owned (ADR-0034): la escritura va directo a Postgres vía action
+  // dedicada; aquí solo se refleja en memoria SIN persist() — el blob-sync no
+  // incluye estos campos y no debe re-guardarse por ellos.
+  const applyServerOwnedPatch = useCallback((id: string, patch: Partial<Pick<CRMClient, "crmStatus" | "nextAction">>) => {
+    const next = dataRef.current.clients.map(c => c.id === id ? { ...c, ...patch } : c);
+    setClients(next);
+    dataRef.current.clients = next;
+  }, []);
+
+  const setClientStatus = useCallback(async (id: string, status: ClientCrmStatus): Promise<boolean> => {
+    const result = await setClientStatusAction(id, status);
+    if (!result.ok) {
+      toast.error('Error al actualizar el estado', { description: result.error });
+      return false;
+    }
+    applyServerOwnedPatch(id, { crmStatus: status });
+    return true;
+  }, [applyServerOwnedPatch]);
+
+  const setClientNextAction = useCallback(async (id: string, nextAction: ClientNextAction | null): Promise<boolean> => {
+    const result = await setClientNextActionAction(id, nextAction);
+    if (!result.ok) {
+      toast.error('Error al registrar la próxima acción', { description: result.error });
+      return false;
+    }
+    applyServerOwnedPatch(id, { nextAction });
+    return true;
+  }, [applyServerOwnedPatch]);
 
   // CRUD: Projects
   const addProject = useCallback((clientId: string, data: Omit<CRMProject, "id" | "keys" | "tasks" | "charges" | "createdAt" | "guides" | "accounts" | "readme" | "prompt" | "quickNotes">): string | null => {
@@ -723,6 +755,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     <CRMCtx.Provider value={{
       clients, tools, streak, loading, userEmail,
       addClient, updateClient, deleteClient,
+      setClientStatus, setClientNextAction,
       addProject, updateProject, deleteProject, flushSave,
       addTask, updateTask, deleteTask, cycleTaskStatus,
       addKey, deleteKey,

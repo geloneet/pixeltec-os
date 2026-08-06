@@ -7,6 +7,7 @@ import { and, count, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { invoices, invoiceItems, clients } from "@/lib/db/schema";
 import type { Invoice, InvoiceItem } from "@/types/documents";
+import { logClientActivity } from "@/lib/db/repos/client-activity";
 import {
   requireOwner,
   resolveClientPgId,
@@ -102,6 +103,14 @@ export async function createInvoice(
       );
     }
     return row.id;
+  }).then(async (invoiceId) => {
+    await logClientActivity({
+      ownerId,
+      clientId: clientPgId,
+      type: "factura_creada",
+      message: `Factura emitida: ${data.number}`,
+    });
+    return invoiceId;
   });
 }
 
@@ -148,4 +157,15 @@ export async function updateInvoice(
       }
     }
   });
+
+  // Solo la TRANSICIÓN a pagada genera actividad — un update neutro
+  // (notas, items) no ensucia el historial.
+  if (data.status === "pagada" && row.status !== "pagada") {
+    await logClientActivity({
+      ownerId,
+      clientId: row.clientId,
+      type: "factura_pagada",
+      message: `Factura pagada: ${row.number}`,
+    });
+  }
 }

@@ -163,6 +163,27 @@ export default function BlogPostClient({
             </div>
           </div>
 
+          {post.internalLinks.length > 0 && (
+            <section aria-labelledby="internal-links-heading" className="mt-12">
+              <h2 id="internal-links-heading" className="mb-4 text-xl font-bold text-white">
+                Recursos de PixelTEC mencionados
+              </h2>
+              <ul className="space-y-2.5">
+                {post.internalLinks.map((l) => (
+                  <li key={`${l.targetUrl}|${l.anchor}`}>
+                    <Link
+                      href={l.targetUrl}
+                      className="group inline-flex items-center gap-2 font-medium text-zinc-300 transition-colors hover:text-brand-blue"
+                    >
+                      <ArrowRight className="h-4 w-4 text-cyan-500 transition-transform group-hover:translate-x-1" aria-hidden />
+                      {l.anchor}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
           {related.length > 0 && (
             <section aria-labelledby="related-heading" className="mt-12">
               <h2 id="related-heading" className="mb-5 text-xl font-bold text-white">

@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { proposals, clients } from "@/lib/db/schema";
 import type { Proposal, ProposalVersion } from "@/types/documents";
 import { sendProposalAccessEmail } from "@/lib/email";
+import { logClientActivity } from "@/lib/db/repos/client-activity";
 import {
   requireOwner,
   resolveClientPgId,
@@ -147,6 +148,13 @@ export async function publishProposal(proposal: { id: string }): Promise<string>
     })
     .where(eq(proposals.id, row.id));
 
+  await logClientActivity({
+    ownerId,
+    clientId: row.clientId,
+    type: "propuesta_publicada",
+    message: `Propuesta publicada: ${row.title} (v${nextVersion})`,
+  });
+
   return token;
 }
 
@@ -169,6 +177,13 @@ export async function sendProposalEmail(id: string, clientEmail: string): Promis
     publicUrl: `${appUrl}/p/${token}`,
   });
   if (!result.success) throw new Error(result.error ?? "No se pudo enviar el correo");
+
+  await logClientActivity({
+    ownerId,
+    clientId: row.clientId,
+    type: "propuesta_enviada",
+    message: `Propuesta enviada por correo: ${row.title}`,
+  });
 
   return { token };
 }

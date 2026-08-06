@@ -81,6 +81,8 @@ export const BlogPostEditSchema = z.object({
   seoMetaDescription: z.string().max(160).optional(),
   // WS2 — SEO/editorial editable desde el editor
   coverImageAlt: z.string().max(200).optional(),
+  // B-PR5 — atribución opcional de la portada (persistida en seo.coverAttribution)
+  coverAttribution: z.string().max(200).optional(),
   canonicalUrl: z.string().url().nullable().optional(),
   noindex: z.boolean().optional(),
   primaryKeyword: z.string().max(120).optional(),

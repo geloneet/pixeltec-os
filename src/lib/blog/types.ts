@@ -133,6 +133,9 @@ export interface BlogPostDoc {
     contentPillar: string;
     /** Alt descriptivo de la portada (OG y <img>); vacío = se usa el título. */
     ogImageAlt: string;
+    /** Atribución opcional de la portada (B-PR5, jsonb aditivo — sin
+     *  migración): crédito del autor/fuente de la imagen subida. */
+    coverAttribution?: string;
   };
 
   editorial: PostEditorial;

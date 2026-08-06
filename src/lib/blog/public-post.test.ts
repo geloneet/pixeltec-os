@@ -11,6 +11,7 @@ const CANARY = {
   goal: 'CANARIO-GOAL-e1b75',
   unverifiedUrl: 'https://example.com/CANARIO-FUENTE-NO-VERIFICADA-f2a86',
   claimInterno: 'CANARIO-CLAIM-INTERNO-03997',
+  placementInterno: 'CANARIO-PLACEMENT-g3h97',
 };
 
 function fullPost(): BlogPostSerialized {
@@ -84,7 +85,12 @@ function fullPost(): BlogPostSerialized {
         verifiedByHuman: false,
       },
     ],
-    internalLinks: [{ targetUrl: '/pixelbot', anchor: 'anchor de planificación', verified: true }],
+    internalLinks: [
+      { targetUrl: '/pixelbot', anchor: 'anchor de planificación', placement: CANARY.placementInterno, verified: true },
+      { targetUrl: 'https://pixeltec.mx/services/automatizacion', anchor: 'servicio absoluto', verified: true },
+      { targetUrl: '/diagnostico', anchor: 'enlace NO verificado', verified: false },
+      { targetUrl: 'https://example.com/externo', anchor: 'destino externo', verified: true },
+    ],
     wordCount: 100,
     readingTimeMin: 3,
     createdAt: '2026-08-04T00:00:00.000Z',
@@ -109,11 +115,14 @@ describe('toPublicBlogPost — contrato público con allowlist', () => {
   it('Object.keys es EXACTAMENTE la allowlist (nada extra en runtime)', () => {
     const dto = toPublicBlogPost(fullPost());
     expect(Object.keys(dto).sort()).toEqual([
-      'authorName', 'body', 'category', 'coverAlt', 'coverImage',
+      'authorName', 'body', 'category', 'coverAlt', 'coverImage', 'internalLinks',
       'lastReviewedAt', 'publishedAt', 'readingTimeMin', 'slug', 'sources', 'title',
     ]);
     for (const s of dto.sources) {
       expect(Object.keys(s).sort()).toEqual(['accessedAt', 'publisher', 'title', 'url']);
+    }
+    for (const l of dto.internalLinks) {
+      expect(Object.keys(l).sort()).toEqual(['anchor', 'targetUrl']);
     }
   });
 
@@ -128,7 +137,22 @@ describe('toPublicBlogPost — contrato público con allowlist', () => {
     expect(wire).not.toContain('briefSource');
     expect(wire).not.toContain('reviewerId');
     expect(wire).not.toContain('claimsVerified');
-    expect(wire).not.toContain('internalLinks');
+    // Evolución 2026-08-05 (estrategia de enlazado interno): `internalLinks`
+    // SÍ cruza, pero solo {targetUrl, anchor} de enlaces verificados e
+    // internos — placement/verified siguen siendo internos (canary arriba).
+    expect(wire).not.toContain('placement');
+    expect(wire).not.toContain('"verified"');
+  });
+
+  it('enlazado interno: solo verificados e internos, absolutos normalizados a relativos', () => {
+    const dto = toPublicBlogPost(fullPost());
+    expect(dto.internalLinks).toEqual([
+      { targetUrl: '/pixelbot', anchor: 'anchor de planificación' },
+      { targetUrl: '/services/automatizacion', anchor: 'servicio absoluto' },
+    ]);
+    const wire = JSON.stringify(dto.internalLinks);
+    expect(wire).not.toContain('example.com');
+    expect(wire).not.toContain('NO verificado');
   });
 
   it('solo las fuentes verificadas se publican, y sin claimSupported', () => {
@@ -143,9 +167,11 @@ describe('toPublicBlogPost — contrato público con allowlist', () => {
     p.editorial = { ...EMPTY_EDITORIAL };
     p.sources = [];
     p.seo = { ...EMPTY_SEO, noindex: false };
+    p.internalLinks = [];
     const dto: PublicBlogPost = toPublicBlogPost(p);
     expect(dto.coverAlt).toBe('');
     expect(dto.lastReviewedAt).toBeNull();
     expect(dto.sources).toEqual([]);
+    expect(dto.internalLinks).toEqual([]);
   });
 });

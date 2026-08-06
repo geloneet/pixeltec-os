@@ -17,6 +17,7 @@ import {
   serializeContract,
 } from "./pg";
 import { createBillingItemsForContract } from "./billing";
+import { logClientActivity } from "@/lib/db/repos/client-activity";
 import {
   buildContractSections,
   flattenSections,
@@ -98,6 +99,14 @@ export async function createContract(
       notes: data.notes ?? null,
     })
     .returning({ id: contracts.id });
+
+  await logClientActivity({
+    ownerId,
+    clientId: clientPgId,
+    type: "contrato_creado",
+    message: `Contrato creado: ${data.title}`,
+  });
+
   return row.id;
 }
 
@@ -262,6 +271,13 @@ export async function confirmContractFromWizard(data: ConfirmContractFromWizardI
       .where(eq(proposals.id, proposalPgId));
   }
 
+  await logClientActivity({
+    ownerId,
+    clientId: clientPgId,
+    type: "contrato_creado",
+    message: `Contrato creado: ${data.title}`,
+  });
+
   return row.id;
 }
 
@@ -301,6 +317,13 @@ export async function signContract(id: string): Promise<SignContractResult> {
       proposalPgId: row.proposalId,
       items: (row.billingItemDrafts as BillingItemDraft[]) ?? [],
     });
+  });
+
+  await logClientActivity({
+    ownerId,
+    clientId: row.clientId,
+    type: "contrato_firmado",
+    message: `Contrato firmado: ${row.title}`,
   });
 
   return { status: "firmado", projectId: row.projectId };

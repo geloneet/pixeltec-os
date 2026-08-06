@@ -29,7 +29,7 @@ export function CreateProposalButton({ definitionId, proposalId, clientCrmId }: 
         <CheckCircle2 className="h-4 w-4" />
         Propuesta generada
         <Link
-          href={`/clientes/${clientCrmId}?tab=propuesta`}
+          href={`/clientes/${clientCrmId}?tab=comercial&sub=propuestas`}
           className="ml-auto flex items-center gap-1 rounded-md border border-cyan-500/20 bg-cyan-500/10 px-2.5 py-1 text-xs font-medium text-cyan-700 dark:text-cyan-300 transition-colors hover:bg-cyan-500/20"
         >
           Ver propuesta

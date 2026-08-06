@@ -17,6 +17,7 @@ import { db } from "@/lib/db";
 import {
   users,
   clients,
+  projects,
   proposals,
   contracts,
   invoices,
@@ -83,6 +84,30 @@ export async function resolveClientPgId(publicClientId: string): Promise<string 
   if (!UUID_RE.test(id)) return null;
   const [byId] = await db.select({ id: clients.id }).from(clients).where(eq(clients.id, id)).limit(1);
   return byId?.id ?? null;
+}
+
+/** Id público del proyecto (firestore_id ?? uuid) → projects.id (ADR-0034). */
+export async function resolveProjectPgId(publicProjectId: string): Promise<string | null> {
+  const id = publicProjectId.trim();
+  const [byFs] = await db
+    .select({ id: projects.id })
+    .from(projects)
+    .where(eq(projects.firestoreId, id))
+    .limit(1);
+  if (byFs) return byFs.id;
+  if (!UUID_RE.test(id)) return null;
+  const [byId] = await db.select({ id: projects.id }).from(projects).where(eq(projects.id, id)).limit(1);
+  return byId?.id ?? null;
+}
+
+/** projects.id (uuid) → id público (firestore_id si existe). */
+export async function projectPublicIdFor(projectPgId: string): Promise<string> {
+  const [p] = await db
+    .select({ fsId: projects.firestoreId })
+    .from(projects)
+    .where(eq(projects.id, projectPgId))
+    .limit(1);
+  return p?.fsId ?? projectPgId;
 }
 
 /** clients.id (uuid) → id público (firestore_id si existe). */
@@ -290,11 +315,13 @@ export function serializeDiscovery(
   row: DiscoveryRow,
   clientPublicId: string,
   uid: string,
+  projectPublicId?: string | null,
 ): DiscoverySession {
   return {
     id: publicDocId(row),
     uid,
     clientId: clientPublicId,
+    projectId: projectPublicId ?? null,
     industry: row.industry,
     status: row.status,
     questions: (row.questions as DiscoveryQuestion[]) ?? [],
@@ -304,11 +331,17 @@ export function serializeDiscovery(
   };
 }
 
-export function serializeStrategy(row: StrategyRow, clientPublicId: string, uid: string): Strategy {
+export function serializeStrategy(
+  row: StrategyRow,
+  clientPublicId: string,
+  uid: string,
+  projectPublicId?: string | null,
+): Strategy {
   return {
     id: publicDocId(row),
     uid,
     clientId: clientPublicId,
+    projectId: projectPublicId ?? null,
     objectives: (row.objectives as StrategyObjective[]) ?? [],
     kpis: (row.kpis as StrategyKPI[]) ?? [],
     roadmap: (row.roadmap as RoadmapItem[]) ?? [],

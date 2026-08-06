@@ -22,6 +22,13 @@ export interface PublicSource {
   accessedAt: string;
 }
 
+/** Enlace interno curado que SÍ se publica: solo destino y anchor. El
+ *  propósito editorial (`placement`) y el flag `verified` no cruzan. */
+export interface PublicInternalLink {
+  targetUrl: string;
+  anchor: string;
+}
+
 export interface PublicBlogPost {
   slug: string;
   title: string;
@@ -37,6 +44,24 @@ export interface PublicBlogPost {
   authorName: string;
   /** SOLO fuentes verificadas por humano, y de cada una SOLO lo visible. */
   sources: PublicSource[];
+  /** Enlazado interno editorial (estrategia de backlinks 2026-08-05): SOLO
+   *  enlaces `verified` con destino interno (path relativo o pixeltec.mx,
+   *  normalizado a relativo). Evolución deliberada de la frontera P1-A: un
+   *  enlace que se renderiza en la página es público por definición — lo que
+   *  sigue sin cruzar es el metadato editorial (placement, verified). */
+  internalLinks: PublicInternalLink[];
+}
+
+const INTERNAL_ORIGIN = 'https://pixeltec.mx';
+
+/** Normaliza un destino interno a path relativo; null si el destino no es
+ *  interno (los externos NO pertenecen al bloque de enlazado interno). */
+function toInternalPath(targetUrl: string): string | null {
+  const url = targetUrl.trim();
+  if (url.startsWith('/')) return url;
+  if (url === INTERNAL_ORIGIN) return '/';
+  if (url.startsWith(`${INTERNAL_ORIGIN}/`)) return url.slice(INTERNAL_ORIGIN.length);
+  return null;
 }
 
 export function toPublicBlogPost(post: BlogPostSerialized): PublicBlogPost {
@@ -59,5 +84,11 @@ export function toPublicBlogPost(post: BlogPostSerialized): PublicBlogPost {
         publisher: s.publisher,
         accessedAt: s.accessedAt,
       })),
+    internalLinks: post.internalLinks
+      .filter((l) => l.verified && l.anchor.trim().length > 0)
+      .flatMap((l) => {
+        const path = toInternalPath(l.targetUrl);
+        return path ? [{ targetUrl: path, anchor: l.anchor.trim() }] : [];
+      }),
   };
 }

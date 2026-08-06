@@ -41,6 +41,12 @@ export async function listBriefs(): Promise<ActionResult<import('../types').Blog
   const session = await requireUserSession();
   if (!session) return { ok: false, error: 'No autenticado' };
 
+  // B-PR7: `generatedDraftId` se sigue sirviendo desde el jsonb serializado
+  // (compat con briefIsIdea y los ids públicos legacy). Exponer aquí el
+  // vínculo real por blog_posts.brief_id exige un join inverso Y que el
+  // backfill de la 0035 haya corrido en la base — hasta entonces las filas
+  // viejas tendrían brief_id NULL y las Ideas se listarían mal. La lectura
+  // por brief_id llega cuando el backfill corra.
   const rows = await db.select().from(blogBriefs).orderBy(desc(blogBriefs.createdAt)).limit(50);
 
   const briefs = rows.map((row) => {

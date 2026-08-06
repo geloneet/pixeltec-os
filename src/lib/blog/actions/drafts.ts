@@ -10,6 +10,8 @@ import { generatePostFromBrief, computeWordCount, computeReadingTime, generateSl
 import { EMPTY_EDITORIAL, type BlogBriefDoc } from '../types';
 import type { ActionResult } from '../schemas';
 import { toPublicFailure } from '@/lib/errors/public-failure';
+import { logBlogActivity } from '../activity';
+import { snapshotPost } from '../versions';
 
 function setBriefStatus(briefRowId: string, patch: Record<string, unknown>) {
   return db
@@ -143,12 +145,27 @@ async function generateDraftForUser(briefId: string, userId: string): Promise<Ac
         })),
         wordCount,
         readingTimeMin,
+        // B-PR7: vínculo REAL brief→post por FK (uuid de blog_briefs).
+        briefId: briefRow.id,
         publishedAt: null,
         approvedBy: null,
       })
       .returning({ id: blogPosts.id });
 
+    // B-PR7: `data.generatedDraftId` se SIGUE escribiendo por compatibilidad —
+    // la UI de Ideas (briefIsIdea/listBriefs) lee el vínculo serializado del
+    // jsonb; la lectura por brief_id llega cuando el backfill de la 0035
+    // corra en la base.
     await setBriefStatus(briefRow.id, { status: 'generated', generatedDraftId: postRow.id });
+
+    await logBlogActivity({
+      postId: postRow.id,
+      type: 'generado-ia',
+      message: `Borrador generado con IA desde el brief «${briefData.topic ?? ''}»`.trim(),
+      actorId: userId,
+      actorName: authorName,
+      metadata: { briefId: publicId(briefRow) },
+    });
 
     return { ok: true, data: { postId: postRow.id } };
   } catch (err) {
@@ -275,24 +292,47 @@ export async function regenerateDraft(postId: string): Promise<ActionResult<{ po
     const wordCount = computeWordCount(generated.body);
     const readingTimeMin = computeReadingTime(wordCount);
     const prevAi = row.ai as Record<string, unknown>;
+    const actorName = await getUserDisplayName(session.userId);
 
-    await db
-      .update(blogPosts)
-      .set({
-        body: generated.body,
-        title: generated.title,
-        excerpt: generated.excerpt,
-        wordCount,
-        readingTimeMin,
-        status: 'draft',
-        ai: {
-          ...prevAi,
-          iterations: ((prevAi.iterations as number) ?? 1) + 1,
-          generatedAt: new Date().toISOString(),
-        },
-        updatedAt: new Date(),
-      })
-      .where(eq(blogPosts.id, row.id));
+    // B-PR6: snapshot `pre-regeneracion-ia` ANTES de sobrescribir, en la MISMA
+    // transacción que el update — regenerar ya no destruye la versión anterior
+    // (el bug: sin snapshot previo se perdían cuerpo, fuentes y estrategia).
+    // Fail-closed a propósito: si el snapshot no puede guardarse (p. ej. la
+    // 0034 aún sin aplicar), NO se sobrescribe nada.
+    await db.transaction(async (tx) => {
+      await snapshotPost(tx, row, 'pre-regeneracion-ia', {
+        id: session.userId,
+        name: actorName,
+      });
+      await tx
+        .update(blogPosts)
+        .set({
+          body: generated.body,
+          title: generated.title,
+          excerpt: generated.excerpt,
+          wordCount,
+          readingTimeMin,
+          // B-PR6: se MANTIENE el status actual — antes esto forzaba
+          // status:'draft' y un artículo en needs-review volvía a borrador sin
+          // que nadie lo pidiera. El flujo editorial solo cambia por actos
+          // explícitos (request-review/approve/…).
+          ai: {
+            ...prevAi,
+            iterations: ((prevAi.iterations as number) ?? 1) + 1,
+            generatedAt: new Date().toISOString(),
+          },
+          updatedAt: new Date(),
+        })
+        .where(eq(blogPosts.id, row.id));
+    });
+
+    await logBlogActivity({
+      postId: row.id,
+      type: 'regenerado-ia',
+      message: 'Artículo regenerado con IA (título, extracto y cuerpo sobrescritos)',
+      actorId: session.userId,
+      actorName,
+    });
 
     return { ok: true, data: { postId } };
   } catch (err) {
