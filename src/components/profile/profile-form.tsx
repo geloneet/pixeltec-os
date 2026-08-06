@@ -16,7 +16,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -25,7 +24,7 @@ interface ProfileFormProps {
     displayName: string;
     email: string;
     phone: string;
-    bio: string;
+    jobTitle: string;
   };
 }
 
@@ -39,7 +38,7 @@ export function ProfileForm({ initialValues }: ProfileFormProps) {
     defaultValues: {
       displayName: initialValues.displayName,
       phone: initialValues.phone,
-      bio: initialValues.bio,
+      jobTitle: initialValues.jobTitle,
     },
   });
 
@@ -80,13 +79,40 @@ export function ProfileForm({ initialValues }: ProfileFormProps) {
         />
 
         <div className="space-y-2">
-          <label className="text-sm font-medium text-muted-foreground">Email</label>
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-muted-foreground">Email</label>
+            <span className="rounded-full border border-border bg-secondary px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+              Acceso con contraseña
+            </span>
+          </div>
           <Input
             value={initialValues.email}
             readOnly
             className="bg-secondary border-border text-muted-foreground cursor-not-allowed opacity-60"
           />
+          <p className="text-xs text-muted-foreground">
+            Correo utilizado para iniciar sesión. Solo un administrador puede modificarlo.
+          </p>
         </div>
+
+        <FormField
+          control={form.control}
+          name="jobTitle"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-muted-foreground">Cargo o puesto</FormLabel>
+              <FormControl>
+                <Input
+                  {...field}
+                  value={field.value ?? ""}
+                  className="bg-secondary border-border text-foreground focus:border-sky-500/50"
+                  placeholder="Dirección, Desarrollo, Marketing…"
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
         <FormField
           control={form.control}
@@ -102,26 +128,9 @@ export function ProfileForm({ initialValues }: ProfileFormProps) {
                   placeholder="+52 55 0000 0000"
                 />
               </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="bio"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel className="text-muted-foreground">Bio corta</FormLabel>
-              <FormControl>
-                <Textarea
-                  {...field}
-                  value={field.value ?? ""}
-                  rows={3}
-                  className="bg-secondary border-border text-foreground focus:border-sky-500/50 resize-none"
-                  placeholder="Describe tu rol en pocas palabras"
-                />
-              </FormControl>
+              <p className="text-xs text-muted-foreground">
+                Opcional — contacto interno del equipo; no se usa para verificación.
+              </p>
               <FormMessage />
             </FormItem>
           )}

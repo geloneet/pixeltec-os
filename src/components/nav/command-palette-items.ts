@@ -158,7 +158,7 @@ export const PALETTE_NAV_ITEMS: PaletteNavItem[] = [
   {
     href: "/perfil",
     label: "Perfil y seguridad",
-    description: "Perfil, notificaciones y preferencias del sistema",
+    description: "Perfil, acceso y seguridad",
     icon: Settings2,
   },
 ];

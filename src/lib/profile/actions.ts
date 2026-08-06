@@ -7,13 +7,16 @@ import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { deleteObject, uploadObject } from "@/lib/r2/upload";
 import { toPublicFailure } from "@/lib/errors/public-failure";
+import sharp from "sharp";
 import {
   AVATAR_MAX_BYTES,
   AVATAR_ALLOWED_TYPES,
   UpdateProfileSchema,
+  type AvatarMimeType,
   type UpdateProfileInput,
   type ActionResult,
 } from "./schemas";
+import { matchesMagicBytes } from "./avatar-image";
 
 // Fase 4: el perfil vive en la tabla `users` de Postgres (antes:
 // displayName/photoURL en Firebase Auth + phone/bio en Firestore). Fase C
@@ -58,13 +61,28 @@ export async function uploadAvatar(formData: FormData): Promise<ActionResult> {
     return { ok: false, error: "Tipo no permitido. Usa JPG, PNG o WebP." };
   }
 
+  // C-PR1: `file.type` lo declara el cliente — se verifica que el contenido
+  // real del buffer coincida (magic bytes) antes de tocar R2.
+  const rawBuffer = Buffer.from(await file.arrayBuffer());
+  if (!matchesMagicBytes(rawBuffer, file.type as AvatarMimeType)) {
+    return { ok: false, error: "El archivo no corresponde al formato declarado." };
+  }
+
   try {
     const ext = file.type === "image/jpeg" ? "jpg" : file.type === "image/png" ? "png" : "webp";
     const path = `users/${user.storageUid}/avatar.${ext}`;
 
+    // C-PR1: re-encode con sharp — descarta metadatos (EXIF/GPS) y limita a
+    // 512×512 manteniendo proporción. Si el buffer no decodifica como imagen
+    // real, sharp lanza y cae al catch (respuesta pública genérica).
+    const buffer = await sharp(rawBuffer)
+      .rotate() // aplica la orientación EXIF antes de descartar metadatos
+      .resize(512, 512, { fit: "inside", withoutEnlargement: true })
+      .toFormat(file.type === "image/jpeg" ? "jpeg" : file.type === "image/png" ? "png" : "webp")
+      .toBuffer();
+
     await deleteExistingAvatars(user.storageUid);
 
-    const buffer = Buffer.from(await file.arrayBuffer());
     const uploadedUrl = await uploadObject(path, buffer, file.type);
     const publicUrl = `${uploadedUrl}?v=${Date.now()}`;
     await db
@@ -118,15 +136,17 @@ export async function updateProfile(input: UpdateProfileInput): Promise<ActionRe
     return { ok: false, error: parsed.error.errors[0].message };
   }
 
-  const { displayName, phone, bio } = parsed.data;
+  const { displayName, phone, jobTitle } = parsed.data;
 
   try {
+    // C-PR1: se persiste `jobTitle` y se deja de escribir `bio` — la columna
+    // queda muerta; su DROP se difiere al Gate B8 (junto con firebase_uid).
     await db
       .update(users)
       .set({
         name: displayName,
         phone: phone || null,
-        bio: bio || null,
+        jobTitle: jobTitle || null,
         updatedAt: new Date(),
       })
       .where(eq(users.id, user.id));
