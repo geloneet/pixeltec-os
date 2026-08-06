@@ -52,7 +52,8 @@ export function EscribirStage({ form, onUnsplashSelect }: EscribirStageProps) {
   return (
     <div className="space-y-5">
       {/* ── Portada ── */}
-      <section className="rounded-xl border border-border bg-card p-4 space-y-3">
+      {/* id=anchor-*: destinos de los deep-links del panel de publicación (B-PR4). */}
+      <section id="anchor-cover" className="rounded-xl border border-border bg-card p-4 space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
             Portada
@@ -131,6 +132,7 @@ export function EscribirStage({ form, onUnsplashSelect }: EscribirStageProps) {
       </section>
 
       {/* Title */}
+      <div id="anchor-title">
       <FormField
         control={form.control}
         name="title"
@@ -148,8 +150,10 @@ export function EscribirStage({ form, onUnsplashSelect }: EscribirStageProps) {
           </FormItem>
         )}
       />
+      </div>
 
       {/* Excerpt */}
+      <div id="anchor-excerpt">
       <FormField
         control={form.control}
         name="excerpt"
@@ -181,8 +185,10 @@ export function EscribirStage({ form, onUnsplashSelect }: EscribirStageProps) {
           </FormItem>
         )}
       />
+      </div>
 
       {/* Body */}
+      <div id="anchor-body">
       <FormField
         control={form.control}
         name="body"
@@ -203,6 +209,7 @@ export function EscribirStage({ form, onUnsplashSelect }: EscribirStageProps) {
           </FormItem>
         )}
       />
+      </div>
 
       {/* Category */}
       <FormField
@@ -238,6 +245,7 @@ export function EscribirStage({ form, onUnsplashSelect }: EscribirStageProps) {
       />
 
       {/* Tags */}
+      <div id="anchor-tags">
       <FormField
         control={form.control}
         name="tags"
@@ -251,6 +259,7 @@ export function EscribirStage({ form, onUnsplashSelect }: EscribirStageProps) {
           </FormItem>
         )}
       />
+      </div>
     </div>
   );
 }

@@ -249,3 +249,144 @@ describe('normalizeCandidate — filas viejas (JSONB {}/[] o null)', () => {
     expect(v.blockers.map((b) => b.code)).not.toContain('human-review');
   });
 });
+
+describe('validatePostForPublication — sugerencias y anchors (B-PR4)', () => {
+  it('suggestions SIEMPRE presente (array, [] cuando no aplica ninguna)', () => {
+    const v = validatePostForPublication(
+      publishable({
+        excerpt: 'Un extracto largo de más de cien caracteres que aprovecha completo el espacio del snippet en resultados.',
+        tags: ['ia', 'automatización'],
+      })
+    );
+    expect(Array.isArray(v.suggestions)).toBe(true);
+    expect(v.suggestions).toEqual([]);
+  });
+
+  it('excerpt-short: extracto <100 chars sugiere alargarlo (con anchor a excerpt)', () => {
+    const v = validatePostForPublication(publishable({ tags: ['ia'] }));
+    const s = v.suggestions.find((x) => x.code === 'excerpt-short');
+    expect(s).toBeDefined();
+    expect(s?.anchor).toEqual({ field: 'excerpt' });
+  });
+
+  it('few-headings: cuerpo >800 palabras con <2 "## " sugiere subtítulos', () => {
+    const v = validatePostForPublication(publishable({ body: 'palabra '.repeat(900) }));
+    const s = v.suggestions.find((x) => x.code === 'few-headings');
+    expect(s).toBeDefined();
+    expect(s?.anchor).toEqual({ field: 'body' });
+  });
+
+  it('few-headings NO aplica con 2+ H2 aunque el cuerpo sea largo', () => {
+    const v = validatePostForPublication(
+      publishable({ body: '## Uno\n\n' + 'palabra '.repeat(900) + '\n\n## Dos\n\nfin' })
+    );
+    expect(v.suggestions.map((s) => s.code)).not.toContain('few-headings');
+  });
+
+  it('tags-missing: sin etiquetas sugiere añadirlas; con etiquetas no', () => {
+    const sin = validatePostForPublication(publishable({ tags: [] }));
+    expect(sin.suggestions.map((s) => s.code)).toContain('tags-missing');
+    const con = validatePostForPublication(publishable({ tags: ['ia'] }));
+    expect(con.suggestions.map((s) => s.code)).not.toContain('tags-missing');
+  });
+
+  it('las sugerencias NUNCA afectan ready ni reclasifican blockers/warnings', () => {
+    const v = validatePostForPublication(publishable({ tags: [] })); // fuerza tags-missing
+    expect(v.suggestions.length).toBeGreaterThan(0);
+    expect(v.ready).toBe(true);
+    expect(v.blockers).toEqual([]);
+  });
+
+  it('los blockers de campo llevan anchor.field hacia el editor', () => {
+    const v = validatePostForPublication(
+      publishable({ title: 'corto', excerpt: 'x', body: 'x', slug: 'Slug Malo!' })
+    );
+    const byCode = Object.fromEntries(v.blockers.map((b) => [b.code, b.anchor?.field]));
+    expect(byCode.title).toBe('title');
+    expect(byCode.excerpt).toBe('excerpt');
+    expect(byCode.body).toBe('body');
+    expect(byCode.slug).toBe('slug');
+  });
+
+  it('cover/canonical/sources anclan a coverImage/canonicalUrl/sources', () => {
+    const v = validatePostForPublication(
+      publishable({
+        coverImage: 'https://placehold.co/1200x630',
+        seo: { ...EMPTY_SEO, noindex: false, canonicalUrl: '/relativa' },
+        sources: [
+          {
+            id: 's1',
+            title: 'Fuente sin verificar',
+            url: 'https://example.com',
+            publisher: 'X',
+            sourceType: 'reputable-secondary',
+            claimSupported: '',
+            accessedAt: '2026-08-05',
+            verifiedByHuman: false,
+          },
+        ],
+      })
+    );
+    const byCode = Object.fromEntries(v.blockers.map((b) => [b.code, b.anchor?.field]));
+    expect(byCode.cover).toBe('coverImage');
+    expect(byCode.canonical).toBe('canonicalUrl');
+    expect(byCode.sources).toBe('sources');
+  });
+
+  it('warnings de SEO/reviewer/enlaces llevan anchor.field', () => {
+    const v = validatePostForPublication(
+      publishable({
+        seo: { ...EMPTY_SEO, noindex: false },
+        editorial: { ...EMPTY_EDITORIAL, reviewedAt: '2026-08-03T00:00:00.000Z' },
+      })
+    );
+    const byCode = Object.fromEntries(v.warnings.map((w) => [w.code, w.anchor?.field]));
+    expect(byCode['meta-title']).toBe('seo.metaTitle');
+    expect(byCode['meta-description']).toBe('seo.metaDescription');
+    expect(byCode.keyword).toBe('seo.primaryKeyword');
+    expect(byCode.reviewer).toBe('editorial.reviewerId');
+    expect(byCode['internal-links']).toBe('internalLinks');
+  });
+
+  it('cta-promise ancla al body con el fragmento REAL matcheado (~60 chars)', () => {
+    const v = validatePostForPublication(
+      publishable({ body: 'x'.repeat(600) + ' Agenda una sesión de 30 minutos con nosotros.' })
+    );
+    const w = v.warnings.find((x) => x.code === 'cta-promise');
+    expect(w?.anchor?.field).toBe('body');
+    expect(w?.anchor?.excerpt).toBeDefined();
+    expect(w!.anchor!.excerpt!.length).toBeLessThanOrEqual(60);
+    // El fragmento existe literalmente en el cuerpo (deep-link seleccionable).
+    expect(('x'.repeat(600) + ' Agenda una sesión de 30 minutos con nosotros.').includes(w!.anchor!.excerpt!)).toBe(true);
+  });
+
+  it('stats-no-source y platform-no-official-source anclan al body con excerpt', () => {
+    const body = 'El 45% de las PyMEs usa WhatsApp Business a diario. ' + 'x'.repeat(600);
+    const v = validatePostForPublication(publishable({ body, sources: [] }));
+    const stats = v.warnings.find((x) => x.code === 'stats-no-source');
+    const platform = v.warnings.find((x) => x.code === 'platform-no-official-source');
+    expect(stats?.anchor?.field).toBe('body');
+    expect(body.includes(stats!.anchor!.excerpt!)).toBe(true);
+    expect(platform?.anchor?.field).toBe('body');
+    expect(body.includes(platform!.anchor!.excerpt!)).toBe(true);
+  });
+
+  it('normalizeCandidate arrastra tags (y default []) para tags-missing', () => {
+    const base = {
+      status: 'approved',
+      title: 'Título largo suficiente para el gate',
+      excerpt: 'Extracto suficientemente largo para pasar el mínimo del gate sin ningún problema.',
+      body: 'x'.repeat(600),
+      slug: 'con-tags',
+      coverImage: null,
+      author: { name: 'Miguel', uid: 'u1' },
+      seo: {},
+      editorial: null,
+      sources: null,
+      internalLinks: undefined,
+      ai: {},
+    };
+    expect(normalizeCandidate({ ...base, tags: ['ia'] }).tags).toEqual(['ia']);
+    expect(normalizeCandidate(base).tags).toEqual([]);
+  });
+});
