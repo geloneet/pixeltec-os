@@ -145,11 +145,17 @@ async function generateDraftForUser(briefId: string, userId: string): Promise<Ac
         })),
         wordCount,
         readingTimeMin,
+        // B-PR7: vínculo REAL brief→post por FK (uuid de blog_briefs).
+        briefId: briefRow.id,
         publishedAt: null,
         approvedBy: null,
       })
       .returning({ id: blogPosts.id });
 
+    // B-PR7: `data.generatedDraftId` se SIGUE escribiendo por compatibilidad —
+    // la UI de Ideas (briefIsIdea/listBriefs) lee el vínculo serializado del
+    // jsonb; la lectura por brief_id llega cuando el backfill de la 0035
+    // corra en la base.
     await setBriefStatus(briefRow.id, { status: 'generated', generatedDraftId: postRow.id });
 
     await logBlogActivity({
