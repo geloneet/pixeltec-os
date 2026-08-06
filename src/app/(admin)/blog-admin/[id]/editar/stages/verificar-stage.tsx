@@ -50,21 +50,26 @@ interface VerificarStageProps {
 export function VerificarStage({ form, activity }: VerificarStageProps) {
   return (
     <div className="space-y-6">
-      {/* Fuentes / evidencia */}
-      <FormField
-        control={form.control}
-        name="sources"
-        render={({ field }) => (
-          <FormItem>
-            <FormControl>
-              <SourcesEditor value={field.value ?? []} onChange={field.onChange} />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
+      {/* Fuentes / evidencia. id=anchor-*: destinos de los deep-links del
+          panel de publicación (B-PR4). */}
+      <div id="anchor-sources">
+        <FormField
+          control={form.control}
+          name="sources"
+          render={({ field }) => (
+            <FormItem>
+              <FormControl>
+                <SourcesEditor value={field.value ?? []} onChange={field.onChange} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </div>
 
-      <EditorialPanel form={form} />
+      <div id="anchor-editorial">
+        <EditorialPanel form={form} />
+      </div>
 
       {/* Historial editorial */}
       <section className="rounded-xl border border-border bg-card p-4 space-y-3">

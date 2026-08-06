@@ -31,29 +31,36 @@ export function OptimizarStage({
 }: OptimizarStageProps) {
   return (
     <div className="space-y-6">
-      <SeoPanel form={form} />
+      {/* id=anchor-*: destinos de los deep-links del panel de publicación (B-PR4). */}
+      <div id="anchor-seo">
+        <SeoPanel form={form} />
+      </div>
 
       {/* Enlaces internos */}
-      <FormField
-        control={form.control}
-        name="internalLinks"
-        render={({ field }) => (
-          <FormItem>
-            <FormControl>
-              <InternalLinksEditor value={field.value ?? []} onChange={field.onChange} />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
+      <div id="anchor-internal-links">
+        <FormField
+          control={form.control}
+          name="internalLinks"
+          render={({ field }) => (
+            <FormItem>
+              <FormControl>
+                <InternalLinksEditor value={field.value ?? []} onChange={field.onChange} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </div>
 
       {/* Slug (antes en el sidebar) */}
-      <SlugCard
-        postId={postId}
-        slug={slug}
-        isPublished={isPublished}
-        onSlugChanged={onSlugChanged}
-      />
+      <div id="anchor-slug">
+        <SlugCard
+          postId={postId}
+          slug={slug}
+          isPublished={isPublished}
+          onSlugChanged={onSlugChanged}
+        />
+      </div>
     </div>
   );
 }

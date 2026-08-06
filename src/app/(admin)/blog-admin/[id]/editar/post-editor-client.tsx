@@ -22,7 +22,7 @@ import { editorActions, type WorkflowAction } from "@/lib/blog/workflow";
 import { useAdmin } from "@/hooks/use-admin";
 import { BlogPostEditSchema, type BlogPostEditInput } from "@/lib/blog/schemas";
 import type { BlogPostSerialized, BlogPostStatus } from "@/lib/blog/types";
-import type { PublicationVerdict } from "@/lib/blog/publication-gate";
+import type { PublicationIssue, PublicationVerdict } from "@/lib/blog/publication-gate";
 import { Form } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ReadinessPanel } from "./readiness-panel";
+import { anchorTarget } from "./issue-anchors";
 import { PostStatusChip } from "../../status-chip";
 import { EscribirStage } from "./stages/escribir-stage";
 import { OptimizarStage } from "./stages/optimizar-stage";
@@ -78,6 +79,9 @@ export function PostEditorClient({ post, lastReturn = null, activity = [] }: Pos
   const [verdict, setVerdict] = useState<PublicationVerdict | null>(null);
   const [readinessLoading, setReadinessLoading] = useState(true);
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // B-PR4: el estado de la etapa se controla aquí para que los deep-links del
+  // panel de publicación puedan cambiar de pestaña antes de hacer scroll.
+  const [activeTab, setActiveTab] = useState("escribir");
 
   const form = useForm<BlogPostEditInput>({
     resolver: zodResolver(BlogPostEditSchema),
@@ -92,6 +96,8 @@ export function PostEditorClient({ post, lastReturn = null, activity = [] }: Pos
       seoMetaDescription: post.seo.metaDescription,
       // WS2 — SEO
       coverImageAlt: post.seo.ogImageAlt ?? "",
+      // B-PR5 — atribución de la portada (vive en seo.coverAttribution)
+      coverAttribution: post.seo.coverAttribution ?? "",
       canonicalUrl: post.seo.canonicalUrl ?? null,
       noindex: post.seo.noindex ?? true,
       primaryKeyword: post.seo.primaryKeyword ?? "",
@@ -140,6 +146,35 @@ export function PostEditorClient({ post, lastReturn = null, activity = [] }: Pos
   useEffect(() => {
     void refreshReadiness();
   }, [refreshReadiness]);
+
+  // ── Deep-link de un issue del gate (B-PR4): etapa → scroll → resalte ────────
+  const handleIssueClick = useCallback((issue: PublicationIssue) => {
+    const target = anchorTarget(issue);
+    setActiveTab(target.stage);
+    // Tras un tick: la etapa destino debe estar montada antes de buscar el nodo.
+    setTimeout(() => {
+      if (!target.elementId) return;
+      const el = document.getElementById(target.elementId);
+      if (!el) return;
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      // Resalte temporal del contenedor del campo.
+      const HIGHLIGHT = ["ring-2", "ring-blue-500/60", "rounded-lg", "transition-shadow"];
+      el.classList.add(...HIGHLIGHT);
+      setTimeout(() => el.classList.remove(...HIGHLIGHT), 2000);
+      // Anchors con excerpt sobre el cuerpo: se selecciona el fragmento exacto.
+      const excerpt = issue.anchor?.excerpt;
+      if (excerpt) {
+        const textarea = el.querySelector("textarea");
+        if (textarea) {
+          const idx = textarea.value.indexOf(excerpt);
+          if (idx >= 0) {
+            textarea.focus({ preventScroll: true });
+            textarea.setSelectionRange(idx, idx + excerpt.length);
+          }
+        }
+      }
+    }, 50);
+  }, []);
 
   // ── Auto-save ────────────────────────────────────────────────────────────────
   const runAutoSave = useCallback(async () => {
@@ -508,8 +543,9 @@ export function PostEditorClient({ post, lastReturn = null, activity = [] }: Pos
             </span>
           </div>
 
-          {/* 4 etapas del flujo editorial (dictamen UX 2026-08-05 §3) */}
-          <Tabs defaultValue="escribir">
+          {/* 4 etapas del flujo editorial (dictamen UX 2026-08-05 §3).
+              Controladas (B-PR4): los deep-links del panel cambian de etapa. */}
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="mb-4 flex h-auto w-full flex-wrap justify-start gap-1">
               <TabsTrigger value="escribir">Escribir</TabsTrigger>
               <TabsTrigger value="optimizar">Optimizar</TabsTrigger>
@@ -519,7 +555,7 @@ export function PostEditorClient({ post, lastReturn = null, activity = [] }: Pos
 
             {/* ── Etapa 1: Escribir ── */}
             <TabsContent value="escribir">
-              <EscribirStage form={form} onUnsplashSelect={handleUnsplashSelect} />
+              <EscribirStage form={form} postId={post.id} onUnsplashSelect={handleUnsplashSelect} />
             </TabsContent>
 
             {/* ── Etapa 2: Optimizar (SEO + enlaces internos + slug) ── */}
@@ -571,7 +607,7 @@ export function PostEditorClient({ post, lastReturn = null, activity = [] }: Pos
           </section>
 
           {/* Readiness (gate de publicación) */}
-          <ReadinessPanel verdict={verdict} loading={readinessLoading} />
+          <ReadinessPanel verdict={verdict} loading={readinessLoading} onIssueClick={handleIssueClick} />
 
           {/* Actions card — derivadas del estado real (workflow.ts, B-PR2):
               cada estado muestra SOLO lo que le corresponde. */}
