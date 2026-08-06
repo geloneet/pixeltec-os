@@ -45,6 +45,7 @@ import {
   type PostFilterStatus,
   type SortOrder,
 } from './blog-admin-logic';
+import { StatusChip } from './status-chip';
 
 /**
  * Workspace del Blog Admin (rediseño 2026-08-04): una sola herramienta con dos
@@ -74,14 +75,6 @@ const BRIEF_FILTER_OPTIONS: Array<{ value: BriefFilterStatus; label: string }> =
 ];
 
 const numberFmt = new Intl.NumberFormat('es-MX');
-
-function StatusChip({ label, className }: { label: string; className: string }) {
-  return (
-    <span className={cn('inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium', className)}>
-      {label}
-    </span>
-  );
-}
 
 export function BlogAdminWorkspace({
   posts,

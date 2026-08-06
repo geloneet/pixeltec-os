@@ -23,7 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { TagInput } from "../tag-input";
+import { TagInput } from "../../../tag-input";
 import { UnsplashPicker } from "../unsplash-picker";
 
 const CATEGORY_OPTIONS: { value: BlogCategory; label: string }[] = [
@@ -33,12 +33,15 @@ const CATEGORY_OPTIONS: { value: BlogCategory; label: string }[] = [
   { value: "opinión", label: "Opinión" },
 ];
 
-interface ContenidoTabProps {
+interface EscribirStageProps {
   form: UseFormReturn<BlogPostEditInput>;
   onUnsplashSelect: (photo: UnsplashPhoto, searchQuery: string) => void;
 }
 
-export function ContenidoTab({ form, onUnsplashSelect }: ContenidoTabProps) {
+/** Etapa 1 — Escribir: portada, título, extracto, cuerpo, categoría y
+ *  etiquetas (dictamen UX 2026-08-05 §3). La portada se elige visualmente
+ *  (UnsplashPicker); la URL cruda queda en «Opciones avanzadas». */
+export function EscribirStage({ form, onUnsplashSelect }: EscribirStageProps) {
   const watchedCoverImage = form.watch("coverImage");
   const [coverError, setCoverError] = useState(false);
 
@@ -48,43 +51,84 @@ export function ContenidoTab({ form, onUnsplashSelect }: ContenidoTabProps) {
 
   return (
     <div className="space-y-5">
-      {/* Cover Image */}
-      <FormField
-        control={form.control}
-        name="coverImage"
-        render={({ field }) => (
-          <FormItem>
-            <div className="flex items-center justify-between">
-              <FormLabel className="text-muted-foreground">Imagen de portada (URL)</FormLabel>
-              <UnsplashPicker onSelect={onUnsplashSelect} />
-            </div>
-            <FormControl>
-              <Input
-                {...field}
-                value={field.value ?? ""}
-                onChange={(e) => field.onChange(e.target.value || null)}
-                className="bg-background border-border text-foreground placeholder:text-muted-foreground focus:border-blue-500/50"
-                placeholder="https://images.unsplash.com/…"
-              />
-            </FormControl>
-            <FormMessage />
-            {watchedCoverImage && !coverError && (
-              <div className="relative mt-2 h-40 w-full overflow-hidden rounded-lg border border-border">
-                <Image
-                  src={watchedCoverImage}
-                  alt="Cover preview"
-                  fill
-                  className="object-cover"
-                  onError={() => setCoverError(true)}
-                />
-              </div>
-            )}
-            {watchedCoverImage && coverError && (
-              <p className="mt-1 text-xs text-red-400">No se pudo cargar la imagen. Verifica la URL.</p>
-            )}
-          </FormItem>
+      {/* ── Portada ── */}
+      <section className="rounded-xl border border-border bg-card p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            Portada
+          </h3>
+          <UnsplashPicker onSelect={onUnsplashSelect} triggerLabel="Cambiar imagen" />
+        </div>
+
+        {watchedCoverImage && !coverError ? (
+          <div className="relative aspect-[1200/630] w-full overflow-hidden rounded-lg border border-border">
+            <Image
+              src={watchedCoverImage}
+              alt="Vista previa de la portada"
+              fill
+              className="object-cover"
+              onError={() => setCoverError(true)}
+            />
+          </div>
+        ) : (
+          <div className="flex aspect-[1200/630] w-full items-center justify-center rounded-lg border border-dashed border-border bg-secondary/30 px-4 text-center text-xs text-muted-foreground">
+            {watchedCoverImage && coverError
+              ? "No se pudo cargar la imagen. Verifica la URL en «Opciones avanzadas»."
+              : "Sin portada — usa «Cambiar imagen» para elegir una."}
+          </div>
         )}
-      />
+
+        {/* Alt de portada (antes en SEO): vive junto a la imagen que describe. */}
+        <FormField
+          control={form.control}
+          name="coverImageAlt"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-muted-foreground">Alt de la portada</FormLabel>
+              <FormControl>
+                <Input
+                  {...field}
+                  value={field.value ?? ""}
+                  maxLength={200}
+                  placeholder="Descripción de la imagen de portada (accesibilidad y OG)"
+                  className="bg-background border-border text-foreground placeholder:text-muted-foreground focus:border-blue-500/50"
+                />
+              </FormControl>
+              <p className="text-xs text-muted-foreground">
+                Si queda vacío se usará el título del post.
+              </p>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <details>
+          <summary className="cursor-pointer select-none text-xs text-muted-foreground hover:text-foreground">
+            Opciones avanzadas
+          </summary>
+          <div className="mt-3">
+            <FormField
+              control={form.control}
+              name="coverImage"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-muted-foreground">Imagen de portada (URL)</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      value={field.value ?? ""}
+                      onChange={(e) => field.onChange(e.target.value || null)}
+                      className="bg-background border-border text-foreground placeholder:text-muted-foreground focus:border-blue-500/50"
+                      placeholder="https://images.unsplash.com/…"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </details>
+      </section>
 
       {/* Title */}
       <FormField
@@ -160,21 +204,6 @@ export function ContenidoTab({ form, onUnsplashSelect }: ContenidoTabProps) {
         )}
       />
 
-      {/* Tags */}
-      <FormField
-        control={form.control}
-        name="tags"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel className="text-muted-foreground">Etiquetas</FormLabel>
-            <FormControl>
-              <TagInput value={field.value} onChange={field.onChange} />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
       {/* Category */}
       <FormField
         control={form.control}
@@ -203,6 +232,21 @@ export function ContenidoTab({ form, onUnsplashSelect }: ContenidoTabProps) {
                 ))}
               </SelectContent>
             </Select>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      {/* Tags */}
+      <FormField
+        control={form.control}
+        name="tags"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel className="text-muted-foreground">Etiquetas</FormLabel>
+            <FormControl>
+              <TagInput value={field.value} onChange={field.onChange} />
+            </FormControl>
             <FormMessage />
           </FormItem>
         )}

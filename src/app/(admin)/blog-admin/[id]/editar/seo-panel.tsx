@@ -32,7 +32,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { TagInput } from "./tag-input";
+import { TagInput } from "../../tag-input";
 
 /** Sentinel para Radix Select (no admite value=""). */
 const INTENT_NONE = "none";
@@ -241,29 +241,8 @@ export function SeoPanel({ form }: SeoPanelProps) {
         )}
       />
 
-      {/* Alt de portada */}
-      <FormField
-        control={form.control}
-        name="coverImageAlt"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel className="text-muted-foreground">Alt de la portada</FormLabel>
-            <FormControl>
-              <Input
-                {...field}
-                value={field.value ?? ""}
-                maxLength={200}
-                placeholder="Descripción de la imagen de portada (accesibilidad y OG)"
-                className="bg-background border-border text-foreground placeholder:text-muted-foreground focus:border-blue-500/50"
-              />
-            </FormControl>
-            <p className="text-xs text-muted-foreground">
-              Si queda vacío se usará el título del post.
-            </p>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
+      {/* El alt de la portada vive en la etapa Escribir, junto a la imagen
+          que describe (B-PR3) — mismo campo `coverImageAlt` del form. */}
 
       {/* Canonical URL — protegida por confirmación */}
       <FormField

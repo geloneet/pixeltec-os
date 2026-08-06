@@ -23,7 +23,6 @@ import { useAdmin } from "@/hooks/use-admin";
 import { BlogPostEditSchema, type BlogPostEditInput } from "@/lib/blog/schemas";
 import type { BlogPostSerialized, BlogPostStatus } from "@/lib/blog/types";
 import type { PublicationVerdict } from "@/lib/blog/publication-gate";
-import { cn } from "@/lib/utils";
 import { Form } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -38,37 +37,21 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { SeoPanel } from "./seo-panel";
-import { EditorialPanel } from "./editorial-panel";
 import { ReadinessPanel } from "./readiness-panel";
-import { SlugCard } from "./slug-card";
-import { ContenidoTab } from "./stages/contenido-tab";
-import { EvidenciaTab } from "./stages/evidencia-tab";
-import { EnlacesTab } from "./stages/enlaces-tab";
-import { PreviewTab } from "./stages/preview-tab";
+import { PostStatusChip } from "../../status-chip";
+import { EscribirStage } from "./stages/escribir-stage";
+import { OptimizarStage } from "./stages/optimizar-stage";
+import { VerificarStage } from "./stages/verificar-stage";
+import { PreviewStage } from "./stages/preview-stage";
+import type { BlogActivityEntry } from "@/lib/blog/activity";
 import type { UnsplashPhoto } from "@/lib/unsplash-egress";
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
-const STATUS_LABEL: Record<BlogPostStatus, string> = {
-  draft: "Borrador",
-  "needs-review": "En revisión",
-  approved: "Aprobado",
-  published: "Publicado",
-  archived: "Archivado",
-};
-
-const STATUS_CLASS: Record<BlogPostStatus, string> = {
-  draft: "bg-muted text-muted-foreground",
-  "needs-review": "bg-yellow-500/20 text-yellow-700 dark:text-yellow-300",
-  approved: "bg-blue-500/20 text-blue-700 dark:text-blue-300",
-  published: "bg-green-500/20 text-green-700 dark:text-green-300",
-  archived: "bg-muted text-muted-foreground",
-};
-
 const AUTO_SAVE_DEBOUNCE_MS = 5000;
 
-type SaveStatus = "idle" | "saving" | "saved" | "error";
+/** «dirty» = hay cambios desde el último guardado OK (autosave pendiente). */
+type SaveStatus = "idle" | "dirty" | "saving" | "saved" | "error";
 
 // ─── Main Component ────────────────────────────────────────────────────────────
 
@@ -77,9 +60,11 @@ interface PostEditorClientProps {
   /** Último «devuelto con comentarios» vigente (solo cuando el post volvió a
    *  borrador por una devolución) — se muestra como banner para el autor. */
   lastReturn?: { message: string; actorName: string | null; createdAt: string } | null;
+  /** Historial editorial (blog_activity, fire-safe: [] si no está disponible). */
+  activity?: BlogActivityEntry[];
 }
 
-export function PostEditorClient({ post, lastReturn = null }: PostEditorClientProps) {
+export function PostEditorClient({ post, lastReturn = null, activity = [] }: PostEditorClientProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
@@ -187,9 +172,11 @@ export function PostEditorClient({ post, lastReturn = null }: PostEditorClientPr
   }, [form, post.id, refreshReadiness]);
 
   // Suscripción a TODOS los campos (antes solo title/excerpt/body): cualquier
-  // cambio — tags, SEO, fuentes, enlaces, editorial — reinicia el debounce.
+  // cambio — tags, SEO, fuentes, enlaces, editorial — reinicia el debounce y
+  // marca «Cambios sin guardar» hasta que un guardado termine OK.
   useEffect(() => {
     const subscription = form.watch(() => {
+      setSaveStatus("dirty");
       if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
       autoSaveTimer.current = setTimeout(() => {
         void runAutoSave();
@@ -483,8 +470,12 @@ export function PostEditorClient({ post, lastReturn = null }: PostEditorClientPr
         <div className="min-w-0 space-y-5 lg:col-span-2">
           <div className="flex items-center justify-between">
             <h1 className="text-xl font-bold text-foreground">Editar post</h1>
-            {/* Save status indicator */}
+            {/* Save status indicator — ciclo completo visible:
+                dirty → saving → saved | error (con reintento manual). */}
             <span className="text-xs text-muted-foreground">
+              {saveStatus === "dirty" && (
+                <span className="text-muted-foreground">Cambios sin guardar</span>
+              )}
               {saveStatus === "saving" && (
                 <span className="flex items-center gap-1 text-muted-foreground">
                   <Spinner size="sm" />
@@ -494,56 +485,62 @@ export function PostEditorClient({ post, lastReturn = null }: PostEditorClientPr
               {saveStatus === "saved" && (
                 <span className="flex items-center gap-1 text-green-400">
                   <Check className="h-3 w-3" />
-                  Guardado ✓
+                  Guardado
                 </span>
               )}
               {saveStatus === "error" && (
-                <span className="flex max-w-md items-center gap-1 text-red-400">
+                <span
+                  className="flex max-w-md items-center gap-1 text-red-400"
+                  title={saveError ?? "Error al guardar"}
+                >
                   <CircleAlert className="h-3 w-3 shrink-0" />
-                  <span className="truncate">{saveError ?? "Error al guardar"}</span>
+                  <span className="truncate">No se pudo guardar</span>
+                  <span aria-hidden="true">·</span>
+                  <button
+                    type="button"
+                    onClick={() => void runAutoSave()}
+                    className="font-medium underline underline-offset-2 hover:text-red-300"
+                  >
+                    Reintentar
+                  </button>
                 </span>
               )}
             </span>
           </div>
 
-          <Tabs defaultValue="contenido">
+          {/* 4 etapas del flujo editorial (dictamen UX 2026-08-05 §3) */}
+          <Tabs defaultValue="escribir">
             <TabsList className="mb-4 flex h-auto w-full flex-wrap justify-start gap-1">
-              <TabsTrigger value="contenido">Contenido</TabsTrigger>
-              <TabsTrigger value="seo">SEO</TabsTrigger>
-              <TabsTrigger value="evidencia">Evidencia</TabsTrigger>
-              <TabsTrigger value="enlaces">Enlaces internos</TabsTrigger>
-              <TabsTrigger value="editorial">Editorial</TabsTrigger>
+              <TabsTrigger value="escribir">Escribir</TabsTrigger>
+              <TabsTrigger value="optimizar">Optimizar</TabsTrigger>
+              <TabsTrigger value="verificar">Verificar</TabsTrigger>
               <TabsTrigger value="preview">Vista previa</TabsTrigger>
             </TabsList>
 
-            {/* ── Tab: Contenido ── */}
-            <TabsContent value="contenido">
-              <ContenidoTab form={form} onUnsplashSelect={handleUnsplashSelect} />
+            {/* ── Etapa 1: Escribir ── */}
+            <TabsContent value="escribir">
+              <EscribirStage form={form} onUnsplashSelect={handleUnsplashSelect} />
             </TabsContent>
 
-            {/* ── Tab: SEO ── */}
-            <TabsContent value="seo">
-              <SeoPanel form={form} />
+            {/* ── Etapa 2: Optimizar (SEO + enlaces internos + slug) ── */}
+            <TabsContent value="optimizar">
+              <OptimizarStage
+                form={form}
+                postId={post.id}
+                slug={slug}
+                isPublished={postStatus === "published"}
+                onSlugChanged={handleSlugChanged}
+              />
             </TabsContent>
 
-            {/* ── Tab: Evidencia (fuentes) ── */}
-            <TabsContent value="evidencia">
-              <EvidenciaTab form={form} />
+            {/* ── Etapa 3: Verificar (evidencia + editorial + historial) ── */}
+            <TabsContent value="verificar">
+              <VerificarStage form={form} activity={activity} />
             </TabsContent>
 
-            {/* ── Tab: Enlaces internos ── */}
-            <TabsContent value="enlaces">
-              <EnlacesTab form={form} />
-            </TabsContent>
-
-            {/* ── Tab: Editorial ── */}
-            <TabsContent value="editorial">
-              <EditorialPanel form={form} />
-            </TabsContent>
-
-            {/* ── Tab: Vista previa ── */}
+            {/* ── Etapa 4: Vista previa ── */}
             <TabsContent value="preview">
-              <PreviewTab form={form} slug={slug} />
+              <PreviewStage form={form} slug={slug} />
             </TabsContent>
           </Tabs>
         </div>
@@ -569,27 +566,12 @@ export function PostEditorClient({ post, lastReturn = null }: PostEditorClientPr
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">Estado</span>
-              <span
-                className={cn(
-                  "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
-                  STATUS_CLASS[postStatus],
-                )}
-              >
-                {STATUS_LABEL[postStatus]}
-              </span>
+              <PostStatusChip status={postStatus} />
             </div>
           </section>
 
           {/* Readiness (gate de publicación) */}
           <ReadinessPanel verdict={verdict} loading={readinessLoading} />
-
-          {/* Slug */}
-          <SlugCard
-            postId={post.id}
-            slug={slug}
-            isPublished={postStatus === "published"}
-            onSlugChanged={handleSlugChanged}
-          />
 
           {/* Actions card — derivadas del estado real (workflow.ts, B-PR2):
               cada estado muestra SOLO lo que le corresponde. */}
@@ -611,7 +593,7 @@ export function PostEditorClient({ post, lastReturn = null }: PostEditorClientPr
               ) : saveStatus === "saved" ? (
                 <Check className="mr-2 h-4 w-4" />
               ) : null}
-              {saveStatus === "saved" ? "Guardado ✓" : "Guardar"}
+              {saveStatus === "saved" ? "Guardado" : "Guardar"}
             </Button>
 
             {actions.primary.map((a) => renderWorkflowButton(a))}
