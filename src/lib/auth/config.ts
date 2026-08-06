@@ -10,6 +10,7 @@ import { isEmailLocked, recordAuthFailure, clearAuthFailures } from "@/lib/auth-
 import { recordSecurityEvent } from "@/lib/security/events";
 import { mintSession } from "@/lib/auth/sessions";
 import { enforceMfaGate } from "@/lib/mfa/login-gate";
+import { enforceStatusGate } from "@/lib/auth/status-gate";
 
 /**
  * C-PR4: cuenta con 2FA activa y credenciales password válidas pero SIN el
@@ -98,6 +99,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           }
           return null;
         }
+
+        // ── C-PR5: puerta de estado — solo cuentas 'active' entran. Corre
+        // DESPUÉS de validar la contraseña (el evento solo se registra para
+        // el dueño real de las credenciales) y ANTES de la puerta MFA. El
+        // rechazo es idéntico a credenciales inválidas (null → mensaje
+        // genérico): no se revela si la cuenta está suspendida o invitada. ──
+        const statusVerdict = await enforceStatusGate(
+          { id: user.id, status: user.status },
+          {
+            ip,
+            userAgent: request?.headers.get("user-agent") ?? undefined,
+          }
+        );
+        if (statusVerdict === "rejected") return null;
 
         // ── C-PR4: puerta MFA — corre DESPUÉS de validar la contraseña y
         // ANTES de limpiar fallos/acuñar sesión. "required" lanza
