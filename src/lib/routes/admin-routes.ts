@@ -23,6 +23,7 @@ export const ADMIN_ROUTES = [
   'crecimiento',
   'documentos',
   'ia-factory',
+  'usuarios',
 ] as const;
 
 export type AdminRoute = typeof ADMIN_ROUTES[number];
