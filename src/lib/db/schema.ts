@@ -295,6 +295,31 @@ export const securityEvents = pgTable(
   ]
 );
 
+/**
+ * Sesiones revocables (C-PR3, migración 0032). Cada login acuña una fila y su
+ * `id` (el "sid") viaja dentro del JWT. El callback `jwt` revalida contra esta
+ * tabla con throttle de 60s: revocar la fila mata la sesión en ≤60s sin
+ * abandonar la estrategia JWT. Escritor único: src/lib/auth/sessions.ts —
+ * la validación es FAIL-OPEN (documentado ahí): un outage de esta tabla
+ * jamás desloguea a todos los usuarios.
+ */
+export const userSessions = pgTable(
+  "user_sessions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    ip: text("ip"),
+    userAgent: text("user_agent"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  },
+  (t) => [
+    index("user_sessions_user_idx").on(t.userId),
+    index("user_sessions_user_revoked_idx").on(t.userId, t.revokedAt),
+  ]
+);
+
 export const userStreak = pgTable("user_streak", {
   userId: uuid("user_id")
     .primaryKey()

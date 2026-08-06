@@ -5,6 +5,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import { headers } from "next/headers";
 import { z } from "zod";
 import { auth } from "@/lib/auth/config";
+import { revokeOtherSessions } from "@/lib/auth/sessions";
 import { db } from "@/lib/db";
 import { passwordResetTokens, users } from "@/lib/db/schema";
 import { sendPasswordChangedEmail } from "@/lib/email";
@@ -157,4 +158,44 @@ export async function changePasswordAction(
   }
 
   return { ok: true };
+}
+
+export type RevokeOtherSessionsResult =
+  | { ok: true; revoked: number }
+  | { ok: false; error: "no-session" | "no-sid" | "unknown" };
+
+/**
+ * Revoca todas las sesiones del usuario autenticado EXCEPTO la actual
+ * (C-PR3). El sid de la sesión actual sale del JWT vía `auth()` — si aún no
+ * viaja en la cookie (token legacy cuyo acuñado perezoso no ha persistido),
+ * se devuelve `no-sid` en vez de arriesgarse a revocar también la sesión
+ * desde la que el usuario está operando.
+ */
+export async function revokeOtherSessionsAction(): Promise<RevokeOtherSessionsResult> {
+  const session = await auth();
+  const userId = session?.user?.id;
+  if (!userId) return { ok: false, error: "no-session" };
+
+  const sid = session.user.sid;
+  if (!sid) return { ok: false, error: "no-sid" };
+
+  let revoked: number;
+  try {
+    revoked = await revokeOtherSessions(userId, sid);
+  } catch (err) {
+    console.error("[sessions] revokeOtherSessionsAction failed:", err);
+    return { ok: false, error: "unknown" };
+  }
+
+  // Auditoría fire-safe (recordSecurityEvent ya captura sus propios errores).
+  const { ip, userAgent } = await getRequestContext().catch(() => ({ ip: "unknown", userAgent: "" }));
+  await recordSecurityEvent({
+    userId,
+    type: "sessions_revoked",
+    ip,
+    userAgent,
+    metadata: { revoked },
+  });
+
+  return { ok: true, revoked };
 }

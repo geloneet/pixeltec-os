@@ -8,6 +8,7 @@ import { authConfig } from "./auth.config";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { isEmailLocked, recordAuthFailure, clearAuthFailures } from "@/lib/auth-brute-force";
 import { recordSecurityEvent } from "@/lib/security/events";
+import { mintSession } from "@/lib/auth/sessions";
 
 function getClientIp(request?: Request): string {
   return (
@@ -101,12 +102,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           console.error("[auth] last-login/login_success write error — ignoring:", err);
         }
 
+        // C-PR3: acuña la fila de sesión AQUÍ (única capa con acceso a la IP
+        // y el user-agent de la request). `mintSession` es fire-safe: si la
+        // tabla no existe aún (0032 sin aplicar) devuelve null y el login
+        // sigue — el callback `jwt` reintenta con acuñado perezoso.
+        const sid = await mintSession(
+          user.id,
+          ip,
+          request?.headers.get("user-agent") ?? undefined
+        );
+
         return {
           id: user.id,
           email: user.email,
           name: user.name,
           image: user.image ?? null,
           role: user.role,
+          sid,
         };
       },
     }),

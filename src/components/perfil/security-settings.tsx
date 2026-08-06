@@ -1,10 +1,10 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { Eye, EyeOff, Check } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Eye, EyeOff, Check, MonitorSmartphone } from 'lucide-react';
 import { toast } from 'sonner';
 import { useUser } from '@/hooks/use-user';
-import { changePasswordAction } from '@/lib/auth/actions';
+import { changePasswordAction, revokeOtherSessionsAction } from '@/lib/auth/actions';
 
 /** Mensajes por código de error de `changePasswordAction` (C-PR2). */
 const PW_ERROR_MESSAGES: Record<string, string> = {
@@ -16,6 +16,36 @@ const PW_ERROR_MESSAGES: Record<string, string> = {
   'no-session': 'No se pudo verificar tu sesión. Recarga la página.',
   unknown: 'Error al cambiar la contraseña. Inténtalo de nuevo.',
 };
+
+/** Mensajes por código de error de `revokeOtherSessionsAction` (C-PR3). */
+const REVOKE_ERROR_MESSAGES: Record<string, string> = {
+  'no-session': 'No se pudo verificar tu sesión. Recarga la página.',
+  'no-sid':
+    'Tu sesión actual es anterior a esta función. Cierra sesión y vuelve a entrar para poder usarla.',
+  unknown: 'No se pudieron cerrar las otras sesiones. Inténtalo de nuevo.',
+};
+
+/**
+ * Parseo GRUESO del user-agent propio (C-PR3): suficiente para que el usuario
+ * reconozca «este dispositivo» — no pretende ser una librería de detección.
+ */
+function parseOwnUserAgent(ua: string): { browser: string; os: string } {
+  let browser = 'Navegador';
+  if (/edg\//i.test(ua)) browser = 'Edge';
+  else if (/opr\//i.test(ua)) browser = 'Opera';
+  else if (/chrome|crios/i.test(ua)) browser = 'Chrome';
+  else if (/firefox|fxios/i.test(ua)) browser = 'Firefox';
+  else if (/safari/i.test(ua)) browser = 'Safari';
+
+  let os = 'este dispositivo';
+  if (/windows/i.test(ua)) os = 'Windows';
+  else if (/iphone|ipad|ipod/i.test(ua)) os = 'iOS';
+  else if (/mac os x|macintosh/i.test(ua)) os = 'macOS';
+  else if (/android/i.test(ua)) os = 'Android';
+  else if (/linux/i.test(ua)) os = 'Linux';
+
+  return { browser, os };
+}
 
 type Strength = 'debil' | 'aceptable' | 'fuerte';
 
@@ -104,6 +134,37 @@ export function SecuritySettings() {
   const [confirmPw, setConfirmPw] = useState('');
   const [pwLoading, setPwLoading] = useState(false);
   const [pwError, setPwError] = useState('');
+  // C-PR3: revocación de otras sesiones
+  const [revokeAfterChange, setRevokeAfterChange] = useState(false);
+  const [revoking, setRevoking] = useState(false);
+  const [confirmRevoke, setConfirmRevoke] = useState(false);
+  // El user-agent solo existe en el cliente — leerlo en un effect evita
+  // divergencia de hidratación (el server renderiza el placeholder genérico).
+  const [ownAgent, setOwnAgent] = useState<{ browser: string; os: string } | null>(null);
+  useEffect(() => {
+    setOwnAgent(parseOwnUserAgent(navigator.userAgent));
+  }, []);
+
+  const handleRevokeOthers = async () => {
+    setRevoking(true);
+    try {
+      const result = await revokeOtherSessionsAction();
+      if (result.ok) {
+        toast.success(
+          result.revoked === 0
+            ? 'No había otras sesiones activas.'
+            : `Se ${result.revoked === 1 ? 'cerró 1 sesión' : `cerraron ${result.revoked} sesiones`} en otros dispositivos.`
+        );
+      } else {
+        toast.error(REVOKE_ERROR_MESSAGES[result.error] ?? REVOKE_ERROR_MESSAGES['unknown']);
+      }
+    } catch {
+      toast.error(REVOKE_ERROR_MESSAGES['unknown']);
+    } finally {
+      setRevoking(false);
+      setConfirmRevoke(false);
+    }
+  };
 
   const hasMinLength = newPw.length >= 8;
   const hasLetterAndNumber = /[a-zA-Z]/.test(newPw) && /[0-9]/.test(newPw);
@@ -143,6 +204,12 @@ export function SecuritySettings() {
         setCurrentPw('');
         setNewPw('');
         setConfirmPw('');
+        // C-PR3: si el usuario marcó la casilla, cierra las demás sesiones
+        // DESPUÉS del cambio exitoso. Un fallo aquí no revierte nada: la
+        // contraseña ya cambió y el toast de error lo deja claro.
+        if (revokeAfterChange) {
+          await handleRevokeOthers();
+        }
       } else {
         setPwError(PW_ERROR_MESSAGES[result.error] ?? PW_ERROR_MESSAGES['unknown']);
       }
@@ -211,18 +278,17 @@ export function SecuritySettings() {
             <p className="text-xs text-amber-400">Las contraseñas no coinciden todavía.</p>
           )}
 
-          {/* C-PR3: revocación de otras sesiones — aún no disponible */}
-          <label className="flex cursor-not-allowed items-center gap-2 opacity-60">
+          {/* C-PR3: revocación de otras sesiones tras el cambio */}
+          <label className="flex cursor-pointer items-center gap-2">
             <input
               type="checkbox"
-              disabled
-              className="h-3.5 w-3.5 rounded border-border bg-secondary"
+              checked={revokeAfterChange}
+              onChange={(e) => setRevokeAfterChange(e.target.checked)}
+              disabled={pwLoading}
+              className="h-3.5 w-3.5 rounded border-border bg-secondary accent-primary"
             />
             <span className="text-xs text-muted-foreground">
-              Cerrar mis otras sesiones después del cambio{' '}
-              <span className="rounded bg-secondary px-1.5 py-0.5 text-[10px] uppercase tracking-wide">
-                Disponible próximamente
-              </span>
+              Cerrar mis otras sesiones después del cambio
             </span>
           </label>
 
@@ -238,6 +304,60 @@ export function SecuritySettings() {
             {pwLoading ? 'Guardando…' : 'Cambiar contraseña'}
           </button>
         </form>
+      </div>
+
+      {/* C-PR3: sesiones activas + revocación de las demás */}
+      <div>
+        <h3 className="mb-3 text-sm font-medium text-foreground">Sesiones activas</h3>
+        <div className="flex items-center justify-between gap-4 rounded-lg border border-border bg-secondary/40 px-4 py-3">
+          <div className="flex items-center gap-3">
+            <MonitorSmartphone className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <div>
+              <p className="text-sm text-foreground">
+                {ownAgent ? `${ownAgent.browser} en ${ownAgent.os}` : 'Este dispositivo'}
+              </p>
+              <p className="text-xs text-muted-foreground">Sesión actual · ahora</p>
+            </div>
+          </div>
+          <span className="rounded-full bg-emerald-400/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-emerald-400">
+            Activa
+          </span>
+        </div>
+
+        <div className="mt-3">
+          {confirmRevoke ? (
+            <div className="flex flex-wrap items-center gap-3">
+              <p className="text-xs text-muted-foreground">
+                Se cerrará tu sesión en todos los demás dispositivos. ¿Continuar?
+              </p>
+              <button
+                type="button"
+                onClick={handleRevokeOthers}
+                disabled={revoking}
+                className="rounded-lg bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-400 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {revoking ? 'Cerrando…' : 'Sí, cerrar las demás'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmRevoke(false)}
+                disabled={revoking}
+                className="text-xs text-muted-foreground transition hover:text-foreground disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setConfirmRevoke(true)}
+              disabled={revoking}
+              className="rounded-lg bg-secondary text-secondary-foreground px-4 py-2 text-sm font-medium transition hover:bg-secondary/80 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Cerrar las demás sesiones
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
