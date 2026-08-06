@@ -1260,6 +1260,49 @@ export const blogActivity = pgTable(
   (t) => [index("blog_activity_post_created_idx").on(t.postId, t.createdAt)]
 );
 
+/**
+ * Versionado de artículos del blog (B-PR6): snapshot INMUTABLE del contenido
+ * en los momentos de riesgo — antes de regenerar con IA, al publicar, al abrir
+ * una nueva revisión y antes de restaurar. Patrón de pixelforge_page_versions:
+ * `version` es incremental por post, calculado max+1 en el repo DENTRO de la
+ * misma transacción que el insert; el unique index es la red ante una carrera.
+ * Migración: drizzle/0034_blog_post_versions.sql (SQL aditivo; el bookkeeping
+ * del journal se regenera con el saneo del drift de __drizzle_migrations).
+ */
+export const blogPostVersions = pgTable(
+  "blog_post_versions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    postId: uuid("post_id")
+      .notNull()
+      .references(() => blogPosts.id, { onDelete: "cascade" }),
+    version: integer("version").notNull(),
+    /** 'pre-regeneracion-ia' | 'publicacion' | 'nueva-revision' |
+     *  'pre-restauracion' | 'manual' — unión cerrada en TS (versions.ts). */
+    reason: text("reason").notNull(),
+    title: text("title").notNull(),
+    excerpt: text("excerpt").notNull(),
+    body: text("body").notNull(),
+    slug: text("slug").notNull(),
+    category: text("category").notNull(),
+    tags: text("tags").array().notNull().default([]),
+    coverImage: text("cover_image"),
+    seo: jsonb("seo").notNull().default({}),
+    editorial: jsonb("editorial").notNull().default({}),
+    sources: jsonb("sources").notNull().default([]),
+    internalLinks: jsonb("internal_links").notNull().default([]),
+    ai: jsonb("ai").notNull().default({}),
+    // Autoría desnormalizada — mismo criterio que pixelforge_page_versions.
+    createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+    createdByName: text("created_by_name").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("blog_post_versions_post_idx").on(t.postId),
+    uniqueIndex("blog_post_versions_post_version_idx").on(t.postId, t.version),
+  ]
+);
+
 // ════════════════════════════════════════════════════════════════════════
 // Funnel público — src/lib/leads-repo.ts, src/lib/newsletter-repo.ts
 // ════════════════════════════════════════════════════════════════════════
