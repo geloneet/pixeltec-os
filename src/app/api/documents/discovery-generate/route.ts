@@ -39,7 +39,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       operation: "generate_text",
       model: process.env.ANTHROPIC_MODEL ?? "claude-haiku-4-5-20251001",
       buildParams: () => ({
-        max_tokens: 2000,
+        max_tokens: 4096,
         messages: [{ role: "user" as const, content: buildPrompt(industry, clientName) }],
       }),
     });
