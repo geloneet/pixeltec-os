@@ -34,6 +34,7 @@ import type {
   CRMProject,
   CRMTask,
   CRMKey,
+  ClientNextAction,
   RecurringCharge,
   ProjectLogEntry,
   Tool,
@@ -493,6 +494,10 @@ export async function getFullCrmData(ownerId: string): Promise<{
     portalEnabled: c.portalEnabled,
     strategyId: c.strategyId ?? undefined,
     createdAt: c.createdAt.toISOString(),
+    // Server-owned (ADR-0034): solo lectura aquí; syncCrmClients NO los toca.
+    crmStatus: c.crmStatus,
+    nextAction: (c.nextAction as ClientNextAction | null) ?? null,
+    portalAccessEnabled: c.portalAccessEnabled,
     projects: projectRows
       .filter((p) => p.clientId === c.id)
       .map((p) => ({

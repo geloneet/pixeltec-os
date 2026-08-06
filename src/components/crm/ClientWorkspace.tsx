@@ -1,36 +1,28 @@
 "use client";
 
-import { useState } from "react";
+/**
+ * Workspace del cliente (ADR-0034): 4 tabs fijos + Portal condicional.
+ * Discovery y Estrategia se mudaron a la vista de proyecto (/proyectos/[id])
+ * — pertenecen a un trabajo concreto, no al cliente completo. El ciclo
+ * comercial (propuestas, contratos, facturación) vive fusionado en Comercial.
+ */
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { CRMClient } from "@/types/crm";
 import { ClientDetail } from "./ClientDetail";
-import { ContratosTab } from "@/components/crm/workspace-tabs/ContratosTab";
-import { PropuestaTab } from "@/components/crm/workspace-tabs/PropuestaTab";
-import { DiscoveryTab } from "@/components/crm/workspace-tabs/DiscoveryTab";
-import { EstrategiaTab } from "@/components/crm/workspace-tabs/EstrategiaTab";
-import { FacturacionTab } from "@/components/crm/workspace-tabs/FacturacionTab";
 import { ProyectosTab } from "@/components/crm/workspace-tabs/ProyectosTab";
+import { ComercialTab, type ComercialSub } from "@/components/crm/workspace-tabs/ComercialTab";
+import { DocumentosTab } from "@/components/crm/workspace-tabs/DocumentosTab";
 import { PortalTab } from "@/components/crm/workspace-tabs/PortalTab";
+import { getPortalStatusForClientAction } from "@/lib/client-portal/admin-actions";
 
-export type WorkspaceTab =
-  | "resumen"
-  | "proyectos"
-  | "propuesta"
-  | "contratos"
-  | "documentos"
-  | "discovery"
-  | "estrategia"
-  | "portal";
+export type WorkspaceTab = "resumen" | "proyectos" | "comercial" | "documentos" | "portal";
 
-const WORKSPACE_TABS: { id: WorkspaceTab; label: string }[] = [
-  { id: "resumen",    label: "Resumen" },
-  { id: "proyectos",  label: "Proyectos" },
-  { id: "propuesta",  label: "Propuesta" },
-  { id: "contratos",  label: "Contratos" },
+const BASE_TABS: { id: WorkspaceTab; label: string }[] = [
+  { id: "resumen", label: "Resumen" },
+  { id: "proyectos", label: "Proyectos" },
+  { id: "comercial", label: "Comercial" },
   { id: "documentos", label: "Documentos" },
-  { id: "discovery",  label: "Discovery" },
-  { id: "estrategia", label: "Estrategia" },
-  { id: "portal",     label: "Portal" },
 ];
 
 type ModalPayload = { type: string; data?: Record<string, string> } | null;
@@ -41,31 +33,46 @@ interface Props {
   navigateToProject: (clientId: string, projectId: string) => void;
   setModal: (m: ModalPayload) => void;
   deleteClient: (id: string) => void;
-  /** Deep-link (?tab=propuesta) — p.ej. desde "Crear propuesta" en Definición de Proyecto. */
+  /** Deep-link (?tab=comercial) — p.ej. desde "Crear propuesta" en Definición. */
   initialTab?: WorkspaceTab;
+  /** Sub-sección de Comercial (?sub=) — también destino de deep-links legacy. */
+  initialSub?: ComercialSub;
 }
 
-function WorkspaceEmptyTab({ label, sprint }: { label: string; sprint: string }) {
-  return (
-    <div className="flex flex-col items-center justify-center py-24 text-center">
-      <p className="text-sm font-medium text-muted-foreground mb-1">{label}</p>
-      <p className="text-xs text-muted-foreground">Disponible en {sprint}.</p>
-    </div>
-  );
-}
-
-export function ClientWorkspace({ client, onBack, navigateToProject, setModal, deleteClient, initialTab }: Props) {
+export function ClientWorkspace({ client, onBack, navigateToProject, setModal, deleteClient, initialTab, initialSub }: Props) {
   const [activeTab, setActiveTab] = useState<WorkspaceTab>(initialTab ?? "resumen");
-  // "Convertir a contrato" en Propuesta: guarda qué propuesta abrir en el
-  // wizard prellenado al cambiar a la pestaña Contratos.
-  const [pendingContractProposalId, setPendingContractProposalId] = useState<string | null>(null);
+  // Gate del tab Portal (dictamen 2026-08-05): solo aparece cuando el acceso
+  // está habilitado. El blob ya trae portalAccessEnabled; para blobs cargados
+  // antes del cambio (undefined) se consulta una vez al montar. Habilitarlo
+  // vive en el menú ⋯ del header (ClientDetail → onEnablePortal).
+  const [portalEnabled, setPortalEnabled] = useState<boolean>(client.portalAccessEnabled ?? false);
+
+  useEffect(() => {
+    if (client.portalAccessEnabled !== undefined) return;
+    let cancelled = false;
+    getPortalStatusForClientAction(client.id)
+      .then((status) => {
+        if (!cancelled && status) setPortalEnabled(status.portalAccessEnabled);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [client.id, client.portalAccessEnabled]);
+
+  const tabs = portalEnabled ? [...BASE_TABS, { id: "portal" as const, label: "Portal" }] : BASE_TABS;
+
+  // Si el portal se desactiva mientras su tab está abierto, cae a Resumen.
+  useEffect(() => {
+    if (activeTab === "portal" && !portalEnabled) setActiveTab("resumen");
+  }, [activeTab, portalEnabled]);
 
   return (
     <div className="flex flex-col h-full">
       {/* Tab bar */}
       <div className="flex-shrink-0 border-b border-border bg-background/40">
         <div className="flex items-center gap-0.5 px-4 overflow-x-auto scrollbar-none">
-          {WORKSPACE_TABS.map((tab) => (
+          {tabs.map((tab) => (
             <button
               key={tab.id}
               type="button"
@@ -99,6 +106,12 @@ export function ClientWorkspace({ client, onBack, navigateToProject, setModal, d
             navigateToProject={navigateToProject}
             setModal={setModal}
             deleteClient={deleteClient}
+            portalEnabled={portalEnabled}
+            onPortalEnabledChange={(enabled) => {
+              setPortalEnabled(enabled);
+              if (enabled) setActiveTab("portal");
+            }}
+            onOpenComercial={() => setActiveTab("comercial")}
           />
         )}
         {activeTab === "proyectos" && (
@@ -108,45 +121,22 @@ export function ClientWorkspace({ client, onBack, navigateToProject, setModal, d
             setModal={setModal}
           />
         )}
-        {activeTab === "propuesta"  && (
+        {activeTab === "comercial" && (
           <div className="p-6">
-            <PropuestaTab
+            <ComercialTab
               clientId={client.id}
               clientName={client.name}
               clientEmail={client.email}
-              onConvertToContract={(proposalId) => {
-                setPendingContractProposalId(proposalId);
-                setActiveTab("contratos");
-              }}
-            />
-          </div>
-        )}
-        {activeTab === "contratos"  && (
-          <div className="p-6">
-            <ContratosTab
-              clientId={client.id}
-              clientName={client.name}
-              initialProposalId={pendingContractProposalId}
-              onConsumedInitialProposal={() => setPendingContractProposalId(null)}
+              initialSub={initialSub}
             />
           </div>
         )}
         {activeTab === "documentos" && (
           <div className="p-6">
-            <FacturacionTab clientId={client.id} />
+            <DocumentosTab clientId={client.id} />
           </div>
         )}
-        {activeTab === "discovery" && (
-          <div className="p-6">
-            <DiscoveryTab clientId={client.id} clientName={client.name} />
-          </div>
-        )}
-        {activeTab === "estrategia" && (
-          <div className="p-6">
-            <EstrategiaTab clientId={client.id} />
-          </div>
-        )}
-        {activeTab === "portal" && (
+        {activeTab === "portal" && portalEnabled && (
           <div className="p-6">
             <PortalTab clientId={client.id} clientName={client.name} clientEmail={client.email} />
           </div>

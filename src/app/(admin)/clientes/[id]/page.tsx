@@ -4,11 +4,24 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCRM } from "@/components/crm/CRMContextCore";
 import { useCRMShell } from "@/components/crm/CRMShellProvider";
 import { ClientWorkspace, type WorkspaceTab } from "@/components/crm/ClientWorkspace";
+import type { ComercialSub } from "@/components/crm/workspace-tabs/ComercialTab";
 import { Spinner } from "@/components/ui/spinner";
 
-const VALID_TABS: WorkspaceTab[] = [
-  "resumen", "proyectos", "propuesta", "contratos", "documentos", "discovery", "estrategia", "portal",
-];
+const VALID_TABS: WorkspaceTab[] = ["resumen", "proyectos", "comercial", "documentos", "portal"];
+
+const VALID_SUBS: ComercialSub[] = ["propuestas", "contratos", "facturacion"];
+
+/** Deep-links previos a ADR-0034 (emails, notificaciones, enlaces guardados):
+ *  jamás 404 — cada tab viejo cae en su nuevo hogar. OJO: `documentos` viejo
+ *  era facturación; el tab `documentos` nuevo (expediente) solo se alcanza
+ *  desde la UI. */
+const TAB_MIGRATION: Record<string, { tab: WorkspaceTab; sub?: ComercialSub }> = {
+  propuesta: { tab: "comercial", sub: "propuestas" },
+  contratos: { tab: "comercial", sub: "contratos" },
+  documentos: { tab: "comercial", sub: "facturacion" },
+  discovery: { tab: "resumen" },
+  estrategia: { tab: "resumen" },
+};
 
 export default function ClienteDetailPage() {
   const params = useParams<{ id: string }>();
@@ -18,7 +31,10 @@ export default function ClienteDetailPage() {
   const shell = useCRMShell();
 
   const tabParam = searchParams.get("tab");
-  const initialTab = VALID_TABS.find((t) => t === tabParam);
+  const subParam = searchParams.get("sub");
+  const migrated = tabParam ? TAB_MIGRATION[tabParam] : undefined;
+  const initialTab = migrated?.tab ?? VALID_TABS.find((t) => t === tabParam);
+  const initialSub = migrated?.sub ?? VALID_SUBS.find((s) => s === subParam);
 
   if (crm.loading) {
     return (
@@ -52,6 +68,7 @@ export default function ClienteDetailPage() {
       setModal={shell.setModal}
       deleteClient={crm.deleteClient}
       initialTab={initialTab}
+      initialSub={initialSub}
     />
   );
 }

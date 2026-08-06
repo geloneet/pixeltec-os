@@ -1,62 +1,86 @@
 'use server';
 
 // Fase 4 (rebanada Documentos): Postgres — antes Firestore `discovery_sessions`
-// vía client SDK.
-import { and, desc, eq } from "drizzle-orm";
+// vía client SDK. ADR-0034: el discovery pertenece a un PROYECTO; las
+// sesiones históricas sin proyecto (project_id NULL) siguen visibles desde
+// cualquier proyecto del cliente y se adoptan con `assignDiscoveryToProject`.
+import { and, desc, eq, inArray, isNull, or } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { discoverySessions } from "@/lib/db/schema";
+import { discoverySessions, projects } from "@/lib/db/schema";
 import type { DiscoverySession } from "@/types/documents";
 import {
   requireOwner,
   resolveClientPgId,
+  resolveProjectPgId,
   resolveDiscoveryRow,
   serializeDiscovery,
 } from "./pg";
 
+/** projects.id (pg) → id público, en lote (para serializar N filas sin N queries). */
+async function projectPublicIdMap(projectPgIds: string[]): Promise<Map<string, string>> {
+  const ids = [...new Set(projectPgIds)];
+  if (ids.length === 0) return new Map();
+  const rows = await db
+    .select({ id: projects.id, fsId: projects.firestoreId })
+    .from(projects)
+    .where(inArray(projects.id, ids));
+  return new Map(rows.map((p) => [p.id, p.fsId ?? p.id]));
+}
+
 export async function getDiscoverySessions(
   _uid: string,
   clientId: string,
+  projectId?: string,
 ): Promise<DiscoverySession[]> {
   const { uid, ownerId } = await requireOwner();
   const clientPgId = await resolveClientPgId(clientId);
   if (!clientPgId) return [];
+
+  const filters = [eq(discoverySessions.ownerId, ownerId), eq(discoverySessions.clientId, clientPgId)];
+  if (projectId) {
+    const projectPgId = await resolveProjectPgId(projectId);
+    if (!projectPgId) return [];
+    // Las huérfanas (NULL) se incluyen a propósito: no se pierde historia.
+    filters.push(or(eq(discoverySessions.projectId, projectPgId), isNull(discoverySessions.projectId))!);
+  }
+
   const rows = await db
     .select()
     .from(discoverySessions)
-    .where(and(eq(discoverySessions.ownerId, ownerId), eq(discoverySessions.clientId, clientPgId)))
+    .where(and(...filters))
     .orderBy(desc(discoverySessions.generatedAt));
-  return rows.map((row) => serializeDiscovery(row, clientId, uid));
+
+  const pubMap = await projectPublicIdMap(rows.flatMap((r) => (r.projectId ? [r.projectId] : [])));
+  return rows.map((row) =>
+    serializeDiscovery(row, clientId, uid, row.projectId ? (pubMap.get(row.projectId) ?? row.projectId) : null)
+  );
 }
 
 export async function getLatestDiscoverySession(
   _uid: string,
   clientId: string,
+  projectId?: string,
 ): Promise<DiscoverySession | null> {
-  const { uid, ownerId } = await requireOwner();
-  const clientPgId = await resolveClientPgId(clientId);
-  if (!clientPgId) return null;
-  const [row] = await db
-    .select()
-    .from(discoverySessions)
-    .where(and(eq(discoverySessions.ownerId, ownerId), eq(discoverySessions.clientId, clientPgId)))
-    .orderBy(desc(discoverySessions.generatedAt))
-    .limit(1);
-  return row ? serializeDiscovery(row, clientId, uid) : null;
+  const sessions = await getDiscoverySessions(_uid, clientId, projectId);
+  return sessions[0] ?? null;
 }
 
 export async function createDiscoverySession(
   _uid: string,
   clientId: string,
   data: Omit<DiscoverySession, "id" | "uid" | "clientId">,
+  projectId?: string,
 ): Promise<string> {
   const { ownerId } = await requireOwner();
   const clientPgId = await resolveClientPgId(clientId);
   if (!clientPgId) throw new Error("Cliente no encontrado");
+  const projectPgId = projectId ? await resolveProjectPgId(projectId) : null;
   const [row] = await db
     .insert(discoverySessions)
     .values({
       ownerId,
       clientId: clientPgId,
+      projectId: projectPgId,
       industry: data.industry,
       status: data.status,
       questions: data.questions ?? [],
@@ -86,4 +110,14 @@ export async function updateDiscoverySession(
   if (Object.keys(set).length === 0) return;
 
   await db.update(discoverySessions).set(set).where(eq(discoverySessions.id, row.id));
+}
+
+/** Adopta una sesión huérfana (o re-asigna una existente) a un proyecto. */
+export async function assignDiscoveryToProject(sessionId: string, projectId: string): Promise<void> {
+  const { ownerId } = await requireOwner();
+  const row = await resolveDiscoveryRow(sessionId);
+  if (!row || row.ownerId !== ownerId) throw new Error("Sesión no encontrada");
+  const projectPgId = await resolveProjectPgId(projectId);
+  if (!projectPgId) throw new Error("Proyecto no encontrado");
+  await db.update(discoverySessions).set({ projectId: projectPgId }).where(eq(discoverySessions.id, row.id));
 }

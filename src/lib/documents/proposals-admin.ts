@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { proposals, clients, users } from "@/lib/db/schema";
 import type { Proposal, ProposalViewEvent } from "@/types/documents";
 import { resolveProposalRow, serializeProposal } from "./pg";
+import { logClientActivity } from "@/lib/db/repos/client-activity";
 
 export async function getProposalByToken(
   token: string,
@@ -49,6 +50,17 @@ export async function logProposalView(
       ...(row.status === "enviada" ? { status: "vista" as const } : {}),
     })
     .where(eq(proposals.id, row.id));
+
+  // Solo la PRIMERA vista genera actividad — las siguientes ya viven en
+  // viewEvents y ensuciarían el historial del cliente.
+  if (!row.viewedAt) {
+    await logClientActivity({
+      ownerId: row.ownerId,
+      clientId: row.clientId,
+      type: "propuesta_vista",
+      message: `El cliente abrió la propuesta: ${row.title}`,
+    });
+  }
 }
 
 export async function updateProposalActionStatus(
@@ -67,5 +79,13 @@ export async function updateProposalActionStatus(
     .update(proposals)
     .set({ status: action, acceptedAt: now, updatedAt: now })
     .where(eq(proposals.id, row.id));
+
+  await logClientActivity({
+    ownerId: row.ownerId,
+    clientId: row.clientId,
+    type: action === "aceptada" ? "propuesta_aceptada" : "propuesta_rechazada",
+    message: `Propuesta ${action}: ${row.title}`,
+  });
+
   return { ok: true };
 }

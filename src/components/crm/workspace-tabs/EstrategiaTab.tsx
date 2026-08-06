@@ -5,10 +5,12 @@ import { Plus, Pencil, Trash2, Check, X, ChevronUp, ChevronDown } from "lucide-r
 import { Spinner } from "@/components/ui/spinner";
 import { useUser } from "@/hooks/use-user";
 import type { Strategy, StrategyObjective, StrategyKPI, RoadmapItem } from "@/types/documents";
-import { getStrategy, createStrategy, updateStrategy } from "@/lib/documents/strategies";
+import { getStrategy, createStrategy, updateStrategy, assignStrategyToProject } from "@/lib/documents/strategies";
 
 interface Props {
   clientId: string;
+  /** Proyecto dueño (ADR-0034) — el tab vive en la vista de proyecto. */
+  projectId?: string;
 }
 
 const OBJ_STATUS = {
@@ -25,12 +27,13 @@ const PRIORITY_CONFIG = {
 
 const CHANNELS = ["Web", "Social Media", "Email", "WhatsApp", "Google Ads", "SEO"] as const;
 
-export function EstrategiaTab({ clientId }: Props) {
+export function EstrategiaTab({ clientId, projectId }: Props) {
   const user = useUser();
 
   const [strategy, setStrategy] = useState<Strategy | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [assigning, setAssigning] = useState(false);
   const creatingStrategyRef = useRef<Promise<Strategy> | null>(null);
 
   // Objectives inline editing
@@ -62,13 +65,13 @@ export function EstrategiaTab({ clientId }: Props) {
     if (!user) { setLoading(false); return; }
     setLoading(true);
     try {
-      const data = await getStrategy(user.uid, clientId);
+      const data = await getStrategy(user.uid, clientId, projectId);
       setStrategy(data);
       if (data?.automations) setAutomationsText(data.automations.join("\n"));
     } finally {
       setLoading(false);
     }
-  }, [user, clientId]);
+  }, [user, clientId, projectId]);
 
   useEffect(() => { loadStrategy(); }, [loadStrategy]);
 
@@ -77,9 +80,10 @@ export function EstrategiaTab({ clientId }: Props) {
     if (!user) throw new Error("Not ready");
     // Deduplicate concurrent calls — only one createStrategy runs at a time
     if (creatingStrategyRef.current) return creatingStrategyRef.current;
-    const p = createStrategy(user.uid, clientId).then((id) => {
+    const p = createStrategy(user.uid, clientId, projectId).then((id) => {
       const newStrategy: Strategy = {
         id, uid: user.uid, clientId,
+        projectId: projectId ?? null,
         objectives: [], kpis: [], roadmap: [],
         priorities: [], channels: [], automations: [],
         lastUpdated: new Date().toISOString(),
@@ -90,7 +94,7 @@ export function EstrategiaTab({ clientId }: Props) {
     });
     creatingStrategyRef.current = p;
     return p;
-  }, [strategy, user, clientId]);
+  }, [strategy, user, clientId, projectId]);
 
   const saveStrategy = useCallback(async (updated: Strategy) => {
     setSaving(true);
@@ -304,6 +308,32 @@ export function EstrategiaTab({ clientId }: Props) {
 
       {!loading && (
         <>
+          {/* Estrategia huérfana (previa a ADR-0034) vista desde un proyecto */}
+          {projectId && strategy && strategy.projectId == null && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-500/20 bg-amber-500/[0.06] px-3 py-2">
+              <p className="text-xs text-amber-400">
+                Esta estrategia viene del expediente del cliente y no está asignada a ningún proyecto.
+              </p>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!strategy) return;
+                  setAssigning(true);
+                  try {
+                    await assignStrategyToProject(strategy.id, projectId);
+                    setStrategy((prev) => (prev ? { ...prev, projectId } : prev));
+                  } finally {
+                    setAssigning(false);
+                  }
+                }}
+                disabled={assigning}
+                className="rounded-md border border-amber-500/30 px-2.5 py-1 text-[11px] font-medium text-amber-300 transition-colors hover:bg-amber-500/10 disabled:opacity-50"
+              >
+                {assigning ? "Asignando…" : "Asignar a este proyecto"}
+              </button>
+            </div>
+          )}
+
           {/* ── Objetivos ─────────────────────────────────────────────────── */}
           <section>
             <div className="flex items-center justify-between mb-3">
