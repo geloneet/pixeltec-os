@@ -25,12 +25,14 @@ const PAGE_SIZE = 12;
 interface UnsplashPickerProps {
   /** Foto elegida + query usada (candidata a alt si la foto no trae descripción). */
   onSelect: (photo: UnsplashPhoto, query: string) => void;
+  /** Texto del botón que abre el dialog (default: «Buscar en Unsplash»). */
+  triggerLabel?: string;
 }
 
 /** Botón "Buscar en Unsplash" + Dialog con búsqueda, grid de miniaturas y
  *  paginación por append. El backend (`searchCoverImages`) valida sesión y
  *  canal de egress; sus errores se muestran tal cual dentro del dialog. */
-export function UnsplashPicker({ onSelect }: UnsplashPickerProps) {
+export function UnsplashPicker({ onSelect, triggerLabel = "Buscar en Unsplash" }: UnsplashPickerProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [photos, setPhotos] = useState<UnsplashPhoto[]>([]);
@@ -78,7 +80,7 @@ export function UnsplashPicker({ onSelect }: UnsplashPickerProps) {
           className="border-border bg-secondary/50 text-foreground hover:bg-secondary"
         >
           <ImageIcon className="mr-2 h-4 w-4" />
-          Buscar en Unsplash
+          {triggerLabel}
         </Button>
       </DialogTrigger>
       <DialogContent className="border-border bg-background text-foreground sm:max-w-2xl">

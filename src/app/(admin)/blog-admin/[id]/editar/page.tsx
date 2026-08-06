@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { getPostById } from "@/lib/blog/queries/posts";
-import { getBlogActivityRows } from "@/lib/blog/activity";
+import { getBlogActivityRows, type BlogActivityEntry } from "@/lib/blog/activity";
 import { resolvePostRow } from "@/lib/blog/pg";
 import { PostEditorClient } from "./post-editor-client";
 
@@ -20,22 +20,26 @@ export default async function EditarPostPage({ params }: Props) {
 
   if (!post) notFound();
 
+  // Historial editorial (etapa Verificar) — SIEMPRE se intenta cargar,
+  // fire-safe: si la tabla no existe aún o falla la query, el editor abre
+  // con historial vacío y sin banner.
+  let activity: BlogActivityEntry[] = [];
+  try {
+    // blog_activity referencia el uuid de PG; post.id puede ser el id
+    // público legacy (firestore) — se resuelve la fila real primero.
+    const row = await resolvePostRow(id);
+    if (row) activity = await getBlogActivityRows(row.id, 20);
+  } catch {
+    // Historial no disponible aún.
+  }
+
   let lastReturn: { message: string; actorName: string | null; createdAt: string } | null = null;
   if (post.status === "draft") {
-    try {
-      // blog_activity referencia el uuid de PG; post.id puede ser el id
-      // público legacy (firestore) — se resuelve la fila real primero.
-      const row = await resolvePostRow(id);
-      if (!row) return <PostEditorClient post={post} lastReturn={null} />;
-      const rows = await getBlogActivityRows(row.id, 20);
-      const lastFlow = rows.find((r) => FLOW_TYPES.has(r.type));
-      if (lastFlow?.type === "devuelto") {
-        lastReturn = { message: lastFlow.message, actorName: lastFlow.actorName, createdAt: lastFlow.createdAt };
-      }
-    } catch {
-      // Historial no disponible aún — sin banner.
+    const lastFlow = activity.find((r) => FLOW_TYPES.has(r.type));
+    if (lastFlow?.type === "devuelto") {
+      lastReturn = { message: lastFlow.message, actorName: lastFlow.actorName, createdAt: lastFlow.createdAt };
     }
   }
 
-  return <PostEditorClient post={post} lastReturn={lastReturn} />;
+  return <PostEditorClient post={post} lastReturn={lastReturn} activity={activity} />;
 }
