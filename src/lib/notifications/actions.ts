@@ -1,7 +1,7 @@
 "use server";
 
 import { and, desc, eq } from "drizzle-orm";
-import { auth } from "@/lib/auth/config";
+import { getSessionUserId } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { notifications } from "@/lib/db/schema";
 import { type Notification } from "./schemas";
@@ -29,15 +29,20 @@ function serialize(r: Row): Notification {
   };
 }
 
+// Las tres actions resuelven identidad con `getSessionUserId()`, que aplica la
+// autoridad canónica (cuenta existente y activa, credenciales no revocadas).
+// Con `auth()` a secas, una cuenta suspendida o una cookie anterior a un
+// cambio de contraseña seguían leyendo y marcando notificaciones (ADR-0036).
+
 /** Últimas notificaciones del usuario de la sesión (reemplaza el onSnapshot del cliente). */
 export async function getMyNotifications(limit = 20): Promise<Notification[]> {
-  const session = await auth();
-  if (!session?.user?.id) return [];
+  const userId = await getSessionUserId();
+  if (!userId) return [];
 
   const rows = await db
     .select()
     .from(notifications)
-    .where(eq(notifications.userId, session.user.id))
+    .where(eq(notifications.userId, userId))
     .orderBy(desc(notifications.createdAt))
     .limit(limit);
 
@@ -45,21 +50,21 @@ export async function getMyNotifications(limit = 20): Promise<Notification[]> {
 }
 
 export async function markNotificationReadAction(id: string): Promise<void> {
-  const session = await auth();
-  if (!session?.user?.id) return;
+  const userId = await getSessionUserId();
+  if (!userId) return;
 
   await db
     .update(notifications)
     .set({ read: true, readAt: new Date() })
-    .where(and(eq(notifications.id, id), eq(notifications.userId, session.user.id)));
+    .where(and(eq(notifications.id, id), eq(notifications.userId, userId)));
 }
 
 export async function markAllNotificationsReadAction(): Promise<void> {
-  const session = await auth();
-  if (!session?.user?.id) return;
+  const userId = await getSessionUserId();
+  if (!userId) return;
 
   await db
     .update(notifications)
     .set({ read: true, readAt: new Date() })
-    .where(and(eq(notifications.userId, session.user.id), eq(notifications.read, false)));
+    .where(and(eq(notifications.userId, userId), eq(notifications.read, false)));
 }

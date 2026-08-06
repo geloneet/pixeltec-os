@@ -44,6 +44,12 @@ export const authConfig: NextAuthConfig = {
         // mint falló (fire-safe), el acuñado perezoso de abajo lo reintenta.
         if (user.sid) token.sid = user.sid;
         token.chk = Date.now();
+        // Epoch de la CREDENCIAL, no del token. Se acuña aquí —única rama en
+        // la que existe `user`, es decir, el login real— y a partir de ahí es
+        // inmutable: ninguna rotación lo toca. `iat` NO sirve para esto porque
+        // Auth.js lo refresca al reemitir la cookie, de modo que un corte
+        // basado en `iat` no revocaría jamás.
+        token.credentialIssuedAt = Math.floor(Date.now() / 1000);
       }
       // `useSession().update({ name?, image? })` desde el cliente tras editar
       // el perfil — sin esto el header mostraría nombre/foto viejos hasta el
@@ -58,6 +64,45 @@ export const authConfig: NextAuthConfig = {
       // nodejs, verificado, así que ejecutar esto ahí es válido). Todo va en
       // try/catch: un error de DB JAMÁS mata un token firmado (fail-open,
       // decisión documentada en src/lib/auth/sessions.ts). ──
+      // ── Autoridad canónica ANTES de devolver el token (ADR-0036). Este es
+      // el punto por el que pasa toda reemisión de cookie, así que es donde la
+      // revocación tiene que morder: si se dejara solo en las fronteras de
+      // servidor, `/api/auth/session` seguiría renovando una cookie de una
+      // cuenta suspendida o de credenciales ya cambiadas.
+      //
+      // A diferencia del bloque de `sid` (fail-open por disponibilidad), una
+      // DENEGACIÓN explícita mata la sesión. Un error de DB sí conserva el
+      // token: las fronteras de servidor vuelven a evaluar y ahí sí fallan
+      // cerrado, así que un outage no desloguea a todo el equipo. ──
+      try {
+        const userId = token.id;
+        if (typeof userId === "string" && userId.length > 0) {
+          const { resolveAuthority } = await import("./authority");
+          const claim =
+            typeof token.credentialIssuedAt === "number" ? token.credentialIssuedAt : undefined;
+          const authority = await resolveAuthority(userId, claim);
+
+          if (!authority.ok) {
+            console.warn("[auth] sesión destruida por la autoridad canónica:", authority.reason);
+            return null;
+          }
+
+          // El rol viaja refrescado desde Postgres: el sellado en el login
+          // afirma un privilegio que pudo retirarse desde entonces.
+          token.role = authority.role;
+
+          // Token legacy sin claim: solo se puede inicializar si el usuario no
+          // tiene corte. `resolveAuthority` ya rechazó el caso contrario, así
+          // que llegar aquí con `sessionsValidFrom` implica un corte anterior
+          // al claim — no se inventa una fecha que lo saltaría.
+          if (claim === undefined && authority.sessionsValidFrom === null) {
+            token.credentialIssuedAt = Math.floor(Date.now() / 1000);
+          }
+        }
+      } catch (err) {
+        console.error("[auth] authority check error — keeping token (fail-open):", err);
+      }
+
       try {
         const userId = token.id;
         if (typeof userId === "string" && userId.length > 0) {
@@ -112,7 +157,12 @@ export const authConfig: NextAuthConfig = {
       // `iat` viaja para que la autoridad canónica (src/lib/auth/authority.ts)
       // pueda descartar tokens anteriores a un cambio de credenciales. Aquí no
       // se consulta la base: este callback también corre en el middleware.
-      if (typeof token.iat === "number") session.user.sessionIssuedAt = token.iat;
+      // El claim de credencial —NO `iat`— viaja a la sesión para que las
+      // fronteras de servidor puedan reevaluar el corte. `iat` se refresca en
+      // cada reemisión y sería inservible como epoch.
+      if (typeof token.credentialIssuedAt === "number") {
+        session.user.credentialIssuedAt = token.credentialIssuedAt;
+      }
       // Alias heredado: viaja solo informativamente.
       return session;
     },

@@ -39,36 +39,57 @@ export type AuthorityDenial =
   | "credentials_changed";
 
 export type AuthoritySnapshot =
-  | { ok: true; userId: string; role: "admin" | "staff"; isAdmin: boolean }
+  | {
+      ok: true;
+      userId: string;
+      role: "admin" | "staff";
+      isAdmin: boolean;
+      /** Corte vigente del usuario. `null` = nunca se invalidó nada. */
+      sessionsValidFrom: Date | null;
+    }
   | { ok: false; reason: AuthorityDenial };
 
 /**
- * `true` si el token es anterior al corte de credenciales del usuario.
+ * `true` si la credencial del token es anterior al corte del usuario.
  *
- * El margen de 1 segundo absorbe el redondeo de `iat` (segundos) frente al
- * timestamp de Postgres (milisegundos): sin él, quien acaba de cambiar su
- * contraseña se expulsaría a sí mismo por un desfase de milisegundos.
+ * `credentialIssuedAtSeconds` NO es el `iat` del JWT: Auth.js reemite la cookie
+ * y refresca `iat` en cada rotación, así que usarlo haría que el corte no
+ * revocara nunca. Es un claim propio, acuñado solo al autenticar y preservado
+ * intacto en las rotaciones (ver `auth.config.ts`).
+ *
+ * Frontera: se revoca todo lo ANTERIOR al segundo del corte. Un token del
+ * segundo previo queda revocado. La única tolerancia es el mismo segundo, y
+ * existe por el redondeo del claim (segundos) frente al timestamp de Postgres
+ * (milisegundos): sin ella, quien cambia su contraseña se expulsaría a sí mismo
+ * por unos milisegundos.
  */
 export function isTokenRevoked(
-  issuedAtSeconds: number | undefined,
+  credentialIssuedAtSeconds: number | undefined,
   sessionsValidFrom: Date | null,
 ): boolean {
   if (!sessionsValidFrom) return false;
-  // Sin `iat` no se puede fechar el token; con un corte activo, se rechaza.
-  if (typeof issuedAtSeconds !== "number") return true;
+  // Sin claim no se puede fechar la credencial; con un corte activo, se rechaza.
+  if (typeof credentialIssuedAtSeconds !== "number") return true;
   const cutoffSeconds = Math.floor(sessionsValidFrom.getTime() / 1000);
-  return issuedAtSeconds + 1 < cutoffSeconds;
+  return credentialIssuedAtSeconds < cutoffSeconds;
 }
 
 /**
  * Resuelve la autorización de una sesión contra Postgres.
  *
- * `issuedAtSeconds` es el `iat` del JWT (lo expone el callback `session`).
- * No lanza: devuelve un veredicto tipado para que el llamador elija 401/403.
+ * `credentialIssuedAtSeconds` es el claim propio `credentialIssuedAt`, NO el
+ * `iat` del JWT. No lanza: devuelve un veredicto tipado para que el llamador
+ * elija 401/403 o destruya la sesión.
+ *
+ * **Tokens legacy** (emitidos antes de que existiera el claim): se permite
+ * inicializarlos SOLO si el usuario no tiene corte (`sessions_valid_from IS
+ * NULL`), es decir, si nunca hubo un cambio de credenciales que respetar. Si ya
+ * existe un corte, un token sin claim no puede demostrar ser posterior a él y
+ * se rechaza — fail-closed.
  */
 export async function resolveAuthority(
   userId: string,
-  issuedAtSeconds: number | undefined,
+  credentialIssuedAtSeconds: number | undefined,
 ): Promise<AuthoritySnapshot> {
   const [row] = await db
     .select({
@@ -88,11 +109,17 @@ export async function resolveAuthority(
   // `invited` (contraseña aún sin fijar) tampoco opera: solo 'active' entra.
   if (row.status !== "active") return { ok: false, reason: "not_active" };
 
-  if (isTokenRevoked(issuedAtSeconds, row.sessionsValidFrom)) {
+  if (isTokenRevoked(credentialIssuedAtSeconds, row.sessionsValidFrom)) {
     return { ok: false, reason: "credentials_changed" };
   }
 
-  return { ok: true, userId, role: row.role, isAdmin: row.role === "admin" };
+  return {
+    ok: true,
+    userId,
+    role: row.role,
+    isAdmin: row.role === "admin",
+    sessionsValidFrom: row.sessionsValidFrom,
+  };
 }
 
 /** Estampa el corte global de credenciales del usuario. */

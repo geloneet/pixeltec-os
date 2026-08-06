@@ -16,25 +16,13 @@ const read = (rel: string) => readFileSync(resolve(SRC, rel), "utf8");
 describe("open redirect en /login", () => {
   const login = read("app/login/page.tsx");
 
-  test("el destino se sanea antes de navegar", () => {
+  test("el destino pasa por el helper compartido, no por un predicado propio", () => {
     // `window.location.assign(param)` crudo: abrir /login?redirect=https://…
     // con sesión activa sacaba al visitante del sitio SIN interacción.
     expect(login).not.toMatch(/window\.location\.assign\(\s*redirectParam/);
-    expect(login).toMatch(/startsWith\('\/'\)/);
-    // `//host` es protocol-relative y también sale del sitio.
-    expect(login).toMatch(/startsWith\('\/\/'\)/);
-  });
-
-  test("la lógica de saneo acepta rutas propias y rechaza destinos externos", () => {
-    // Réplica exacta del predicado del componente.
-    const safe = (raw: string | null) =>
-      raw && raw.startsWith("/") && !raw.startsWith("//") ? raw : "/hoy";
-
-    expect(safe("/clientes/123?tab=comercial")).toBe("/clientes/123?tab=comercial");
-    expect(safe("https://evil.example/phish")).toBe("/hoy");
-    expect(safe("//evil.example")).toBe("/hoy");
-    expect(safe("javascript:alert(1)")).toBe("/hoy");
-    expect(safe(null)).toBe("/hoy");
+    expect(login).toContain("safeInternalPath");
+    // Un predicado inline aquí volvería a divergir del de `href`.
+    expect(login).not.toMatch(/startsWith\('\/\/'\)/);
   });
 });
 

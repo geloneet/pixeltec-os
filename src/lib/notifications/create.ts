@@ -9,6 +9,12 @@
  * puede llamarla código de servidor por import directo — los crons y las rutas
  * API que ya derivan el destinatario de datos propios.
  */
+// Falla el build si algún componente de cliente llega a importar esto: la
+// ausencia de "use server" evita que sea un endpoint RPC, y esto evita el error
+// simétrico —arrastrarlo al bundle del navegador— en vez de confiar en que
+// nadie lo haga por costumbre.
+import "server-only";
+
 import { db } from "@/lib/db";
 import { notifications } from "@/lib/db/schema";
 import { CreateNotificationInputSchema, type CreateNotificationInput } from "./schemas";

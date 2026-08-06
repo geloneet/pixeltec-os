@@ -78,8 +78,14 @@ export async function createContract(
   const clientPgId = await resolveOwnedClientPgId(clientId, ownerId);
   if (!clientPgId) throw new Error("Cliente no encontrado");
 
-  // proposalId/templateId llegan como ids públicos → columnas uuid
-  const proposalPgId = data.proposalId ? await resolveOwnedProposalPgId(data.proposalId, ownerId) : null;
+  // proposalId/templateId llegan como ids públicos → columnas uuid.
+  // Si se pidió vincular una propuesta y no resulta ser del dueño, se FALLA:
+  // degradar a `null` crearía el contrato sin la relación solicitada, en
+  // silencio, y dejaría al usuario creyendo que quedó vinculada (ADR-0036).
+  const proposalPgId = data.proposalId
+    ? await resolveOwnedProposalPgId(data.proposalId, ownerId)
+    : null;
+  if (data.proposalId && !proposalPgId) throw new Error("Propuesta no encontrada");
   const templatePgId = data.templateId
     ? (UUID_RE.test(data.templateId) ? data.templateId : await resolveIATemplatePgId(data.templateId))
     : null;
@@ -223,7 +229,12 @@ export async function confirmContractFromWizard(data: ConfirmContractFromWizardI
     .limit(1);
   if (!client) throw new Error("Cliente no encontrado");
 
-  const proposalPgId = data.proposalId ? await resolveOwnedProposalPgId(data.proposalId, ownerId) : null;
+  // Mismo criterio que `createContract`: vincular una propuesta ajena falla,
+  // no se elimina la relación en silencio (ADR-0036).
+  const proposalPgId = data.proposalId
+    ? await resolveOwnedProposalPgId(data.proposalId, ownerId)
+    : null;
+  if (data.proposalId && !proposalPgId) throw new Error("Propuesta no encontrada");
   let proposalReference: string | undefined;
   if (proposalPgId) {
     const [p] = await db

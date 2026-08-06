@@ -28,7 +28,7 @@ export async function requireAdmin(
   const uid = session?.user?.id;
   if (!uid) return { ok: false, error: "Unauthorized", status: 401 };
 
-  const authority = await resolveAuthority(uid, session.user.sessionIssuedAt);
+  const authority = await resolveAuthority(uid, session.user.credentialIssuedAt);
   // Cuenta inexistente, suspendida, aún invitada o token anterior al último
   // cambio de credenciales: no hay a quién autorizar → 401, no 403.
   if (!authority.ok) return { ok: false, error: "Unauthorized", status: 401 };

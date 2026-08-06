@@ -36,11 +36,13 @@ declare module "next-auth" {
        */
       sid?: string;
       /**
-       * `iat` del JWT en segundos epoch. Lo consume la autoridad canónica
-       * (`src/lib/auth/authority.ts`) para descartar tokens anteriores al
-       * corte global de credenciales (`users.sessions_valid_from`).
+       * Epoch (segundos) en que se acuñó la CREDENCIAL de esta sesión — no el
+       * token. Se sella al autenticar y sobrevive intacto a las rotaciones de
+       * cookie, a diferencia de `iat`, que Auth.js refresca al reemitir.
+       * Lo consume la autoridad canónica (`src/lib/auth/authority.ts`) para
+       * descartar sesiones anteriores a `users.sessions_valid_from`.
        */
-      sessionIssuedAt?: number;
+      credentialIssuedAt?: number;
     } & DefaultSession["user"];
   }
 }
@@ -54,5 +56,11 @@ declare module "@auth/core/jwt" {
     sid?: string;
     /** C-PR3: epoch ms de la última revalidación del sid (throttle 60s). */
     chk?: number;
+    /**
+     * Epoch (segundos) de la credencial. INMUTABLE: se acuña solo en el login
+     * y ninguna rotación lo reescribe. No confundir con `iat`, que Auth.js
+     * refresca en cada reemisión de cookie — usarlo como corte no revocaría.
+     */
+    credentialIssuedAt?: number;
   }
 }

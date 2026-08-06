@@ -40,9 +40,15 @@ describe("isTokenRevoked", () => {
     expect(isTokenRevoked(EMITIDO, corteEn(EMITIDO - 60))).toBe(false);
   });
 
+  test("token del SEGUNDO ANTERIOR queda revocado", () => {
+    // Frontera estricta: la única tolerancia es el mismo segundo. Un margen de
+    // ±1s dejaba viva una credencial anterior al corte.
+    expect(isTokenRevoked(EMITIDO - 1, corteEn(EMITIDO))).toBe(true);
+  });
+
   test("token del mismo segundo del corte sobrevive", () => {
     // Quien cambia su contraseña no debe expulsarse a sí mismo por el redondeo
-    // de `iat` (segundos) frente al timestamp de Postgres (milisegundos).
+    // del claim (segundos) frente al timestamp de Postgres (milisegundos).
     expect(isTokenRevoked(EMITIDO, corteEn(EMITIDO))).toBe(false);
     expect(isTokenRevoked(EMITIDO, new Date(EMITIDO * 1000 + 999))).toBe(false);
   });
@@ -56,7 +62,13 @@ describe("resolveAuthority — el JWT no es autoridad", () => {
   test("cuenta activa: devuelve el rol de la BASE", async () => {
     rowMock.mockResolvedValue([{ role: "admin", status: "active", sessionsValidFrom: null }]);
     const a = await resolveAuthority(USER, EMITIDO);
-    expect(a).toEqual({ ok: true, userId: USER, role: "admin", isAdmin: true });
+    expect(a).toEqual({
+      ok: true,
+      userId: USER,
+      role: "admin",
+      isAdmin: true,
+      sessionsValidFrom: null,
+    });
   });
 
   test("ATAQUE — admin degradado a staff: el token dice admin, la base manda", async () => {
@@ -97,5 +109,25 @@ describe("resolveAuthority — el JWT no es autoridad", () => {
     ]);
     const a = await resolveAuthority(USER, EMITIDO + 3600);
     expect(a.ok).toBe(true);
+  });
+});
+
+describe("tokens legacy sin claim de credencial", () => {
+  test("sin corte registrado: se permite inicializar el claim", async () => {
+    // Nunca hubo cambio de credenciales que respetar, así que no hay nada de
+    // lo que el token pudiera estar escapando.
+    rowMock.mockResolvedValue([{ role: "staff", status: "active", sessionsValidFrom: null }]);
+    const a = await resolveAuthority(USER, undefined);
+    expect(a.ok).toBe(true);
+    // El caller usa esto para saber que puede acuñar el claim al vuelo.
+    expect(a.ok && a.sessionsValidFrom).toBeNull();
+  });
+
+  test("ATAQUE — con corte activo: un token sin claim NO puede demostrar ser posterior", async () => {
+    rowMock.mockResolvedValue([
+      { role: "admin", status: "active", sessionsValidFrom: corteEn(EMITIDO) },
+    ]);
+    const a = await resolveAuthority(USER, undefined);
+    expect(a).toEqual({ ok: false, reason: "credentials_changed" });
   });
 });

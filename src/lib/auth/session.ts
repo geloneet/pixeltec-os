@@ -43,7 +43,7 @@ export async function getSessionUserId(): Promise<string | null> {
   // Autoridad canónica: cuenta borrada, suspendida, aún invitada o token
   // anterior al último cambio de credenciales equivalen a "sin sesión" —lo que
   // los callers ya saben manejar— y no a violación de invariante.
-  const authority = await resolveAuthority(userId, session.user.sessionIssuedAt);
+  const authority = await resolveAuthority(userId, session.user.credentialIssuedAt);
   if (!authority.ok) {
     console.warn("[auth] sesión rechazada por la autoridad canónica:", authority.reason);
     return null;
@@ -88,7 +88,7 @@ export async function requireUserSession(): Promise<UserSession | null> {
 
   // Mismo corte que `getSessionUserId`. El `role` que se devuelve sale de la
   // BASE, no del JWT: el token afirma el rol que existía al autenticar.
-  const authority = await resolveAuthority(id, session.user.sessionIssuedAt);
+  const authority = await resolveAuthority(id, session.user.credentialIssuedAt);
   if (!authority.ok) {
     console.warn("[auth] sesión rechazada por la autoridad canónica:", authority.reason);
     return null;
