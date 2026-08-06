@@ -10,6 +10,7 @@ import type { Invoice, InvoiceItem } from "@/types/documents";
 import { logClientActivity } from "@/lib/db/repos/client-activity";
 import {
   requireOwner,
+  resolveOwnedClientPgId,
   resolveClientPgId,
   resolveInvoiceRow,
   serializeInvoice,
@@ -66,7 +67,7 @@ export async function createInvoice(
   data: Omit<Invoice, "id" | "uid" | "clientId" | "createdAt" | "updatedAt">,
 ): Promise<string> {
   const { ownerId } = await requireOwner();
-  const clientPgId = await resolveClientPgId(clientId);
+  const clientPgId = await resolveOwnedClientPgId(clientId, ownerId);
   if (!clientPgId) throw new Error("Cliente no encontrado");
 
   return db.transaction(async (tx) => {

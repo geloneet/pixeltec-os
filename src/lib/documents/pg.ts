@@ -12,7 +12,7 @@
 //   - El shape de dominio (src/types/documents.ts) usa `uid` (Firebase UID)
 //     y `clientId` (id público del cliente). Postgres usa ownerId
 //     (users.id) y clientId (clients.id). Se traduce aquí.
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   users,
@@ -98,6 +98,65 @@ export async function resolveProjectPgId(publicProjectId: string): Promise<strin
   if (!UUID_RE.test(id)) return null;
   const [byId] = await db.select({ id: projects.id }).from(projects).where(eq(projects.id, id)).limit(1);
   return byId?.id ?? null;
+}
+
+// ── Resolvers con verificación de pertenencia (ADR-0036) ────────────────────
+//
+// Los tres resolvers de arriba buscan en TODA la tabla. En una LECTURA eso es
+// inocuo porque la consulta posterior vuelve a filtrar por `ownerId`. En una
+// ESCRITURA no: el `ownerId` que se persiste es el del llamador y el id del
+// recurso es el que él mande, así que ningún filtro posterior lo detecta.
+//
+// Como cada función exportada desde un archivo `"use server"` es un endpoint
+// RPC invocable con argumentos arbitrarios, la UI no es una frontera de
+// seguridad: basta conocer un id ajeno. Toda escritura que reciba un id de
+// recurso del llamador usa estos.
+
+/** Id público del cliente → clients.id, exigiendo que sea del dueño. */
+export async function resolveOwnedClientPgId(
+  publicClientId: string,
+  ownerId: string,
+): Promise<string | null> {
+  const clientPgId = await resolveClientPgId(publicClientId);
+  if (!clientPgId) return null;
+  const [owned] = await db
+    .select({ id: clients.id })
+    .from(clients)
+    .where(and(eq(clients.id, clientPgId), eq(clients.ownerId, ownerId)))
+    .limit(1);
+  return owned?.id ?? null;
+}
+
+/**
+ * Id público del proyecto → projects.id, exigiendo que sea del dueño.
+ *
+ * `projects` no tiene `owner_id` propio —cuelga de `clients`—, así que la
+ * pertenencia se resuelve por join. Los `firestore_id` legacy no son uuid, de
+ * modo que tampoco cabe confiar en su inadivinabilidad.
+ */
+export async function resolveOwnedProjectPgId(
+  publicProjectId: string,
+  ownerId: string,
+): Promise<string | null> {
+  const projectPgId = await resolveProjectPgId(publicProjectId);
+  if (!projectPgId) return null;
+  const [owned] = await db
+    .select({ id: projects.id })
+    .from(projects)
+    .innerJoin(clients, eq(projects.clientId, clients.id))
+    .where(and(eq(projects.id, projectPgId), eq(clients.ownerId, ownerId)))
+    .limit(1);
+  return owned?.id ?? null;
+}
+
+/** Id público de propuesta → proposals.id, exigiendo que sea del dueño. */
+export async function resolveOwnedProposalPgId(
+  publicId: string,
+  ownerId: string,
+): Promise<string | null> {
+  const row = await resolveProposalRow(publicId);
+  if (!row || row.ownerId !== ownerId) return null;
+  return row.id;
 }
 
 /** projects.id (uuid) → id público (firestore_id si existe). */

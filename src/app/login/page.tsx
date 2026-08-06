@@ -11,6 +11,7 @@ import { Spinner } from '@/components/ui/spinner';
 import Image from 'next/image';
 import { signIn, useSession } from 'next-auth/react';
 import { requestPasswordResetAction } from '@/app/actions';
+import { safeInternalPath } from '@/lib/security/internal-path';
 
 // Decorative backdrop shared by both columns — memoized so the grid + glow
 // never repaint when the form's state changes (every keystroke would
@@ -133,7 +134,12 @@ export default function LoginPage() {
   const passwordRef = useRef<HTMLInputElement>(null);
 
   const searchParams = useSearchParams();
-  const redirectParam = searchParams.get('redirect');
+  // Solo rutas internas: `window.location.assign` con el parámetro crudo era
+  // un open redirect — abrir /login?redirect=https://… teniendo sesión activa
+  // sacaba al visitante del sitio sin tocar nada, y tras autenticarse de
+  // verdad, a una página de "sesión expirada" falsa. El predicado vive en
+  // `safeInternalPath` para que redirect y href compartan criterio.
+  const redirectTarget = safeInternalPath(searchParams.get('redirect'));
   const { data: session, status } = useSession();
 
   // Redirect if already logged in vía NextAuth (equipo interno). Independiente
@@ -145,9 +151,9 @@ export default function LoginPage() {
 
     if (status === 'authenticated' && session?.user) {
       setIsRedirecting(true);
-      window.location.assign(redirectParam || '/hoy');
+      window.location.assign(redirectTarget);
     }
-  }, [status, session, isLoading, isRedirecting, redirectParam]);
+  }, [status, session, isLoading, isRedirecting, redirectTarget]);
 
   useEffect(() => {
     if (!isLoading) {
@@ -200,7 +206,7 @@ export default function LoginPage() {
 
       if (!result?.error) {
         setIsRedirecting(true);
-        window.location.assign(redirectParam || '/hoy');
+        window.location.assign(redirectTarget);
         return;
       }
 

@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth/config";
 import { AUTH_SESSION_USER_ID_MISSING } from "@/lib/auth/auth.config";
+import { resolveAuthority } from "@/lib/auth/authority";
 
 /**
  * Resolución de identidad de sesión.
@@ -38,6 +39,16 @@ export async function getSessionUserId(): Promise<string | null> {
     console.error("[auth] sesión sin users.id — identidad no resoluble");
     throw new Error(AUTH_SESSION_USER_ID_MISSING);
   }
+
+  // Autoridad canónica: cuenta borrada, suspendida, aún invitada o token
+  // anterior al último cambio de credenciales equivalen a "sin sesión" —lo que
+  // los callers ya saben manejar— y no a violación de invariante.
+  const authority = await resolveAuthority(userId, session.user.credentialIssuedAt);
+  if (!authority.ok) {
+    console.warn("[auth] sesión rechazada por la autoridad canónica:", authority.reason);
+    return null;
+  }
+
   return userId;
 }
 
@@ -69,11 +80,20 @@ export async function requireUserSession(): Promise<UserSession | null> {
   const session = await auth();
   if (!session?.user) return null;
 
-  const { id, email, role } = session.user;
+  const { id, email } = session.user;
   if (typeof id !== "string" || id.length === 0 || typeof email !== "string" || email.length === 0) {
     console.error("[auth] sesión sin users.id/email — identidad no resoluble");
     throw new Error(AUTH_SESSION_USER_ID_MISSING);
   }
-  return { userId: id, email, role: role ?? undefined };
+
+  // Mismo corte que `getSessionUserId`. El `role` que se devuelve sale de la
+  // BASE, no del JWT: el token afirma el rol que existía al autenticar.
+  const authority = await resolveAuthority(id, session.user.credentialIssuedAt);
+  if (!authority.ok) {
+    console.warn("[auth] sesión rechazada por la autoridad canónica:", authority.reason);
+    return null;
+  }
+
+  return { userId: id, email, role: authority.role };
 }
 

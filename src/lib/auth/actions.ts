@@ -116,8 +116,12 @@ export async function changePasswordAction(
   try {
     await db.transaction(async (tx) => {
       await tx
+        // `sessionsValidFrom` es el corte GLOBAL de credenciales: invalida
+        // todo token anterior, tenga o no `sid`. Complementa a `user_sessions`
+        // (por dispositivo, fail-open): cambiar la contraseña debe echar al
+        // intruso aunque su token se acuñara durante un outage y viaje sin sid.
         .update(users)
-        .set({ passwordHash, updatedAt: changedAt })
+        .set({ passwordHash, sessionsValidFrom: changedAt, updatedAt: changedAt })
         .where(eq(users.id, userId));
       // Invalida cualquier reset pendiente: un enlace de "¿olvidaste tu
       // contraseña?" emitido antes del cambio ya no debe poder usarse.

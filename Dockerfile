@@ -22,8 +22,21 @@ COPY . .
 
 # El contrato E0 entra SOLO como BuildKit secret: existe únicamente durante
 # este RUN, fuera del filesystem final, sin ARG/ENV y sin quedar en capas.
+#
+# El `rm` NO es cosmético y va en el MISMO RUN a propósito. El montaje del
+# secret se comporta bien —no persiste en la capa—, pero `next build` COPIA
+# `.env.production` dentro de `.next/standalone/`, y el runner monta ese
+# directorio en la raíz: el secreto acababa en `/app/.env.production` de la
+# imagen final, con TODAS las credenciales de producción (DATABASE_URL,
+# RESEND_API_KEY, AUTH_SECRET, PORTAL_SESSION_SECRET, CRON_SECRET…) legibles
+# por cualquiera con acceso a la imagen o al registry. Verificado en el build
+# desechable de la auditoría 2026-08-06.
+#
+# Borrarlo aquí es seguro: en runtime las variables llegan por `env_file` de
+# docker-compose, no del archivo horneado.
 RUN --mount=type=secret,id=env_production,target=/app/.env.production,required=true \
-    npm run build
+    npm run build && \
+    rm -f /app/.next/standalone/.env.production /app/.next/standalone/.env*.local
 
 # Stage 3: Tools — migraciones Drizzle / seed (bajo demanda, perfil "tools" en docker-compose)
 FROM node:20-alpine AS tools

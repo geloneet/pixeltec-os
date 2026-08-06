@@ -35,7 +35,7 @@ vi.mock("@/lib/db", () => ({ db: { select: () => dbSelect() } }));
 // que el test mida la guarda y no la cadena de dependencias de la aplicación.
 const createNotification = vi.fn(async () => undefined);
 const getFullCrmData = vi.fn(async () => ({ clients: [] }));
-vi.mock("@/lib/notifications/actions", () => ({
+vi.mock("@/lib/notifications/create", () => ({
   createNotification: () => createNotification(),
 }));
 vi.mock("@/lib/db/repos/crm-sync", () => ({ getFullCrmData: () => getFullCrmData() }));

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { after } from "next/server";
 import { getProposalByToken, updateProposalActionStatus } from "@/lib/documents/proposals-admin";
 import { buildProposalDecisionNotification, investmentSummary } from "@/lib/notifications/proposal-decision";
-import { createNotification } from "@/lib/notifications/actions";
+import { createNotification } from "@/lib/notifications/create";
 import { sendProposalDecisionEmail } from "@/lib/email";
 import { sendWhatsApp } from "@/lib/whatsapp/sender";
 import { db } from "@/lib/db";

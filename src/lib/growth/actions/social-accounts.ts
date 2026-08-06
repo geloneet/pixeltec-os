@@ -60,16 +60,20 @@ export async function disconnectSocialAccount(accountId: string): Promise<{ ok: 
   return { ok: true };
 }
 
-export async function getAccessToken(accountId: string, uid: string): Promise<string | null> {
-  const ownerId = await resolveOwnerId(uid);
-  if (!ownerId) return null;
-  const row = await resolveSocialAccountRow(accountId);
-  if (!row || row.ownerId !== ownerId) return null;
-  return row.accessToken;
-}
+// `getAccessToken(accountId, uid)` vivía aquí y se eliminó: tomaba la
+// identidad de un PARÁMETRO en vez de la sesión, en un archivo 'use server'.
+// Es decir, era un endpoint RPC que devolvía el access token OAuth de Meta en
+// claro de la cuenta de cualquier uid que el llamador escribiera — sin un solo
+// caller en el repo. Si vuelve a hacer falta, debe derivar el uid con
+// getSessionUserId() como el resto de este archivo.
 
 export async function upsertSocialAccount(data: Omit<SocialAccount, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
-  const ownerId = await resolveOwnerId(data.uid);
+  // La identidad SIEMPRE sale de la sesión, nunca del payload: al ser export de
+  // 'use server', aceptar `data.uid` permitía inyectar una cuenta social —con
+  // su access token— en el Growth Suite de otro usuario.
+  const sessionUid = await getSessionUserId();
+  if (!sessionUid) throw new Error('No autenticado');
+  const ownerId = await resolveOwnerId(sessionUid);
   if (!ownerId) throw new Error('Usuario no encontrado para el uid de sesión');
 
   const values = {

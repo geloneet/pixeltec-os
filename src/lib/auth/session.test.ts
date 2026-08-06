@@ -24,6 +24,22 @@ const sessionsMock = vi.hoisted(() => ({
 }));
 vi.mock("./sessions", () => sessionsMock);
 
+// La frontera de sesión consulta la autoridad canónica (rol/status/corte de
+// credenciales). Aquí se prueba la resolución de IDENTIDAD, no la
+// autorización —que tiene su propio archivo—, así que se responde "cuenta
+// activa, rol staff, sin corte" por defecto.
+let authorityRole: "admin" | "staff" = "staff";
+const authorityMock = vi.fn(async (userId: string) => ({
+  ok: true as const,
+  userId,
+  role: authorityRole,
+  isAdmin: authorityRole === "admin",
+}));
+vi.mock("./authority", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./authority")>()),
+  resolveAuthority: (userId: string) => authorityMock(userId),
+}));
+
 const { getSessionUserId, requireUserSession } = await import("./session");
 const { authConfig, AUTH_SESSION_USER_ID_MISSING } = await import("./auth.config");
 
@@ -42,6 +58,7 @@ const sessionSinPuente = {
 
 beforeEach(() => {
   authMock.mockReset();
+  authorityRole = "staff";
 });
 
 afterEach(() => {
@@ -194,9 +211,19 @@ describe("contrato del token y de la sesión", () => {
 describe("requireUserSession (Gate B1)", () => {
   it("admin histórico CON alias: contrato canónico, jamás expone el alias", async () => {
     authMock.mockResolvedValue(sessionConPuente);
+    authorityRole = "admin";
     const s = await requireUserSession();
     expect(s).toEqual({ userId: USER_ID, email: "con-puente@ejemplo.mx", role: "admin" });
     expect(s).not.toHaveProperty("firebaseUid");
+  });
+
+  it("el `role` sale de la BASE, no del JWT (ADR-0036: el token no es autoridad)", async () => {
+    // El token dice "admin" —sellado al autenticar— pero la cuenta ya fue
+    // degradada a staff. Gana la base.
+    authMock.mockResolvedValue(sessionConPuente);
+    authorityRole = "staff";
+    const s = await requireUserSession();
+    expect(s?.role).toBe("staff");
   });
 
   it("staff con firebaseUid = null AUTENTICA igual — el defecto queda corregido", async () => {
@@ -207,8 +234,10 @@ describe("requireUserSession (Gate B1)", () => {
 
   it("usuario nuevo post-migración (sin campo firebaseUid en absoluto)", async () => {
     authMock.mockResolvedValue({ user: { id: USER_ID, email: "nuevo@ejemplo.mx" } });
+    authorityRole = "staff";
     const s = await requireUserSession();
-    expect(s).toEqual({ userId: USER_ID, email: "nuevo@ejemplo.mx", role: undefined });
+    // `role` ya no depende de que el JWT lo traiga: lo resuelve la base.
+    expect(s).toEqual({ userId: USER_ID, email: "nuevo@ejemplo.mx", role: "staff" });
   });
 
   it("sin sesión → null, en silencio (401/redirect es del caller)", async () => {

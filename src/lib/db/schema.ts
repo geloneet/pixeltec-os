@@ -252,6 +252,19 @@ export const users = pgTable(
     // Puente durante la migración de datos (Fase 3): permite reconectar todo
     // lo que hoy está scoped por Firebase UID. Se puede dropear al terminar.
     firebaseUid: text("firebase_uid"),
+    // Epoch global de credenciales (0037). Todo JWT con `iat` ANTERIOR a esta
+    // marca queda rechazado. Se estampa al cambiar o restablecer contraseña.
+    //
+    // Complementa —no sustituye— a `user_sessions`, que revoca por DISPOSITIVO
+    // (quirúrgico, fail-open, revalidado ≤60s). Este corte es global,
+    // fail-closed y cubre dos huecos que el sid no puede cubrir: un token
+    // acuñado mientras Postgres estaba caído viaja SIN sid (mintSession es
+    // fire-safe) y el acuñado perezoso posterior le daría una fila nueva en vez
+    // de revocarlo; y `validateSession` es fail-open por diseño, así que un
+    // outage silencia la revocación por dispositivo. Cambiar la contraseña debe
+    // echar al intruso aunque ambas cosas ocurran.
+    // NULL = nunca se invalidó (comportamiento previo, sin efecto).
+    sessionsValidFrom: timestamp("sessions_valid_from", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },

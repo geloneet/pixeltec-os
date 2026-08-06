@@ -8,6 +8,8 @@ import { strategies } from "@/lib/db/schema";
 import type { Strategy } from "@/types/documents";
 import {
   requireOwner,
+  resolveOwnedClientPgId,
+  resolveOwnedProjectPgId,
   resolveClientPgId,
   resolveProjectPgId,
   resolveStrategyRow,
@@ -51,9 +53,12 @@ export async function getStrategy(_uid: string, clientId: string, projectId?: st
 
 export async function createStrategy(_uid: string, clientId: string, projectId?: string): Promise<string> {
   const { ownerId } = await requireOwner();
-  const clientPgId = await resolveClientPgId(clientId);
+  const clientPgId = await resolveOwnedClientPgId(clientId, ownerId);
   if (!clientPgId) throw new Error("Cliente no encontrado");
-  const projectPgId = projectId ? await resolveProjectPgId(projectId) : null;
+  // Un projectId ajeno debe fallar, no degradar a `null`: si no, la estrategia
+  // se crearía huérfana en vez de rechazarse, ocultando el intento.
+  const projectPgId = projectId ? await resolveOwnedProjectPgId(projectId, ownerId) : null;
+  if (projectId && !projectPgId) throw new Error("Proyecto no encontrado");
   const [row] = await db
     .insert(strategies)
     .values({
@@ -96,7 +101,7 @@ export async function assignStrategyToProject(strategyId: string, projectId: str
   const { ownerId } = await requireOwner();
   const row = await resolveStrategyRow(strategyId);
   if (!row || row.ownerId !== ownerId) throw new Error("Estrategia no encontrada");
-  const projectPgId = await resolveProjectPgId(projectId);
+  const projectPgId = await resolveOwnedProjectPgId(projectId, ownerId);
   if (!projectPgId) throw new Error("Proyecto no encontrado");
   await db.update(strategies).set({ projectId: projectPgId }).where(eq(strategies.id, row.id));
 }
