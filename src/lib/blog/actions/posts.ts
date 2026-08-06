@@ -20,6 +20,7 @@ import {
   type PublicationVerdict,
 } from '../publication-gate';
 import { EMPTY_EDITORIAL, EMPTY_SEO, type PostEditorial } from '../types';
+import { logBlogActivity } from '../activity';
 
 type Row = typeof blogPosts.$inferSelect;
 
@@ -113,6 +114,15 @@ export async function createManualPost(): Promise<ActionResult<{ id: string }>> 
     .returning({ id: blogPosts.id });
 
   if (!inserted) return { ok: false, error: 'No se pudo crear el borrador' };
+
+  await logBlogActivity({
+    postId: inserted.id,
+    type: 'creado',
+    message: 'Borrador creado desde cero (sin IA)',
+    actorId: session.userId,
+    actorName: authorName,
+  });
+
   return { ok: true, data: { id: inserted.id } };
 }
 
@@ -160,6 +170,9 @@ export async function updatePost(postId: string, input: BlogPostEditInput): Prom
     editorial.lastReviewedAt = new Date().toISOString();
   }
 
+  // B-PR2: guardar NO cambia el estado — enviar a revisión es un acto
+  // explícito (`requestReview`). Antes, cualquier guardado empujaba el post
+  // a needs-review, contradiciendo las acciones contextuales del dictamen.
   await db
     .update(blogPosts)
     .set({
@@ -171,12 +184,109 @@ export async function updatePost(postId: string, input: BlogPostEditInput): Prom
       editorial,
       ...(sources !== undefined ? { sources } : {}),
       ...(internalLinks !== undefined ? { internalLinks } : {}),
-      status: wasPublished ? 'published' : 'needs-review',
       updatedAt: new Date(),
     })
     .where(eq(blogPosts.id, row.id));
 
   if (wasPublished) revalidatePublicSurfaces(row.slug);
+
+  await logBlogActivity({
+    postId: row.id,
+    type: 'editado',
+    message: 'Edición guardada',
+    actorId: session.userId,
+    actorName: await getUserDisplayName(session.userId),
+  });
+
+  return { ok: true };
+}
+
+/** draft → needs-review, como acto EXPLÍCITO del autor (dictamen: la acción
+ *  primaria de un borrador es «Enviar a revisión», no un efecto del guardado). */
+export async function requestReview(postId: string): Promise<ActionResult> {
+  const session = await requireUserSession();
+  if (!session) return { ok: false, error: 'No autenticado' };
+
+  const row = await resolvePostRow(postId);
+  if (!row) return { ok: false, error: 'Artículo no encontrado' };
+  if (row.status !== 'draft') {
+    return { ok: false, error: `Solo un borrador puede enviarse a revisión (estado actual: ${row.status})` };
+  }
+
+  await db
+    .update(blogPosts)
+    .set({ status: 'needs-review', updatedAt: new Date() })
+    .where(eq(blogPosts.id, row.id));
+
+  await logBlogActivity({
+    postId: row.id,
+    type: 'enviado-a-revision',
+    message: 'Enviado a revisión',
+    actorId: session.userId,
+    actorName: await getUserDisplayName(session.userId),
+  });
+
+  return { ok: true };
+}
+
+/** needs-review/approved → draft con comentario OBLIGATORIO: sin comentarios,
+ *  «revisión» es solo otro estado de color (dictamen §12). El comentario vive
+ *  en blog_activity (`devuelto`) y el editor lo muestra como banner. */
+export async function returnWithComments(postId: string, comment: string): Promise<ActionResult> {
+  const guard = await requireAdmin(undefined, { route: 'blog:return' });
+  if (!guard.ok) return { ok: false, error: guard.error };
+
+  const trimmed = comment.trim();
+  if (trimmed.length < 5) {
+    return { ok: false, error: 'Escribe un comentario para el autor (mínimo 5 caracteres).' };
+  }
+
+  const row = await resolvePostRow(postId);
+  if (!row) return { ok: false, error: 'Artículo no encontrado' };
+  if (row.status !== 'needs-review' && row.status !== 'approved') {
+    return { ok: false, error: `Solo se devuelve un artículo en revisión o aprobado (estado actual: ${row.status})` };
+  }
+
+  await db
+    .update(blogPosts)
+    .set({ status: 'draft', updatedAt: new Date() })
+    .where(eq(blogPosts.id, row.id));
+
+  await logBlogActivity({
+    postId: row.id,
+    type: 'devuelto',
+    message: trimmed.slice(0, 500),
+    actorId: guard.uid,
+    actorName: await getUserDisplayName(guard.uid),
+  });
+
+  return { ok: true };
+}
+
+/** archived → draft. El diálogo de archivar siempre prometió «puedes
+ *  restaurarlo más tarde» — este es el control que faltaba. */
+export async function unarchivePost(postId: string): Promise<ActionResult> {
+  const guard = await requireAdmin(undefined, { route: 'blog:unarchive' });
+  if (!guard.ok) return { ok: false, error: guard.error };
+
+  const row = await resolvePostRow(postId);
+  if (!row) return { ok: false, error: 'Artículo no encontrado' };
+  if (row.status !== 'archived') {
+    return { ok: false, error: 'El artículo no está archivado.' };
+  }
+
+  await db
+    .update(blogPosts)
+    .set({ status: 'draft', updatedAt: new Date() })
+    .where(eq(blogPosts.id, row.id));
+
+  await logBlogActivity({
+    postId: row.id,
+    type: 'restaurado-archivo',
+    message: 'Restaurado del archivo como borrador',
+    actorId: guard.uid,
+    actorName: await getUserDisplayName(guard.uid),
+  });
 
   return { ok: true };
 }
@@ -199,6 +309,14 @@ export async function approvePost(postId: string): Promise<ActionResult> {
     .update(blogPosts)
     .set({ status: 'approved', approvedBy: session.userId, editorial, updatedAt: new Date() })
     .where(eq(blogPosts.id, row.id));
+
+  await logBlogActivity({
+    postId: row.id,
+    type: 'aprobado',
+    message: 'Artículo aprobado',
+    actorId: session.userId,
+    actorName: await getUserDisplayName(session.userId),
+  });
 
   return { ok: true };
 }
@@ -263,6 +381,15 @@ export async function publishPost(postId: string): Promise<ActionResult<Publicat
 
   revalidatePublicSurfaces(slug);
 
+  await logBlogActivity({
+    postId: row.id,
+    type: 'publicado',
+    message: `Publicado en /blog/${slug}`,
+    actorId: guard.uid,
+    actorName: await getUserDisplayName(guard.uid),
+    metadata: verdict.warnings.length > 0 ? { warningsAceptadas: verdict.warnings.map((w) => w.code) } : null,
+  });
+
   return { ok: true, data: verdict };
 }
 
@@ -281,6 +408,14 @@ export async function archivePost(postId: string): Promise<ActionResult> {
   // Un post que estaba publicado debe salir del listado, de su URL y del
   // sitemap sin esperar la ventana ISR.
   revalidatePublicSurfaces(row.slug);
+
+  await logBlogActivity({
+    postId: row.id,
+    type: 'archivado',
+    message: 'Artículo archivado',
+    actorId: guard.uid,
+    actorName: await getUserDisplayName(guard.uid),
+  });
 
   return { ok: true };
 }
@@ -345,6 +480,15 @@ export async function changeSlug(postId: string, newSlugRaw: string): Promise<Ac
     revalidatePublicSurfaces(oldSlug);
     revalidatePath(`/blog/${newSlug}`);
   }
+
+  await logBlogActivity({
+    postId: row.id,
+    type: 'slug-cambiado',
+    message: `Slug cambiado: ${oldSlug} → ${newSlug}`,
+    actorId: guard.uid,
+    actorName: await getUserDisplayName(guard.uid),
+    metadata: { from: oldSlug, to: newSlug, redirect: wasPublished },
+  });
 
   return { ok: true, data: { slug: newSlug } };
 }

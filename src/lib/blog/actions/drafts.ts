@@ -10,6 +10,7 @@ import { generatePostFromBrief, computeWordCount, computeReadingTime, generateSl
 import { EMPTY_EDITORIAL, type BlogBriefDoc } from '../types';
 import type { ActionResult } from '../schemas';
 import { toPublicFailure } from '@/lib/errors/public-failure';
+import { logBlogActivity } from '../activity';
 
 function setBriefStatus(briefRowId: string, patch: Record<string, unknown>) {
   return db
@@ -149,6 +150,15 @@ async function generateDraftForUser(briefId: string, userId: string): Promise<Ac
       .returning({ id: blogPosts.id });
 
     await setBriefStatus(briefRow.id, { status: 'generated', generatedDraftId: postRow.id });
+
+    await logBlogActivity({
+      postId: postRow.id,
+      type: 'generado-ia',
+      message: `Borrador generado con IA desde el brief «${briefData.topic ?? ''}»`.trim(),
+      actorId: userId,
+      actorName: authorName,
+      metadata: { briefId: publicId(briefRow) },
+    });
 
     return { ok: true, data: { postId: postRow.id } };
   } catch (err) {
@@ -293,6 +303,14 @@ export async function regenerateDraft(postId: string): Promise<ActionResult<{ po
         updatedAt: new Date(),
       })
       .where(eq(blogPosts.id, row.id));
+
+    await logBlogActivity({
+      postId: row.id,
+      type: 'regenerado-ia',
+      message: 'Artículo regenerado con IA (título, extracto y cuerpo sobrescritos)',
+      actorId: session.userId,
+      actorName: await getUserDisplayName(session.userId),
+    });
 
     return { ok: true, data: { postId } };
   } catch (err) {

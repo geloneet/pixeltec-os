@@ -1285,6 +1285,31 @@ export const blogPostViewCounts = pgTable("blog_post_view_counts", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/**
+ * Historial editorial del blog (dictamen 2026-08-05, espejo de client_activity):
+ * quién creó/generó/editó/envió/devolvió/aprobó/publicó cada artículo. `type`
+ * es text con unión cerrada en TS (extensible sin migración). El writer es
+ * fire-safe: el historial jamás tumba la operación que lo origina.
+ * Migración: drizzle/0029_blog_activity.sql (SQL aditivo; el bookkeeping del
+ * journal se regenera con el saneo del drift de __drizzle_migrations).
+ */
+export const blogActivity = pgTable(
+  "blog_activity",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    postId: uuid("post_id")
+      .notNull()
+      .references(() => blogPosts.id, { onDelete: "cascade" }),
+    type: text("type").notNull(),
+    message: text("message").notNull(),
+    actorId: uuid("actor_id").references(() => users.id, { onDelete: "set null" }),
+    actorName: text("actor_name"),
+    metadata: jsonb("metadata"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("blog_activity_post_created_idx").on(t.postId, t.createdAt)]
+);
+
 // ════════════════════════════════════════════════════════════════════════
 // Funnel público — src/lib/leads-repo.ts, src/lib/newsletter-repo.ts
 // ════════════════════════════════════════════════════════════════════════
