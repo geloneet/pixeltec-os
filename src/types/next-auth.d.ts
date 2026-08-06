@@ -13,6 +13,13 @@ import type { DefaultSession } from "next-auth";
 declare module "next-auth" {
   interface User {
     role?: string;
+    /**
+     * C-PR3: sid de `user_sessions` acuñado por `authorize()` en el login
+     * (ahí están la IP y el user-agent). El callback `jwt` lo sella en el
+     * token. Puede faltar si el mint fire-safe falló — el acuñado perezoso
+     * del callback lo reintenta.
+     */
+    sid?: string | null;
   }
   interface Session {
     user: {
@@ -22,6 +29,12 @@ declare module "next-auth" {
        */
       id: string;
       role?: string;
+      /**
+       * C-PR3: id de la fila `user_sessions` de ESTA sesión. Lo usan las
+       * server actions para excluir la sesión actual al revocar las demás.
+       * Opcional: tokens legacy pueden no tenerlo aún.
+       */
+      sid?: string;
     } & DefaultSession["user"];
   }
 }
@@ -31,5 +44,9 @@ declare module "@auth/core/jwt" {
     /** Identidad canónica: `users.id`. */
     id?: string;
     role?: string;
+    /** C-PR3: sid de `user_sessions` (revocación de sesiones). */
+    sid?: string;
+    /** C-PR3: epoch ms de la última revalidación del sid (throttle 60s). */
+    chk?: number;
   }
 }

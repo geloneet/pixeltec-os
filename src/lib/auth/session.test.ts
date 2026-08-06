@@ -13,6 +13,17 @@ const authMock = vi.fn();
 vi.mock("@/lib/auth/config", () => ({ auth: () => authMock() }));
 vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
 
+// C-PR3: el callback `jwt` importa dinámicamente ./sessions (mint/validate).
+// Se mockea para que estos tests jamás toquen `@/lib/db` (postgres real) y
+// para poder afirmar cuándo se acuña y cuándo se revalida el sid.
+const sessionsMock = vi.hoisted(() => ({
+  mintSession: vi.fn(async (): Promise<string | null> => "sid-acunado"),
+  validateSession: vi.fn(async () => ({ valid: true })),
+  revokeOtherSessions: vi.fn(),
+  listSessions: vi.fn(),
+}));
+vi.mock("./sessions", () => sessionsMock);
+
 const { getSessionUserId, requireUserSession } = await import("./session");
 const { authConfig, AUTH_SESSION_USER_ID_MISSING } = await import("./auth.config");
 
@@ -222,5 +233,85 @@ describe("requireUserSession (Gate B1)", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     authMock.mockResolvedValue({ user: { id: USER_ID, role: "staff" } });
     await expect(requireUserSession()).rejects.toThrow(AUTH_SESSION_USER_ID_MISSING);
+  });
+});
+
+/**
+ * C-PR3: sid de `user_sessions` en el JWT — sellado en login, acuñado
+ * perezoso para tokens legacy, y revalidación con throttle de 60s cuyo
+ * veredicto negativo mata la sesión (return null). Los errores de la capa
+ * de sesiones jamás matan un token firmado (fail-open).
+ */
+describe("callback jwt — sid de sesión revocable (C-PR3)", () => {
+  const SID = "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d";
+  type Campos = Record<string, unknown>;
+  type JwtCb = (args: { token: Campos; user?: Campos }) => Promise<Campos | null>;
+  const jwt = authConfig.callbacks!.jwt! as unknown as JwtCb;
+
+  beforeEach(() => {
+    sessionsMock.mintSession.mockReset().mockResolvedValue("sid-acunado");
+    sessionsMock.validateSession.mockReset().mockResolvedValue({ valid: true });
+  });
+
+  it("login: sella el sid que acuñó authorize(), sin mint adicional", async () => {
+    const token = await jwt({ token: {}, user: { id: USER_ID, role: "admin", sid: SID } });
+    expect(token?.sid).toBe(SID);
+    expect(sessionsMock.mintSession).not.toHaveBeenCalled();
+    expect(typeof token?.chk).toBe("number");
+  });
+
+  it("login cuyo mint de authorize falló (sid null) → acuñado perezoso", async () => {
+    const token = await jwt({ token: {}, user: { id: USER_ID, role: "staff", sid: null } });
+    expect(sessionsMock.mintSession).toHaveBeenCalledWith(USER_ID);
+    expect(token?.sid).toBe("sid-acunado");
+  });
+
+  it("token legacy sin sid → acuñado perezoso, NO se invalida", async () => {
+    const token = await jwt({ token: { id: USER_ID, role: "admin" } });
+    expect(sessionsMock.mintSession).toHaveBeenCalledWith(USER_ID);
+    expect(token?.sid).toBe("sid-acunado");
+    expect(sessionsMock.validateSession).not.toHaveBeenCalled();
+  });
+
+  it("acuñado perezoso fallido (fire-safe null) → el token sobrevive sin sid", async () => {
+    sessionsMock.mintSession.mockResolvedValue(null);
+    const token = await jwt({ token: { id: USER_ID } });
+    expect(token).not.toBeNull();
+    expect(token?.sid).toBeUndefined();
+  });
+
+  it("chk reciente → no revalida contra la DB (throttle)", async () => {
+    const token = await jwt({ token: { id: USER_ID, sid: SID, chk: Date.now() } });
+    expect(sessionsMock.validateSession).not.toHaveBeenCalled();
+    expect(token?.sid).toBe(SID);
+  });
+
+  it("chk viejo + sesión válida → revalida y renueva chk", async () => {
+    const viejo = Date.now() - 61_000;
+    const token = await jwt({ token: { id: USER_ID, sid: SID, chk: viejo } });
+    expect(sessionsMock.validateSession).toHaveBeenCalledWith(SID, USER_ID);
+    expect(token?.chk as number).toBeGreaterThan(viejo);
+  });
+
+  it("chk viejo + sesión REVOCADA → devuelve null (mata la sesión)", async () => {
+    sessionsMock.validateSession.mockResolvedValue({ valid: false });
+    const token = await jwt({ token: { id: USER_ID, sid: SID, chk: Date.now() - 120_000 } });
+    expect(token).toBeNull();
+  });
+
+  it("error inesperado de la capa de sesiones → el token sobrevive (fail-open)", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    sessionsMock.validateSession.mockRejectedValue(new Error("db down"));
+    const token = await jwt({ token: { id: USER_ID, sid: SID, chk: 0 } });
+    expect(token).not.toBeNull();
+    expect(token?.sid).toBe(SID);
+    expect(spy).toHaveBeenCalledOnce();
+  });
+
+  it("la sesión proyecta el sid del token (para revokeOtherSessionsAction)", async () => {
+    type SessionCb = (args: { session: { user: Campos }; token: Campos }) => { user: Campos };
+    const session = authConfig.callbacks!.session! as unknown as SessionCb;
+    const s = session({ session: { user: {} }, token: { id: USER_ID, sid: SID } });
+    expect(s.user.sid).toBe(SID);
   });
 });

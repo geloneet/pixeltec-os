@@ -25,7 +25,7 @@ export const authConfig: NextAuthConfig = {
     strategy: "jwt",
   },
   callbacks: {
-    jwt({ token, user, trigger, session }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         // `token.id` es la identidad canónica (users.id). Se sella aquí y solo
         // aquí. Si `authorize()` devolviera un usuario sin id, el token quedaría
@@ -39,6 +39,11 @@ export const authConfig: NextAuthConfig = {
         token.id = user.id;
         token.role = user.role;
         // Alias heredado: se propaga si existe, pero nada debe depender de él.
+        // C-PR3: el sid lo acuña `authorize()` (ahí están la IP y el
+        // user-agent de la request); aquí solo se sella en el JWT. Si el
+        // mint falló (fire-safe), el acuñado perezoso de abajo lo reintenta.
+        if (user.sid) token.sid = user.sid;
+        token.chk = Date.now();
       }
       // `useSession().update({ name?, image? })` desde el cliente tras editar
       // el perfil — sin esto el header mostraría nombre/foto viejos hasta el
@@ -46,6 +51,44 @@ export const authConfig: NextAuthConfig = {
       if (trigger === "update" && session) {
         if ("image" in session) token.picture = session.image ?? null;
         if (typeof session.name === "string") token.name = session.name;
+      }
+      // ── C-PR3: sesiones revocables. Import dinámico a propósito: mantiene
+      // este módulo estáticamente libre de DB (los tests y cualquier bundle
+      // edge futuro no arrastran `postgres`; el middleware actual es runtime
+      // nodejs, verificado, así que ejecutar esto ahí es válido). Todo va en
+      // try/catch: un error de DB JAMÁS mata un token firmado (fail-open,
+      // decisión documentada en src/lib/auth/sessions.ts). ──
+      try {
+        const userId = token.id;
+        if (typeof userId === "string" && userId.length > 0) {
+          if (!token.sid) {
+            // Acuñado perezoso: tokens emitidos antes de C-PR3 (p. ej. la
+            // sesión activa de Miguel) NO se invalidan — se les acuña una
+            // fila al vuelo. Nota: el token mutado solo persiste cuando la
+            // respuesta puede re-escribir la cookie (middleware o
+            // /api/auth/session); mientras tanto puede acuñar filas extra —
+            // ruido acotado y preferible a desloguear tokens legacy.
+            const { mintSession } = await import("./sessions");
+            const sid = await mintSession(userId);
+            if (sid) {
+              token.sid = sid;
+              token.chk = Date.now();
+            }
+          } else {
+            const chk = typeof token.chk === "number" ? token.chk : 0;
+            if (Date.now() - chk > 60_000) {
+              const { validateSession } = await import("./sessions");
+              const { valid } = await validateSession(token.sid, userId);
+              // Revocación real (fila ausente o revoked_at): se mata la
+              // sesión. Un outage de DB nunca llega aquí — validateSession
+              // es fail-open y devuelve valid:true en ese caso.
+              if (!valid) return null;
+              token.chk = Date.now();
+            }
+          }
+        }
+      } catch (err) {
+        console.error("[auth] session-tracking error — keeping token (fail-open):", err);
       }
       return token;
     },
@@ -60,6 +103,12 @@ export const authConfig: NextAuthConfig = {
       }
       session.user.id = userId;
       if (token.role) session.user.role = token.role;
+      // C-PR3: el sid viaja en la sesión para que las server actions puedan
+      // excluir la sesión ACTUAL al revocar las demás. Puede faltar en
+      // tokens legacy hasta que el acuñado perezoso persista en la cookie.
+      if (typeof token.sid === "string" && token.sid.length > 0) {
+        session.user.sid = token.sid;
+      }
       // Alias heredado: viaja solo informativamente.
       return session;
     },
