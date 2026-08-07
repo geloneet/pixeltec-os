@@ -15,7 +15,15 @@ const dbMock = vi.hoisted(() => {
   const where = vi.fn(async () => undefined);
   const set = vi.fn(() => ({ where }));
   const update = vi.fn(() => ({ set }));
-  return { update, set, where };
+  // resolveOwnedClient verifica el dueño con select().from().where().limit()
+  // antes de escribir (anti-IDOR) — por defecto el cliente pertenece al owner
+  // de la sesión; los tests de otro owner sobreescriben `limitResult`.
+  const limitResult = vi.fn(async () => [{ ownerId: "owner-1" }]);
+  const limit = vi.fn(() => limitResult());
+  const selectWhere = vi.fn(() => ({ limit }));
+  const from = vi.fn(() => ({ where: selectWhere }));
+  const select = vi.fn(() => ({ from }));
+  return { update, set, where, select, limitResult };
 });
 
 const pgMock = vi.hoisted(() => ({ resolveClientPgId: vi.fn() }));
@@ -26,7 +34,7 @@ const activityMock = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/auth/config", () => ({ auth: authMock }));
-vi.mock("@/lib/db", () => ({ db: { update: dbMock.update } }));
+vi.mock("@/lib/db", () => ({ db: { update: dbMock.update, select: dbMock.select } }));
 vi.mock("@/lib/documents/pg", () => pgMock);
 vi.mock("@/lib/db/repos/client-activity", () => activityMock);
 
@@ -37,6 +45,7 @@ beforeEach(() => {
   vi.spyOn(console, "error").mockImplementation(() => {});
   authMock.mockResolvedValue({ user: { id: "owner-1" } });
   pgMock.resolveClientPgId.mockResolvedValue("client-pg-1");
+  dbMock.limitResult.mockResolvedValue([{ ownerId: "owner-1" }]);
 });
 
 describe("setClientStatusAction", () => {
@@ -64,6 +73,16 @@ describe("setClientStatusAction", () => {
 
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error).toBe("No se pudo actualizar el estado del cliente.");
+    expect(activityMock.logClientActivity).not.toHaveBeenCalled();
+  });
+
+  test("cliente de OTRO owner: falla sin escribir ni registrar actividad (anti-IDOR)", async () => {
+    dbMock.limitResult.mockResolvedValue([{ ownerId: "otro-owner" }]);
+
+    const result = await setClientStatusAction("client-pub-1", "activo");
+
+    expect(result.ok).toBe(false);
+    expect(dbMock.update).not.toHaveBeenCalled();
     expect(activityMock.logClientActivity).not.toHaveBeenCalled();
   });
 });

@@ -108,7 +108,13 @@ export async function GET(req: NextRequest) {
 
       msg += `\n\n👉 pixeltec.mx/crm`;
 
-      await sendWhatsApp(msg);
+      // Aislado como la in-app de abajo: sin este catch, el fallo de WhatsApp
+      // de un usuario abortaba el resumen diario de todos los siguientes.
+      try {
+        await sendWhatsApp(msg);
+      } catch (e) {
+        console.error("Daily WhatsApp send FAILED for user:", u.id, e instanceof Error ? e.name : typeof e);
+      }
 
       // In-app daily summary notification
       const summaryBody = `Progreso general: ${pct}% — ${completed}/${totalTasks} tareas completadas. En proceso: ${inProgress}. Detenidas: ${stopped}. Pendientes: ${pendiente}.`;

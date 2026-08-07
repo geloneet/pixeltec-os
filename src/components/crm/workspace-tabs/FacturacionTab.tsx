@@ -73,10 +73,13 @@ export function FacturacionTab({ clientId }: Props) {
       prev.map((item, idx) => (idx === i ? { ...item, [field]: value } : item)),
     );
 
-  const subtotal = items.reduce((s, it) => s + it.qty * it.unitPrice, 0);
+  // Redondeo a centavos idéntico al del servidor (invoices.ts recalcula y es
+  // la fuente de verdad): así el preview muestra exactamente lo que se guarda.
+  const roundCents = (x: number) => Math.round(x * 100) / 100;
+  const subtotal = roundCents(items.reduce((s, it) => s + roundCents(it.qty * it.unitPrice), 0));
   const ivaRate = 0.16;
-  const ivaAmount = subtotal * ivaRate;
-  const total = subtotal + ivaAmount;
+  const ivaAmount = roundCents(subtotal * ivaRate);
+  const total = roundCents(subtotal + ivaAmount);
 
   const handleSave = async () => {
     if (!user || !dueDate) return;

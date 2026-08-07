@@ -176,14 +176,24 @@ export function ClientDetail({
     billing: BillingItem[];
     activity: ClientActivityEntry[];
   } | null>(null);
+  // "No se pudo cargar" ≠ "no hay datos": sin esta bandera, un fallo de DB
+  // mostraba contadores en cero y feed vacío como si el cliente no tuviera
+  // propuestas/cobros reales — riesgo de seguimiento perdido o doble cobro.
+  const [dynError, setDynError] = useState(false);
 
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
+    setDynError(false);
+    const failing = <T,>(label: string) => (err: unknown): T[] => {
+      console.error(`[ClientDetail] carga de ${label} falló:`, err instanceof Error ? err.name : typeof err);
+      if (!cancelled) setDynError(true);
+      return [];
+    };
     Promise.all([
-      getProposals(user.uid, client.id).catch(() => [] as Proposal[]),
-      getBillingItemsForClient(client.id).catch(() => [] as BillingItem[]),
-      getClientActivityAction(client.id, 8).catch(() => [] as ClientActivityEntry[]),
+      getProposals(user.uid, client.id).catch(failing<Proposal>("propuestas")),
+      getBillingItemsForClient(client.id).catch(failing<BillingItem>("cobros")),
+      getClientActivityAction(client.id, 8).catch(failing<ClientActivityEntry>("actividad")),
     ]).then(([proposals, billing, activity]) => {
       if (!cancelled) setDyn({ proposals, billing, activity });
     });
@@ -515,6 +525,15 @@ export function ClientDetail({
           </div>
         )}
       </div>
+
+      {dynError && (
+        <div className="mb-5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+          <p className="text-xs text-amber-600 dark:text-amber-400">
+            No se pudieron cargar propuestas, cobros o actividad de este cliente.
+            Los contadores pueden estar incompletos — recarga la página para reintentar.
+          </p>
+        </div>
+      )}
 
       {/* ── SECCIÓN 4: ACTIVIDAD RECIENTE ────────────────────────────────── */}
       {dyn && dyn.activity.length > 0 ? (

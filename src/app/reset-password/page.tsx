@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { resetPasswordAction } from '@/app/actions';
+import { SITE } from '@/lib/site-config';
 
 function ResetPasswordForm() {
   const searchParams = useSearchParams();
@@ -114,7 +115,7 @@ export default function ResetPasswordPage() {
       <div className="w-full max-w-sm">
         <div className="mb-8 flex justify-center">
           <Image
-            src={process.env.NEXT_PUBLIC_LOGO_URL!}
+            src={process.env.NEXT_PUBLIC_LOGO_URL ?? SITE.logoPath}
             alt="PixelTEC"
             width={48}
             height={48}

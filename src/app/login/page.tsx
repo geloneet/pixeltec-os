@@ -12,6 +12,7 @@ import Image from 'next/image';
 import { signIn, useSession } from 'next-auth/react';
 import { requestPasswordResetAction } from '@/app/actions';
 import { safeInternalPath } from '@/lib/security/internal-path';
+import { SITE } from '@/lib/site-config';
 
 // Decorative backdrop shared by both columns — memoized so the grid + glow
 // never repaint when the form's state changes (every keystroke would
@@ -275,7 +276,7 @@ export default function LoginPage() {
           className="relative z-10 flex flex-col items-center text-center"
         >
           <Image
-            src={process.env.NEXT_PUBLIC_LOGO_URL!}
+            src={process.env.NEXT_PUBLIC_LOGO_URL ?? SITE.logoPath}
             alt=""
             width={64}
             height={64}
@@ -303,7 +304,7 @@ export default function LoginPage() {
             className="flex justify-center md:justify-start"
           >
             <Image
-              src={process.env.NEXT_PUBLIC_LOGO_URL!}
+              src={process.env.NEXT_PUBLIC_LOGO_URL ?? SITE.logoPath}
               alt="PixelTEC"
               width={48}
               height={48}

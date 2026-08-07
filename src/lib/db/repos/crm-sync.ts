@@ -43,6 +43,12 @@ import type {
 } from "@/types/crm";
 import type { WorkSession } from "@/types/session";
 
+/** Tx de `db.transaction` — mismo patrón que pixelforge.ts. Cada reconciliación
+ * (SELECT → DELETE → loop de upserts) corre atómica: sin transacción, un fallo
+ * a mitad del loop dejaba el árbol del cliente medio-borrado/medio-actualizado
+ * sin rollback, con el navegador creyendo que todo se guardó. */
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
 function toIso(d: unknown): string {
   if (typeof d === "string") return d;
   if (d instanceof Date) return d.toISOString();
@@ -63,15 +69,16 @@ async function deleteMissing(
 // ── clients (source='crm_blob') + árbol completo de projects ──────────────
 
 export async function syncCrmClients(ownerId: string, payload: CRMClient[]): Promise<void> {
-  const existing = await db
+  await db.transaction(async (tx) => {
+  const existing = await tx
     .select({ id: clients.id, firestoreId: clients.firestoreId })
     .from(clients)
     .where(and(eq(clients.ownerId, ownerId), eq(clients.source, "crm_blob")));
   const payloadIds = new Set(payload.map((c) => c.id));
-  await deleteMissing(existing, payloadIds, (ids) => db.delete(clients).where(inArray(clients.id, ids)));
+  await deleteMissing(existing, payloadIds, (ids) => tx.delete(clients).where(inArray(clients.id, ids)));
 
   for (const c of payload) {
-    const [row] = await db
+    const [row] = await tx
       .insert(clients)
       .values({
         ownerId,
@@ -101,20 +108,21 @@ export async function syncCrmClients(ownerId: string, payload: CRMClient[]): Pro
         },
       })
       .returning({ id: clients.id });
-    await syncProjectsForClient(row.id, c.projects ?? [], ownerId);
+    await syncProjectsForClient(tx, row.id, c.projects ?? [], ownerId);
   }
+  });
 }
 
-async function syncProjectsForClient(clientPgId: string, payload: CRMProject[], ownerId: string): Promise<void> {
-  const existing = await db
+async function syncProjectsForClient(tx: Tx, clientPgId: string, payload: CRMProject[], ownerId: string): Promise<void> {
+  const existing = await tx
     .select({ id: projects.id, firestoreId: projects.firestoreId })
     .from(projects)
     .where(eq(projects.clientId, clientPgId));
   const payloadIds = new Set(payload.map((p) => p.id));
-  await deleteMissing(existing, payloadIds, (ids) => db.delete(projects).where(inArray(projects.id, ids)));
+  await deleteMissing(existing, payloadIds, (ids) => tx.delete(projects).where(inArray(projects.id, ids)));
 
   for (const p of payload) {
-    const [row] = await db
+    const [row] = await tx
       .insert(projects)
       .values({
         firestoreId: p.id,
@@ -155,22 +163,22 @@ async function syncProjectsForClient(clientPgId: string, payload: CRMProject[], 
       .returning({ id: projects.id });
     const projectPgId = row.id;
 
-    await Promise.all([
-      syncTasks(projectPgId, p.tasks ?? [], ownerId),
-      syncCharges(projectPgId, p.charges ?? []),
-      syncKeys(projectPgId, p.keys ?? []),
-      syncLogEntries(projectPgId, p.notesLog ?? []),
-    ]);
+    // Secuencial a propósito: dentro de una transacción hay UNA conexión;
+    // el Promise.all previo solo interleaba queries sin ganar paralelismo.
+    await syncTasks(tx, projectPgId, p.tasks ?? [], ownerId);
+    await syncCharges(tx, projectPgId, p.charges ?? []);
+    await syncKeys(tx, projectPgId, p.keys ?? []);
+    await syncLogEntries(tx, projectPgId, p.notesLog ?? []);
   }
 }
 
-async function syncTasks(projectPgId: string, payload: CRMTask[], ownerId: string): Promise<void> {
-  const existing = await db
+async function syncTasks(tx: Tx, projectPgId: string, payload: CRMTask[], ownerId: string): Promise<void> {
+  const existing = await tx
     .select({ id: tasks.id, firestoreId: tasks.firestoreId })
     .from(tasks)
     .where(eq(tasks.projectId, projectPgId));
   const payloadIds = new Set(payload.map((t) => t.id));
-  await deleteMissing(existing, payloadIds, (ids) => db.delete(tasks).where(inArray(tasks.id, ids)));
+  await deleteMissing(existing, payloadIds, (ids) => tx.delete(tasks).where(inArray(tasks.id, ids)));
 
   // t.sessionId (si viene) es el firestoreId de la sesión que la creó — la
   // sesión normalmente ya está sincronizada de un guardado anterior (se creó
@@ -179,7 +187,7 @@ async function syncTasks(projectPgId: string, payload: CRMTask[], ownerId: strin
   const needsSessionLookup = payload.some((t) => t.sessionId);
   const sessionFsToPg = needsSessionLookup
     ? new Map(
-        (await db
+        (await tx
           .select({ id: workSessions.id, firestoreId: workSessions.firestoreId })
           .from(workSessions)
           .where(eq(workSessions.ownerId, ownerId))
@@ -189,7 +197,7 @@ async function syncTasks(projectPgId: string, payload: CRMTask[], ownerId: strin
 
   for (const t of payload) {
     const sessionPgId = t.sessionId ? sessionFsToPg.get(t.sessionId) ?? null : null;
-    await db
+    await tx
       .insert(tasks)
       .values({
         firestoreId: t.id,
@@ -209,17 +217,17 @@ async function syncTasks(projectPgId: string, payload: CRMTask[], ownerId: strin
   }
 }
 
-async function syncCharges(projectPgId: string, payload: RecurringCharge[]): Promise<void> {
-  const existing = await db
+async function syncCharges(tx: Tx, projectPgId: string, payload: RecurringCharge[]): Promise<void> {
+  const existing = await tx
     .select({ id: recurringCharges.id, firestoreId: recurringCharges.firestoreId })
     .from(recurringCharges)
     .where(eq(recurringCharges.projectId, projectPgId));
   const payloadIds = new Set(payload.map((c) => c.id));
-  await deleteMissing(existing, payloadIds, (ids) => db.delete(recurringCharges).where(inArray(recurringCharges.id, ids)));
+  await deleteMissing(existing, payloadIds, (ids) => tx.delete(recurringCharges).where(inArray(recurringCharges.id, ids)));
 
   for (const c of payload) {
     const amount = String(parseFloat(String(c.amount).replace(/[^0-9.-]/g, "")) || 0);
-    await db
+    await tx
       .insert(recurringCharges)
       .values({
         firestoreId: c.id,
@@ -230,7 +238,11 @@ async function syncCharges(projectPgId: string, payload: RecurringCharge[]): Pro
         startDate: toIso(c.startDate).slice(0, 10),
         clientEmail: c.clientEmail ?? "",
         active: c.active ?? true,
-        lastNotified: c.lastNotified ? new Date(c.lastNotified) : null,
+        // `lastNotified` NO se escribe aquí tampoco (columna cron-owned, ver
+        // el comentario en onConflictDoUpdate abajo): el INSERT deja el
+        // default NULL. Antes solo se excluía del UPDATE — un blob-sync que
+        // ENTRARA por la rama INSERT (fila recién creada o recreada tras un
+        // delete+insert) seguía pudiendo sembrar el valor del cliente.
         createdAt: new Date(toIso(c.createdAt)),
       })
       .onConflictDoUpdate({
@@ -242,38 +254,42 @@ async function syncCharges(projectPgId: string, payload: RecurringCharge[]): Pro
           startDate: toIso(c.startDate).slice(0, 10),
           clientEmail: c.clientEmail ?? "",
           active: c.active ?? true,
-          lastNotified: c.lastNotified ? new Date(c.lastNotified) : null,
+          // `lastNotified` NO se escribe aquí: es columna cron-owned (el cron
+          // de cobros la avanza con un UPDATE dirigido). Un tab stale que
+          // guardara cualquier edición la revertía y el cliente recibía el
+          // recordatorio de cobro duplicado. Mismo criterio que los campos
+          // server-owned de clients (ADR-0035).
         },
       });
   }
 }
 
-async function syncKeys(projectPgId: string, payload: CRMKey[]): Promise<void> {
-  const existing = await db
+async function syncKeys(tx: Tx, projectPgId: string, payload: CRMKey[]): Promise<void> {
+  const existing = await tx
     .select({ id: projectKeys.id, firestoreId: projectKeys.firestoreId })
     .from(projectKeys)
     .where(eq(projectKeys.projectId, projectPgId));
   const payloadIds = new Set(payload.map((k) => k.id));
-  await deleteMissing(existing, payloadIds, (ids) => db.delete(projectKeys).where(inArray(projectKeys.id, ids)));
+  await deleteMissing(existing, payloadIds, (ids) => tx.delete(projectKeys).where(inArray(projectKeys.id, ids)));
 
   for (const k of payload) {
-    await db
+    await tx
       .insert(projectKeys)
       .values({ firestoreId: k.id, projectId: projectPgId, label: k.label, value: k.value })
       .onConflictDoUpdate({ target: projectKeys.firestoreId, set: { label: k.label, value: k.value } });
   }
 }
 
-async function syncLogEntries(projectPgId: string, payload: ProjectLogEntry[]): Promise<void> {
-  const existing = await db
+async function syncLogEntries(tx: Tx, projectPgId: string, payload: ProjectLogEntry[]): Promise<void> {
+  const existing = await tx
     .select({ id: projectLogEntries.id, firestoreId: projectLogEntries.firestoreId })
     .from(projectLogEntries)
     .where(eq(projectLogEntries.projectId, projectPgId));
   const payloadIds = new Set(payload.map((l) => l.id));
-  await deleteMissing(existing, payloadIds, (ids) => db.delete(projectLogEntries).where(inArray(projectLogEntries.id, ids)));
+  await deleteMissing(existing, payloadIds, (ids) => tx.delete(projectLogEntries).where(inArray(projectLogEntries.id, ids)));
 
   for (const l of payload) {
-    await db
+    await tx
       .insert(projectLogEntries)
       .values({
         firestoreId: l.id,
@@ -290,33 +306,35 @@ async function syncLogEntries(projectPgId: string, payload: ProjectLogEntry[]): 
 // ── tools + tips ────────────────────────────────────────────────────────────
 
 export async function syncCrmTools(ownerId: string, payload: Tool[]): Promise<void> {
-  const existing = await db
+  await db.transaction(async (tx) => {
+  const existing = await tx
     .select({ id: tools.id, firestoreId: tools.firestoreId })
     .from(tools)
     .where(eq(tools.ownerId, ownerId));
   const payloadIds = new Set(payload.map((t) => t.id));
-  await deleteMissing(existing, payloadIds, (ids) => db.delete(tools).where(inArray(tools.id, ids)));
+  await deleteMissing(existing, payloadIds, (ids) => tx.delete(tools).where(inArray(tools.id, ids)));
 
   for (const t of payload) {
-    const [row] = await db
+    const [row] = await tx
       .insert(tools)
       .values({ firestoreId: t.id, ownerId, name: t.name, icon: t.icon, color: t.color, createdAt: new Date(toIso(t.createdAt)) })
       .onConflictDoUpdate({ target: tools.firestoreId, set: { name: t.name, icon: t.icon, color: t.color } })
       .returning({ id: tools.id });
-    await syncTips(row.id, t.tips ?? []);
+    await syncTips(tx, row.id, t.tips ?? []);
   }
+  });
 }
 
-async function syncTips(toolPgId: string, payload: KnowledgeTip[]): Promise<void> {
-  const existing = await db
+async function syncTips(tx: Tx, toolPgId: string, payload: KnowledgeTip[]): Promise<void> {
+  const existing = await tx
     .select({ id: knowledgeTips.id, firestoreId: knowledgeTips.firestoreId })
     .from(knowledgeTips)
     .where(eq(knowledgeTips.toolId, toolPgId));
   const payloadIds = new Set(payload.map((t) => t.id));
-  await deleteMissing(existing, payloadIds, (ids) => db.delete(knowledgeTips).where(inArray(knowledgeTips.id, ids)));
+  await deleteMissing(existing, payloadIds, (ids) => tx.delete(knowledgeTips).where(inArray(knowledgeTips.id, ids)));
 
   for (const t of payload) {
-    await db
+    await tx
       .insert(knowledgeTips)
       .values({
         firestoreId: t.id,
@@ -344,19 +362,20 @@ export async function syncCrmStreak(ownerId: string, value: number): Promise<voi
 // ── serverLinks (projectId → clientId, ambos como firestoreId del payload) ──
 
 export async function syncCrmServerLinks(ownerId: string, payload: ServerClientLink): Promise<void> {
+  await db.transaction(async (tx) => {
   // Resuelve firestoreId -> pg id para projects/clients de este owner.
-  const ownerClients = await db
+  const ownerClients = await tx
     .select({ id: clients.id, firestoreId: clients.firestoreId })
     .from(clients)
     .where(and(eq(clients.ownerId, ownerId), eq(clients.source, "crm_blob")));
   const clientFsToPg = new Map(ownerClients.map((c) => [c.firestoreId, c.id]));
   const ownerClientPgIds = ownerClients.map((c) => c.id);
   const ownerProjects = ownerClientPgIds.length
-    ? await db.select({ id: projects.id, firestoreId: projects.firestoreId }).from(projects).where(inArray(projects.clientId, ownerClientPgIds))
+    ? await tx.select({ id: projects.id, firestoreId: projects.firestoreId }).from(projects).where(inArray(projects.clientId, ownerClientPgIds))
     : [];
   const projectFsToPg = new Map(ownerProjects.map((p) => [p.firestoreId, p.id]));
 
-  const existing = await db
+  const existing = await tx
     .select({ projectId: serverLinks.projectId })
     .from(serverLinks)
     .where(ownerProjects.length ? inArray(serverLinks.projectId, ownerProjects.map((p) => p.id)) : eq(serverLinks.projectId, "00000000-0000-0000-0000-000000000000"));
@@ -365,48 +384,50 @@ export async function syncCrmServerLinks(ownerId: string, payload: ServerClientL
     Object.keys(payload).map((fsProjectId) => projectFsToPg.get(fsProjectId)).filter((v): v is string => !!v)
   );
   const toDelete = existing.filter((r) => !payloadProjectPgIds.has(r.projectId)).map((r) => r.projectId);
-  if (toDelete.length) await db.delete(serverLinks).where(inArray(serverLinks.projectId, toDelete));
+  if (toDelete.length) await tx.delete(serverLinks).where(inArray(serverLinks.projectId, toDelete));
 
   for (const [fsProjectId, fsClientId] of Object.entries(payload)) {
     const projectPgId = projectFsToPg.get(fsProjectId);
     const clientPgId = clientFsToPg.get(fsClientId);
     if (!projectPgId || !clientPgId) continue;
-    await db
+    await tx
       .insert(serverLinks)
       .values({ projectId: projectPgId, clientId: clientPgId })
       .onConflictDoUpdate({ target: serverLinks.projectId, set: { clientId: clientPgId } });
   }
+  });
 }
 
 // ── work sessions ────────────────────────────────────────────────────────────
 
 export async function syncCrmSessions(ownerId: string, payload: WorkSession[]): Promise<void> {
-  const existing = await db
+  await db.transaction(async (tx) => {
+  const existing = await tx
     .select({ id: workSessions.id, firestoreId: workSessions.firestoreId })
     .from(workSessions)
     .where(eq(workSessions.ownerId, ownerId));
   const payloadIds = new Set(payload.map((s) => s.id));
-  await deleteMissing(existing, payloadIds, (ids) => db.delete(workSessions).where(inArray(workSessions.id, ids)));
+  await deleteMissing(existing, payloadIds, (ids) => tx.delete(workSessions).where(inArray(workSessions.id, ids)));
 
   // clientId/projectId/taskId del payload son firestoreId — resolver a pg id.
-  const ownerClients = await db
+  const ownerClients = await tx
     .select({ id: clients.id, firestoreId: clients.firestoreId })
     .from(clients)
     .where(and(eq(clients.ownerId, ownerId), eq(clients.source, "crm_blob")));
   const clientFsToPg = new Map(ownerClients.map((c) => [c.firestoreId, c.id]));
   const ownerClientPgIds = ownerClients.map((c) => c.id);
   const ownerProjects = ownerClientPgIds.length
-    ? await db.select({ id: projects.id, firestoreId: projects.firestoreId }).from(projects).where(inArray(projects.clientId, ownerClientPgIds))
+    ? await tx.select({ id: projects.id, firestoreId: projects.firestoreId }).from(projects).where(inArray(projects.clientId, ownerClientPgIds))
     : [];
   const projectFsToPg = new Map(ownerProjects.map((p) => [p.firestoreId, p.id]));
   const ownerProjectPgIds = ownerProjects.map((p) => p.id);
   const ownerTasks = ownerProjectPgIds.length
-    ? await db.select({ id: tasks.id, firestoreId: tasks.firestoreId }).from(tasks).where(inArray(tasks.projectId, ownerProjectPgIds))
+    ? await tx.select({ id: tasks.id, firestoreId: tasks.firestoreId }).from(tasks).where(inArray(tasks.projectId, ownerProjectPgIds))
     : [];
   const taskFsToPg = new Map(ownerTasks.map((t) => [t.firestoreId, t.id]));
 
   for (const s of payload) {
-    await db
+    await tx
       .insert(workSessions)
       .values({
         firestoreId: s.id,
@@ -446,6 +467,7 @@ export async function syncCrmSessions(ownerId: string, payload: WorkSession[]): 
         },
       });
   }
+  });
 }
 
 // ── carga completa (reconstruye el shape anidado que el cliente espera) ────
@@ -494,7 +516,7 @@ export async function getFullCrmData(ownerId: string): Promise<{
     portalEnabled: c.portalEnabled,
     strategyId: c.strategyId ?? undefined,
     createdAt: c.createdAt.toISOString(),
-    // Server-owned (ADR-0034): solo lectura aquí; syncCrmClients NO los toca.
+    // Server-owned (ADR-0035): solo lectura aquí; syncCrmClients NO los toca.
     crmStatus: c.crmStatus,
     nextAction: (c.nextAction as ClientNextAction | null) ?? null,
     portalAccessEnabled: c.portalAccessEnabled,

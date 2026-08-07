@@ -17,12 +17,15 @@ export function internalLayout(opts: {
 }): string {
   const { title, section, body, banner = '' } = opts;
 
+  // `title`/`section` pueden interpolar input del visitante (nombre del
+  // formulario público): se escapan aquí, en la frontera, para que ningún
+  // template pueda romper el <head> por olvidar escapeHtml.
   return `<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>${title}</title>
+  <title>${escapeHtml(title)}</title>
 </head>
 <body style="margin:0;padding:0;background-color:#f4f4f5;font-family:${FONT_STACK};">
   <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 20px;">
@@ -33,7 +36,7 @@ export function internalLayout(opts: {
             <td style="background:#000000;border-radius:16px 16px 0 0;padding:32px 40px;">
               <p style="margin:0;font-size:22px;font-weight:700;color:#ffffff;">
                 Pixel<span style="color:#06b6d4;">TEC</span>
-                <span style="font-size:13px;font-weight:400;color:#71717a;margin-left:12px;">OS · ${section}</span>
+                <span style="font-size:13px;font-weight:400;color:#71717a;margin-left:12px;">OS · ${escapeHtml(section)}</span>
               </p>
             </td>
           </tr>
@@ -80,12 +83,14 @@ export function clientLayout(opts: {
     footerNote,
   } = opts;
 
+  // Misma frontera de escape que `internalLayout`: ningún template debe poder
+  // romper el <head> aunque interpole input externo en el título.
   return `<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>${title}</title>
+  <title>${escapeHtml(title)}</title>
 </head>
 <body style="margin:0;padding:0;background:#f4f4f5;font-family:${FONT_STACK};">
   <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 20px;">
@@ -98,7 +103,7 @@ export function clientLayout(opts: {
                 Pixel<span style="color:#06b6d4;">TEC</span>
               </p>
               <p style="margin:4px 0 0;font-size:11px;color:#71717a;text-transform:uppercase;letter-spacing:3px;">
-                ${subtitle}
+                ${escapeHtml(subtitle)}
               </p>
             </td>
           </tr>

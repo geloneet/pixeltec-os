@@ -77,7 +77,7 @@ export async function syncCrmDataAction(payload: CrmSyncPayload): Promise<{ ok: 
   }
 }
 
-// ── Campos server-owned + historial (ADR-0034) ──────────────────────────────
+// ── Campos server-owned + historial (ADR-0035) ──────────────────────────────
 // Estas actions son la ÚNICA puerta de escritura de crm_status/next_action:
 // syncCrmClients no incluye esos campos, así un blob stale no puede pisarlos.
 
@@ -96,6 +96,15 @@ async function resolveOwnedClient(publicClientId: string): Promise<{ ownerId: st
   const ownerId = await requireOwnerId();
   const clientPgId = await resolveClientPgId(publicClientId);
   if (!clientPgId) throw new Error("Cliente no encontrado");
+  // Anti-IDOR: `resolveClientPgId` busca en toda la tabla; sin este check un
+  // usuario autenticado podría operar sobre clientes de otro owner conociendo
+  // su id. Mismo patrón que `updateProposal` en src/lib/documents.
+  const [row] = await db
+    .select({ ownerId: clients.ownerId })
+    .from(clients)
+    .where(eq(clients.id, clientPgId))
+    .limit(1);
+  if (!row || row.ownerId !== ownerId) throw new Error("Cliente no encontrado");
   return { ownerId, clientPgId };
 }
 

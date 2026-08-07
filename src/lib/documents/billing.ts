@@ -154,6 +154,12 @@ export interface RecordPaymentInput {
   amount: number;
   method: PaymentMethod;
   paidAt: string;
+  /** `item.dueDate` que el usuario estaba viendo al enviar el pago. Si bajo
+   * el lock el dueDate real ya cambió (otro pago avanzó el recurrente al
+   * siguiente período), la request es stale y se rechaza — sin esto, un
+   * doble-submit del pago completo de agosto podía terminar pagando
+   * septiembre sin que nadie lo notara. */
+  expectedPeriodDue: string;
   reference?: string;
   note?: string;
 }
@@ -182,15 +188,42 @@ export interface RecordPaymentResult {
 export async function recordPayment(billingItemId: string, input: RecordPaymentInput): Promise<RecordPaymentResult> {
   const { ownerId } = await requireOwner();
 
+  // Normaliza a centavos AL ENTRAR al servidor — todo lo demás (validación,
+  // remaining, sobrepago, transición, INSERT, resultado) usa exclusivamente
+  // este valor, nunca `input.amount` crudo. Un monto que redondea a 0.00
+  // (p. ej. 0.001) se rechaza aquí, antes de tocar la DB.
+  const amount = Math.round(input.amount * 100) / 100;
+  if (!(amount > 0)) {
+    throw new Error("El monto del pago debe ser mayor a cero");
+  }
+
   return db.transaction(async (tx) => {
+    // FOR UPDATE: sin lock, dos pagos concurrentes sobre el mismo período leen
+    // el mismo `amountPaidSoFar`, ambos calculan la transición como si fueran
+    // el único pago, y el segundo `update` pisa el estado del primero — el
+    // dinero del primer pago queda registrado en payment_records pero el
+    // billing item nunca refleja que ya se cubrió. El lock serializa
+    // check-then-update por item: el segundo espera, relee con el pago del
+    // primero ya contado, y su propio sobrepago/transición se calcula bien.
     const [row] = await tx
       .select()
       .from(billingItems)
       .where(and(eq(billingItems.id, billingItemId), eq(billingItems.ownerId, ownerId)))
-      .limit(1);
+      .limit(1)
+      .for("update");
     if (!row) throw new Error("Cobro no encontrado");
     if (row.status === "pagado" || row.status === "cancelado") {
       throw new Error("Este cobro ya no admite pagos");
+    }
+
+    // El período pudo avanzar ENTRE que el usuario vio `item.dueDate` y que
+    // esta request adquirió el lock (otro pago concurrente ya cubrió el
+    // período y el recurrente avanzó). Rechazar en vez de aplicar el pago al
+    // período nuevo silenciosamente — la UI debe recargar y reintentar.
+    if (row.dueDate !== input.expectedPeriodDue) {
+      throw new Error(
+        "El período de este cobro cambió mientras tanto — recarga la página e intenta de nuevo.",
+      );
     }
 
     const paidThisPeriod = await tx
@@ -199,14 +232,23 @@ export async function recordPayment(billingItemId: string, input: RecordPaymentI
       .where(and(eq(paymentRecords.billingItemId, row.id), eq(paymentRecords.periodKey, row.dueDate)));
     const amountPaidSoFar = paidThisPeriod.reduce((sum, p) => sum + Number(p.amount), 0);
 
+    // Sin decisión de negocio que soporte sobrepagos/créditos (verificado en
+    // NeuroPIXEL: no existe), un pago que exceda el saldo del período se
+    // rechaza — evita que el excedente se pierda silenciosamente en el
+    // status "pagado"/"pendiente" sin quedar registrado como crédito.
+    const remaining = Math.round((Number(row.amount) - amountPaidSoFar) * 100) / 100;
+    if (amount > remaining) {
+      throw new Error(`El pago (${amount}) excede el saldo pendiente del período (${remaining}).`);
+    }
+
     const transition = computePaymentTransition(
       { frequency: row.frequency, dueDate: row.dueDate, amountDue: Number(row.amount), amountPaidSoFar },
-      input.amount,
+      amount,
     );
 
     await tx.insert(paymentRecords).values({
       billingItemId: row.id,
-      amount: String(input.amount),
+      amount: String(amount),
       method: input.method,
       paidAt: input.paidAt,
       periodKey: row.dueDate,
@@ -231,7 +273,9 @@ export async function recordPayment(billingItemId: string, input: RecordPaymentI
       coveredPeriodDue: row.dueDate,
       newStatus: transition.status,
       newDueDate: transition.dueDate,
-      remaining: transition.fullyPaid ? 0 : Number(row.amount) - amountPaidSoFar - input.amount,
+      remaining: transition.fullyPaid
+        ? 0
+        : Math.round((Number(row.amount) - amountPaidSoFar - amount) * 100) / 100,
     };
   });
 }
