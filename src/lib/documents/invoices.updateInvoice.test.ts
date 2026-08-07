@@ -19,7 +19,7 @@ const mocks = vi.hoisted(() => {
   const select = vi.fn(() => ({ from: selectFrom }));
 
   const updateWhere = vi.fn(async () => undefined);
-  const updateSet = vi.fn(() => ({ where: updateWhere }));
+  const updateSet = vi.fn((_set: Record<string, unknown>) => ({ where: updateWhere }));
   const update = vi.fn(() => ({ set: updateSet }));
 
   const tx = { select, update, insert: vi.fn(), delete: vi.fn() };
@@ -73,6 +73,24 @@ describe("updateInvoice — lock dentro de la transacción", () => {
     expect(mocks.select).toHaveBeenCalled();
     expect(mocks.selectFor).toHaveBeenCalledWith("update");
     expect(mocks.updateSet).toHaveBeenCalledWith(expect.objectContaining({ status: "pagada" }));
+  });
+});
+
+describe("updateInvoice — el folio es inmutable", () => {
+  test("el tipo de `data` excluye `number` (verificado en tiempo de compilación)", () => {
+    // @ts-expect-error — number no es un campo válido de updateInvoice; si
+    // esto deja de fallar en tsc, alguien reabrió el hueco en el tipo.
+    const _shouldNotCompile: Parameters<typeof updateInvoice>[1] = { number: "FAC-2026-999" };
+    expect(_shouldNotCompile).toBeDefined();
+  });
+
+  test("incluso forzando el tipo (bypass en runtime), 'number' nunca llega al SET del UPDATE", async () => {
+    mocks.selectFor.mockResolvedValue([invoiceRow("enviada")]);
+
+    await updateInvoice("invoice-pub", { status: "pagada", number: "FAC-2026-999" } as never);
+
+    const setArg = mocks.updateSet.mock.calls[0][0] as Record<string, unknown>;
+    expect(setArg).not.toHaveProperty("number");
   });
 });
 

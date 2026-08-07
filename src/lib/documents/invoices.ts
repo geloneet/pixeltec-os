@@ -3,8 +3,8 @@
 // Fase 4 (rebanada Documentos): Postgres — antes Firestore `invoices` vía
 // client SDK. El dominio embebe items[]; Postgres los normaliza en
 // invoice_items → se reensamblan al leer y se reemplazan todos al escribir.
-import { and, count, desc, eq, inArray, like } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { and, count, desc, eq, inArray, like, sql } from "drizzle-orm";
+import { db, type DB } from "@/lib/db";
 import { invoices, invoiceItems, clients } from "@/lib/db/schema";
 import type { Invoice, InvoiceItem } from "@/types/documents";
 import { logClientActivity } from "@/lib/db/repos/client-activity";
@@ -51,28 +51,65 @@ export async function getInvoices(_uid: string, clientId?: string): Promise<Invo
   );
 }
 
+/**
+ * ESTIMATIVO — para mostrar un preview en la UI antes de crear la factura.
+ * El folio real y autoritativo lo asigna `createInvoice` (vía
+ * `assignInvoiceNumber`, dentro de la transacción, bajo advisory lock). No
+ * usar este valor para persistir nada: dos previews concurrentes pueden ver
+ * el mismo estimado — eso es esperado y no corrompe nada porque nunca se
+ * escribe directamente.
+ */
 export async function getNextInvoiceNumber(_uid: string): Promise<string> {
   await requireOwner();
   const year = new Date().getFullYear();
-  // El folio es COMPANY-GLOBAL, no por owner: `invoices_number_idx` es un
-  // unique index SIN owner_id (schema.ts), así que dos usuarios de PixelTEC
-  // generando facturas el mismo año ya competían por el mismo número bajo el
-  // conteo anterior (filtrado por ownerId) — semánticas contradictorias
-  // entre la generación y la restricción real en DB. Para un documento
-  // fiscal de una sola entidad emisora (PixelTEC), la secuencia es de toda
-  // la empresa, no por usuario que la generó. Sin ADR escrita que lo
-  // confirme explícitamente — inferido del constraint ya existente; queda
-  // para que Miguel lo ratifique.
-  //
-  // Escopado al año del folio: contar TODAS las facturas históricas hacía que
-  // la primera de un año nuevo saliera como FAC-2027-048 en vez de -001.
-  // Sigue siendo count-then-insert: ante doble submit el uniqueIndex de
-  // `invoices.number` rechaza el duplicado (fallo seguro, no corrupción).
   const [{ n }] = await db
     .select({ n: count() })
     .from(invoices)
     .where(like(invoices.number, `FAC-${year}-%`));
   return `FAC-${year}-${String(n + 1).padStart(3, "0")}`;
+}
+
+/** Ejecutor de transacción — mismo patrón que billing.ts/crm-sync.ts. */
+type Tx = Parameters<Parameters<DB["transaction"]>[0]>[0];
+
+/**
+ * Asigna el folio DENTRO de la transacción de `createInvoice` — nunca se
+ * confía en un `number` que venga del payload.
+ *
+ * Folio COMPANY-GLOBAL por año (decisión de Miguel, ratificada 2026-08-06):
+ * para la instancia actual de PixelTEC OS hay un solo emisor, así que la
+ * secuencia es de toda la empresa, no por owner/usuario que la generó. Si
+ * en el futuro existe tenancy/organizations comercial real, esto debe
+ * reevaluarse y escoparse al issuer/organization — registrado en NeuroPIXEL,
+ * sin ADR nueva solo por esto.
+ *
+ * `pg_advisory_xact_lock` serializa la ASIGNACIÓN por año (no solo el
+ * insert): dos creaciones concurrentes del mismo año obtienen folios
+ * DISTINTOS —una espera a la otra dentro del lock— en vez de que la segunda
+ * simplemente falle contra `invoices_number_idx` y el usuario tenga que
+ * reintentar. El lock se libera solo al terminar la transacción (variante
+ * `_xact_`), así que cubre exactamente la ventana que importa.
+ *
+ * MAX del sufijo numérico existente, no COUNT: un hueco (una factura
+ * eliminada, o renumerada a mano) haría que COUNT reutilizara un número ya
+ * emitido a otro documento fiscal — MAX+1 nunca retrocede.
+ */
+async function assignInvoiceNumber(tx: Tx, year: number): Promise<string> {
+  await tx.execute(sql`select pg_advisory_xact_lock(hashtext('pixeltec_os_invoice_folio'), ${year})`);
+
+  const existing = await tx
+    .select({ number: invoices.number })
+    .from(invoices)
+    .where(like(invoices.number, `FAC-${year}-%`));
+
+  const maxSuffix = existing.reduce((max, row) => {
+    const match = /^FAC-\d{4}-(\d+)$/.exec(row.number);
+    if (!match) return max;
+    const n = Number.parseInt(match[1], 10);
+    return n > max ? n : max;
+  }, 0);
+
+  return `FAC-${year}-${String(maxSuffix + 1).padStart(3, "0")}`;
 }
 
 /** Redondeo a centavos: los floats de qty*unitPrice descuadraban total vs
@@ -123,12 +160,16 @@ export async function createInvoice(
   );
 
   return db.transaction(async (tx) => {
+    // El folio NUNCA viene de `data.number` — el cliente puede mandar
+    // cualquier cosa ahí (o nada); se asigna aquí, autoritativamente.
+    const number = await assignInvoiceNumber(tx, new Date().getFullYear());
+
     const [row] = await tx
       .insert(invoices)
       .values({
         ownerId,
         clientId: clientPgId,
-        number: data.number,
+        number,
         status: data.status,
         subtotal: String(subtotal),
         ivaRate: String(data.ivaRate),
@@ -155,13 +196,14 @@ export async function createInvoice(
         })),
       );
     }
-    return row.id;
-  }).then(async (invoiceId) => {
+    return { id: row.id, number };
+  }).then(async ({ id: invoiceId, number }) => {
+    // El folio REAL asignado por el servidor, nunca el que el cliente sugirió.
     await logClientActivity({
       ownerId,
       clientId: clientPgId,
       type: "factura_creada",
-      message: `Factura emitida: ${data.number}`,
+      message: `Factura emitida: ${number}`,
     });
     return invoiceId;
   });
@@ -169,7 +211,10 @@ export async function createInvoice(
 
 export async function updateInvoice(
   id: string,
-  data: Partial<Omit<Invoice, "id" | "uid" | "clientId" | "createdAt">>,
+  // "number" excluido a propósito: el folio es server-owned, asignado una
+  // sola vez por `createInvoice` bajo advisory lock — no puede modificarse
+  // después. El tipo lo prohíbe en compilación, no solo en runtime.
+  data: Partial<Omit<Invoice, "id" | "uid" | "clientId" | "createdAt" | "number">>,
 ): Promise<void> {
   const { ownerId } = await requireOwner();
   const invoiceRef = await resolveInvoiceRow(id);
@@ -201,7 +246,7 @@ export async function updateInvoice(
     }
 
     const set: Partial<typeof invoices.$inferInsert> = { updatedAt: new Date() };
-    if (data.number !== undefined) set.number = data.number;
+    // "number" no está en `set` a propósito: el tipo de `data` ya lo excluye.
     if (data.status !== undefined) set.status = data.status;
     if (data.ivaRate !== undefined) set.ivaRate = String(data.ivaRate);
     if (data.currency !== undefined) set.currency = data.currency;

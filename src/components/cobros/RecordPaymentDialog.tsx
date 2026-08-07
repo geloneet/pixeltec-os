@@ -36,6 +36,10 @@ export function RecordPaymentDialog({ item, onClose, onRecorded }: Props) {
         amount,
         method,
         paidAt,
+        // El período que el usuario ve EN ESTE diálogo — si cambió del lado
+        // servidor (otro pago concurrente ya avanzó el recurrente), la
+        // request se rechaza en vez de pagar el período nuevo por error.
+        expectedPeriodDue: item.dueDate,
         reference: reference.trim() || undefined,
         note: note.trim() || undefined,
       });
