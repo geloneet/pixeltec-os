@@ -13,6 +13,7 @@ import { usePathname } from "next/navigation";
 import { toast } from "sonner";
 import { useCRM } from "./CRMContextCore";
 import { Modal } from "./Modal";
+import { Button } from "@/components/ui/button";
 import { logClientEventAction } from "./crm-actions";
 import { PRIORITIES } from "@/types/crm";
 import type { CRMTask, ClientCrmStatus } from "@/types/crm";
@@ -348,7 +349,7 @@ export function CRMShellProvider({ children }: { children: ReactNode }) {
         formRefs.current[key] = el;
       };
     const inputClass =
-      "w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-[#0EA5E9] transition-colors duration-150";
+      "w-full bg-secondary/40 backdrop-blur-sm border border-border/60 rounded-xl px-3.5 py-2.5 text-sm text-foreground focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-ring/40 transition-colors duration-150";
     const labelClass = "block text-xs text-muted-foreground mb-1";
     const sectionLabel = "text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70 pt-2 pb-0.5";
 
@@ -1069,19 +1070,11 @@ export function CRMShellProvider({ children }: { children: ReactNode }) {
     return (
       <Modal open onClose={() => setModal(null)} title={title} subtitle={subtitle}>
         {content}
-        <div className="mt-4 flex justify-end gap-2">
-          <button
-            onClick={() => setModal(null)}
-            className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors duration-150"
-          >
+        <div className="mt-6 flex justify-end gap-2">
+          <Button variant="ghost" onClick={() => setModal(null)}>
             Cancelar
-          </button>
-          <button
-            onClick={handleModalSubmit}
-            className="px-4 py-2 text-sm bg-[#0EA5E9] text-white rounded-lg hover:bg-[#0284C7] transition-all duration-150"
-          >
-            {submitLabel}
-          </button>
+          </Button>
+          <Button onClick={handleModalSubmit}>{submitLabel}</Button>
         </div>
       </Modal>
     );

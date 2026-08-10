@@ -34,9 +34,35 @@ export interface RecentClient {
   lastActivityAt: string | null;
 }
 
+/** Un punto de la serie de actividad (gráfica de /hoy) — cubeta día/semana/mes. */
+export interface ActivityPoint {
+  label: string;
+  count: number;
+}
+
+export interface TodayStats {
+  activeProjects: number;
+  clients: number;
+  openTasks: number;
+  /** Racha de días consecutivos de trabajo (getUserStreak). */
+  streak: number;
+  /** Sesiones de trabajo registradas (WorkSession[].length). */
+  sessions: number;
+  /** Herramientas/documentación de la base de conocimiento (Tool[].length). */
+  tools: number;
+}
+
 export interface TodayData {
   projects: ActiveProject[];
   clients: RecentClient[];
+  /** KPIs del dashboard — derivados de datos que ya se cargaban y se descartaban. */
+  stats: TodayStats;
+  /** Series de actividad por granularidad, para el toggle Diario/Semanal/Mensual. */
+  activity: {
+    daily: ActivityPoint[];
+    weekly: ActivityPoint[];
+    monthly: ActivityPoint[];
+  };
   /** ISO 8601 string — timestamp of when this data was assembled (server-side) */
   asOf: string;
 }

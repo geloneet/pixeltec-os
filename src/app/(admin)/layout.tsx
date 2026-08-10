@@ -19,6 +19,8 @@ import { CRMProvider } from "@/components/crm/CRMContextCore";
 import { CRMShellProvider } from "@/components/crm/CRMShellProvider";
 import { TopNavigation } from "@/components/nav/top-navigation";
 import { SecondaryNavigation } from "@/components/nav/secondary-navigation";
+import { AppSidebar } from "@/components/nav/app-sidebar";
+import { AdminTopbar } from "@/components/nav/admin-topbar";
 import { CommandPalette } from "@/components/nav/command-palette";
 import { getActiveArea } from "@/components/nav/nav-config";
 
@@ -52,37 +54,49 @@ function Shell({
         )}
       />
 
-      <div className="relative z-10 flex h-full min-h-0 flex-col">
-        <TopNavigation />
-        <SecondaryNavigation area={activeArea} />
+      <div className="relative z-10 flex h-full min-h-0 flex-1">
+        {/* Sidebar flotante — solo desktop (`lg:` y superior). El mobile
+            conserva TopNavigation completo, sin cambios (ver más abajo). */}
+        <AppSidebar activeArea={activeArea} className="hidden lg:flex" />
 
-        <main
-          className={cn(
-            "min-h-0 flex-1",
-            isFullBleedRoute
-              ? "overflow-hidden"
-              : "overflow-y-auto px-4 py-6 sm:px-6 lg:px-8"
-          )}
-        >
-          {isFullBleedRoute ? (
-            // Vistas full-bleed (WhatsApp inbox, sesión de proyecto) manejan su
-            // propio scroll/posicionamiento interno — no se envuelven en el
-            // motion.div animado para no romper overlays con position:fixed.
-            children
-          ) : (
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={pathname}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.15, ease: "easeOut" }}
-              >
-                {children}
-              </motion.div>
-            </AnimatePresence>
-          )}
-        </main>
+        <div className="flex h-full min-h-0 flex-1 flex-col">
+          {/* Mobile: rail horizontal original, intacto. */}
+          <div className="lg:hidden">
+            <TopNavigation />
+            <SecondaryNavigation area={activeArea} />
+          </div>
+
+          {/* Desktop: topbar delgado, compañero del sidebar. */}
+          <AdminTopbar activeArea={activeArea} className="hidden lg:flex" />
+
+          <main
+            className={cn(
+              "min-h-0 flex-1",
+              isFullBleedRoute
+                ? "overflow-hidden"
+                : "overflow-y-auto px-4 py-6 sm:px-6 lg:px-8"
+            )}
+          >
+            {isFullBleedRoute ? (
+              // Vistas full-bleed (WhatsApp inbox, sesión de proyecto) manejan su
+              // propio scroll/posicionamiento interno — no se envuelven en el
+              // motion.div animado para no romper overlays con position:fixed.
+              children
+            ) : (
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={pathname}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.15, ease: "easeOut" }}
+                >
+                  {children}
+                </motion.div>
+              </AnimatePresence>
+            )}
+          </main>
+        </div>
       </div>
 
       <Toaster

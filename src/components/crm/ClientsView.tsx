@@ -30,6 +30,7 @@ import {
 } from "@/lib/crm/clients-list-logic";
 import { getClientListSignalsAction } from "@/components/crm/crm-actions";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -341,12 +342,9 @@ export function ClientsView({ clients, navigateToClient, setModal }: ClientsView
           <h2 className="text-xl font-semibold text-foreground">Clientes</h2>
           <p className="text-sm text-muted-foreground">Directorio de cuentas activas</p>
         </div>
-        <button
-          onClick={() => setModal({ type: "addClient" })}
-          className="flex-shrink-0 rounded-lg border border-cyan-500/20 bg-cyan-500/10 px-4 py-2 text-sm font-medium text-cyan-700 dark:text-cyan-300 transition-all duration-150 hover:bg-cyan-500/20"
-        >
+        <Button className="flex-shrink-0" onClick={() => setModal({ type: "addClient" })}>
           Nuevo cliente
-        </button>
+        </Button>
       </div>
 
       {/* Global metrics (cada cifra aplica su filtro) */}

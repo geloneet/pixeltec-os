@@ -133,17 +133,17 @@ export function CobrosView() {
 
       {/* Summary */}
       <div className="mb-6 grid grid-cols-3 gap-4">
-        <div className="rounded-[10px] border border-border bg-card p-4">
-          <p className="mb-1 text-xs text-muted-foreground">Pendiente (activo)</p>
-          <p className="text-xl font-semibold text-foreground">{formatCurrency(totalPendiente)}</p>
+        <div className="relative overflow-hidden rounded-2xl border border-border/50 bg-card/40 p-5 backdrop-blur-xl before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-border before:to-transparent">
+          <p className="mb-1.5 font-roboto text-xs uppercase tracking-wider text-muted-foreground">Pendiente (activo)</p>
+          <p className="font-league-spartan text-2xl font-bold tabular-nums text-foreground">{formatCurrency(totalPendiente)}</p>
         </div>
-        <div className="rounded-[10px] border border-border bg-card p-4">
-          <p className="mb-1 text-xs text-muted-foreground">Vencido</p>
-          <p className="text-xl font-semibold text-red-700 dark:text-red-400">{formatCurrency(totalVencido)}</p>
+        <div className="relative overflow-hidden rounded-2xl border border-border/50 bg-card/40 p-5 backdrop-blur-xl before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-border before:to-transparent">
+          <p className="mb-1.5 font-roboto text-xs uppercase tracking-wider text-muted-foreground">Vencido</p>
+          <p className="font-league-spartan text-2xl font-bold tabular-nums text-red-700 dark:text-red-400">{formatCurrency(totalVencido)}</p>
         </div>
-        <div className="rounded-[10px] border border-border bg-card p-4">
-          <p className="mb-1 text-xs text-muted-foreground">Pagado (histórico)</p>
-          <p className="text-xl font-semibold text-emerald-700 dark:text-emerald-400">{formatCurrency(totalPagado)}</p>
+        <div className="relative overflow-hidden rounded-2xl border border-border/50 bg-card/40 p-5 backdrop-blur-xl before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-border before:to-transparent">
+          <p className="mb-1.5 font-roboto text-xs uppercase tracking-wider text-muted-foreground">Pagado (histórico)</p>
+          <p className="font-league-spartan text-2xl font-bold tabular-nums text-emerald-700 dark:text-emerald-400">{formatCurrency(totalPagado)}</p>
         </div>
       </div>
 
@@ -153,10 +153,10 @@ export function CobrosView() {
           <button
             key={p.id}
             onClick={() => setPill(p.id)}
-            className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-all ${
+            className={`rounded-full border px-3.5 py-2 text-xs font-semibold transition-all ${
               pill === p.id
-                ? "border-cyan-500/30 bg-cyan-500/10 text-cyan-300"
-                : "border-border bg-transparent text-muted-foreground hover:text-foreground"
+                ? "border-transparent bg-foreground text-background"
+                : "border-border bg-secondary/40 text-muted-foreground backdrop-blur-sm hover:text-foreground"
             }`}
           >
             {p.label}
@@ -169,7 +169,7 @@ export function CobrosView() {
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value as BillingStatus | "")}
-          className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs text-foreground focus:border-cyan-500/40 focus:outline-none"
+          className="h-11 rounded-xl border border-border/60 bg-secondary/40 px-3.5 text-xs text-foreground backdrop-blur-sm transition-colors focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-ring/40"
         >
           <option value="">Todos los estados</option>
           {(Object.keys(BILLING_STATUS_LABELS) as BillingStatus[]).map((s) => (
@@ -180,7 +180,7 @@ export function CobrosView() {
         <select
           value={clientFilter}
           onChange={(e) => setClientFilter(e.target.value)}
-          className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs text-foreground focus:border-cyan-500/40 focus:outline-none"
+          className="h-11 rounded-xl border border-border/60 bg-secondary/40 px-3.5 text-xs text-foreground backdrop-blur-sm transition-colors focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-ring/40"
         >
           <option value="">Todos los clientes</option>
           {clientOptions.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
@@ -189,7 +189,7 @@ export function CobrosView() {
         <select
           value={frequencyFilter}
           onChange={(e) => setFrequencyFilter(e.target.value as BillingFrequency | "")}
-          className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs text-foreground focus:border-cyan-500/40 focus:outline-none"
+          className="h-11 rounded-xl border border-border/60 bg-secondary/40 px-3.5 text-xs text-foreground backdrop-blur-sm transition-colors focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-ring/40"
         >
           <option value="">Toda frecuencia</option>
           {(Object.keys(BILLING_FREQUENCY_LABELS) as BillingFrequency[]).map((f) => (
@@ -200,7 +200,7 @@ export function CobrosView() {
         <select
           value={contractFilter}
           onChange={(e) => setContractFilter(e.target.value)}
-          className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs text-foreground focus:border-cyan-500/40 focus:outline-none"
+          className="h-11 rounded-xl border border-border/60 bg-secondary/40 px-3.5 text-xs text-foreground backdrop-blur-sm transition-colors focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-ring/40"
         >
           <option value="">Todo contrato</option>
           {contractOptions.map(([id, title]) => <option key={id} value={id}>{title}</option>)}
@@ -209,7 +209,7 @@ export function CobrosView() {
         <select
           value={methodFilter}
           onChange={(e) => setMethodFilter(e.target.value as PaymentMethod | "")}
-          className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs text-foreground focus:border-cyan-500/40 focus:outline-none"
+          className="h-11 rounded-xl border border-border/60 bg-secondary/40 px-3.5 text-xs text-foreground backdrop-blur-sm transition-colors focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-ring/40"
         >
           <option value="">Todo método de pago</option>
           {(Object.keys(PAYMENT_METHOD_LABELS) as PaymentMethod[]).map((m) => (
@@ -222,7 +222,7 @@ export function CobrosView() {
           value={dueBeforeFilter}
           onChange={(e) => setDueBeforeFilter(e.target.value)}
           title="Vencimiento antes de"
-          className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs text-foreground focus:border-cyan-500/40 focus:outline-none"
+          className="h-11 rounded-xl border border-border/60 bg-secondary/40 px-3.5 text-xs text-foreground backdrop-blur-sm transition-colors focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-ring/40"
         />
       </div>
 
