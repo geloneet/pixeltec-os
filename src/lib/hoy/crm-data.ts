@@ -3,9 +3,10 @@
 // source='crm_blob') — se dejó de leer el blob `crm_data/{uid}` de Firestore.
 import { getFullCrmData } from "@/lib/db/repos/crm-sync";
 import type { CRMClient } from "@/types/crm";
-import type { ActiveProject, RecentClient } from "@/lib/hoy/types";
+import type { ActiveProject, RecentClient, ActivityPoint } from "@/lib/hoy/types";
 import type { PixelforgeProjectListItem } from "@/lib/db/repos/pixelforge";
 import type { DefinitionListItem } from "@/lib/db/repos/definitions";
+import type { WorkSession } from "@/types/session";
 
 /**
  * Clientes del propietario indicado.
@@ -132,4 +133,51 @@ export function deriveRecentClients(
       (b.lastActivityAt ?? "").localeCompare(a.lastActivityAt ?? ""),
     );
   return typeof limit === "number" ? mapped.slice(0, limit) : mapped;
+}
+
+/**
+ * Agrupa `WorkSession.startedAt` en cubetas por día/semana/mes — serie real
+ * para el toggle de la gráfica de actividad de `/hoy`. Cero datos inventados:
+ * cubetas sin sesiones cuentan 0, no se rellena con valores sintéticos.
+ */
+export function deriveActivitySeries(
+  sessions: WorkSession[],
+  granularity: "daily" | "weekly" | "monthly",
+  now: Date,
+): ActivityPoint[] {
+  const buckets: { label: string; start: Date }[] = [];
+
+  if (granularity === "daily") {
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date(now);
+      d.setHours(0, 0, 0, 0);
+      d.setDate(d.getDate() - i);
+      buckets.push({ label: d.toLocaleDateString("es-MX", { day: "2-digit", month: "short" }), start: d });
+    }
+  } else if (granularity === "weekly") {
+    for (let i = 7; i >= 0; i--) {
+      const d = new Date(now);
+      d.setHours(0, 0, 0, 0);
+      d.setDate(d.getDate() - d.getDay() - i * 7);
+      buckets.push({ label: `Sem ${8 - i}`, start: d });
+    }
+  } else {
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      buckets.push({ label: d.toLocaleDateString("es-MX", { month: "short" }), start: d });
+    }
+  }
+
+  const counts = new Array(buckets.length).fill(0);
+  for (const session of sessions) {
+    const started = new Date(session.startedAt);
+    for (let i = buckets.length - 1; i >= 0; i--) {
+      if (started >= buckets[i].start) {
+        counts[i]++;
+        break;
+      }
+    }
+  }
+
+  return buckets.map((bucket, i) => ({ label: bucket.label, count: counts[i] }));
 }

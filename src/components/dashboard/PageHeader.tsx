@@ -28,6 +28,8 @@ const badgeClasses: Record<BadgeColor, string> = {
 
 interface PageHeaderProps {
   title: string;
+  /** Subtítulo opcional bajo el título (p. ej. "Bienvenido de vuelta..."). */
+  description?: string;
   icon?: ReactNode;
   /** Primary CTA button rendered on the right */
   action?: ReactNode;
@@ -38,29 +40,35 @@ interface PageHeaderProps {
 
 export default function PageHeader({
   title,
+  description,
   icon,
   action,
   badge,
   className,
 }: PageHeaderProps) {
   return (
-    <div className={cn('flex justify-between items-center', className)}>
-      <div className="flex items-center gap-3">
-        {icon && (
-          <span className="text-muted-foreground flex-shrink-0">{icon}</span>
-        )}
-        <h1 className="text-4xl font-semibold tracking-tight text-foreground">
-          {title}
-        </h1>
-        {badge && (
-          <span
-            className={cn(
-              'text-xs font-semibold px-2.5 py-1 rounded-full border',
-              badgeClasses[badge.color ?? 'zinc']
-            )}
-          >
-            {badge.label}
-          </span>
+    <div className={cn('flex items-start justify-between', className)}>
+      <div>
+        <div className="flex items-center gap-3">
+          {icon && (
+            <span className="text-muted-foreground flex-shrink-0">{icon}</span>
+          )}
+          <h1 className="text-4xl font-semibold tracking-tight text-foreground">
+            {title}
+          </h1>
+          {badge && (
+            <span
+              className={cn(
+                'text-xs font-semibold px-2.5 py-1 rounded-full border',
+                badgeClasses[badge.color ?? 'zinc']
+              )}
+            >
+              {badge.label}
+            </span>
+          )}
+        </div>
+        {description && (
+          <p className="mt-1 text-sm text-muted-foreground">{description}</p>
         )}
       </div>
       {action && <div className="flex-shrink-0">{action}</div>}

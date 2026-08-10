@@ -26,13 +26,13 @@ export function Modal({ open, onClose, title, subtitle, children }: ModalProps) 
   return (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm transition-opacity"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm transition-opacity"
       onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}
     >
-      <div className="w-full max-w-md bg-card border border-border rounded-[10px] p-6 shadow-2xl">
-        <h2 className="text-[20px] font-semibold text-foreground">{title}</h2>
-        {subtitle && <p className="mt-1 text-xs text-muted-foreground">{subtitle}</p>}
-        <div className="mt-4">{children}</div>
+      <div className="relative w-full max-w-md overflow-hidden rounded-2xl border border-border/50 bg-card/95 p-7 shadow-2xl backdrop-blur-2xl before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-border before:to-transparent">
+        <h2 className="text-2xl font-semibold tracking-tight text-foreground">{title}</h2>
+        {subtitle && <p className="mt-1.5 text-sm text-muted-foreground">{subtitle}</p>}
+        <div className="mt-5">{children}</div>
       </div>
     </div>
   );
