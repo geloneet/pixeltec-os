@@ -42,7 +42,7 @@ interface CRMContextValue {
   addClient: (data: Omit<CRMClient, "id" | "projects" | "createdAt">) => string | null;
   updateClient: (id: string, data: Partial<CRMClient>) => void;
   deleteClient: (id: string) => void;
-  /** Server-owned (ADR-0034): escriben directo a Postgres, sin pasar por el blob-sync. */
+  /** Server-owned (ADR-0035): escriben directo a Postgres, sin pasar por el blob-sync. */
   setClientStatus: (id: string, status: ClientCrmStatus) => Promise<boolean>;
   setClientNextAction: (id: string, nextAction: ClientNextAction | null) => Promise<boolean>;
   addProject: (clientId: string, data: Omit<CRMProject, "id" | "keys" | "tasks" | "charges" | "createdAt" | "guides" | "accounts" | "readme" | "prompt" | "quickNotes">) => string | null;
@@ -274,7 +274,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     update(dataRef.current.clients.filter(c => c.id !== id));
   }, [update]);
 
-  // Server-owned (ADR-0034): la escritura va directo a Postgres vía action
+  // Server-owned (ADR-0035): la escritura va directo a Postgres vía action
   // dedicada; aquí solo se refleja en memoria SIN persist() — el blob-sync no
   // incluye estos campos y no debe re-guardarse por ellos.
   const applyServerOwnedPatch = useCallback((id: string, patch: Partial<Pick<CRMClient, "crmStatus" | "nextAction">>) => {

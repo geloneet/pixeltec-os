@@ -9,7 +9,7 @@ import { getStrategy, createStrategy, updateStrategy, assignStrategyToProject } 
 
 interface Props {
   clientId: string;
-  /** Proyecto dueño (ADR-0034) — el tab vive en la vista de proyecto. */
+  /** Proyecto dueño (ADR-0035) — el tab vive en la vista de proyecto. */
   projectId?: string;
 }
 
@@ -317,7 +317,7 @@ export function EstrategiaTab({ clientId, projectId }: Props) {
 
       {!loading && (
         <>
-          {/* Estrategia huérfana (previa a ADR-0034) vista desde un proyecto */}
+          {/* Estrategia huérfana (previa a ADR-0035) vista desde un proyecto */}
           {projectId && strategy && strategy.projectId == null && (
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-500/20 bg-amber-500/[0.06] px-3 py-2">
               <p className="text-xs text-amber-400">

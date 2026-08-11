@@ -57,7 +57,7 @@ export interface CRMProject {
   contractId?: string;
 }
 
-/** Ciclo de vida comercial del cliente (ADR-0034). */
+/** Ciclo de vida comercial del cliente (ADR-0035). */
 export type ClientCrmStatus = "prospecto" | "activo" | "pausado" | "cerrado";
 
 /** Próxima acción registrada sobre el cliente. `dueAt` ISO o null. */
@@ -79,7 +79,7 @@ export interface CRMClient {
   portalEnabled?: boolean;     // si el portal está activo para este cliente
   strategyId?: string;         // referencia al doc en strategies/ Firestore collection
   createdAt: string;
-  // Campos SERVER-OWNED (ADR-0034): viajan en el blob solo de lectura; se
+  // Campos SERVER-OWNED (ADR-0035): viajan en el blob solo de lectura; se
   // escriben por setClientStatusAction/setClientNextActionAction, nunca por
   // syncCrmDataAction (syncCrmClients no los incluye a propósito).
   crmStatus?: ClientCrmStatus;

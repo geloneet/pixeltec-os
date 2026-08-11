@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Tab Comercial (ADR-0034): fusiona el ciclo comercial completo del cliente —
+ * Tab Comercial (ADR-0035): fusiona el ciclo comercial completo del cliente —
  * Propuestas, Contratos y Facturación — que antes eran tres tabs de primer
  * nivel. Los componentes internos se montan tal cual; este tab solo aporta el
  * segmented control y conserva el flujo "Convertir a contrato".

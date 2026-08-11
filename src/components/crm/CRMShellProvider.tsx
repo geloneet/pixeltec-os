@@ -168,7 +168,7 @@ export function CRMShellProvider({ children }: { children: ReactNode }) {
           const chosenStatus = (val("crmStatus") || "prospecto") as ClientCrmStatus;
           const clientName = val("name");
           // La fila PG no existe hasta el sync: flushSave ANTES de cualquier
-          // action server-owned (ADR-0034).
+          // action server-owned (ADR-0035).
           void (async () => {
             try {
               await crm.flushSave();

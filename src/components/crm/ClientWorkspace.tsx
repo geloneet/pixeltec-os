@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Workspace del cliente (ADR-0034): 4 tabs fijos + Portal condicional.
+ * Workspace del cliente (ADR-0035): 4 tabs fijos + Portal condicional.
  * Discovery y Estrategia se mudaron a la vista de proyecto (/proyectos/[id])
  * — pertenecen a un trabajo concreto, no al cliente completo. El ciclo
  * comercial (propuestas, contratos, facturación) vive fusionado en Comercial.

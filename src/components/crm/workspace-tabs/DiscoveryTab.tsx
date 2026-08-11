@@ -18,7 +18,7 @@ import {
 interface Props {
   clientId: string;
   clientName: string;
-  /** Proyecto dueño (ADR-0034) — el tab vive en la vista de proyecto. */
+  /** Proyecto dueño (ADR-0035) — el tab vive en la vista de proyecto. */
   projectId?: string;
 }
 
@@ -138,7 +138,7 @@ export function DiscoveryTab({ clientId, clientName, projectId }: Props) {
     }
   };
 
-  // Sesión huérfana (previa a ADR-0034) vista desde un proyecto: se ofrece
+  // Sesión huérfana (previa a ADR-0035) vista desde un proyecto: se ofrece
   // adoptarla para que quede ligada al trabajo correcto.
   const orphanBanner =
     projectId && session && session.projectId == null ? (

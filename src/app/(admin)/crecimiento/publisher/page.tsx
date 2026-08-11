@@ -38,6 +38,7 @@ export default async function PublisherPage({ searchParams }: Props) {
           </p>
         </div>
         <Button asChild className="gap-2">
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- /api/auth/meta es un route handler que dispara un 302 real hacia el OAuth de Meta; requiere navegación de navegador completa, no una transición cliente-side de next/link. */}
           <a href="/api/auth/meta">
             <Plus className="h-4 w-4" />
             Conectar cuenta Meta
@@ -89,6 +90,7 @@ export default async function PublisherPage({ searchParams }: Props) {
             Instagram Business Accounts vinculadas.
           </p>
           <Button asChild className="mt-6 gap-2">
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- ver justificación arriba: navegación real de OAuth, no una page interna. */}
             <a href="/api/auth/meta">
               <Plus className="h-4 w-4" />
               Conectar con Meta
@@ -104,6 +106,7 @@ export default async function PublisherPage({ searchParams }: Props) {
           </div>
 
           <Button asChild variant="outline" className="gap-2">
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- ver justificación arriba: navegación real de OAuth, no una page interna. */}
             <a href="/api/auth/meta">
               <Plus className="h-4 w-4" />
               Agregar otra cuenta

@@ -26,7 +26,7 @@ export interface NextActionChip {
 
 /**
  * Deriva el chip de próxima acción de la fila. `nextAction` es server-owned
- * (ADR-0034) y viaja en el blob solo de lectura; `now` se inyecta para que
+ * (ADR-0035) y viaja en el blob solo de lectura; `now` se inyecta para que
  * la función sea determinista en tests.
  */
 export function nextActionChip(
@@ -106,7 +106,7 @@ export function clientNeedsAttention(client: CRMClient, stats: ClientStats, now:
   return false;
 }
 
-/** Archivado = fuera del trabajo diario (`pausado` o `cerrado`, ADR-0034). */
+/** Archivado = fuera del trabajo diario (`pausado` o `cerrado`, ADR-0035). */
 export function isArchivedClient(client: CRMClient): boolean {
   return client.crmStatus === "pausado" || client.crmStatus === "cerrado";
 }
@@ -115,7 +115,7 @@ export function isArchivedClient(client: CRMClient): boolean {
 
 /**
  * Fallback sintético para clientes sin filas en client_activity (histórico
- * anterior a ADR-0034): lo más reciente entre el alta del cliente y la de
+ * anterior a ADR-0035): lo más reciente entre el alta del cliente y la de
  * sus proyectos. Compara ISO strings (orden lexicográfico = cronológico).
  */
 export function syntheticLastActivity(client: CRMClient): string {

@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Expediente documental del cliente (ADR-0034): la vista del jsonb
+ * Expediente documental del cliente (ADR-0035): la vista del jsonb
  * `clients.documents`, que hasta ahora no tenía UI en el workspace. v1 es
  * solo lectura — la carga de archivos requiere infra de upload propia y
  * queda fuera de este gate. (La facturación, que antes usurpaba el label

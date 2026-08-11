@@ -169,7 +169,7 @@ interface ProjectViewProps {
 const TABS = [
   { key: "resumen", label: "Resumen" },
   { key: "tareas", label: "Tareas" },
-  // ADR-0034: Discovery y Estrategia pertenecen al proyecto, no al cliente.
+  // ADR-0035: Discovery y Estrategia pertenecen al proyecto, no al cliente.
   { key: "discovery", label: "Discovery" },
   { key: "estrategia", label: "Estrategia" },
   { key: "recursos", label: "Recursos" },
@@ -657,12 +657,12 @@ export function ProjectView({
       )}
 
       {/* ══════════════════ SESIONES ═════════════════════════════════════════ */}
-      {/* ══════════════════ DISCOVERY (ADR-0034) ═════════════════════════════ */}
+      {/* ══════════════════ DISCOVERY (ADR-0035) ═════════════════════════════ */}
       {projectTab === "discovery" && (
         <DiscoveryTab clientId={client.id} clientName={client.name} projectId={project.id} />
       )}
 
-      {/* ══════════════════ ESTRATEGIA (ADR-0034) ════════════════════════════ */}
+      {/* ══════════════════ ESTRATEGIA (ADR-0035) ════════════════════════════ */}
       {projectTab === "estrategia" && (
         <EstrategiaTab clientId={client.id} projectId={project.id} />
       )}

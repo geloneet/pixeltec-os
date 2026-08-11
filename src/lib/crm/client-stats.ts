@@ -40,7 +40,7 @@ export function deriveClientStats(client: CRMClient): ClientStats {
 }
 
 /**
- * Badge del cliente (ADR-0034): refleja el ESTADO comercial (`crmStatus`),
+ * Badge del cliente (ADR-0035): refleja el ESTADO comercial (`crmStatus`),
  * no la existencia de tareas — "Sin tareas" podía significar tanto "todo al
  * día" como "cliente abandonado". Única excepción: tareas detenidas siempre
  * ganan (señal operativa de bloqueo, en rojo). Unifica las dos taxonomías
@@ -63,7 +63,7 @@ export function clientStatusBadge(status: ClientCrmStatus | undefined, stats: Cl
   }
 }
 
-// ── Teléfono accionable (ADR-0034) ───────────────────────────────────────────
+// ── Teléfono accionable (ADR-0035) ───────────────────────────────────────────
 
 export interface ActionablePhone {
   display: string;
@@ -92,7 +92,7 @@ export function formatPhone(raw: string | undefined | null): ActionablePhone | n
   };
 }
 
-// ── Tarjetas del Resumen (ADR-0034) ──────────────────────────────────────────
+// ── Tarjetas del Resumen (ADR-0035) ──────────────────────────────────────────
 
 export interface ResumenCard {
   key: string;
@@ -174,7 +174,7 @@ export function deriveResumenCards(client: CRMClient, stats: ClientStats, input:
   return cards;
 }
 
-// ── Checklist de arranque (ADR-0034) ─────────────────────────────────────────
+// ── Checklist de arranque (ADR-0035) ─────────────────────────────────────────
 
 export interface OnboardingStep {
   label: string;

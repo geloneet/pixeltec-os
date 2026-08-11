@@ -128,7 +128,7 @@ export default function DataDeletionPage() {
                 <li>Nombre completo</li>
                 <li>Correo electrónico con el que te registraste o con el que nos contactaste</li>
                 <li>Descripción de los datos que deseas eliminar (cuenta, historial de comunicaciones, datos de facturación, etc.)</li>
-                <li>En el asunto del correo indica: <strong className="text-white/80">"Solicitud de eliminación de datos"</strong></li>
+                <li>En el asunto del correo indica: <strong className="text-white/80">&quot;Solicitud de eliminación de datos&quot;</strong></li>
               </ul>
             </section>
 

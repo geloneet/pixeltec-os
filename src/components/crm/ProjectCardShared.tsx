@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Tarjeta de proyecto compartida (ADR-0034): antes vivía duplicada casi 1:1
+ * Tarjeta de proyecto compartida (ADR-0035): antes vivía duplicada casi 1:1
  * en ClientDetail y ProyectosTab (divergían solo en el label del botón).
  */
 import {

@@ -95,7 +95,7 @@ export default function TerminosDeServicioPage() {
           <article className="prose prose-invert prose-lg max-w-3xl w-full text-zinc-400 leading-relaxed text-base">
             <section id="intro" className="space-y-4 scroll-mt-32">
               <h2 className="text-2xl font-bold text-white">1. Introducción</h2>
-              <p>Estos Términos de Servicio ("Términos") rigen la relación profesional entre el cliente ("Cliente") y PixelTEC ("La Agencia"). Al contratar cualquiera de nuestros servicios, el Cliente acepta de manera íntegra e incondicional los presentes Términos. PixelTEC es una entidad comercial con sede en Puerto Vallarta, Jalisco, México.</p>
+              <p>Estos Términos de Servicio (&quot;Términos&quot;) rigen la relación profesional entre el cliente (&quot;Cliente&quot;) y PixelTEC (&quot;La Agencia&quot;). Al contratar cualquiera de nuestros servicios, el Cliente acepta de manera íntegra e incondicional los presentes Términos. PixelTEC es una entidad comercial con sede en Puerto Vallarta, Jalisco, México.</p>
               <p>El propósito de estos Términos es establecer un marco claro, justo y transparente para la colaboración, asegurando que ambas partes tengan un entendimiento mutuo de las expectativas, responsabilidades y procesos involucrados en cada proyecto.</p>
             </section>
 
@@ -113,7 +113,7 @@ export default function TerminosDeServicioPage() {
             <section id="entregas" className="space-y-4 mt-12 scroll-mt-32">
                 <h2 className="text-2xl font-bold text-white">3. Tiempos de Entrega y Modificaciones</h2>
                 <p>Los plazos de entrega estimados se especificarán en la propuesta de proyecto. Estos plazos son indicativos y pueden estar sujetos a cambios debido a retrasos en la entrega de información por parte del Cliente, solicitudes de cambio o imprevistos técnicos.</p>
-                <p>Cualquier solicitud de modificación o adición de funcionalidades no contempladas en el alcance original será considerada como un "Cambio de Alcance". Dichos cambios serán evaluados, cotizados por separado y, de ser aprobados, podrían impactar el cronograma original del proyecto.</p>
+                <p>Cualquier solicitud de modificación o adición de funcionalidades no contempladas en el alcance original será considerada como un &quot;Cambio de Alcance&quot;. Dichos cambios serán evaluados, cotizados por separado y, de ser aprobados, podrían impactar el cronograma original del proyecto.</p>
             </section>
             
             <section id="pagos" className="space-y-4 mt-12 scroll-mt-32">

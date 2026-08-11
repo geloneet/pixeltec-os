@@ -21,7 +21,7 @@
  * deriva valores reales de los atributos, se cae a un grid ESTÁTICO sin
  * fieldsets — nunca se lanza ante props degeneradas.
  */
-import { useEffect, useId, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useState } from "react";
 
 interface Opcion {
   id: string;
@@ -73,7 +73,10 @@ export function ProductSelector({ opciones, filtros }: ProductSelectorProps) {
     setMounted(true);
   }, []);
 
-  const seleccionDe = (filtro: string) => selecciones[filtro] ?? TODAS;
+  const seleccionDe = useCallback(
+    (filtro: string) => selecciones[filtro] ?? TODAS,
+    [selecciones]
+  );
 
   // Pre-mount (y SSR) se muestra el catálogo completo; el filtrado aplica solo
   // post-hidratación (patrón `mounted`).
@@ -86,7 +89,7 @@ export function ProductSelector({ opciones, filtros }: ProductSelectorProps) {
         return opcion.atributos?.[filtro] === sel;
       })
     );
-  }, [mounted, hayFiltros, catalogo, filtrosActivos, selecciones]);
+  }, [mounted, hayFiltros, catalogo, filtrosActivos, seleccionDe]);
 
   const reset = () => setSelecciones({});
 
