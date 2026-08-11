@@ -1,6 +1,6 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { clients, projects, contracts, finances, tickets, clientPortalUpdates, users } from "@/lib/db/schema";
+import { clients, projects, contracts, finances, invoices, tickets, clientPortalUpdates, users } from "@/lib/db/schema";
 import { publicDocId } from "@/lib/documents/pg";
 
 // ── Identidad por correo (login) ─────────────────────────────────────────────
@@ -130,7 +130,7 @@ export async function getPortalDashboardData(clientPgId: string): Promise<Portal
     );
   }
 
-  const [projectRows, contractRows, invoiceRows, ticketRows, updateRows] = await Promise.all([
+  const [projectRows, contractRows, invoiceRowsPg, financeRowsFallback, ticketRows, updateRows] = await Promise.all([
     db
       .select({ id: projects.id, name: projects.name, status: projects.status })
       .from(projects)
@@ -141,8 +141,25 @@ export async function getPortalDashboardData(clientPgId: string): Promise<Portal
       .from(contracts)
       .where(and(eq(contracts.clientId, clientPgId), eq(contracts.status, "firmado")))
       .orderBy(desc(contracts.version)),
-    // finances/tickets: matching por nombre de cliente (deuda técnica heredada,
-    // ver docs/superpowers/specs/2026-07-09-portal-clientes-design.md).
+    // ADR-0040: fuente primaria de facturas — clientId es FK real, no
+    // requiere el guard de nombre duplicado que sí necesita `finances`.
+    db
+      .select({
+        id: invoices.id,
+        projectName: projects.name,
+        total: invoices.total,
+        status: invoices.status,
+        issueDate: invoices.issueDate,
+      })
+      .from(invoices)
+      .leftJoin(projects, eq(invoices.projectId, projects.id))
+      .where(eq(invoices.clientId, clientPgId))
+      .orderBy(desc(invoices.issueDate))
+      .limit(20),
+    // Fallback: solo se usa si el cliente no tiene ninguna fila en `invoices`
+    // (p. ej. historial pre-migración). `finances`/tickets: matching por
+    // nombre de cliente (deuda técnica heredada, ver
+    // docs/superpowers/specs/2026-07-09-portal-clientes-design.md).
     nameIsUnique
       ? db
           .select({
@@ -179,10 +196,24 @@ export async function getPortalDashboardData(clientPgId: string): Promise<Portal
       .limit(20),
   ]);
 
+  // ADR-0040: `invoices` (FK real) es la fuente primaria. `finances` (match
+  // por nombre) solo se usa si el cliente no tiene ninguna fila ahí —
+  // historial pre-migración, ya congelado sin escrituras nuevas.
+  const invoiceRows =
+    invoiceRowsPg.length > 0
+      ? invoiceRowsPg.map((r) => ({
+          id: r.id,
+          projectName: r.projectName,
+          amount: r.total,
+          status: r.status === "pagada" ? "Pagado" : r.status === "cancelada" ? "Cancelado" : "Pendiente",
+          date: r.issueDate,
+        }))
+      : financeRowsFallback.map((r) => ({ ...r, date: r.date.toISOString() }));
+
   return {
     clientName: client.name,
     projects: projectRows,
-    invoices: invoiceRows.map((r) => ({ ...r, date: r.date.toISOString() })),
+    invoices: invoiceRows,
     contracts: contractRows,
     tickets: ticketRows,
     updates: updateRows.map((r) => ({ ...r, createdAt: r.createdAt.toISOString() })),

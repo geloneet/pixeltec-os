@@ -15,6 +15,7 @@ import {
   resolveContractRow,
   resolveIATemplatePgId,
   resolveProposalPgId,
+  resolveProposalRow,
   publicDocId,
   serializeContract,
 } from "./pg";
@@ -25,6 +26,8 @@ import {
   flattenSections,
   CONTRACT_TEMPLATE_VERSION,
 } from "@/lib/contracts/base-template";
+import { generateContractPdf, safeContractFilename } from "./contract-pdf-render";
+import { sendContractSignedEmail } from "@/lib/email";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -302,6 +305,70 @@ export async function confirmContractFromWizard(data: ConfirmContractFromWizardI
   return row.id;
 }
 
+/**
+ * Genera el contrato borrador automáticamente cuando el CLIENTE acepta una
+ * propuesta desde `/p/[token]` (`api/proposals/action`). A diferencia de
+ * `confirmContractFromWizard`, este flujo corre SIN sesión de staff — el
+ * `ownerId` viene de la propia propuesta, ya resuelta y validada por el
+ * token público que la llamó. Idempotente: si la propuesta ya tiene
+ * `contractId`, no crea un segundo contrato.
+ */
+export async function createDraftContractFromProposal(proposalPgId: string): Promise<string | null> {
+  const row = await resolveProposalRow(proposalPgId);
+  if (!row) return null;
+  if (row.contractId) return row.contractId; // ya convertida — no duplicar
+  const billingItems = (row.billingItemDrafts as BillingItemDraft[] | null) ?? [];
+  if (billingItems.length === 0) {
+    console.warn(`[contracts] propuesta ${row.id} aceptada sin billingItemDrafts — sin contrato automático`);
+    return null;
+  }
+
+  const [client] = await db.select({ name: clients.name }).from(clients).where(eq(clients.id, row.clientId)).limit(1);
+  if (!client) return null;
+
+  const sections = buildContractSections({
+    clientName: client.name,
+    contractTitle: row.title,
+    startDate: new Date().toISOString().slice(0, 10),
+    proposalReference: row.reference ?? undefined,
+    billingItems,
+  });
+
+  const [contractRow] = await db
+    .insert(contracts)
+    .values({
+      ownerId: row.ownerId,
+      clientId: row.clientId,
+      proposalId: row.id,
+      version: 1,
+      status: "borrador",
+      title: row.title,
+      content: flattenSections(sections),
+      variables: {},
+      signers: [],
+      templateVersion: CONTRACT_TEMPLATE_VERSION,
+      sections,
+      billingItemDrafts: billingItems,
+      startDate: new Date().toISOString().slice(0, 10),
+      approvedAt: new Date(),
+    })
+    .returning({ id: contracts.id });
+
+  await db
+    .update(proposals)
+    .set({ contractId: contractRow.id, updatedAt: new Date() })
+    .where(eq(proposals.id, row.id));
+
+  await logClientActivity({
+    ownerId: row.ownerId,
+    clientId: row.clientId,
+    type: "contrato_creado",
+    message: `Contrato generado automáticamente al aceptar la propuesta: ${row.title}`,
+  });
+
+  return contractRow.id;
+}
+
 export interface SignContractResult {
   status: Contract["status"];
   /** uuid Postgres del proyecto ya vinculado, si `attachProjectToContract` ya corrió antes. */
@@ -362,6 +429,34 @@ export async function signContract(id: string): Promise<SignContractResult> {
       type: "contrato_firmado",
       message: `Contrato firmado: ${row.title}`,
     });
+
+    // C3: envío del PDF firmado al cliente. Fire-and-forget respecto a la
+    // firma ya committeada — un fallo de correo (sin email en el cliente,
+    // Resend caído, egress bloqueado) no debe revertir ni bloquear la firma.
+    try {
+      const [client] = await db
+        .select({ name: clients.name, email: clients.email })
+        .from(clients)
+        .where(eq(clients.id, row.clientId))
+        .limit(1);
+      if (client?.email) {
+        const fullContract = await getContract(id);
+        if (fullContract) {
+          const pdfBuffer = await generateContractPdf(fullContract, client.name);
+          await sendContractSignedEmail({
+            email: client.email,
+            clientName: client.name,
+            contractTitle: row.title,
+            pdfBuffer,
+            pdfFilename: safeContractFilename(row.title, row.version),
+          });
+        }
+      } else {
+        console.warn(`[contracts] contrato ${row.id} firmado sin email de cliente — sin envío`);
+      }
+    } catch (err) {
+      console.error("[contracts] envío de contrato firmado FAILED:", err);
+    }
   }
 
   return { status: "firmado", projectId: row.projectId };

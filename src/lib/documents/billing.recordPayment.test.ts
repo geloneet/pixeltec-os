@@ -69,6 +69,14 @@ vi.mock("./pg", () => ({
   requireOwner: mocks.requireOwner,
   resolveClientPgId: mocks.resolveClientPgId,
 }));
+// ADR-0040: `ensureInvoiceForBillingPayment`/`deliverInvoiceEmail` son
+// colaboradores externos — este archivo prueba la concurrencia/lock/rechazo
+// de `recordPayment` en aislamiento, no el puente factura↔cobro (cubierto en
+// invoices.test.ts).
+vi.mock("./invoices", () => ({
+  ensureInvoiceForBillingPayment: vi.fn(async () => ({ newInvoiceId: null })),
+  deliverInvoiceEmail: vi.fn(async () => undefined),
+}));
 
 const { recordPayment } = await import("./billing");
 

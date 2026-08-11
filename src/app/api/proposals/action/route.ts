@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { after } from "next/server";
 import { getProposalByToken, updateProposalActionStatus } from "@/lib/documents/proposals-admin";
+import { createDraftContractFromProposal } from "@/lib/documents/contracts";
 import { buildProposalDecisionNotification, investmentSummary } from "@/lib/notifications/proposal-decision";
 import { createNotification } from "@/lib/notifications/create";
 import { sendProposalDecisionEmail } from "@/lib/email";
@@ -23,6 +24,17 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const result = await updateProposalActionStatus(proposal, action);
     if (!result.ok) {
       return NextResponse.json({ error: result.reason }, { status: 409 });
+    }
+
+    // Contrato borrador automático — antes de responder al cliente, para que
+    // el estado ya exista si la UI del portal lo consulta enseguida. Un
+    // fallo aquí no debe tumbar la aceptación ya guardada arriba.
+    if (action === "aceptada") {
+      try {
+        await createDraftContractFromProposal(proposal.id);
+      } catch (err) {
+        console.error("[proposals/action] auto-contract FAILED:", err);
+      }
     }
 
     // Avisos al staff DESPUÉS de responder al cliente. La transición de

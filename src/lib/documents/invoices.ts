@@ -15,8 +15,11 @@ import {
   resolveInvoiceRow,
   serializeInvoice,
   orderedItemIds,
+  publicDocId,
   type InvoiceItemRow,
 } from "./pg";
+import { buildInvoicePdf, safeInvoiceFilename } from "./invoice-pdf-render";
+import { sendInvoiceToClientEmail } from "@/lib/email";
 
 export async function getInvoices(_uid: string, clientId?: string): Promise<Invoice[]> {
   const { uid, ownerId } = await requireOwner();
@@ -325,5 +328,133 @@ export async function updateInvoice(
       type: "factura_pagada",
       message: `Factura pagada: ${activityInfo.number}`,
     });
+  }
+}
+
+/**
+ * ADR-0040 — puente cobro→factura. Llamado por `recordPayment` (billing.ts)
+ * DENTRO de su propia transacción (recibe el mismo `tx`), nunca standalone.
+ *
+ * Idempotente por `(billingItemId, periodKey)`: un segundo pago parcial del
+ * mismo período reutiliza la factura ya creada (solo actualiza `status` si
+ * ahora quedó `fullyPaid`) en vez de duplicar — el monto total del período no
+ * cambia entre pagos parciales, así que no hay nada que recalcular.
+ */
+/** Resultado de `ensureInvoiceForBillingPayment` — `newInvoiceId` solo viene
+ * poblado cuando SE CREÓ una factura nueva (no en el camino idempotente de
+ * reutilizar una existente), para que el caller sepa cuándo disparar el
+ * envío por correo — una vez, no en cada pago parcial del mismo período. */
+export interface EnsureInvoiceResult {
+  newInvoiceId: string | null;
+}
+
+export async function ensureInvoiceForBillingPayment(
+  tx: Tx,
+  params: {
+    ownerId: string;
+    clientPgId: string;
+    billingItemId: string;
+    contractPgId: string | null;
+    concept: string;
+    amount: number;
+    currency: string;
+    periodDue: string;
+    fullyPaid: boolean;
+  },
+): Promise<EnsureInvoiceResult> {
+  const [existing] = await tx
+    .select({ id: invoices.id, status: invoices.status })
+    .from(invoices)
+    .where(
+      and(eq(invoices.billingItemId, params.billingItemId), eq(invoices.periodKey, params.periodDue)),
+    )
+    .limit(1);
+
+  if (existing) {
+    if (params.fullyPaid && existing.status !== "pagada" && existing.status !== "cancelada") {
+      await tx.update(invoices).set({ status: "pagada", updatedAt: new Date() }).where(eq(invoices.id, existing.id));
+    }
+    return { newInvoiceId: null };
+  }
+
+  const { normalizedItems, subtotal, ivaAmount, total } = computeInvoiceTotals(
+    [{ id: "1", description: params.concept, qty: 1, unitPrice: params.amount, subtotal: params.amount }],
+    0.16,
+  );
+  const number = await assignInvoiceNumber(tx, new Date().getFullYear());
+
+  const [row] = await tx
+    .insert(invoices)
+    .values({
+      ownerId: params.ownerId,
+      clientId: params.clientPgId,
+      billingItemId: params.billingItemId,
+      contractId: params.contractPgId,
+      periodKey: params.periodDue,
+      number,
+      status: params.fullyPaid ? "pagada" : "borrador",
+      subtotal: String(subtotal),
+      ivaRate: "0.16",
+      ivaAmount: String(ivaAmount),
+      total: String(total),
+      currency: params.currency,
+      issueDate: new Date().toISOString().slice(0, 10),
+      dueDate: params.periodDue,
+      notes: null,
+    })
+    .returning({ id: invoices.id });
+
+  const ids = orderedItemIds(normalizedItems.length);
+  await tx.insert(invoiceItems).values(
+    normalizedItems.map((it, i) => ({
+      id: ids[i],
+      invoiceId: row.id,
+      description: it.description,
+      qty: String(it.qty),
+      unitPrice: String(it.unitPrice),
+      subtotal: String(it.subtotal),
+    })),
+  );
+
+  return { newInvoiceId: row.id };
+}
+
+/**
+ * Entrega por correo de una factura recién creada por
+ * `ensureInvoiceForBillingPayment` — SIEMPRE se llama DESPUÉS de que la
+ * transacción de `recordPayment` ya resolvió (I/O de red y PDF no deben
+ * correr bajo el lock de `billing_items`/`payment_records`). No lanza: un
+ * fallo de entrega no debe aparentar que el pago falló.
+ */
+export async function deliverInvoiceEmail(invoiceId: string): Promise<void> {
+  try {
+    const row = await resolveInvoiceRow(invoiceId);
+    if (!row) return;
+    const [client] = await db
+      .select({ name: clients.name, email: clients.email })
+      .from(clients)
+      .where(eq(clients.id, row.clientId))
+      .limit(1);
+    if (!client?.email) {
+      console.warn(`[invoices] factura ${row.id} sin email de cliente — sin envío`);
+      return;
+    }
+    const itemRows = await db
+      .select()
+      .from(invoiceItems)
+      .where(eq(invoiceItems.invoiceId, row.id))
+      .orderBy(invoiceItems.id);
+    const invoice = serializeInvoice(row, itemRows, publicDocId(row), "");
+    const pdfBuffer = Buffer.from(await buildInvoicePdf(invoice));
+    await sendInvoiceToClientEmail({
+      email: client.email,
+      clientName: client.name,
+      invoiceNumber: row.number,
+      total: Number(row.total),
+      pdfBuffer,
+      pdfFilename: safeInvoiceFilename(row.number),
+    });
+  } catch (err) {
+    console.error("[invoices] deliverInvoiceEmail FAILED:", err);
   }
 }
