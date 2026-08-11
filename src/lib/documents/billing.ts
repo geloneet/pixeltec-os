@@ -10,6 +10,7 @@ import type { BillingItem, BillingItemDraft, PaymentMethod, PaymentRecord } from
 import { computeNextDueDate, isOverdue, type BillingFrequency } from "@/lib/billing/next-due";
 import { computePaymentTransition, type BillingStatus } from "@/lib/billing/payment-transition";
 import { requireOwner, resolveClientPgId } from "./pg";
+import { ensureInvoiceForBillingPayment, deliverInvoiceEmail } from "./invoices";
 
 type BillingItemRow = typeof billingItems.$inferSelect;
 type PaymentRecordRow = typeof paymentRecords.$inferSelect;
@@ -197,7 +198,7 @@ export async function recordPayment(billingItemId: string, input: RecordPaymentI
     throw new Error("El monto del pago debe ser mayor a cero");
   }
 
-  return db.transaction(async (tx) => {
+  const result = await db.transaction(async (tx) => {
     // FOR UPDATE: sin lock, dos pagos concurrentes sobre el mismo período leen
     // el mismo `amountPaidSoFar`, ambos calculan la transición como si fueran
     // el único pago, y el segundo `update` pisa el estado del primero — el
@@ -267,6 +268,21 @@ export async function recordPayment(billingItemId: string, input: RecordPaymentI
       })
       .where(eq(billingItems.id, row.id));
 
+    // ADR-0040: todo pago deja un documento de factura del lado del cliente.
+    // `row.dueDate` es el período que este pago cubre (antes de la
+    // transición); idempotente por (billingItemId, periodDue).
+    const invoiceResult = await ensureInvoiceForBillingPayment(tx, {
+      ownerId,
+      clientPgId: row.clientId,
+      billingItemId: row.id,
+      contractPgId: row.contractId ?? null,
+      concept: row.concept,
+      amount: Number(row.amount),
+      currency: row.currency,
+      periodDue: row.dueDate,
+      fullyPaid: transition.fullyPaid,
+    });
+
     return {
       fullyPaid: transition.fullyPaid,
       frequency: row.frequency,
@@ -276,6 +292,15 @@ export async function recordPayment(billingItemId: string, input: RecordPaymentI
       remaining: transition.fullyPaid
         ? 0
         : Math.round((Number(row.amount) - amountPaidSoFar - amount) * 100) / 100,
+      newInvoiceId: invoiceResult.newInvoiceId,
     };
   });
+
+  // Fuera de la transacción a propósito: build de PDF + envío por Resend es
+  // I/O lento que no debe correr bajo el lock de billing_items.
+  if (result.newInvoiceId) {
+    await deliverInvoiceEmail(result.newInvoiceId);
+  }
+  const { newInvoiceId: _drop, ...publicResult } = result;
+  return publicResult;
 }

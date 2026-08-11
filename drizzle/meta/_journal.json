@@ -274,6 +274,20 @@
       "when": 1786072625000,
       "tag": "0038_strategies_unique_scope",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1786472149233,
+      "tag": "0039_invoices_billing_contract_link",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1786475181620,
+      "tag": "0040_billing_items_reminder",
+      "breakpoints": true
     }
   ]
 }

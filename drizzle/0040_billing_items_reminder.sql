@@ -1,0 +1,1 @@
+ALTER TABLE "billing_items" ADD COLUMN "reminded_for_due_date" date;

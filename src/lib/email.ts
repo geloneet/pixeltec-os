@@ -29,7 +29,15 @@ import { renderProposalDecisionEmail, type ProposalDecisionEmailProps } from '@/
 
 import { assertEmailEgressAllowed, EgressBlockedError } from "@/lib/egress-guard";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Instanciado perezosamente (no al importar el módulo): `contracts.ts` e
+// `invoices.ts` ahora importan `email.ts` para el envío al cliente (C3/C4,
+// ADR-0040), y una importación transitiva sin RESEND_API_KEY en el entorno
+// (tests, scripts) no debe tumbar el módulo entero solo por ser importado.
+let _resend: Resend | null = null;
+function getResend(): Resend {
+  if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY);
+  return _resend;
+}
 
 const FROM = process.env.RESEND_FROM_EMAIL ?? 'PixelTEC <onboarding@resend.dev>';
 const TEAM_EMAIL = process.env.PIXELTEC_TEAM_EMAIL ?? 'equipo@pixeltec.mx';
@@ -52,10 +60,16 @@ export interface EmailResult {
 
 // ── Core send function ─────────────────────────────────────────────────────────
 
+export interface EmailAttachment {
+  filename: string;
+  content: Buffer;
+}
+
 export async function sendEmail(
   to: string | string[],
   subject: string,
-  html: string
+  html: string,
+  attachments?: EmailAttachment[]
 ): Promise<EmailResult> {
   // Fail-closed antes de tocar Resend. `sendEmail` solo expone `to`; si en el
   // futuro admite CC o BCC deben pasarse aquí también, porque la política exige
@@ -71,11 +85,12 @@ export async function sendEmail(
   }
 
   try {
-    const { data, error } = await resend.emails.send({
+    const { data, error } = await getResend().emails.send({
       from: FROM,
       to: Array.isArray(to) ? to : [to],
       subject,
       html,
+      ...(attachments && attachments.length > 0 ? { attachments } : {}),
     });
 
     if (error) {
@@ -101,6 +116,87 @@ export async function sendWelcomeEmail(props: WelcomeEmailProps & { email: strin
   const { email, ...templateProps } = props;
   const html = renderWelcomeEmail(templateProps);
   return sendEmail(email, `Bienvenido a PixelTEC, ${props.clientName}`, html);
+}
+
+/**
+ * Envío del contrato firmado al cliente (C3, ADR-0040-adyacente) — PDF
+ * adjunto vía `EmailAttachment`. Hasta ahora el único camino del cliente al
+ * contrato era el portal (requiere `portalAccessEnabled`); este correo no
+ * depende de eso.
+ */
+export async function sendContractSignedEmail(props: {
+  email: string;
+  clientName: string;
+  contractTitle: string;
+  pdfBuffer: Buffer;
+  pdfFilename: string;
+}): Promise<EmailResult> {
+  const html = `<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="UTF-8" /></head>
+<body style="margin:0;padding:40px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f4f4f5;">
+  <div style="max-width:520px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;border:1px solid #e4e4e7;">
+    <div style="background:#000;padding:28px 32px;">
+      <p style="margin:0;font-size:20px;font-weight:700;color:#fff;">Pixel<span style="color:#06b6d4;">TEC</span></p>
+    </div>
+    <div style="padding:32px;">
+      <h2 style="margin:0 0 12px;font-size:18px;color:#09090b;">Tu contrato está firmado</h2>
+      <p style="margin:0 0 16px;font-size:14px;color:#52525b;">
+        Hola ${props.clientName}, adjuntamos el PDF de <strong>${props.contractTitle}</strong>
+        ya firmado por nuestro equipo. Consérvalo para tus registros.
+      </p>
+      <p style="margin:0;font-size:12px;color:#a1a1aa;">PixelTEC — pixeltec.mx</p>
+    </div>
+  </div>
+</body>
+</html>`;
+  return sendEmail(
+    props.email,
+    `Contrato firmado — ${props.contractTitle}`,
+    html,
+    [{ filename: props.pdfFilename, content: props.pdfBuffer }],
+  );
+}
+
+/**
+ * Entrega de la factura al CLIENTE (C4, ADR-0040) — distinto de
+ * `sendInvoiceEmail` de abajo, que es un aviso INTERNO al equipo. El PDF va
+ * adjunto vía `EmailAttachment`.
+ */
+export async function sendInvoiceToClientEmail(props: {
+  email: string;
+  clientName: string;
+  invoiceNumber: string;
+  total: number;
+  pdfBuffer: Buffer;
+  pdfFilename: string;
+}): Promise<EmailResult> {
+  const formattedTotal = new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(props.total);
+  const html = `<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="UTF-8" /></head>
+<body style="margin:0;padding:40px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f4f4f5;">
+  <div style="max-width:520px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;border:1px solid #e4e4e7;">
+    <div style="background:#000;padding:28px 32px;">
+      <p style="margin:0;font-size:20px;font-weight:700;color:#fff;">Pixel<span style="color:#06b6d4;">TEC</span></p>
+    </div>
+    <div style="padding:32px;">
+      <h2 style="margin:0 0 12px;font-size:18px;color:#09090b;">Tu factura ${props.invoiceNumber}</h2>
+      <p style="margin:0 0 16px;font-size:14px;color:#52525b;">
+        Hola ${props.clientName}, adjuntamos tu factura por
+        <strong>${formattedTotal}</strong>. Consérvala para tus registros.
+      </p>
+      <p style="margin:0;font-size:12px;color:#a1a1aa;">PixelTEC — pixeltec.mx</p>
+    </div>
+  </div>
+</body>
+</html>`;
+  return sendEmail(
+    props.email,
+    `Factura ${props.invoiceNumber} — PixelTEC`,
+    html,
+    [{ filename: props.pdfFilename, content: props.pdfBuffer }],
+  );
 }
 
 /** Sent to the internal team when a transaction is marked as "Pagado". */

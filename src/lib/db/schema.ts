@@ -971,6 +971,10 @@ export const billingItems = pgTable(
     dueDate: date("due_date").notNull(),
     nextDueDate: date("next_due_date"),
     notes: text("notes"),
+    // C6 (ADR-0040): idempotencia del recordatorio del scheduler — evita
+    // reenviar el mismo aviso en cada corrida del cron mientras el período
+    // no avance. Se compara contra `dueDate`, no se limpia solo.
+    remindedForDueDate: date("reminded_for_due_date"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -1015,6 +1019,18 @@ export const invoices = pgTable(
       .notNull()
       .references(() => clients.id, { onDelete: "cascade" }),
     projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
+    // ADR-0040: enlace opcional al cobro/contrato de origen. Nullable porque
+    // la captura manual (FacturacionTab) sigue siendo un camino válido sin
+    // contrato de por medio.
+    billingItemId: uuid("billing_item_id").references(() => billingItems.id, {
+      onDelete: "set null",
+    }),
+    contractId: uuid("contract_id").references(() => contracts.id, { onDelete: "set null" }),
+    // Período (billing_items.due_date / payment_records.period_key) que esta
+    // factura cubre — solo cuando billingItemId está presente. Permite
+    // encontrar "ya existe factura para este billing item + período" sin
+    // duplicar al recibir un segundo pago parcial del mismo período.
+    periodKey: date("period_key"),
     number: text("number").notNull(),
     status: invoiceStatusEnum("status").notNull().default("borrador"),
     subtotal: numeric("subtotal", { precision: 12, scale: 2 }).notNull(),
@@ -1032,6 +1048,9 @@ export const invoices = pgTable(
   (t) => [
     index("invoices_owner_idx").on(t.ownerId),
     index("invoices_client_idx").on(t.clientId),
+    index("invoices_billing_item_idx").on(t.billingItemId),
+    index("invoices_contract_idx").on(t.contractId),
+    uniqueIndex("invoices_billing_item_period_idx").on(t.billingItemId, t.periodKey),
     uniqueIndex("invoices_number_idx").on(t.number),
     uniqueIndex("invoices_firestore_id_idx").on(t.firestoreId),
   ]
