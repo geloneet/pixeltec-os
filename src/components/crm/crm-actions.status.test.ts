@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 /**
- * Campos server-owned de ADR-0034 (`crm_status`, `next_action`): las actions
+ * Campos server-owned de ADR-0035 (`crm_status`, `next_action`): las actions
  * dedicadas son su ÚNICA puerta de escritura, y el blob-sync jamás debe
  * poder pisarlos (decisión D2 del plan — un tab con blob stale reescribía
  * cualquier campo que entrara al `set` del upsert).

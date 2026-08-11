@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Resumen del cliente (ADR-0034, dictamen 2026-08-05): de contenedor de
+ * Resumen del cliente (ADR-0035, dictamen 2026-08-05): de contenedor de
  * funciones a asistente operativo. Header con estado comercial y próxima
  * acción; tarjetas dinámicas según estado (nunca cuatro ceros); tarjeta de
  * arranque para clientes vacíos; historial persistente (client_activity) con

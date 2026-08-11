@@ -204,6 +204,76 @@
       "when": 1785978181235,
       "tag": "0028_client_workspace_redesign",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1785983731000,
+      "tag": "0029_blog_activity",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1785984225000,
+      "tag": "0030_perfil_acceso",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1785984831000,
+      "tag": "0031_security_events",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1785989001000,
+      "tag": "0032_user_sessions",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1785989758000,
+      "tag": "0033_user_mfa",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1785990001000,
+      "tag": "0034_blog_post_versions",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1785990235000,
+      "tag": "0035_blog_brief_id",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1785990742000,
+      "tag": "0036_users_status_invitations",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1786041002000,
+      "tag": "0037_credential_epoch",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1786072625000,
+      "tag": "0038_strategies_unique_scope",
+      "breakpoints": true
     }
   ]
 }

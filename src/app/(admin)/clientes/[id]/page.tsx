@@ -11,7 +11,7 @@ const VALID_TABS: WorkspaceTab[] = ["resumen", "proyectos", "comercial", "docume
 
 const VALID_SUBS: ComercialSub[] = ["propuestas", "contratos", "facturacion"];
 
-/** Deep-links previos a ADR-0034 (emails, notificaciones, enlaces guardados):
+/** Deep-links previos a ADR-0035 (emails, notificaciones, enlaces guardados):
  *  jamás 404 — cada tab viejo cae en su nuevo hogar. OJO: `documentos` viejo
  *  era facturación; el tab `documentos` nuevo (expediente) solo se alcanza
  *  desde la UI. */

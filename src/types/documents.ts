@@ -221,7 +221,7 @@ export interface DiscoverySession {
   id: string;
   uid: string;
   clientId: string;
-  /** Proyecto dueño (ADR-0034); null/ausente = sesión huérfana asignable. */
+  /** Proyecto dueño (ADR-0035); null/ausente = sesión huérfana asignable. */
   projectId?: string | null;
   industry: DiscoveryIndustry | string;
   status: "generando" | "en_progreso" | "completado";
@@ -261,7 +261,7 @@ export interface Strategy {
   id: string;
   uid: string;
   clientId: string;
-  /** Proyecto dueño (ADR-0034); null/ausente = estrategia huérfana asignable. */
+  /** Proyecto dueño (ADR-0035); null/ausente = estrategia huérfana asignable. */
   projectId?: string | null;
   objectives: StrategyObjective[];
   kpis: StrategyKPI[];

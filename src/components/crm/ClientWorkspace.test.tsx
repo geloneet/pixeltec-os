@@ -64,7 +64,7 @@ function renderWorkspace(client: CRMClient, extra: Partial<Parameters<typeof Cli
   );
 }
 
-describe("ClientWorkspace — tabs de ADR-0034", () => {
+describe("ClientWorkspace — tabs de ADR-0035", () => {
   it("muestra los 4 tabs base y oculta Portal cuando está deshabilitado", () => {
     renderWorkspace(buildClient({ portalAccessEnabled: false }));
 

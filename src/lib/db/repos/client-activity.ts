@@ -1,4 +1,4 @@
-// Historial verificable del cliente (ADR-0034): qué ocurrió, quién y cuándo.
+// Historial verificable del cliente (ADR-0035): qué ocurrió, quién y cuándo.
 // Los writers viven en las server actions de cada dominio (proposals,
 // contracts, invoices, portal, crm-actions) — este repo solo inserta y lee.
 import { desc, eq, and, max } from "drizzle-orm";
