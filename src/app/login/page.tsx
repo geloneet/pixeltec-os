@@ -287,7 +287,7 @@ export default function LoginPage() {
           </h2>
           <p className="mt-3 font-mono text-xs font-medium uppercase tracking-[0.25em] text-zinc-500">
             <span>Somos</span>
-            <span className="mx-2 text-primary">//</span>
+            <span className="mx-2 text-primary">{'//'}</span>
             <RotatingWord />
             <BlinkingCursor />
           </p>

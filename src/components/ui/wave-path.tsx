@@ -21,6 +21,7 @@ export function WavePath({ className, ...props }: WWavePathProps) {
                 cancelAnimationFrame(reqId);
             }
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- progress/reqId/setPath son closures mutables intencionalmente fuera de React state (evitar re-render en cada frame del mouse); este efecto es mount-only por diseño.
 	}, []);
 
 	const setPath = (progress: number) => {

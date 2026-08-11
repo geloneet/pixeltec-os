@@ -95,7 +95,7 @@ export default function AvisoDePrivacidadPage() {
           <article className="prose prose-invert prose-lg max-w-3xl w-full text-zinc-400 leading-relaxed text-base">
             <section id="responsable" className="space-y-4 scroll-mt-32">
               <h2 className="text-2xl font-bold text-white">1. Identidad y Domicilio del Responsable</h2>
-              <p>De conformidad con la Ley Federal de Protección de Datos Personales en Posesión de los Particulares ("LFPDPPP"), PixelTEC ("El Responsable"), con domicilio en Puerto Vallarta, Jalisco, México, es responsable del tratamiento de sus datos personales.</p>
+              <p>De conformidad con la Ley Federal de Protección de Datos Personales en Posesión de los Particulares (&quot;LFPDPPP&quot;), PixelTEC (&quot;El Responsable&quot;), con domicilio en Puerto Vallarta, Jalisco, México, es responsable del tratamiento de sus datos personales.</p>
             </section>
 
             <section id="datos" className="space-y-4 mt-12 scroll-mt-32">
