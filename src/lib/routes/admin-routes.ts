@@ -24,6 +24,7 @@ export const ADMIN_ROUTES = [
   'documentos',
   'ia-factory',
   'usuarios',
+  'smilemore-respuestas',
 ] as const;
 
 export type AdminRoute = typeof ADMIN_ROUTES[number];

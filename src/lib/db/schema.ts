@@ -1606,6 +1606,27 @@ export const rateLimit = pgTable("rate_limit", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+// ── Cuestionario de levantamiento Smile More (/smilemoreqa) ─────────────────
+// Respuestas del cuestionario "Corrección y Adaptación de Sistema" que llena
+// el personal de la clínica desde la ruta pública; se consultan en la vista
+// admin /smilemore-respuestas. `answers` guarda el payload completo validado
+// (ver src/lib/smilemore-qa/definition.ts — SmilemoreQaAnswers).
+export const smilemoreQaResponses = pgTable(
+  "smilemore_qa_responses",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    respondentName: text("respondent_name").notNull(),
+    respondentRole: text("respondent_role"),
+    branch: text("branch"),
+    systemUsage: text("system_usage"),
+    answers: jsonb("answers").notNull(),
+    userAgent: text("user_agent"),
+    ipHash: text("ip_hash"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("smilemore_qa_responses_created_at_idx").on(t.createdAt)]
+);
+
 // Shape real del writer (src/lib/system-alerts.ts): severity/source/message/context.
 export const systemAlerts = pgTable("system_alerts", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -2062,6 +2083,9 @@ export type NewBlogPost = typeof blogPosts.$inferInsert;
 
 export type Lead = typeof leads.$inferSelect;
 export type NewLead = typeof leads.$inferInsert;
+
+export type SmilemoreQaResponse = typeof smilemoreQaResponses.$inferSelect;
+export type NewSmilemoreQaResponse = typeof smilemoreQaResponses.$inferInsert;
 export type NewsletterSubscriber = typeof newsletterSubscribers.$inferSelect;
 
 export type Notification = typeof notifications.$inferSelect;
