@@ -288,6 +288,13 @@
       "when": 1786475181620,
       "tag": "0040_billing_items_reminder",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1787156203136,
+      "tag": "0041_striped_silver_centurion",
+      "breakpoints": true
     }
   ]
 }

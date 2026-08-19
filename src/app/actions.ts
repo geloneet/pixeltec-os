@@ -25,6 +25,13 @@ import { db as pgDb } from '@/lib/db';
 import { clients as clientsTable, users as usersTable, passwordResetTokens, leads as leadsTable } from '@/lib/db/schema';
 import bcrypt from 'bcryptjs';
 import { toPublicFailure, type PublicFailure } from '@/lib/errors/public-failure';
+import { createSmilemoreQaResponse } from '@/lib/smilemore-qa-repo';
+import {
+  SIMPLE_ANSWER_IDS,
+  MULTI_ANSWER_IDS,
+  MODULE_ANSWER_IDS,
+  type SmilemoreQaAnswers,
+} from '@/lib/smilemore-qa/definition';
 
 /**
  * Códigos estables para `systemAlerts.context`. El `message` no se usa: en este
@@ -693,3 +700,160 @@ export async function subscribeToNewsletterAction(
 // `sendTestEmailAction` aceptaba un destinatario arbitrario y las otras
 // spameaban al TEAM_EMAIL con contenido elegido por el llamador. El envío de
 // prueba autenticado vive en /api/send-email.
+
+// ─── Cuestionario Smile More (/smilemoreqa) ──────────────────────────────────
+
+const SMILEMORE_QA_FAILURE: PublicFailure = {
+  code: 'smilemore_qa_create_failed',
+  message: 'createSmilemoreQaResponse failed',
+};
+
+const SMILEMORE_QA_RATE_LIMIT = { max: 10, windowMs: 60 * 60 * 1000 } as const; // 10/hour
+
+const qaLongText = z.string().trim().max(8000);
+const qaShortText = z.string().trim().max(200);
+
+const smilemoreQaSchema = z.object({
+  nombre: z
+    .string()
+    .trim()
+    .min(2, 'Escribe tu nombre para poder darle seguimiento a tus respuestas.')
+    .max(120),
+  puesto: qaShortText.optional(),
+  sucursal: qaShortText.optional(),
+  uso: qaShortText.optional(),
+  respuestas: z.record(z.string(), qaLongText).default({}),
+  multiples: z.record(z.string(), z.array(qaShortText).max(10)).default({}),
+  modulos: z
+    .record(
+      z.string(),
+      z.object({
+        observacion: qaLongText.optional(),
+        prioridad: qaShortText.optional(),
+      })
+    )
+    .default({}),
+  incidencias: z
+    .array(
+      z.object({
+        seccion: qaShortText.optional(),
+        haciendo: qaLongText.optional(),
+        esperabas: qaLongText.optional(),
+        ocurrio: qaLongText.optional(),
+        frecuencia: qaShortText.optional(),
+        impacto: qaShortText.optional(),
+      })
+    )
+    .max(12)
+    .default([]),
+  prioridades: z
+    .array(
+      z.object({
+        cambio: qaLongText.optional(),
+        problema: qaLongText.optional(),
+        paraQuien: qaLongText.optional(),
+      })
+    )
+    .max(5)
+    .default([]),
+  /** Honeypot — debe llegar vacío. */
+  website: z.string().optional(),
+});
+
+export type SmilemoreQaFormInput = z.input<typeof smilemoreQaSchema>;
+
+export type SubmitSmilemoreQaState =
+  | { ok: true; responseId: string }
+  | { ok: false; message: string; errors?: Record<string, string[] | undefined> };
+
+/** Solo conserva claves que existen en la definición del cuestionario. */
+function pickKnownKeys<T>(record: Record<string, T>, known: Set<string>): Record<string, T> {
+  return Object.fromEntries(Object.entries(record).filter(([key]) => known.has(key)));
+}
+
+/** Público — cuestionario de levantamiento de Smile More (/smilemoreqa). */
+export async function submitSmilemoreQa(
+  input: SmilemoreQaFormInput
+): Promise<SubmitSmilemoreQaState> {
+  // 1) Honeypot — silent-ish failure, NO persistence, NO notificaciones.
+  if ((input.website ?? '').trim() !== '') {
+    console.warn('[smilemore-qa] honeypot tripped, dropping submission');
+    return { ok: false, message: 'No se pudo procesar tu envío.' };
+  }
+
+  // 2) Validate
+  const validated = smilemoreQaSchema.safeParse(input);
+  if (!validated.success) {
+    return {
+      ok: false,
+      message: 'Por favor revisa los campos señalados.',
+      errors: validated.error.flatten().fieldErrors,
+    };
+  }
+  const data = validated.data;
+
+  // 3) Rate limit
+  const { ip, userAgent } = await getRequestContext();
+  const rl = await enforceRateLimit({
+    ip,
+    bucket: 'smilemore_qa',
+    max: SMILEMORE_QA_RATE_LIMIT.max,
+    windowMs: SMILEMORE_QA_RATE_LIMIT.windowMs,
+  });
+  if (!rl.allowed) {
+    return { ok: false, message: `Demasiados intentos. Intenta en ${formatRetryAfter(rl.retryAfterSec)}.` };
+  }
+
+  // 4) El payload solo admite ids que existen en la definición del
+  // cuestionario — un cliente manipulado no puede inflar el jsonb con claves
+  // arbitrarias (los límites de longitud ya los puso el schema).
+  const answers: SmilemoreQaAnswers = {
+    nombre: data.nombre,
+    puesto: data.puesto,
+    sucursal: data.sucursal,
+    uso: data.uso,
+    respuestas: pickKnownKeys(data.respuestas, SIMPLE_ANSWER_IDS),
+    multiples: pickKnownKeys(data.multiples, MULTI_ANSWER_IDS),
+    modulos: pickKnownKeys(data.modulos, MODULE_ANSWER_IDS),
+    incidencias: data.incidencias,
+    prioridades: data.prioridades,
+  };
+
+  // 5) Persist FIRST — la notificación jamás puede costar una respuesta.
+  let responseId: string;
+  try {
+    responseId = await createSmilemoreQaResponse({
+      respondentName: data.nombre,
+      respondentRole: data.puesto,
+      branch: data.sucursal,
+      systemUsage: data.uso,
+      answers,
+      userAgent,
+      ipHash: hashIp(ip),
+    });
+  } catch (err) {
+    console.error('[smilemore-qa] createSmilemoreQaResponse failed:', err);
+    await logSystemAlert({
+      severity: 'critical',
+      source: 'smilemore_qa',
+      message: 'createSmilemoreQaResponse failed — respondent saw a generic error',
+      context: { code: toPublicFailure(err, SMILEMORE_QA_FAILURE).code },
+    });
+    return { ok: false, message: 'Ocurrió un error inesperado. Inténtalo de nuevo en unos minutos.' };
+  }
+
+  // 6) Best-effort heads-up al equipo — nunca bloquea a quien responde.
+  // sendWhatsApp() THROWS on failure (allowlist/token), igual que en
+  // submitDiagnostic se envuelve localmente.
+  await sendWhatsApp(
+    `📋 Cuestionario Smile More respondido — ${data.nombre}` +
+      `${data.puesto ? ` (${data.puesto})` : ''}` +
+      `${data.sucursal ? ` · Sucursal: ${data.sucursal}` : ''}\n` +
+      `Ver respuestas: ${APP_URL}/smilemore-respuestas`
+  ).catch((err) => {
+    console.error('[smilemore-qa] sendWhatsApp failed:', err);
+    return null;
+  });
+
+  return { ok: true, responseId };
+}
