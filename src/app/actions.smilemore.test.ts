@@ -1,4 +1,8 @@
 import { describe, expect, test, vi, beforeEach } from "vitest";
+import type {
+  NotifyNuevaRespuestaInput,
+  NotifyNuevaRespuestaResult,
+} from "@/lib/whatsapp/nueva-respuesta";
 
 /**
  * submitSmilemoreQa — cuestionario público de levantamiento de Smile More.
@@ -7,12 +11,18 @@ import { describe, expect, test, vi, beforeEach } from "vitest";
  * saneamiento de lo que se persiste en system_alerts.
  */
 
-const { logSystemAlertMock, enforceRateLimitMock, createResponseMock, sendWhatsAppMock } =
+const { logSystemAlertMock, enforceRateLimitMock, createResponseMock, sendWhatsAppMock, notifyMock } =
   vi.hoisted(() => ({
     logSystemAlertMock: vi.fn(),
     enforceRateLimitMock: vi.fn(),
     createResponseMock: vi.fn(),
     sendWhatsAppMock: vi.fn(async (_message: string) => undefined),
+    notifyMock: vi.fn(
+      async (_input: NotifyNuevaRespuestaInput): Promise<NotifyNuevaRespuestaResult> => ({
+        ok: true,
+        messageId: "wamid.test",
+      })
+    ),
   }));
 
 // `lib/email` instancia el cliente de Resend en el import — sin mock revienta.
@@ -42,6 +52,9 @@ vi.mock("@/lib/newsletter-repo", () => ({
 vi.mock("@/lib/email-env-guard", () => ({ assertEmailEnv: vi.fn(async () => ({ ok: true })) }));
 vi.mock("@/lib/privacy", () => ({ hashIp: vi.fn(() => "hash") }));
 vi.mock("@/lib/whatsapp/sender", () => ({ sendWhatsApp: sendWhatsAppMock }));
+vi.mock("@/lib/whatsapp/nueva-respuesta", () => ({
+  notifyNuevaRespuestaCuestionario: notifyMock,
+}));
 vi.mock("@/lib/db", () => ({ db: { select: vi.fn(), insert: vi.fn(), update: vi.fn() } }));
 vi.mock("@/lib/db/schema", () => ({
   clients: {},
@@ -58,6 +71,7 @@ vi.mock("next/headers", () => ({
 }));
 
 import { submitSmilemoreQa, type SmilemoreQaFormInput } from "./actions";
+import { QUESTIONNAIRE_META } from "@/lib/smilemore-qa/definition";
 
 const VALID_INPUT: SmilemoreQaFormInput = {
   nombre: "Dra. Prueba",
@@ -85,7 +99,7 @@ describe("submitSmilemoreQa", () => {
     const res = await submitSmilemoreQa({ ...VALID_INPUT, website: "spam-bot" });
     expect(res.ok).toBe(false);
     expect(createResponseMock).not.toHaveBeenCalled();
-    expect(sendWhatsAppMock).not.toHaveBeenCalled();
+    expect(notifyMock).not.toHaveBeenCalled();
   });
 
   test("nombre vacío: rechaza con errores de campo, sin tocar rate limit ni DB", async () => {
@@ -119,14 +133,29 @@ describe("submitSmilemoreQa", () => {
     expect(Object.keys(saved.answers.modulos)).toEqual(["2_1"]);
     expect(saved.answers.incidencias).toHaveLength(1);
 
-    expect(sendWhatsAppMock).toHaveBeenCalledTimes(1);
-    expect(String(sendWhatsAppMock.mock.calls[0][0])).toContain("Smile More");
+    // Aviso por plantilla con datos SEMÁNTICOS: formName/clientName salen de
+    // la definición del cuestionario, reference de la sucursal del envío y el
+    // botón recibe el id de la respuesta recién persistida (WO-2026-00019).
+    expect(sendWhatsAppMock).not.toHaveBeenCalled();
+    expect(notifyMock).toHaveBeenCalledTimes(1);
+    expect(notifyMock.mock.calls[0][0]).toEqual({
+      source: "smilemore_qa",
+      formName: QUESTIONNAIRE_META.title,
+      clientName: QUESTIONNAIRE_META.client,
+      reference: "Guadalajara",
+      responseId: "resp-uuid-1",
+    });
+  });
+
+  test("sin sucursal: la referencia cae al nombre de quien responde", async () => {
+    await submitSmilemoreQa({ ...VALID_INPUT, sucursal: undefined });
+    expect(notifyMock.mock.calls[0]?.[0].reference).toBe("Dra. Prueba");
   });
 
   test("fallo de WhatsApp no rompe el envío ya persistido", async () => {
-    sendWhatsAppMock.mockRejectedValueOnce(new Error("allowlist"));
+    notifyMock.mockResolvedValueOnce({ ok: false, error: "allowlist" });
     const res = await submitSmilemoreQa(VALID_INPUT);
-    expect(res.ok).toBe(true);
+    expect(res).toEqual({ ok: true, responseId: "resp-uuid-1" });
   });
 
   test("fallo de persistencia: mensaje genérico y alerta con código estable, sin error crudo", async () => {
