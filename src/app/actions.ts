@@ -26,10 +26,12 @@ import { clients as clientsTable, users as usersTable, passwordResetTokens, lead
 import bcrypt from 'bcryptjs';
 import { toPublicFailure, type PublicFailure } from '@/lib/errors/public-failure';
 import { createSmilemoreQaResponse } from '@/lib/smilemore-qa-repo';
+import { notifyNuevaRespuestaCuestionario } from '@/lib/whatsapp/nueva-respuesta';
 import {
   SIMPLE_ANSWER_IDS,
   MULTI_ANSWER_IDS,
   MODULE_ANSWER_IDS,
+  QUESTIONNAIRE_META,
   type SmilemoreQaAnswers,
 } from '@/lib/smilemore-qa/definition';
 
@@ -843,17 +845,22 @@ export async function submitSmilemoreQa(
   }
 
   // 6) Best-effort heads-up al equipo — nunca bloquea a quien responde.
-  // sendWhatsApp() THROWS on failure (allowlist/token), igual que en
-  // submitDiagnostic se envuelve localmente.
-  await sendWhatsApp(
-    `📋 Cuestionario Smile More respondido — ${data.nombre}` +
-      `${data.puesto ? ` (${data.puesto})` : ''}` +
-      `${data.sucursal ? ` · Sucursal: ${data.sucursal}` : ''}\n` +
-      `Ver respuestas: ${APP_URL}/smilemore-respuestas`
-  ).catch((err) => {
-    console.error('[smilemore-qa] sendWhatsApp failed:', err);
-    return null;
+  // Plantilla aprobada `nueva_respuesta_cuestionario` (WO-2026-00019): llega
+  // fuera de la ventana de 24 h, cosa que el texto libre no garantiza (131047).
+  // Los datos son semánticos y salen de la definición del cuestionario y del
+  // envío — nada del sender conoce a este cliente. El botón «Ver respuesta»
+  // apunta a /respuestas/<responseId> (D-22). notifyNuevaRespuestaCuestionario
+  // nunca lanza y registra la evidencia del envío (D-21a).
+  const notified = await notifyNuevaRespuestaCuestionario({
+    source: 'smilemore_qa',
+    formName: QUESTIONNAIRE_META.title,
+    clientName: QUESTIONNAIRE_META.client,
+    reference: data.sucursal?.trim() || data.nombre,
+    responseId,
   });
+  if (!notified.ok) {
+    console.error('[smilemore-qa] WhatsApp template notification failed:', notified.error);
+  }
 
   return { ok: true, responseId };
 }
