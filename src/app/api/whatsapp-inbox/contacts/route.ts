@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth-guards";
+import { requireAdmin, requireWhatsAppReviewAccess } from "@/lib/auth-guards";
 import { listContacts, upsertContact, type ContactPatch } from "@/lib/db/repos/whatsapp-contacts";
 import { parseJsonBody, toInboxFailure } from "@/lib/whatsapp-inbox/errors";
 
@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 
 /** GET: lista todos los contactos (para el mapa contactsByPhone del inbox). */
 export async function GET(req: NextRequest) {
-  const guard = await requireAdmin(req.cookies.get("__session")?.value, {
+  const guard = await requireWhatsAppReviewAccess(req.cookies.get("__session")?.value, {
     route: "/api/whatsapp-inbox/contacts",
     ip: req.headers.get("x-forwarded-for") ?? undefined,
     userAgent: req.headers.get("user-agent") ?? undefined,

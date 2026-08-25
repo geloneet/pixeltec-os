@@ -46,7 +46,11 @@ import { relations, sql } from "drizzle-orm";
 // Enums
 // ════════════════════════════════════════════════════════════════════════
 
-export const userRoleEnum = pgEnum("user_role", ["admin", "staff"]);
+// WO-2026-00051: `reviewer` es la cuenta de mínimo privilegio para Meta App
+// Review — solo /whatsapp y la allowlist de /api/whatsapp-inbox (política en
+// src/lib/routes/reviewer-access.ts). Valor ADITIVO del enum (migración 0042);
+// admin y staff no cambian.
+export const userRoleEnum = pgEnum("user_role", ["admin", "staff", "reviewer"]);
 
 // C-PR5 (0036): ciclo de vida de la cuenta interna — 'invited' desde la
 // invitación hasta fijar contraseña; 'suspended' bloquea el login y (junto a

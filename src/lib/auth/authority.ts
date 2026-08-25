@@ -32,6 +32,9 @@ import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 
+/** Roles internos (`users.role`). `reviewer` = mínimo privilegio (WO-2026-00051). */
+export type UserRole = (typeof users.$inferSelect)["role"];
+
 export type AuthorityDenial =
   | "unknown_user"
   | "suspended"
@@ -42,7 +45,7 @@ export type AuthoritySnapshot =
   | {
       ok: true;
       userId: string;
-      role: "admin" | "staff";
+      role: UserRole;
       isAdmin: boolean;
       /** Corte vigente del usuario. `null` = nunca se invalidó nada. */
       sessionsValidFrom: Date | null;

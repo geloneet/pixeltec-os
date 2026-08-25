@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth-guards";
+import { requireAdmin, requireWhatsAppReviewAccess } from "@/lib/auth-guards";
 import { addNote, listNotes } from "@/lib/db/repos/whatsapp-contacts";
 import { parseJsonBody, toInboxFailure } from "@/lib/whatsapp-inbox/errors";
 
 export const runtime = "nodejs";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ phone: string }> }) {
-  const guard = await requireAdmin(req.cookies.get("__session")?.value, {
+  const guard = await requireWhatsAppReviewAccess(req.cookies.get("__session")?.value, {
     route: "/api/whatsapp-inbox/contacts/[phone]/notes",
     ip: req.headers.get("x-forwarded-for") ?? undefined,
     userAgent: req.headers.get("user-agent") ?? undefined,

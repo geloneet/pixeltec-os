@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth/config';
 import { PROTECTED_PATHS } from '@/lib/routes/admin-routes';
+import { decideRestrictedAccess, isRestrictedRole } from '@/lib/routes/reviewer-access';
 import { cspForPath, PIXELFORGE_PREVIEW_RE } from '@/lib/security/csp';
 
 export const runtime = 'nodejs';
@@ -22,6 +23,26 @@ function withSecurityHeaders(res: NextResponse, nonce: string, pathname: string)
   res.headers.set('Reporting-Endpoints', 'csp-endpoint="/api/csp-report"');
   res.headers.set('x-nonce', nonce);
   return res;
+}
+
+/**
+ * 403 del rol restringido (WO-2026-00051). Server-side, antes de cualquier
+ * page/route handler: aplica igual a la navegación por URL directa, a los
+ * fetch de `/api/*` y a los POST de server actions. Documento HTML mínimo para
+ * navegaciones, JSON para todo lo demás — sin detalles internos.
+ */
+function forbiddenForRestrictedRole(request: Request, nonce: string, pathname: string): NextResponse {
+  const wantsHtml = (request.headers.get('accept') ?? '').includes('text/html');
+  const res = wantsHtml
+    ? new NextResponse(
+        '<!doctype html><html lang="es"><head><meta charset="utf-8"><title>403 · PixelTEC OS</title></head>' +
+          '<body style="font-family:system-ui;margin:3rem"><h1>403 — Sin acceso</h1>' +
+          '<p>Esta cuenta solo puede usar el módulo de WhatsApp.</p>' +
+          '<p><a href="/whatsapp">Ir a WhatsApp</a></p></body></html>',
+        { status: 403, headers: { 'content-type': 'text/html; charset=utf-8' } }
+      )
+    : NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  return withSecurityHeaders(res, nonce, pathname);
 }
 
 // Envuelto con `auth()` de NextAuth (Fase 2 de la migración — reemplaza
@@ -56,6 +77,31 @@ export default auth(async (request) => {
   // página de login en vez de la landing compuesta.
   if (PIXELFORGE_PREVIEW_RE.test(pathname) && request.nextUrl.searchParams.has('pfqa')) {
     return withSecurityHeaders(NextResponse.next(), nonce, pathname);
+  }
+
+  // ── Rol restringido (reviewer, WO-2026-00051): deny-by-default ───────────
+  // Solo con sesión. El rol viene del JWT, que el callback `jwt` refresca desde
+  // Postgres en cada request (ADR-0036); las rutas de la allowlist vuelven a
+  // resolver la autoridad en la base (`requireWhatsAppReviewAccess`). Un rol
+  // ausente o desconocido se trata como restringido (fail-closed). Admin y
+  // staff no entran aquí: su comportamiento es el de siempre.
+  if (request.auth && isRestrictedRole(request.auth.user?.role)) {
+    const decision = decideRestrictedAccess({
+      pathname,
+      method: request.method,
+      isServerAction: request.headers.has('next-action'),
+    });
+    if (decision.kind === 'deny') {
+      return forbiddenForRestrictedRole(request, nonce, pathname);
+    }
+    if (decision.kind === 'redirect') {
+      return withSecurityHeaders(
+        NextResponse.redirect(new URL(decision.to, request.url)),
+        nonce,
+        pathname
+      );
+    }
+    // 'allow' → sigue la protección general de sesión de abajo.
   }
 
   // ── Admin session protection ──────────────────────────────────────────────
