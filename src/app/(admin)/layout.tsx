@@ -22,6 +22,7 @@ import { SecondaryNavigation } from "@/components/nav/secondary-navigation";
 import { AppSidebar } from "@/components/nav/app-sidebar";
 import { AdminTopbar } from "@/components/nav/admin-topbar";
 import { CommandPalette } from "@/components/nav/command-palette";
+import { RestrictedShellBoundary } from "@/components/nav/restricted-shell-boundary";
 import { getActiveArea } from "@/components/nav/nav-config";
 
 // ─── Shell ────────────────────────────────────────────────────────────────────
@@ -152,6 +153,10 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
   return (
     <PresentationModeProvider>
+      {/* WO-2026-00055: para un rol restringido (reviewer) pausa todo SWR del
+          shell (p. ej. el poller de /api/vps/status de ⌘K) — sin fetch, sin
+          403 en consola. Admin/staff: sin efecto. */}
+      <RestrictedShellBoundary>
       <CmdKProvider>
         <CRMProvider>
           <CRMShellProvider>
@@ -166,6 +171,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           </CRMShellProvider>
         </CRMProvider>
       </CmdKProvider>
+      </RestrictedShellBoundary>
     </PresentationModeProvider>
   );
 }

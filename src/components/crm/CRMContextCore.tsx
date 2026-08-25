@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, useRef, useCallback, type ReactNode } from "react";
 import { useUser } from "@/hooks/use-user";
+import { useIsRestrictedRole } from "@/hooks/use-restricted-role";
 import { toast } from "sonner";
 import { clientSchema, projectSchema, taskSchema } from "@/lib/crm-schemas";
 import { getCrmDataAction, syncCrmDataAction, setClientStatusAction, setClientNextActionAction, type CrmSyncPayload } from "./crm-actions";
@@ -99,6 +100,10 @@ export function useCRM() {
 
 export function CRMProvider({ children }: { children: ReactNode }) {
   const user = useUser();
+  // WO-2026-00055: un rol restringido (reviewer) no tiene CRM — el middleware
+  // deniega la server action con 403. No se pide nada y el provider queda
+  // vacío e inerte (sin toast, sin error en consola).
+  const restricted = useIsRestrictedRole();
   const [clients, setClients] = useState<CRMClient[]>([]);
   const [tools, setTools] = useState<Tool[]>([]);
   const [streak, setStreak] = useState(0);
@@ -116,8 +121,8 @@ export function CRMProvider({ children }: { children: ReactNode }) {
   // `useUser()` deje de estar en `undefined` (sesión cargando) antes de
   // pedir los datos.
   useEffect(() => {
-    if (user === undefined) return;
-    if (user === null) { setLoading(false); return; }
+    if (user === undefined || restricted === undefined) return;
+    if (user === null || restricted) { setLoading(false); return; }
     let cancelled = false;
     (async () => {
       try {
@@ -146,7 +151,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       }
     })();
     return () => { cancelled = true; };
-  }, [user]);
+  }, [user, restricted]);
 
   // Cleanup save timer on unmount
   useEffect(() => {
