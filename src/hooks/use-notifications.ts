@@ -7,6 +7,7 @@ import {
   markAllNotificationsReadAction,
 } from "@/lib/notifications/actions";
 import type { Notification } from "@/lib/notifications/schemas";
+import { useIsRestrictedRole } from "@/hooks/use-restricted-role";
 
 interface UseNotificationsReturn {
   notifications: Notification[];
@@ -23,11 +24,21 @@ interface UseNotificationsReturn {
 const POLL_INTERVAL_MS = 60_000;
 
 export function useNotifications(): UseNotificationsReturn {
+  // WO-2026-00055: el reviewer no tiene notificaciones (server actions → 403
+  // en middleware). No se consulta nada: campana vacía, sin error.
+  const restricted = useIsRestrictedRole();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
+    if (restricted === undefined) return; // sesión cargando: espera
+    if (restricted) {
+      setNotifications([]);
+      setError(null);
+      setLoading(false);
+      return;
+    }
     try {
       const items = await getMyNotifications(20);
       setNotifications(items);
@@ -38,7 +49,7 @@ export function useNotifications(): UseNotificationsReturn {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [restricted]);
 
   useEffect(() => {
     void refresh();
@@ -57,6 +68,7 @@ export function useNotifications(): UseNotificationsReturn {
       setNotifications((prev) =>
         prev.map((n) => (n.id === id ? { ...n, read: true, readAt: new Date().toISOString() } : n))
       );
+      if (restricted) return;
       try {
         await markNotificationReadAction(id);
       } catch (err) {
@@ -64,10 +76,11 @@ export function useNotifications(): UseNotificationsReturn {
         void refresh();
       }
     },
-    [refresh]
+    [refresh, restricted]
   );
 
   const markAllAsRead = useCallback(async () => {
+    if (restricted) return;
     if (!notifications.some((n) => !n.read)) return;
     const now = new Date().toISOString();
     setNotifications((prev) => prev.map((n) => (n.read ? n : { ...n, read: true, readAt: now })));
@@ -77,7 +90,7 @@ export function useNotifications(): UseNotificationsReturn {
       console.error("[useNotifications] markAllAsRead error:", err);
       void refresh();
     }
-  }, [notifications, refresh]);
+  }, [notifications, refresh, restricted]);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
