@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth-guards";
+import { requireWhatsAppReviewAccess } from "@/lib/auth-guards";
 import { parseJsonBody, toInboxFailure } from "@/lib/whatsapp-inbox/errors";
 import { fetchPixelbot } from "@/lib/whatsapp-inbox/pixelbot-client";
 
@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 const VALID_MODES = ["BOT", "HUMAN", "PAUSED"] as const;
 
 export async function POST(req: NextRequest) {
-  const guard = await requireAdmin(req.cookies.get("__session")?.value, {
+  const guard = await requireWhatsAppReviewAccess(req.cookies.get("__session")?.value, {
     route: "/api/whatsapp-inbox/mode",
     ip: req.headers.get("x-forwarded-for") ?? undefined,
     userAgent: req.headers.get("user-agent") ?? undefined,

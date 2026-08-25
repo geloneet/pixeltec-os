@@ -7,12 +7,13 @@ import { motion } from "framer-motion";
 import { Search, LayoutGrid } from "lucide-react";
 import { useCmdK } from "@/components/cmd-k/CmdKProvider";
 import { useCRM } from "@/components/crm/CRMContextCore";
+import { useUserProfile } from "@/hooks/use-user-profile";
 import { cn } from "@/lib/utils";
 import { SITE } from "@/lib/site-config";
 import { NotificationsMenu } from "./notifications-menu";
 import { UserMenu } from "./user-menu";
 import {
-  NAV_AREA_ORDER,
+  getVisibleNavAreas,
   NAV_AREA_LABELS,
   getAreaHref,
   getActiveArea,
@@ -33,6 +34,9 @@ export function TopNavigation() {
   const { clients } = useCRM();
 
   const activeArea = getActiveArea(pathname);
+  // WO-2026-00051: el reviewer no ve áreas (solo presentación; el middleware manda).
+  const { userProfile } = useUserProfile();
+  const visibleAreas = getVisibleNavAreas(userProfile?.role);
 
   const openTasksCount = clients
     .flatMap((c) => c.projects)
@@ -71,7 +75,7 @@ export function TopNavigation() {
         className="scrollbar-none mx-2 flex flex-1 items-center justify-start overflow-x-auto lg:justify-center"
       >
         <div className="flex items-center gap-1 rounded-full bg-secondary/60 p-1.5">
-          {NAV_AREA_ORDER.map((area) => {
+          {visibleAreas.map((area) => {
             const active = area === activeArea;
             return (
               <Link

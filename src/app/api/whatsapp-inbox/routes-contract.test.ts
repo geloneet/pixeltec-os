@@ -31,7 +31,11 @@ const {
   dbInsertMock: vi.fn(),
 }));
 
-vi.mock("@/lib/auth-guards", () => ({ requireAdmin: requireAdminMock }));
+vi.mock("@/lib/auth-guards", () => ({
+  requireAdmin: requireAdminMock,
+  // WO-2026-00051: la allowlist del reviewer usa este guard; misma semántica en el mock.
+  requireWhatsAppReviewAccess: requireAdminMock,
+}));
 vi.mock("@/lib/whatsapp-inbox/pixelbot-client", () => ({ fetchPixelbot: fetchPixelbotMock }));
 vi.mock("@/lib/db/repos/whatsapp-contacts", () => ({
   listContacts: listContactsMock,

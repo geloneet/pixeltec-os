@@ -1,4 +1,5 @@
 import { PALETTE_NAV_ITEMS, type PaletteNavItem } from "./command-palette-items";
+import { isRestrictedRole, REVIEWER_PAGE_ROOT } from "@/lib/routes/reviewer-access";
 
 /**
  * Taxonomía operativa de la navegación (ADR-0030): las áreas L1 representan
@@ -148,4 +149,24 @@ export function getActiveArea(pathname: string): NavArea | null {
   const item = getActiveItem(pathname);
   if (!item) return null;
   return getItemArea(item.href) ?? null;
+}
+
+/**
+ * Navegación visible para un rol (WO-2026-00051). PRESENTACIÓN solamente: el
+ * enforcement vive en src/middleware.ts + guards; ocultar un enlace no
+ * protege nada. El reviewer solo ve WhatsApp; admin y staff ven todo.
+ *
+ * `role === undefined` (sesión aún cargando) se trata como acceso completo
+ * para no parpadear el menú de admin/staff; el middleware sigue mandando.
+ */
+export function getVisibleNavAreas(role: string | undefined): NavArea[] {
+  if (role === undefined) return NAV_AREA_ORDER;
+  return isRestrictedRole(role) ? [] : NAV_AREA_ORDER;
+}
+
+export function getVisibleNavItems(role: string | undefined): PaletteNavItem[] {
+  if (role === undefined) return PALETTE_NAV_ITEMS;
+  return isRestrictedRole(role)
+    ? PALETTE_NAV_ITEMS.filter((item) => item.href === REVIEWER_PAGE_ROOT)
+    : PALETTE_NAV_ITEMS;
 }

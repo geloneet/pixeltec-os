@@ -7,6 +7,22 @@ type GuardResult =
   | { ok: true; uid: string; isAdmin: boolean }
   | { ok: false; error: string; status: number };
 
+type GuardContext = { route: string; ip?: string; userAgent?: string };
+
+/** Auditoría fire-safe del 403 (users.id, ruta, ip, UA). */
+function auditForbidden(uid: string, context: GuardContext | undefined): void {
+  if (!context) return;
+  db.insert(infraAuditLog)
+    .values({
+      type: "forbidden_access_attempt",
+      uid,
+      route: context.route,
+      ip: context.ip ?? null,
+      userAgent: context.userAgent ?? null,
+    })
+    .catch((err) => console.error("[audit] failed to log 403:", err));
+}
+
 /**
  * Puerta de las rutas de administración.
  *
@@ -22,7 +38,7 @@ type GuardResult =
  */
 export async function requireAdmin(
   _sessionCookie?: string,
-  context?: { route: string; ip?: string; userAgent?: string }
+  context?: GuardContext
 ): Promise<GuardResult> {
   const session = await auth();
   const uid = session?.user?.id;
@@ -36,19 +52,39 @@ export async function requireAdmin(
   const isAdmin = authority.isAdmin;
 
   if (!isAdmin) {
-    if (context) {
-      db.insert(infraAuditLog)
-        .values({
-          type: "forbidden_access_attempt",
-          uid,
-          route: context.route,
-          ip: context.ip ?? null,
-          userAgent: context.userAgent ?? null,
-        })
-        .catch((err) => console.error("[audit] failed to log 403:", err));
-    }
+    auditForbidden(uid, context);
     return { ok: false, error: "forbidden", status: 403 };
   }
 
   return { ok: true, uid, isAdmin: true };
+}
+
+/**
+ * Puerta de la allowlist de `/api/whatsapp-inbox` para Meta App Review
+ * (WO-2026-00051): acepta `admin` y `reviewer`. Misma resolución canónica en
+ * Postgres que `requireAdmin` (identidad del JWT, autorización de la base);
+ * `staff` sigue recibiendo 403 aquí, exactamente como hoy con `requireAdmin`.
+ *
+ * SOLO para los 13 handlers listados en `REVIEWER_API_ALLOWLIST`
+ * (src/lib/routes/reviewer-access.ts). Los demás conservan `requireAdmin`; un
+ * test de contrato a nivel de fuente vigila que ambas listas coincidan.
+ */
+export async function requireWhatsAppReviewAccess(
+  _sessionCookie?: string,
+  context?: GuardContext
+): Promise<GuardResult> {
+  const session = await auth();
+  const uid = session?.user?.id;
+  if (!uid) return { ok: false, error: "Unauthorized", status: 401 };
+
+  const authority = await resolveAuthority(uid, session.user.credentialIssuedAt);
+  if (!authority.ok) return { ok: false, error: "Unauthorized", status: 401 };
+
+  const allowed = authority.isAdmin || authority.role === "reviewer";
+  if (!allowed) {
+    auditForbidden(uid, context);
+    return { ok: false, error: "forbidden", status: 403 };
+  }
+
+  return { ok: true, uid, isAdmin: authority.isAdmin };
 }

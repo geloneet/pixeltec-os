@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth-guards";
+import { requireWhatsAppReviewAccess } from "@/lib/auth-guards";
 import { assertWhatsAppEgressAllowed } from "@/lib/egress-guard";
 import { parseJsonBody, toInboxFailure } from "@/lib/whatsapp-inbox/errors";
 import { fetchPixelbot } from "@/lib/whatsapp-inbox/pixelbot-client";
@@ -7,7 +7,7 @@ import { fetchPixelbot } from "@/lib/whatsapp-inbox/pixelbot-client";
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
-  const guard = await requireAdmin(req.cookies.get("__session")?.value, {
+  const guard = await requireWhatsAppReviewAccess(req.cookies.get("__session")?.value, {
     route: "/api/whatsapp-inbox/send",
     ip: req.headers.get("x-forwarded-for") ?? undefined,
     userAgent: req.headers.get("user-agent") ?? undefined,

@@ -30,6 +30,7 @@ import {
   users,
 } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/auth-guards";
+import { revokeCredentialsFor } from "@/lib/auth/authority";
 import { recordSecurityEvent } from "@/lib/security/events";
 import { sendUserInvitationEmail } from "@/lib/email";
 import { logSystemAlert } from "@/lib/system-alerts";
@@ -42,7 +43,16 @@ import {
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:9002";
 
-export type UserRole = "admin" | "staff";
+/**
+ * Roles asignables desde /usuarios. `reviewer` (WO-2026-00051) es la cuenta de
+ * mínimo privilegio para Meta App Review: solo /whatsapp y la allowlist de
+ * /api/whatsapp-inbox (src/lib/routes/reviewer-access.ts).
+ */
+export type UserRole = "admin" | "staff" | "reviewer";
+const ASSIGNABLE_ROLES: readonly UserRole[] = ["admin", "staff", "reviewer"];
+function isAssignableRole(value: unknown): value is UserRole {
+  return typeof value === "string" && (ASSIGNABLE_ROLES as readonly string[]).includes(value);
+}
 export type UserStatus = "active" | "invited" | "suspended";
 
 export interface AdminUserRow {
@@ -180,7 +190,7 @@ export async function inviteUserAction(input: {
   if (!email || !/\S+@\S+\.\S+/.test(email) || !name) {
     return { ok: false, error: "invalid-email" };
   }
-  if (input.role !== "admin" && input.role !== "staff") {
+  if (!isAssignableRole(input.role)) {
     return { ok: false, error: "invalid-role" };
   }
 
@@ -330,11 +340,11 @@ export async function setUserRoleAction(
   const g = await guard();
   if (!g.ok) return { ok: false, error: g.error };
 
-  if (role !== "admin" && role !== "staff") return { ok: false, error: "invalid-role" };
+  if (!isAssignableRole(role)) return { ok: false, error: "invalid-role" };
 
-  // Anti-lockout 1: prohibido degradarse a sí mismo — evita que el último
-  // admin operativo se quite el rol desde su propia sesión.
-  if (userId === g.uid && role === "staff") {
+  // Anti-lockout 1: prohibido degradarse a sí mismo (a staff O a reviewer) —
+  // evita que el último admin operativo se quite el rol desde su propia sesión.
+  if (userId === g.uid && role !== "admin") {
     return { ok: false, error: "self-demotion" };
   }
 
@@ -343,14 +353,30 @@ export async function setUserRoleAction(
     if (!target) return { ok: false, error: "not-found" };
     if (target.role === role) return { ok: true };
 
-    // Anti-lockout 2: degradar a un admin exige que quede al menos otro
-    // admin activo (se cuenta excluyendo al target).
-    if (target.role === "admin" && role === "staff") {
+    // Anti-lockout 2: degradar a un admin (a staff o a reviewer) exige que
+    // quede al menos otro admin activo (se cuenta excluyendo al target).
+    if (target.role === "admin" && role !== "admin") {
       const others = await countOtherActiveAdmins(userId);
       if (others === 0) return { ok: false, error: "last-admin" };
     }
 
     await db.update(users).set({ role, updatedAt: new Date() }).where(eq(users.id, userId));
+
+    // WO-2026-00051: si la transición entra o sale de `reviewer`, se estampa el
+    // corte global de credenciales. El callback `jwt` ya refresca el rol desde
+    // Postgres en cada request, pero el corte mata además cualquier token
+    // previo en las fronteras fail-closed (`resolveAuthority` →
+    // credentials_changed), sin depender de la disponibilidad de ese refresco.
+    // Admin↔staff conserva el comportamiento anterior (sin corte).
+    if (target.role === "reviewer" || role === "reviewer") {
+      try {
+        await revokeCredentialsFor(userId);
+      } catch (err) {
+        // El rol YA cambió (y la autoridad canónica lo relee por request); el
+        // corte es defensa en profundidad, no la única barrera.
+        console.error("[users-admin] revokeCredentialsFor on reviewer transition failed:", err);
+      }
+    }
 
     await recordSecurityEvent({
       userId,

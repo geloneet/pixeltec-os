@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useCmdK } from "@/components/cmd-k/CmdKProvider";
 import { useCRM } from "@/components/crm/CRMContextCore";
+import { useUserProfile } from "@/hooks/use-user-profile";
 import { useVpsStatus } from "@/lib/vps-swr";
 import { normalize, searchAcrossCRM } from "@/lib/cmdk-search";
 import {
@@ -23,6 +24,7 @@ import {
   type PaletteNavItem,
 } from "./command-palette-items";
 import {
+  getVisibleNavItems,
   NAV_AREA_ORDER,
   NAV_AREA_LABELS,
   getItemArea,
@@ -108,15 +110,20 @@ export function CommandPalette() {
     [query, crm.clients, vpsData?.projects]
   );
 
+  // WO-2026-00051: el reviewer solo ve WhatsApp en ⌘K (presentación).
+  const { userProfile } = useUserProfile();
+  const role = userProfile?.role;
+
   const filteredNavItems = useMemo<PaletteNavItem[]>(() => {
-    if (!query) return PALETTE_NAV_ITEMS;
+    const visible = getVisibleNavItems(role);
+    if (!query) return visible;
     const q = normalize(query);
-    return PALETTE_NAV_ITEMS.filter(
+    return visible.filter(
       (item) =>
         normalize(item.label).includes(q) ||
         normalize(item.description).includes(q)
     );
-  }, [query]);
+  }, [query, role]);
 
   // Agrupa los resultados de "Navegar" por área (la misma taxonomía de la
   // Top Navigation). Los items sin área (transversales: Archivo documental,

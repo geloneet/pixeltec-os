@@ -6,6 +6,7 @@ import { LogOut, User } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { useUser } from "@/hooks/use-user";
 import { useUserProfile } from "@/hooks/use-user-profile";
+import { isRestrictedRole } from "@/lib/routes/reviewer-access";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,6 +37,9 @@ export function UserMenu() {
 
   const initials = getInitials(user.displayName, user.email);
   const isAdmin = userProfile?.role === "admin";
+  // WO-2026-00051: el reviewer no tiene /perfil (bloqueado en middleware);
+  // se oculta el enlace — presentación, no enforcement.
+  const canOpenProfile = !userProfile || !isRestrictedRole(userProfile.role);
 
   return (
     <DropdownMenu>
@@ -112,6 +116,7 @@ export function UserMenu() {
 
         <DropdownMenuSeparator className="bg-border" />
 
+        {canOpenProfile && (
         <DropdownMenuItem
           className="flex items-center gap-2 text-muted-foreground hover:text-foreground focus:text-foreground focus:bg-accent rounded-lg cursor-pointer px-2 py-2 text-sm"
           onClick={() => router.push("/perfil")}
@@ -119,6 +124,7 @@ export function UserMenu() {
           <User className="h-4 w-4 flex-shrink-0" />
           Perfil y seguridad
         </DropdownMenuItem>
+        )}
 
         <DropdownMenuSeparator className="bg-border" />
 

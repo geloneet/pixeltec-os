@@ -9,8 +9,9 @@ import { cn } from "@/lib/utils";
 import { SITE } from "@/lib/site-config";
 import { useCmdK } from "@/components/cmd-k/CmdKProvider";
 import { useCRM } from "@/components/crm/CRMContextCore";
+import { useUserProfile } from "@/hooks/use-user-profile";
 import {
-  NAV_AREA_ORDER,
+  getVisibleNavAreas,
   NAV_AREA_LABELS,
   getAreaHref,
   getSecondaryItems,
@@ -64,6 +65,9 @@ export function AppSidebar({
     ).length;
 
   const activeHref = resolveActiveHref(PALETTE_NAV_ITEMS, pathname);
+  // WO-2026-00051: el reviewer no ve áreas (solo presentación; el middleware manda).
+  const { userProfile } = useUserProfile();
+  const visibleAreas = getVisibleNavAreas(userProfile?.role);
 
   return (
     <aside
@@ -89,7 +93,7 @@ export function AppSidebar({
 
       {/* Áreas L1 */}
       <nav className="flex flex-1 flex-col gap-1.5 overflow-y-auto scrollbar-none">
-        {NAV_AREA_ORDER.map((area) => {
+        {visibleAreas.map((area) => {
           const Icon = AREA_ICONS[area];
           const active = area === activeArea;
           const secondaryItems = getSecondaryItems(area);

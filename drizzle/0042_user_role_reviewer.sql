@@ -1,0 +1,25 @@
+-- 0042 — Rol `reviewer` en el enum `user_role` (WO-2026-00051, Meta App Review)
+--
+-- ADITIVA e IDEMPOTENTE. Añade un valor al enum; no toca filas, columnas ni
+-- defaults. Aplicar NO cambia el comportamiento de ninguna cuenta existente
+-- (admin/staff siguen igual): el valor solo empieza a existir cuando un admin
+-- invita o asigna `reviewer` desde /usuarios.
+--
+-- Lo que hace el rol en la app (código, no SQL): src/lib/routes/reviewer-access.ts
+-- (deny-by-default en middleware) + requireWhatsAppReviewAccess (auth-guards).
+--
+-- Plan de aplicación en prod (contenedor pixeltec-os-db 127.0.0.1:5437, user/db
+-- pixeltec_os, mismo patrón de reconciliación que 0038–0041 en infraestructura.md):
+--   1. Antes de arrancar la imagen nueva: `docker exec -i pixeltec-os-db psql -U pixeltec_os -d pixeltec_os` ← este archivo.
+--   2. Fila de control: INSERT en drizzle.__drizzle_migrations (hash = sha256 del
+--      contenido crudo de este .sql, created_at = `when` del journal: 1787674359079).
+--   3. Verificar: SELECT enum_range(NULL::user_role) → {admin,staff,reviewer}.
+-- Nota PG16: ALTER TYPE ... ADD VALUE puede correr dentro de una transacción
+-- siempre que el valor nuevo no se USE en esa misma transacción (aquí no se usa).
+--
+-- Rollback: Postgres no soporta DROP VALUE en enums. Rollback lógico =
+--   UPDATE users SET role = 'staff', status = 'suspended' WHERE role = 'reviewer';
+-- y desplegar la imagen anterior; el valor queda inerte en el tipo (sin efecto).
+-- Reconstruir el tipo sin el valor solo sería necesario si se exigiera y no lo es.
+
+ALTER TYPE "public"."user_role" ADD VALUE IF NOT EXISTS 'reviewer';
