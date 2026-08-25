@@ -46,7 +46,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { AdminUserRow } from "@/lib/users-admin/actions";
+import type { AdminUserRow, UserRole } from "@/lib/users-admin/actions";
 import {
   reactivateUserAction,
   resendInvitationAction,
@@ -69,6 +69,20 @@ const ACTION_ERRORS: Record<string, string> = {
   "not-suspended": "Este usuario no está suspendido.",
   "already-suspended": "Este usuario ya está suspendido.",
   unknown: "Ocurrió un error inesperado. Inténtalo de nuevo.",
+};
+
+/** Etiquetas de rol (WO-2026-00051: `reviewer` = Meta App Review, solo WhatsApp). */
+const ROLE_LABELS: Record<UserRole, string> = {
+  admin: "Administrador",
+  staff: "Staff",
+  reviewer: "Revisor externo (solo WhatsApp)",
+};
+
+const ROLE_CHANGE_DESCRIPTION: Record<UserRole, string> = {
+  admin: "con acceso total al sistema.",
+  staff: "Perderá acceso a las superficies de administración.",
+  reviewer:
+    "Solo podrá entrar a /whatsapp y a las funciones de WhatsApp permitidas; todo lo demás queda bloqueado (403). Sus sesiones actuales se cerrarán.",
 };
 
 function errorMessage(code: string): string {
@@ -114,6 +128,8 @@ export function UsersDashboard({
   const [confirm, setConfirm] = useState<{
     kind: "role" | "suspend" | "reactivate" | "revoke-sessions" | "reset-mfa";
     user: AdminUserRow;
+    /** Solo para kind === "role": rol destino elegido en el menú. */
+    nextRole?: UserRole;
   } | null>(null);
   const [eventsUser, setEventsUser] = useState<AdminUserRow | null>(null);
 
@@ -134,12 +150,10 @@ export function UsersDashboard({
     if (!confirm) return;
     const { kind, user } = confirm;
     if (kind === "role") {
-      const nextRole = user.role === "admin" ? "staff" : "admin";
+      const nextRole = confirm.nextRole ?? (user.role === "admin" ? "staff" : "admin");
       run(
         () => setUserRoleAction(user.id, nextRole),
-        nextRole === "admin"
-          ? `${user.name} ahora es administrador.`
-          : `${user.name} ahora es staff.`
+        `${user.name} ahora es ${ROLE_LABELS[nextRole].toLowerCase()}.`
       );
     } else if (kind === "suspend") {
       run(() => suspendUserAction(user.id), `${user.name} quedó suspendido y sin sesiones.`);
@@ -162,10 +176,10 @@ export function UsersDashboard({
   > = {
     role: {
       title: "Cambiar rol",
-      description: (u) =>
-        u.role === "admin"
-          ? `${u.name} pasará de administrador a staff. Perderá acceso a las superficies de administración.`
-          : `${u.name} pasará de staff a administrador, con acceso total al sistema.`,
+      description: (u) => {
+        const next = confirm?.nextRole ?? (u.role === "admin" ? "staff" : "admin");
+        return `${u.name} pasará de ${ROLE_LABELS[u.role].toLowerCase()} a ${ROLE_LABELS[next].toLowerCase()}. ${ROLE_CHANGE_DESCRIPTION[next]}`;
+      },
       cta: "Cambiar rol",
     },
     suspend: {
@@ -253,7 +267,7 @@ export function UsersDashboard({
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className="font-normal">
-                          {u.role === "admin" ? "Administrador" : "Staff"}
+                          {ROLE_LABELS[u.role]}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -290,13 +304,20 @@ export function UsersDashboard({
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              disabled={isSelf && u.role === "admin"}
-                              onClick={() => setConfirm({ kind: "role", user: u })}
-                            >
-                              <UserCog className="mr-2 h-4 w-4" />
-                              {u.role === "admin" ? "Cambiar a staff" : "Hacer administrador"}
-                            </DropdownMenuItem>
+                            {(["admin", "staff", "reviewer"] as const)
+                              .filter((r) => r !== u.role)
+                              .map((r) => (
+                                <DropdownMenuItem
+                                  key={r}
+                                  // Anti-lockout (espejo de la action): nadie se
+                                  // quita a sí mismo el rol de administrador.
+                                  disabled={isSelf && u.role === "admin"}
+                                  onClick={() => setConfirm({ kind: "role", user: u, nextRole: r })}
+                                >
+                                  <UserCog className="mr-2 h-4 w-4" />
+                                  {r === "admin" ? "Hacer administrador" : `Cambiar a ${ROLE_LABELS[r].toLowerCase()}`}
+                                </DropdownMenuItem>
+                              ))}
                             {u.status === "invited" && (
                               <DropdownMenuItem onClick={() => resend(u)}>
                                 <MailPlus className="mr-2 h-4 w-4" />

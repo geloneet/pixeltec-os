@@ -76,6 +76,7 @@ const mocks = vi.hoisted(() => {
     state,
     db,
     requireAdmin: vi.fn(),
+    revokeCredentialsFor: vi.fn(),
     recordSecurityEvent: vi.fn(),
     sendUserInvitationEmail: vi.fn(),
     logSystemAlert: vi.fn(),
@@ -84,6 +85,7 @@ const mocks = vi.hoisted(() => {
 
 vi.mock("@/lib/db", () => ({ db: mocks.db }));
 vi.mock("@/lib/auth-guards", () => ({ requireAdmin: mocks.requireAdmin }));
+vi.mock("@/lib/auth/authority", () => ({ revokeCredentialsFor: mocks.revokeCredentialsFor }));
 vi.mock("@/lib/security/events", () => ({
   recordSecurityEvent: mocks.recordSecurityEvent,
 }));
@@ -129,6 +131,7 @@ beforeEach(() => {
   mocks.state.txUpdates.length = 0;
   mocks.state.txDeletes.length = 0;
   mocks.requireAdmin.mockResolvedValue({ ok: true, uid: ADMIN_UID, isAdmin: true });
+  mocks.revokeCredentialsFor.mockReset().mockResolvedValue(undefined);
   mocks.recordSecurityEvent.mockResolvedValue(undefined);
   mocks.sendUserInvitationEmail.mockResolvedValue({ success: true, id: "email-1" });
 });
@@ -183,6 +186,90 @@ describe("setUserRoleAction — guardas anti-lockout", () => {
     mocks.state.selectQueue.push([targetUser({ role: "staff" })]);
     await expect(setUserRoleAction(TARGET_UID, "admin")).resolves.toEqual({ ok: true });
     expect(mocks.state.updates[0].values.role).toBe("admin");
+    expect(mocks.revokeCredentialsFor).not.toHaveBeenCalled();
+  });
+
+  it("admin→staff NO estampa corte de credenciales (comportamiento previo intacto)", async () => {
+    mocks.state.selectQueue.push([targetUser()], [{ id: ADMIN_UID }]);
+    await expect(setUserRoleAction(TARGET_UID, "staff")).resolves.toEqual({ ok: true });
+    expect(mocks.revokeCredentialsFor).not.toHaveBeenCalled();
+  });
+});
+
+describe("setUserRoleAction — rol reviewer (WO-2026-00051)", () => {
+  it("rol desconocido → invalid-role, sin tocar la base", async () => {
+    await expect(setUserRoleAction(TARGET_UID, "superadmin" as never)).resolves.toEqual({
+      ok: false,
+      error: "invalid-role",
+    });
+    expect(mocks.db.update).not.toHaveBeenCalled();
+  });
+
+  it("prohibido degradarse a sí mismo a reviewer", async () => {
+    await expect(setUserRoleAction(ADMIN_UID, "reviewer")).resolves.toEqual({
+      ok: false,
+      error: "self-demotion",
+    });
+    expect(mocks.db.update).not.toHaveBeenCalled();
+  });
+
+  it("prohibido dejar 0 admins activos al pasar un admin a reviewer", async () => {
+    mocks.state.selectQueue.push([targetUser()], []);
+    await expect(setUserRoleAction(TARGET_UID, "reviewer")).resolves.toEqual({
+      ok: false,
+      error: "last-admin",
+    });
+    expect(mocks.db.update).not.toHaveBeenCalled();
+  });
+
+  it("staff→reviewer: actualiza el rol, estampa el corte de credenciales y audita", async () => {
+    mocks.state.selectQueue.push([targetUser({ role: "staff" })]);
+    await expect(setUserRoleAction(TARGET_UID, "reviewer")).resolves.toEqual({ ok: true });
+    expect(mocks.state.updates).toHaveLength(1);
+    expect(mocks.state.updates[0].values.role).toBe("reviewer");
+    expect(mocks.revokeCredentialsFor).toHaveBeenCalledWith(TARGET_UID);
+    expect(mocks.recordSecurityEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "role_changed",
+        metadata: { from: "staff", to: "reviewer" },
+      })
+    );
+  });
+
+  it("reviewer→staff: también estampa el corte (los tokens de reviewer no heredan acceso staff)", async () => {
+    mocks.state.selectQueue.push([targetUser({ role: "reviewer" })]);
+    await expect(setUserRoleAction(TARGET_UID, "staff")).resolves.toEqual({ ok: true });
+    expect(mocks.revokeCredentialsFor).toHaveBeenCalledWith(TARGET_UID);
+  });
+
+  it("si el corte falla, el cambio de rol ya aplicado NO se revierte ni se reporta error", async () => {
+    mocks.state.selectQueue.push([targetUser({ role: "staff" })]);
+    mocks.revokeCredentialsFor.mockRejectedValue(new Error("db down"));
+    await expect(setUserRoleAction(TARGET_UID, "reviewer")).resolves.toEqual({ ok: true });
+    expect(mocks.state.updates[0].values.role).toBe("reviewer");
+  });
+});
+
+describe("inviteUserAction — rol reviewer (WO-2026-00051)", () => {
+  it("invita con rol reviewer (status invited, evento con role)", async () => {
+    mocks.state.selectQueue.push([]); // email libre
+    const res = await inviteUserAction({ email: "meta-review@example.test", name: "Meta", role: "reviewer" });
+    expect(res).toEqual({ ok: true, emailSent: true });
+    const inserted = mocks.state.txInserts.find((i) => i.table === schema.users);
+    expect(inserted?.values).toMatchObject({ role: "reviewer", status: "invited" });
+    expect(mocks.recordSecurityEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "user_invited", metadata: { role: "reviewer" } })
+    );
+  });
+
+  it("rol desconocido → invalid-role", async () => {
+    const res = await inviteUserAction({
+      email: "x@example.test",
+      name: "X",
+      role: "owner" as never,
+    });
+    expect(res).toEqual({ ok: false, error: "invalid-role" });
+    expect(mocks.db.transaction).not.toHaveBeenCalled();
   });
 });
 

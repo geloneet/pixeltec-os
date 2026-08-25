@@ -109,6 +109,7 @@ export function InviteUserDialog() {
               <SelectContent>
                 <SelectItem value="staff">Staff</SelectItem>
                 <SelectItem value="admin">Administrador</SelectItem>
+                <SelectItem value="reviewer">Revisor externo (solo WhatsApp)</SelectItem>
               </SelectContent>
             </Select>
           </div>
