@@ -5,6 +5,10 @@
  * Discovery y Estrategia se mudaron a la vista de proyecto (/proyectos/[id])
  * — pertenecen a un trabajo concreto, no al cliente completo. El ciclo
  * comercial (propuestas, contratos, facturación) vive fusionado en Comercial.
+ *
+ * WO-2026-00088 §6: qué tabs se muestran lo decide el registro de secciones
+ * (`src/lib/modules/client-workspace.ts`); los tabs ocultos conservan su
+ * código y sus datos, y el guardado de información general no los toca.
  */
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
@@ -15,15 +19,18 @@ import { ComercialTab, type ComercialSub } from "@/components/crm/workspace-tabs
 import { DocumentosTab } from "@/components/crm/workspace-tabs/DocumentosTab";
 import { PortalTab } from "@/components/crm/workspace-tabs/PortalTab";
 import { getPortalStatusForClientAction } from "@/lib/client-portal/admin-actions";
+import {
+  getVisibleClientSections,
+  isClientSectionVisible,
+  type ClientWorkspaceSection,
+} from "@/lib/modules/client-workspace";
 
-export type WorkspaceTab = "resumen" | "proyectos" | "comercial" | "documentos" | "portal";
+export type WorkspaceTab = ClientWorkspaceSection;
 
-const BASE_TABS: { id: WorkspaceTab; label: string }[] = [
-  { id: "resumen", label: "Resumen" },
-  { id: "proyectos", label: "Proyectos" },
-  { id: "comercial", label: "Comercial" },
-  { id: "documentos", label: "Documentos" },
-];
+/** Tabs base visibles (todo salvo Portal, que además depende del gate del cliente). */
+const BASE_TABS: { id: WorkspaceTab; label: string }[] = getVisibleClientSections()
+  .filter((s) => s.id !== "portal")
+  .map((s) => ({ id: s.id, label: s.label }));
 
 type ModalPayload = { type: string; data?: Record<string, string> } | null;
 
@@ -60,12 +67,16 @@ export function ClientWorkspace({ client, onBack, navigateToProject, setModal, d
     };
   }, [client.id, client.portalAccessEnabled]);
 
-  const tabs = portalEnabled ? [...BASE_TABS, { id: "portal" as const, label: "Portal" }] : BASE_TABS;
+  const portalTabVisible = portalEnabled && isClientSectionVisible("portal");
+  const tabs = portalTabVisible ? [...BASE_TABS, { id: "portal" as const, label: "Portal" }] : BASE_TABS;
 
-  // Si el portal se desactiva mientras su tab está abierto, cae a Resumen.
+  // Si el tab activo deja de estar disponible (portal desactivado o sección
+  // oculta por el registro), cae a Resumen.
+  const activeTabAvailable =
+    activeTab === "portal" ? portalTabVisible : BASE_TABS.some((t) => t.id === activeTab);
   useEffect(() => {
-    if (activeTab === "portal" && !portalEnabled) setActiveTab("resumen");
-  }, [activeTab, portalEnabled]);
+    if (!activeTabAvailable) setActiveTab("resumen");
+  }, [activeTabAvailable]);
 
   return (
     <div className="flex flex-col h-full">
@@ -109,7 +120,7 @@ export function ClientWorkspace({ client, onBack, navigateToProject, setModal, d
             portalEnabled={portalEnabled}
             onPortalEnabledChange={(enabled) => {
               setPortalEnabled(enabled);
-              if (enabled) setActiveTab("portal");
+              if (enabled && isClientSectionVisible("portal")) setActiveTab("portal");
             }}
             onOpenComercial={() => setActiveTab("comercial")}
           />
@@ -136,7 +147,7 @@ export function ClientWorkspace({ client, onBack, navigateToProject, setModal, d
             <DocumentosTab clientId={client.id} />
           </div>
         )}
-        {activeTab === "portal" && portalEnabled && (
+        {activeTab === "portal" && portalTabVisible && (
           <div className="p-6">
             <PortalTab clientId={client.id} clientName={client.name} clientEmail={client.email} />
           </div>

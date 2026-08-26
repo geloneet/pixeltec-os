@@ -79,6 +79,19 @@ import { setPortalAccessEnabledAction } from "@/lib/client-portal/admin-actions"
 import { formatDistanceToNow, format } from "date-fns";
 import { es } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import {
+  isClientSectionVisible,
+  isResumenCardVisible,
+  isOnboardingWorkStepVisible,
+  ONBOARDING_CTA_SECTION,
+  ONBOARDING_WORK_STEP_LABEL,
+} from "@/lib/modules/client-workspace";
+
+// WO-2026-00088 §6: el Resumen muestra información general, «requiere
+// atención», notas y actividad; las piezas de secciones ocultas (proyectos,
+// comercial, portal) se declaran en client-workspace.ts y se filtran aquí.
+const SHOW_PROYECTOS = isClientSectionVisible("proyectos");
+const SHOW_PORTAL = isClientSectionVisible("portal");
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -257,9 +270,13 @@ export function ClientDetail({
         openProposalsCount,
         pendingBillingCount,
         lastActivityAt: dyn?.activity[0]?.createdAt ?? null,
-      }),
+      }).filter((card) => isResumenCardVisible(card.key)),
     [client, clientStats, openProposalsCount, pendingBillingCount, dyn]
   );
+  const onboardingSteps = onboarding.steps.filter(
+    (step) => step.label !== ONBOARDING_WORK_STEP_LABEL || isOnboardingWorkStepVisible()
+  );
+  const showOnboardingCta = isClientSectionVisible(ONBOARDING_CTA_SECTION[onboarding.cta.action]);
 
   const editClientModalData = {
     id: client.id,
@@ -347,6 +364,7 @@ export function ClientDetail({
 
         <div className="flex flex-shrink-0 items-center gap-2">
           {/* Acción principal única: crear proyecto (dos variantes) */}
+          {SHOW_PROYECTOS && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="flex items-center gap-1 rounded-lg border border-cyan-500/20 bg-cyan-500/10 px-3 py-1.5 text-xs font-medium text-cyan-300 transition-all hover:bg-cyan-500/20 focus-visible:outline-none">
@@ -369,6 +387,7 @@ export function ClientDetail({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          )}
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -407,7 +426,7 @@ export function ClientDetail({
                   Marcar como cerrado
                 </DropdownMenuItem>
               )}
-              {!portalEnabled && (
+              {SHOW_PORTAL && !portalEnabled && (
                 <DropdownMenuItem
                   className="cursor-pointer text-sm"
                   onSelect={() => void handleEnablePortal()}
@@ -436,7 +455,7 @@ export function ClientDetail({
             Esta cuenta está recién creada. Sigue estos pasos para dejarla operativa:
           </p>
           <ol className="mt-3 space-y-2">
-            {onboarding.steps.map((step) => (
+            {onboardingSteps.map((step) => (
               <li key={step.label} className="flex items-center gap-2 text-sm">
                 {step.done ? (
                   <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-green-400" aria-hidden />
@@ -449,6 +468,7 @@ export function ClientDetail({
               </li>
             ))}
           </ol>
+          {showOnboardingCta && (
           <div className="mt-4">
             {onboarding.cta.action === "crear-propuesta" && (
               <button
@@ -475,6 +495,7 @@ export function ClientDetail({
               </button>
             )}
           </div>
+          )}
         </div>
       ) : (
         <div className={cn("mb-5 grid grid-cols-1 gap-3 sm:grid-cols-3", cards.length === 4 && "sm:grid-cols-4")}>
@@ -493,7 +514,8 @@ export function ClientDetail({
         </div>
       )}
 
-      {/* ── SECCIÓN 3: PROYECTOS ACTIVOS ─────────────────────────────────── */}
+      {/* ── SECCIÓN 3: PROYECTOS ACTIVOS (sección oculta por el registro) ── */}
+      {SHOW_PROYECTOS && (
       <div className="mb-5">
         <div className="mb-3 flex items-center justify-between">
           <h3 className="text-sm font-semibold text-foreground">Proyectos activos</h3>
@@ -525,6 +547,7 @@ export function ClientDetail({
           </div>
         )}
       </div>
+      )}
 
       {dynError && (
         <div className="mb-5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3">

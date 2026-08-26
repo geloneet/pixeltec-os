@@ -54,6 +54,12 @@ import {
   MessageCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { isClientSectionVisible } from "@/lib/modules/client-workspace";
+
+// WO-2026-00088 §6: la lista («Cuentas») muestra información general,
+// «requiere atención» y última actividad; la columna, la métrica, el filtro
+// y la acción de proyectos se retiran cuando la sección está oculta.
+const SHOW_PROYECTOS = isClientSectionVisible("proyectos");
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -115,7 +121,12 @@ function ClientRow({ item, navigateToClient, setModal }: ClientRowProps) {
           navigateToClient(c.id);
         }
       }}
-      className="group flex cursor-pointer flex-col gap-3 rounded-xl border border-border bg-card p-4 shadow-sm transition-all duration-150 hover:border-cyan-400/30 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 dark:bg-zinc-900/20 dark:shadow-none md:grid md:grid-cols-[minmax(0,1fr)_8.5rem_11rem_6.5rem_7rem_5.5rem] md:items-center md:gap-3 md:px-4 md:py-3"
+      className={cn(
+        "group flex cursor-pointer flex-col gap-3 rounded-xl border border-border bg-card p-4 shadow-sm transition-all duration-150 hover:border-cyan-400/30 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 dark:bg-zinc-900/20 dark:shadow-none md:grid md:items-center md:gap-3 md:px-4 md:py-3",
+        SHOW_PROYECTOS
+          ? "md:grid-cols-[minmax(0,1fr)_8.5rem_11rem_6.5rem_7rem_5.5rem]"
+          : "md:grid-cols-[minmax(0,1fr)_8.5rem_11rem_7rem_5.5rem]"
+      )}
     >
       {/* Identity */}
       <div className="flex min-w-0 items-center gap-3">
@@ -164,7 +175,8 @@ function ClientRow({ item, navigateToClient, setModal }: ClientRowProps) {
         <p className="mt-0.5 text-[10px] text-muted-foreground/50 md:hidden">próxima acción</p>
       </div>
 
-      {/* Proyectos activos */}
+      {/* Proyectos activos (sección oculta por el registro) */}
+      {SHOW_PROYECTOS && (
       <div className="md:text-center">
         {projects.hasProjects ? (
           <p className="tabular-nums text-sm font-semibold text-foreground">{projects.label}</p>
@@ -173,6 +185,7 @@ function ClientRow({ item, navigateToClient, setModal }: ClientRowProps) {
         )}
         <p className="mt-0.5 text-[10px] text-muted-foreground/70">proyectos</p>
       </div>
+      )}
 
       {/* Última actividad */}
       <div className="md:text-center">
@@ -245,12 +258,14 @@ function ClientRow({ item, navigateToClient, setModal }: ClientRowProps) {
             >
               Editar
             </DropdownMenuItem>
+            {SHOW_PROYECTOS && (
             <DropdownMenuItem
               className="cursor-pointer text-sm text-muted-foreground focus:bg-accent focus:text-foreground"
               onSelect={() => navigateToClient(c.id)}
             >
               + Proyecto nuevo
             </DropdownMenuItem>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -260,12 +275,14 @@ function ClientRow({ item, navigateToClient, setModal }: ClientRowProps) {
 
 // ── Filters config ────────────────────────────────────────────────────────────
 
-const FILTERS: { key: ClientsFilter; label: string }[] = [
+const ALL_FILTERS: { key: ClientsFilter; label: string; requiresProyectos?: boolean }[] = [
   { key: "todos", label: "Todos" },
   { key: "atencion", label: "Requieren atención" },
-  { key: "sin-proyecto", label: "Sin proyecto" },
+  { key: "sin-proyecto", label: "Sin proyecto", requiresProyectos: true },
   { key: "archivados", label: "Archivados" },
 ];
+
+const FILTERS = ALL_FILTERS.filter((f) => !f.requiresProyectos || SHOW_PROYECTOS);
 
 // ── ClientsView ───────────────────────────────────────────────────────────────
 
@@ -359,16 +376,20 @@ export function ClientsView({ clients, navigateToClient, setModal }: ClientsView
             <span className="tabular-nums font-semibold text-foreground">{metrics.activeClients}</span>
             <span className="text-muted-foreground">clientes activos</span>
           </button>
-          <span className="text-muted-foreground/50">·</span>
-          <button
-            onClick={() => setFilter("todos")}
-            className="flex items-center gap-1.5 rounded-md px-1.5 py-0.5 transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40"
-            aria-label="Ver clientes con proyectos activos"
-          >
-            <FolderKanban className="h-3.5 w-3.5 text-cyan-400" strokeWidth={1.75} />
-            <span className="tabular-nums font-semibold text-foreground">{metrics.activeProjects}</span>
-            <span className="text-muted-foreground">proyectos activos</span>
-          </button>
+          {SHOW_PROYECTOS && (
+            <>
+              <span className="text-muted-foreground/50">·</span>
+              <button
+                onClick={() => setFilter("todos")}
+                className="flex items-center gap-1.5 rounded-md px-1.5 py-0.5 transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40"
+                aria-label="Ver clientes con proyectos activos"
+              >
+                <FolderKanban className="h-3.5 w-3.5 text-cyan-400" strokeWidth={1.75} />
+                <span className="tabular-nums font-semibold text-foreground">{metrics.activeProjects}</span>
+                <span className="text-muted-foreground">proyectos activos</span>
+              </button>
+            </>
+          )}
           <span className="text-muted-foreground/50">·</span>
           <button
             onClick={() => setFilter("atencion")}
@@ -398,7 +419,7 @@ export function ClientsView({ clients, navigateToClient, setModal }: ClientsView
           <div className="relative min-w-48 max-w-xs flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Buscar cliente o proyecto…"
+              placeholder={SHOW_PROYECTOS ? "Buscar cliente o proyecto…" : "Buscar cliente…"}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               className="h-8 border-border bg-muted/40 pl-9 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-cyan-500/40 focus-visible:ring-cyan-500/20"

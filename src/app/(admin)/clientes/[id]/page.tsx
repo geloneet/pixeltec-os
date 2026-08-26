@@ -6,6 +6,7 @@ import { useCRMShell } from "@/components/crm/CRMShellProvider";
 import { ClientWorkspace, type WorkspaceTab } from "@/components/crm/ClientWorkspace";
 import type { ComercialSub } from "@/components/crm/workspace-tabs/ComercialTab";
 import { Spinner } from "@/components/ui/spinner";
+import { isClientSectionVisible } from "@/lib/modules/client-workspace";
 
 const VALID_TABS: WorkspaceTab[] = ["resumen", "proyectos", "comercial", "documentos", "portal"];
 
@@ -33,7 +34,10 @@ export default function ClienteDetailPage() {
   const tabParam = searchParams.get("tab");
   const subParam = searchParams.get("sub");
   const migrated = tabParam ? TAB_MIGRATION[tabParam] : undefined;
-  const initialTab = migrated?.tab ?? VALID_TABS.find((t) => t === tabParam);
+  const requestedTab = migrated?.tab ?? VALID_TABS.find((t) => t === tabParam);
+  // Deep-link a una sección oculta por el registro (WO-2026-00088): jamás
+  // 404 ni pantalla vacía — cae en Resumen.
+  const initialTab = requestedTab && isClientSectionVisible(requestedTab) ? requestedTab : undefined;
   const initialSub = migrated?.sub ?? VALID_SUBS.find((s) => s === subParam);
 
   if (crm.loading) {
