@@ -79,8 +79,7 @@ const AREA_ITEMS: Record<NavArea, AreaItemRef[]> = {
   // del área WhatsApp: excepción explícita de la orden (§3.3).
   whatsapp: [{ href: "/whatsapp" }],
   finanzas: [{ href: "/cobros" }],
-  // Las rutas del Blog nuevo se registran en FASE 8 de WO-2026-00088.
-  blog: [],
+  blog: [{ href: "/blog-cms" }],
   usuarios: [{ href: "/usuarios" }, { href: "/accesos" }],
   proyectos: [
     { href: "/proyectos" },

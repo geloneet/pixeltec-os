@@ -1,5 +1,20 @@
 
-export type BlogPostStatus = 'draft' | 'needs-review' | 'approved' | 'published' | 'archived';
+export type BlogPostStatus = 'draft' | 'needs-review' | 'approved' | 'scheduled' | 'published' | 'archived';
+
+/** Par pregunta/respuesta del bloque FAQ (WO-2026-00088, paridad Encino). */
+export interface BlogFaqItem {
+  question: string;
+  answer: string;
+}
+
+/** Parámetros del wizard IA (paridad Encino `ai_params`). */
+export interface BlogAiParams {
+  brief: string;
+  tone: string;
+  audience: string;
+  internalLinkCount: number;
+  externalLinkCount: number;
+}
 export type BlogBriefStatus = 'pending' | 'generating' | 'generated' | 'discarded';
 export type BlogCategory = 'arquitectura' | 'automatización' | 'case-study' | 'opinión';
 
@@ -136,7 +151,18 @@ export interface BlogPostDoc {
     /** Atribución opcional de la portada (B-PR5, jsonb aditivo — sin
      *  migración): crédito del autor/fuente de la imagen subida. */
     coverAttribution?: string;
+    /** `robots: nofollow` del artículo (WO-2026-00088, paridad Encino; jsonb
+     *  aditivo — sin migración). Ausente ⇒ false. */
+    nofollow?: boolean;
   };
+
+  // ── WO-2026-00088 (D-C Opción A, migración 0043) — paridad Encino ──────────
+  faq: BlogFaqItem[];
+  /** Publicación programada: se publica por barrido cuando `scheduledAt <= now`. */
+  scheduledAt: Date | null;
+  /** URL validada de Google Maps embed (`extractMapsEmbedUrl`), o null. */
+  mapsEmbed: string | null;
+  aiParams: BlogAiParams | null;
 
   editorial: PostEditorial;
   sources: PostSource[];
@@ -152,11 +178,12 @@ export interface BlogPostDoc {
 }
 
 // Serializable version for client components (Timestamps → ISO strings)
-export interface BlogPostSerialized extends Omit<BlogPostDoc, 'ai' | 'createdAt' | 'updatedAt' | 'publishedAt'> {
+export interface BlogPostSerialized extends Omit<BlogPostDoc, 'ai' | 'createdAt' | 'updatedAt' | 'publishedAt' | 'scheduledAt'> {
   ai: Omit<BlogPostDoc['ai'], 'generatedAt'> & { generatedAt: string };
   createdAt: string;
   updatedAt: string;
   publishedAt: string | null;
+  scheduledAt: string | null;
 }
 
 export interface BlogBriefSerialized extends Omit<BlogBriefDoc, 'createdAt'> {

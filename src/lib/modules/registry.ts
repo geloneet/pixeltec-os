@@ -110,8 +110,8 @@ const REGISTRY = [
     id: "blog",
     label: "Blog",
     state: "active",
-    routes: [],
-    note: "Nueva sección Blog con paridad a Muebles Encino (orden §10). Las rutas se registran en FASE 8; sin rutas el área no se muestra (nunca páginas vacías, ADR-0030 §6).",
+    routes: ["/blog-cms"],
+    note: "Nueva sección Blog con paridad a Muebles Encino (orden §10, D-C Opción A): admin en /blog-cms (D-A del SG), misma tabla blog_posts que el legacy, público /blog de pixeltec.mx.",
   },
   {
     id: "usuarios",

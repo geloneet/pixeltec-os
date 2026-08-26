@@ -2,6 +2,7 @@
 title: ADR-0054 — Registro central de módulos y limpieza controlada del dashboard de PixelTEC OS
 type: adr
 status: propuesta
+blog_status: ejecutada (D-C Opción A + D-C-bis aprobadas y aplicadas, 2026-08-25)
 created: 2026-08-25
 accepted: null
 signed_by: null
@@ -38,7 +39,8 @@ tags:
 6. **Usuarios y Accesos (D-88-2)** — un módulo conceptual en la navegación con **dos rutas intactas**: `/usuarios` (equipo interno: invitaciones, roles, suspensión; solo admin) y `/accesos` (accesos y documentación técnica por herramienta, antes etiquetado «Conocimiento»). No se fusionan rutas, modelos ni lógica; la etiqueta «Conocimiento» desaparece de toda superficie (criterio 5 de la orden), la ruta se conserva (D-88-2).
 7. **Clientes** — registro de secciones `src/lib/modules/client-workspace.ts`: visibles información general, cuentas (lista), «requiere atención», notas y actividad reciente; ocultos Proyectos, Comercial (propuestas/contratos/facturación), Documentos y Portal (no nombrado por la orden ⇒ no aprobado; decisión reversible). Guardar información general conserva los datos de las secciones ocultas (test de regresión + contrato a nivel de fuente sobre el upsert, ADR-0035).
 8. **Publicaciones** se oculta, no se elimina; el flujo del token de redes queda documentado sin secretos en `docs/publicaciones-token-redes.md` con checklist de reactivación.
-9. **Blog** — nueva sección en `/blog-cms` (etiqueta «Blog»; D-A del SG) con paridad **solo** a las capacidades comprobadas en Encino (`docs/pr/WO-2026-00088-blog-matriz.md`), adaptada a NextAuth/RBAC/Drizzle/R2 de PixelTEC OS. Modelo de datos: **decisión D-C pendiente de Miguel** (evolución aditiva del `blog_posts` legacy — recomendada — o módulo separado). La superficie pública `/blog` de pixeltec.mx solo cambia dentro del contrato público real de Encino (gate `public-blog-surface`).
+9. **Blog** — nueva sección en `/blog-cms` (etiqueta «Blog», posición 5 de la navegación; D-A del SG) con paridad **solo** a las capacidades comprobadas en Encino (`docs/pr/WO-2026-00088-blog-matriz.md`), adaptada a NextAuth/RBAC/Drizzle/R2 de PixelTEC OS. **Modelo de datos — D-C APROBADA por Miguel: Opción A**, evolución aditiva del `blog_posts` legacy (migración `drizzle/0043_blog_encino_parity.sql`: `faq`, `scheduled_at`, `maps_embed`, `ai_params` + tabla `blog_categories`; aplicada solo en BD de dev). **D-C-bis APROBADA:** el wizard de generación IA reutiliza el cliente Anthropic ya existente (`@/lib/ai/anthropic-egress`), sin dependencias ni variables de entorno nuevas. La superficie pública `/blog` de pixeltec.mx ganó exactamente el contrato público real de Encino: FAQ (`<dl>` + `FAQPage` JSON-LD), etiquetas, embed de Google Maps, filtros `?categoria=`/`?etiqueta=`, `robots.follow` gobernado por `seo.nofollow` — verificado end-to-end en `localhost:9002` (§6 de la matriz): publicado → 200 con canonical/JSON-LD/sitemap correctos; borrador y programado → 404 público.
+10. **Excepción mínima de CSP para el embed de Google Maps del Blog** (Miguel, 2026-08-25, gate `public-blog-surface` / SC-2) — `src/lib/security/csp.ts`: `frame-src` gana **únicamente** `https://www.google.com` (origen del embed oficial `maps/embed`, validado en servidor por `extractMapsEmbedUrl` antes de persistirse). Sin comodines, sin `'unsafe-eval'`, sin ampliar ninguna otra directiva; global (CSP per-documento en una SPA) pero solo el artículo del Blog renderiza el `<iframe>`. `csp.test.ts` fija que el resto de la política (incluida la de WhatsApp/PixelBot/Finanzas) no cambia. Verificado en navegador: cero errores de CSP en consola al cargar un artículo con Maps embebido.
 10. **Reactivación** = cambiar `state` en el registro (y en `client-workspace.ts` para Clientes); los guards, catálogos y widgets ya están declarados. Procedimiento en `docs/dashboard-modules.md`.
 
 ## Alternativas consideradas y rechazadas
@@ -51,13 +53,13 @@ tags:
 
 ## Consecuencias
 
-**Positivas:** superficie mínima y coherente con la operación actual; un solo lugar para decidir visibilidad; reactivación sin reconstruir; módulos congelados verificables por diff vacío; tests de integridad que fallan si algo se oculta «a mano».
+**Positivas:** superficie mínima y coherente con la operación actual; un solo lugar para decidir visibilidad; reactivación sin reconstruir; módulos congelados verificables por diff vacío; tests de integridad que fallan si algo se oculta «a mano»; el Blog nuevo comparte tabla y gran parte de la infraestructura (R2, revisiones, redirects, gate) con el blog legacy en vez de duplicar un modelo paralelo.
 
-**Negativas / deuda:** áreas y destinos ocultos conviven en el catálogo (ruido para quien lo lea); `nav-integrity.test.ts` cambia sus expectativas de taxonomía (revisadas explícitamente); el HTTP 200 con UI 404 por streaming; Inicio queda visualmente escaso hasta el rediseño intencional (no se rediseñó a propósito); el rol `staff` sigue viendo la misma navegación que `admin` (sin cambio respecto a hoy).
+**Negativas / deuda:** áreas y destinos ocultos conviven en el catálogo (ruido para quien lo lea); `nav-integrity.test.ts` cambia sus expectativas de taxonomía (revisadas explícitamente); el HTTP 200 con UI 404 por streaming; Inicio queda visualmente escaso hasta el rediseño intencional (no se rediseñó a propósito); el rol `staff` sigue viendo la misma navegación que `admin` (sin cambio respecto a hoy); la pestaña «Snippets» de rich-snippets del editor de Encino no se portó (depende de un módulo SEO Control Center ausente en PixelTEC OS); el embed de Google Maps no se verificó renderizando contenido real porque este entorno de desarrollo no tiene salida de red hacia `google.com` (solo se verificó ausencia de errores de CSP en consola — ver matriz §6).
 
 ## Rollback
 
-Revertir los commits de la rama `feature/dashboard-cleanup-blog` (todos locales hasta el gate `merge-to-main`). No se tocaron URLs, contratos, APIs, esquema ni datos en FASES 0–7; la migración del Blog (si D-C la aprueba) es aditiva y su rollback se documenta en `docs/pr/WO-2026-00088.md` §11.
+Revertir los commits de la rama `feature/dashboard-cleanup-blog` (todos locales hasta el gate `merge-to-main`). No se tocaron URLs, contratos, APIs ni datos existentes en ninguna fase. La migración `0043` (Blog, D-C Opción A) es aditiva y reversible — documentado en `drizzle/0043_blog_encino_parity.sql` (cabecera) y en `docs/pr/WO-2026-00088.md` §11 — y solo se aplicó en la base de datos de desarrollo, nunca en producción. La excepción de CSP (§10) se revierte quitando el host de la lista `MAPS_EMBED_FRAME_SRC` en `csp.ts`.
 
 ## Relación con otras decisiones
 
@@ -65,3 +67,4 @@ Revertir los commits de la rama `feature/dashboard-cleanup-blog` (todos locales 
 - ADR-0039 — el sidebar persistente sigue siendo el contenedor en desktop; solo cambia qué áreas muestra.
 - ADR-0035 — el workspace de cliente conserva sus tabs en código; los campos server-owned y el contrato anti-pisado se extienden con un test explícito para el guardado de información general.
 - ADR-0028 / WO-2026-00051 — middleware, egress y política del reviewer no se tocan (diff vacío).
+- ADR-0028 — el wizard IA del Blog (D-C-bis) reutiliza `anthropicCreate`, ya gobernado por la política de egress de esta ADR; sin canal nuevo.

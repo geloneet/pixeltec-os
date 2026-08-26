@@ -19,6 +19,7 @@ const POST_STATUS_LABEL: Record<BlogPostStatus, string> = {
   draft: 'Borrador',
   'needs-review': 'En revisión',
   approved: 'Aprobado',
+  scheduled: 'Programado',
   published: 'Publicado',
   archived: 'Archivado',
 };
@@ -27,6 +28,7 @@ const POST_STATUS_CLASS: Record<BlogPostStatus, string> = {
   draft: 'bg-muted text-muted-foreground',
   'needs-review': 'bg-yellow-500/15 text-yellow-700 dark:text-yellow-300',
   approved: 'bg-blue-500/15 text-blue-700 dark:text-blue-300',
+  scheduled: 'bg-purple-500/15 text-purple-700 dark:text-purple-300',
   published: 'bg-green-500/15 text-green-700 dark:text-green-300',
   archived: 'bg-muted text-muted-foreground',
 };

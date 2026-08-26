@@ -12,6 +12,9 @@ const CANARY = {
   unverifiedUrl: 'https://example.com/CANARIO-FUENTE-NO-VERIFICADA-f2a86',
   claimInterno: 'CANARIO-CLAIM-INTERNO-03997',
   placementInterno: 'CANARIO-PLACEMENT-g3h97',
+  // WO-2026-00088 (paridad Encino): ai_params SÍ contiene el brief crudo del
+  // wizard — es interno (igual que briefSource) y no debe cruzar al público.
+  aiParamsBrief: 'CANARIO-AIPARAMS-BRIEF-h4i08',
 };
 
 function fullPost(): BlogPostSerialized {
@@ -96,6 +99,23 @@ function fullPost(): BlogPostSerialized {
     createdAt: '2026-08-04T00:00:00.000Z',
     updatedAt: '2026-08-04T00:00:00.000Z',
     publishedAt: '2026-08-04T01:00:00.000Z',
+    // WO-2026-00088 (paridad Encino) — FAQ, etiquetas y Maps SÍ se renderizan
+    // en la página pública, así que son públicos por definición; un item con
+    // pregunta o respuesta vacía se descarta.
+    faq: [
+      { question: '¿Cuánto cuesta?', answer: 'Depende del alcance.' },
+      { question: '', answer: 'se descarta por pregunta vacía' },
+      { question: 'se descarta por respuesta vacía', answer: '' },
+    ],
+    scheduledAt: null,
+    mapsEmbed: 'https://www.google.com/maps/embed?pb=publico',
+    aiParams: {
+      brief: CANARY.aiParamsBrief,
+      tone: 'educativo',
+      audience: 'pymes',
+      internalLinkCount: 2,
+      externalLinkCount: 1,
+    },
     approvedBy: 'uid-aprobador-interno',
   };
 }
@@ -114,9 +134,15 @@ describe('toPublicBlogPost — contrato público con allowlist', () => {
 
   it('Object.keys es EXACTAMENTE la allowlist (nada extra en runtime)', () => {
     const dto = toPublicBlogPost(fullPost());
+    // WO-2026-00088 (paridad Encino): `faq`, `tags` y `mapsEmbed` se agregan a
+    // la allowlist porque la página los RENDERIZA — son públicos por
+    // definición, igual que `internalLinks` ya lo era desde 2026-08-05.
+    // `aiParams` (brief crudo del wizard) NO se agrega: sigue sin cruzar,
+    // como `briefSource`.
     expect(Object.keys(dto).sort()).toEqual([
-      'authorName', 'body', 'category', 'coverAlt', 'coverImage', 'internalLinks',
-      'lastReviewedAt', 'publishedAt', 'readingTimeMin', 'slug', 'sources', 'title',
+      'authorName', 'body', 'category', 'coverAlt', 'coverImage', 'faq', 'internalLinks',
+      'lastReviewedAt', 'mapsEmbed', 'publishedAt', 'readingTimeMin', 'slug', 'sources',
+      'tags', 'title',
     ]);
     for (const s of dto.sources) {
       expect(Object.keys(s).sort()).toEqual(['accessedAt', 'publisher', 'title', 'url']);
@@ -142,6 +168,8 @@ describe('toPublicBlogPost — contrato público con allowlist', () => {
     // internos — placement/verified siguen siendo internos (canary arriba).
     expect(wire).not.toContain('placement');
     expect(wire).not.toContain('"verified"');
+    expect(wire).not.toContain(CANARY.aiParamsBrief);
+    expect(wire).not.toContain('aiParams');
   });
 
   it('enlazado interno: solo verificados e internos, absolutos normalizados a relativos', () => {
@@ -162,16 +190,29 @@ describe('toPublicBlogPost — contrato público con allowlist', () => {
     expect(JSON.stringify(dto.sources)).not.toContain('verificar');
   });
 
+  it('FAQ, etiquetas y Maps embed cruzan tal cual; los items de FAQ vacíos se descartan', () => {
+    const dto = toPublicBlogPost(fullPost());
+    expect(dto.faq).toEqual([{ question: '¿Cuánto cuesta?', answer: 'Depende del alcance.' }]);
+    expect(dto.tags).toEqual(['prueba']);
+    expect(dto.mapsEmbed).toBe('https://www.google.com/maps/embed?pb=publico');
+  });
+
   it('post viejo con capas vacías no lanza y produce DTO válido', () => {
     const p = fullPost();
     p.editorial = { ...EMPTY_EDITORIAL };
     p.sources = [];
     p.seo = { ...EMPTY_SEO, noindex: false };
     p.internalLinks = [];
+    p.faq = [];
+    p.mapsEmbed = null;
+    p.tags = [];
     const dto: PublicBlogPost = toPublicBlogPost(p);
     expect(dto.coverAlt).toBe('');
     expect(dto.lastReviewedAt).toBeNull();
     expect(dto.sources).toEqual([]);
     expect(dto.internalLinks).toEqual([]);
+    expect(dto.faq).toEqual([]);
+    expect(dto.mapsEmbed).toBeNull();
+    expect(dto.tags).toEqual([]);
   });
 });

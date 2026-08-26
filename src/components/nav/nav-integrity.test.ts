@@ -45,12 +45,12 @@ function extractRedirects(): Array<{ source: string; destination: string; perman
 
 describe("taxonomía visible (ADR-0030 · ADR-0039 · WO-2026-00088/ADR-0054 propuesta)", () => {
   it("navegación visible para admin/staff, en orden, con las etiquetas aprobadas", () => {
-    // «Blog» aparecerá cuando la FASE 8 registre sus rutas (nunca un área vacía).
     expect(getVisibleNavAreas("admin").map((a) => NAV_AREA_LABELS[a])).toEqual([
       "Inicio",
       "Clientes",
       "WhatsApp",
       "Finanzas",
+      "Blog",
       "Usuarios y Accesos",
     ]);
     expect(getVisibleNavAreas("staff")).toEqual(getVisibleNavAreas("admin"));
@@ -86,6 +86,7 @@ describe("taxonomía visible (ADR-0030 · ADR-0039 · WO-2026-00088/ADR-0054 pro
     // PixelBot conserva su acceso (item «PixelBot» → /whatsapp) dentro de WhatsApp: excepción explícita.
     expect(l2("whatsapp")).toEqual(["PixelBot"]);
     expect(l2("finanzas")).toEqual(["Cobros"]);
+    expect(l2("blog")).toEqual(["Blog"]);
     expect(l2("usuarios")).toEqual(["Usuarios", "Accesos"]);
   });
 
@@ -196,6 +197,7 @@ describe("resolución de área activa", () => {
     expect(getActiveArea("/whatsapp")).toBe("whatsapp");
     expect(getActiveArea("/whatsapp/config")).toBe("whatsapp");
     expect(getActiveArea("/cobros")).toBe("finanzas");
+    expect(getActiveArea("/blog-cms/abc/editar")).toBe("blog");
     expect(getActiveArea("/accesos/tool-1")).toBe("usuarios");
     expect(getActiveArea("/usuarios")).toBe("usuarios");
   });

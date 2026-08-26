@@ -54,9 +54,11 @@ export function BlogGrid({ posts }: { posts: BlogCardData[] }) {
 
           <div className="p-6 md:p-8 flex flex-col flex-grow">
             <div className="flex items-center gap-3 mb-4">
-              <span className="bg-blue-950/30 text-brand-blue text-xs px-3 py-1 rounded-full font-semibold">
-                {post.category}
-              </span>
+              {post.category && (
+                <span className="bg-blue-950/30 text-brand-blue text-xs px-3 py-1 rounded-full font-semibold">
+                  {post.category}
+                </span>
+              )}
               <span className="text-zinc-500 text-xs font-medium">
                 {post.date} • {post.readTime}
               </span>

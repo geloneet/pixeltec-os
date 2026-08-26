@@ -33,6 +33,21 @@ const THIRD_PARTY_CONNECT_SRC = [
   'https://connect.facebook.net',
 ].join(' ');
 
+// EXCEPCIÓN MÍNIMA Y ESPECÍFICA (Miguel, WO-2026-00088 · SC-2, 2026-08-25):
+// el artículo público del Blog (/blog/[slug]) puede incrustar UN <iframe> de
+// Google Maps (`blog_posts.maps_embed`, validado en servidor por
+// `extractMapsEmbedUrl` contra `https://(www.)google.<tld>/maps/embed`).
+// - Directiva afectada: SOLO `frame-src`. script-src, connect-src, img-src,
+//   default-src y el resto NO cambian.
+// - Host: el origen del embed oficial de Maps comprobado en ejecución
+//   (`https://www.google.com`). Sin comodines, sin 'unsafe-eval', sin terceros
+//   ajenos a Maps (lo que cargue el iframe por dentro es su propio documento).
+// - Superficie: la CSP es global (per-documento, SPA) — el host queda
+//   permitido en todas las rutas, pero solo el artículo del Blog renderiza un
+//   iframe hacia él; WhatsApp/PixelBot/Finanzas no cambian de comportamiento
+//   (csp.test.ts lo fija). Reactivar/retirar: editar esta lista.
+const MAPS_EMBED_FRAME_SRC = ['https://www.google.com'].join(' ');
+
 // ── Framing: quién puede embeber (frame-ancestors) — por defecto 'none'
 //    GLOBAL, se relaja puntualmente por ruta con arrays/regex EXPLÍCITOS
 //    (nada genérico especulativo). `frame-src` (qué puede embeber ESTE
@@ -110,7 +125,7 @@ export function buildCsp(nonce: string, opts: CspOptions): string {
     // Bonus: esto también arregla el caso preexistente de "Imprimir" en
     // /clientes/*, que embebe un iframe oculto same-origin para win.print()
     // y que un `frame-src 'none'` global habría bloqueado igual de en silencio.
-    "frame-src 'self'",
+    `frame-src 'self' ${MAPS_EMBED_FRAME_SRC}`,
     opts.allowSelfFraming ? "frame-ancestors 'self'" : "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",

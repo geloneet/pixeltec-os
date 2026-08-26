@@ -25,6 +25,7 @@ import {
   List,
   ListOrdered,
   Minus,
+  Pilcrow,
   Quote,
   Redo2,
   Table as TableIcon,
@@ -54,9 +55,15 @@ interface MarkdownStorage {
 interface RichMarkdownEditorProps {
   value: string;
   onChange: (markdown: string) => void;
+  /**
+   * WO-2026-00088 (Blog, paridad Encino): sube un archivo de imagen y devuelve
+   * su URL pública (R2). Opcional: sin él, el diálogo de imagen solo acepta URL
+   * (comportamiento previo del blog-admin legacy, intacto).
+   */
+  onUploadImage?: (file: File) => Promise<string>;
 }
 
-export default function RichMarkdownEditor({ value, onChange }: RichMarkdownEditorProps) {
+export default function RichMarkdownEditor({ value, onChange, onUploadImage }: RichMarkdownEditorProps) {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Último Markdown emitido/recibido: evita re-deserializar el contenido
   // cuando el cambio del form lo originó este mismo editor.
@@ -102,7 +109,7 @@ export default function RichMarkdownEditor({ value, onChange }: RichMarkdownEdit
 
   return (
     <div className="rounded-lg border border-border bg-background focus-within:border-blue-500/50">
-      <EditorToolbar editor={editor} />
+      <EditorToolbar editor={editor} onUploadImage={onUploadImage} />
       <EditorContent editor={editor} />
     </div>
   );
@@ -110,12 +117,33 @@ export default function RichMarkdownEditor({ value, onChange }: RichMarkdownEdit
 
 // ─── Toolbar ───────────────────────────────────────────────────────────────────
 
-function EditorToolbar({ editor }: { editor: Editor | null }) {
+function EditorToolbar({
+  editor,
+  onUploadImage,
+}: {
+  editor: Editor | null;
+  onUploadImage?: (file: File) => Promise<string>;
+}) {
   const [linkOpen, setLinkOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
   const [imageOpen, setImageOpen] = useState(false);
   const [imageUrl, setImageUrl] = useState("");
   const [imageAlt, setImageAlt] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  async function handleUpload(file: File | undefined) {
+    if (!file || !onUploadImage) return;
+    setUploading(true);
+    setUploadError(null);
+    try {
+      setImageUrl(await onUploadImage(file));
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "No se pudo subir la imagen");
+    } finally {
+      setUploading(false);
+    }
+  }
 
   if (!editor) {
     return <div className="h-10 border-b border-border" aria-hidden="true" />;
@@ -169,6 +197,13 @@ function EditorToolbar({ editor }: { editor: Editor | null }) {
           onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
         >
           <Heading3 className="h-4 w-4" />
+        </ToolbarButton>
+        <ToolbarButton
+          label="Párrafo"
+          active={editor.isActive("paragraph")}
+          onClick={() => editor.chain().focus().setParagraph().run()}
+        >
+          <Pilcrow className="h-4 w-4" />
         </ToolbarButton>
         <ToolbarSeparator />
         <ToolbarButton
@@ -305,6 +340,20 @@ function EditorToolbar({ editor }: { editor: Editor | null }) {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
+            {onUploadImage && (
+              <div className="space-y-1">
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  aria-label="Subir imagen"
+                  disabled={uploading}
+                  onChange={(e) => void handleUpload(e.target.files?.[0])}
+                  className="block w-full text-xs text-muted-foreground file:mr-3 file:rounded-md file:border file:border-border file:bg-secondary/60 file:px-3 file:py-1.5 file:text-xs file:text-foreground"
+                />
+                {uploading && <p className="text-xs text-muted-foreground">Subiendo…</p>}
+                {uploadError && <p className="text-xs text-red-400">{uploadError}</p>}
+              </div>
+            )}
             <Input
               value={imageUrl}
               onChange={(e) => setImageUrl(e.target.value)}

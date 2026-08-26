@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { formatEditorialDate } from "@/lib/blog/format-date";
 import { BlogGrid, type BlogCardData } from "./blog-grid";
 import type { Metadata } from "next";
@@ -13,11 +14,35 @@ export const metadata: Metadata = buildMetadata({
   description: 'Exploramos el futuro del desarrollo de software, la inteligencia artificial y la modernización empresarial.',
 });
 
-async function getPublishedCards(): Promise<BlogCardData[]> {
+/** Paridad Encino (WO-2026-00088): filtros por query `?categoria=` / `?etiqueta=`
+ *  (en memoria sobre los publicados; sin páginas públicas por categoría/tag). */
+interface PublicFilters {
+  categoria: string;
+  etiqueta: string;
+}
+
+interface PublishedIndex {
+  cards: BlogCardData[];
+  categories: string[];
+  tags: string[];
+}
+
+async function getPublishedCards(filters: PublicFilters): Promise<PublishedIndex> {
   try {
     const { getPublishedPosts } = await import("@/lib/blog/queries/posts");
-    const posts = await getPublishedPosts();
-    return posts.map((p) => ({
+    // Barrido de programados (paridad Encino): un post `scheduled` vencido se
+    // publica en la siguiente regeneración ISR de esta página.
+    const { publishDueScheduledPosts } = await import("@/lib/blog-cms/queries");
+    await publishDueScheduledPosts().catch(() => []);
+    const all = await getPublishedPosts();
+    const categories = Array.from(new Set(all.map((p) => p.category).filter(Boolean))).sort();
+    const tags = Array.from(new Set(all.flatMap((p) => p.tags).filter(Boolean))).slice(0, 20);
+    const posts = all.filter(
+      (p) =>
+        (!filters.categoria || p.category === filters.categoria) &&
+        (!filters.etiqueta || p.tags.includes(filters.etiqueta)),
+    );
+    const cards = posts.map((p) => ({
       id: p.id,
       slug: p.slug,
       title: p.title,
@@ -33,14 +58,22 @@ async function getPublishedCards(): Promise<BlogCardData[]> {
       authorInitials: p.author.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase(),
       role: "PixelTEC Team",
     }));
+    return { cards, categories, tags };
   } catch (error) {
     console.error('[blog/list] getPublishedCards failed:', error);
-    return [];
+    return { cards: [], categories: [], tags: [] };
   }
 }
 
-export default async function BlogPage() {
-  const posts = await getPublishedCards();
+function one(v: string | string[] | undefined): string {
+  return (Array.isArray(v) ? v[0] : v)?.slice(0, 80) ?? "";
+}
+
+export default async function BlogPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const sp = await searchParams;
+  const filters: PublicFilters = { categoria: one(sp.categoria), etiqueta: one(sp.etiqueta) };
+  const { cards: posts, categories, tags } = await getPublishedCards(filters);
+  const activeFilter = filters.categoria || filters.etiqueta;
 
   return (
     <>
@@ -64,6 +97,26 @@ export default async function BlogPage() {
               Exploramos el futuro del desarrollo de software, la inteligencia artificial y la modernización empresarial.
             </p>
           </header>
+
+          {(categories.length > 0 || tags.length > 0) && (
+            <nav aria-label="Filtrar artículos" className="mb-10 flex flex-wrap items-center gap-2 text-sm">
+              {activeFilter && (
+                <Link href="/blog" className="rounded-full border border-white/20 px-3 py-1 text-zinc-300 hover:text-white">
+                  ✕ {filters.categoria ? `Categoría: ${filters.categoria}` : `Etiqueta: ${filters.etiqueta}`}
+                </Link>
+              )}
+              {categories.map((c) => (
+                <Link key={`c-${c}`} href={`/blog?categoria=${encodeURIComponent(c)}`} className={`rounded-full px-3 py-1 ${filters.categoria === c ? "bg-brand-blue text-black" : "bg-blue-950/30 text-brand-blue hover:bg-blue-950/60"}`}>
+                  {c}
+                </Link>
+              ))}
+              {tags.map((t) => (
+                <Link key={`t-${t}`} href={`/blog?etiqueta=${encodeURIComponent(t)}`} className={`rounded-full px-3 py-1 ${filters.etiqueta === t ? "bg-white text-black" : "border border-white/10 text-zinc-400 hover:text-white"}`}>
+                  #{t}
+                </Link>
+              ))}
+            </nav>
+          )}
 
           <section aria-labelledby="blog-posts-heading">
             <h2 id="blog-posts-heading" className="sr-only">Blog Posts</h2>

@@ -2,7 +2,7 @@ import { notFound, permanentRedirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import { buildMetadata } from '@/lib/seo';
 import { absoluteUrl } from '@/lib/site-config';
-import { BlogPostingStructuredData, BreadcrumbStructuredData } from '@/components/seo/structured-data';
+import { BlogPostingStructuredData, BreadcrumbStructuredData, FAQPageStructuredData } from '@/components/seo/structured-data';
 import BlogPostClient from './blog-post-client';
 import { extractHeadings } from '@/lib/blog/heading-utils';
 import { toPublicBlogPost } from '@/lib/blog/public-post';
@@ -17,6 +17,10 @@ const DEFAULT_POST_IMAGE = absoluteUrl('/og-image.png');
 async function getPost(slug: string): Promise<BlogPostSerialized | null> {
   try {
     const { getPublishedPostBySlug } = await import('@/lib/blog/queries/posts');
+    // Paridad Encino (WO-2026-00088): abrir el enlace de un post programado a
+    // su hora lo publica en vez de responder 404.
+    const { publishDueScheduledPosts } = await import('@/lib/blog-cms/queries');
+    await publishDueScheduledPosts().catch(() => []);
     return await getPublishedPostBySlug(slug);
   } catch (error) {
     console.error('[blog/slug] getPublishedPostBySlug failed:', error);
@@ -59,6 +63,9 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   });
   return {
     ...base,
+    // Paridad Encino: `nofollow` por artículo (seo.nofollow); `noindex` sigue
+    // significando «fuera del sitio público» (contrato legacy intacto).
+    ...(post.seo.nofollow ? { robots: { index: !post.seo.noindex, follow: false } } : {}),
     authors: [{ name: post.author.name }],
     // El canonical editorial (seo.canonicalUrl) manda cuando existe — antes el
     // campo era un zombie que jamás llegaba al <head>.
@@ -83,6 +90,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
   const headings = extractHeadings(post.body);
 
   const imageUrl = post.coverImage ? absoluteUrl(post.coverImage) : DEFAULT_POST_IMAGE;
+  const publicPost = toPublicBlogPost(post);
 
   return (
     <>
@@ -100,9 +108,11 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
         author={post.author.name}
         imageUrl={imageUrl}
       />
+      {/* Paridad Encino: FAQPage solo cuando hay FAQ visible (mismo texto). */}
+      {publicPost.faq.length > 0 && <FAQPageStructuredData items={publicPost.faq.map((f) => ({ q: f.question, a: f.answer }))} />}
       {/* Frontera P1-A: al cliente cruza SOLO el DTO público (allowlist). */}
       <BlogPostClient
-        post={toPublicBlogPost(post)}
+        post={publicPost}
         headings={headings}
         related={related.map((r) => ({ slug: r.slug, title: r.title, excerpt: r.excerpt, category: r.category }))}
       />

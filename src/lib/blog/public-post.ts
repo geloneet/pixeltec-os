@@ -44,6 +44,12 @@ export interface PublicBlogPost {
   authorName: string;
   /** SOLO fuentes verificadas por humano, y de cada una SOLO lo visible. */
   sources: PublicSource[];
+  // ── WO-2026-00088 (paridad Encino): FAQ, etiquetas y Maps SÍ se renderizan
+  //    en la página ⇒ son públicos por definición. ──────────────────────────
+  faq: { question: string; answer: string }[];
+  tags: string[];
+  /** URL de Google Maps embed ya validada por el servidor, o null. */
+  mapsEmbed: string | null;
   /** Enlazado interno editorial (estrategia de backlinks 2026-08-05): SOLO
    *  enlaces `verified` con destino interno (path relativo o pixeltec.mx,
    *  normalizado a relativo). Evolución deliberada de la frontera P1-A: un
@@ -76,6 +82,11 @@ export function toPublicBlogPost(post: BlogPostSerialized): PublicBlogPost {
     lastReviewedAt: post.editorial.lastReviewedAt,
     readingTimeMin: post.readingTimeMin,
     authorName: post.author.name,
+    faq: post.faq
+      .filter((f) => f.question.trim().length > 0 && f.answer.trim().length > 0)
+      .map((f) => ({ question: f.question.trim(), answer: f.answer.trim() })),
+    tags: post.tags.filter((t) => t.trim().length > 0),
+    mapsEmbed: post.mapsEmbed,
     sources: post.sources
       .filter((s) => s.verifiedByHuman)
       .map((s) => ({

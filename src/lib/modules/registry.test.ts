@@ -151,7 +151,7 @@ describe("superficies: un módulo oculto no aparece en ninguna", () => {
       expect(hiddenHrefs.has(item.href), item.href).toBe(false);
     }
     expect(getVisibleNavItems("admin").map((i) => i.href)).toEqual(
-      expect.arrayContaining(["/hoy", "/clientes", "/whatsapp", "/cobros", "/usuarios", "/accesos"])
+      expect.arrayContaining(["/hoy", "/clientes", "/whatsapp", "/cobros", "/blog-cms", "/usuarios", "/accesos"])
     );
   });
 

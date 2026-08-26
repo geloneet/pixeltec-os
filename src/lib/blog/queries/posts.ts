@@ -5,6 +5,8 @@ import { blogPosts, blogPostViewCounts, postRedirects } from '@/lib/db/schema';
 import {
   EMPTY_EDITORIAL,
   EMPTY_SEO,
+  type BlogAiParams,
+  type BlogFaqItem,
   type BlogPostSerialized,
   type BlogPostStatus,
   type PostInternalLink,
@@ -46,8 +48,16 @@ function serializePost(r: Row): BlogPostSerialized {
     updatedAt: r.updatedAt.toISOString(),
     publishedAt: r.publishedAt?.toISOString() ?? null,
     approvedBy: r.approvedBy,
+    // WO-2026-00088 (0043): NULL-safe para filas anteriores a la migración.
+    faq: ((r.faq ?? []) as BlogFaqItem[]).filter((f) => f && typeof f.question === 'string' && typeof f.answer === 'string'),
+    scheduledAt: r.scheduledAt?.toISOString() ?? null,
+    mapsEmbed: r.mapsEmbed ?? null,
+    aiParams: (r.aiParams as BlogAiParams | null) ?? null,
   };
 }
+
+/** Serializador compartido (blog-cms lo reutiliza sin duplicar el mapeo). */
+export { serializePost };
 
 // NULL-safe: si `seo` no trae la clave `noindex`, `->>` devuelve NULL y la
 // comparación directa con false también da NULL — la fila published

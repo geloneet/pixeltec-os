@@ -61,9 +61,11 @@ export default function BlogPostClient({
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
           <div className="absolute bottom-0 left-0 w-full p-6 md:p-8 lg:p-12">
             <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2">
-              <span className="rounded-full bg-cyan-950/50 px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-brand-blue">
-                {post.category}
-              </span>
+              {post.category && (
+                <span className="rounded-full bg-cyan-950/50 px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-brand-blue">
+                  {post.category}
+                </span>
+              )}
               <span className="inline-flex items-center gap-1.5 text-sm font-medium text-zinc-300">
                 <CalendarDays className="h-4 w-4" aria-hidden />
                 {publishedStr} • {readTime}
@@ -102,6 +104,50 @@ export default function BlogPostClient({
         <article className="prose prose-invert prose-lg max-w-none text-zinc-300">
           <MarkdownRenderer content={post.body} />
         </article>
+
+        {/* ── Paridad Encino (WO-2026-00088): FAQ · Ubicación · Etiquetas ── */}
+        {post.faq.length > 0 && (
+          <section aria-labelledby="faq-heading" className="mt-14">
+            <h2 id="faq-heading" className="mb-4 text-2xl font-bold text-white">Preguntas frecuentes</h2>
+            <dl className="divide-y divide-white/10 rounded-xl border border-white/10 bg-white/[0.03]">
+              {post.faq.map((item) => (
+                <div key={item.question} className="p-5">
+                  <dt className="font-semibold text-zinc-100">{item.question}</dt>
+                  <dd className="mt-2 text-zinc-400">{item.answer}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+        )}
+
+        {post.mapsEmbed && (
+          <section aria-labelledby="ubicacion-heading" className="mt-14">
+            <h2 id="ubicacion-heading" className="mb-4 text-2xl font-bold text-white">Ubicación</h2>
+            <div className="overflow-hidden rounded-xl border border-white/10">
+              <iframe
+                src={post.mapsEmbed}
+                title="Mapa"
+                width="100%"
+                height="360"
+                loading="lazy"
+                allowFullScreen
+                referrerPolicy="no-referrer-when-downgrade"
+              />
+            </div>
+          </section>
+        )}
+
+        {post.tags.length > 0 && (
+          <ul aria-label="Etiquetas" className="mt-10 flex flex-wrap gap-2">
+            {post.tags.map((t) => (
+              <li key={t}>
+                <Link href={`/blog?etiqueta=${encodeURIComponent(t)}`} className="rounded-full border border-white/10 px-3 py-1 text-xs text-zinc-400 transition-colors hover:border-brand-blue/50 hover:text-white">
+                  #{t}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
 
         {verifiedSources.length > 0 && (
           <section aria-labelledby="fuentes-heading" className="mt-14 rounded-xl border border-white/10 bg-white/[0.03] p-6">

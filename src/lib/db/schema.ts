@@ -1430,6 +1430,16 @@ export const blogPosts = pgTable(
     // desde generatedDraftId; SQL aditivo, journal en el saneo del drift).
     briefId: uuid("brief_id").references(() => blogBriefs.id, { onDelete: "set null" }),
     publishedAt: timestamp("published_at", { withTimezone: true }),
+    // WO-2026-00088 (D-C Opción A, migración 0043): paridad con el blog de
+    // Muebles Encino, ADITIVA sobre la misma tabla. `faq` = pares
+    // {question, answer}; `scheduledAt` + status 'scheduled' = publicación
+    // programada por barrido en render (publishDueScheduledPosts);
+    // `mapsEmbed` = URL validada de Google Maps embed; `aiParams` = brief del
+    // wizard IA {brief, tone, audience, internalLinkCount, externalLinkCount}.
+    faq: jsonb("faq").notNull().default([]),
+    scheduledAt: timestamp("scheduled_at", { withTimezone: true }),
+    mapsEmbed: text("maps_embed"),
+    aiParams: jsonb("ai_params"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -1437,7 +1447,30 @@ export const blogPosts = pgTable(
     uniqueIndex("blog_posts_slug_idx").on(t.slug),
     uniqueIndex("blog_posts_firestore_id_idx").on(t.firestoreId),
     index("blog_posts_brief_id_idx").on(t.briefId),
+    index("blog_posts_status_scheduled_idx").on(t.status, t.scheduledAt),
   ]
+);
+
+/**
+ * Categorías del blog (WO-2026-00088, paridad Encino, migración 0043): catálogo
+ * estilo WordPress con un nivel de jerarquía (parent_id), slug y descripción.
+ * `blog_posts.category` sigue siendo TEXTO (Encino tampoco usa FK): borrar una
+ * categoría deja intacto el texto de los posts. Solo crear/eliminar (Encino no
+ * edita categorías).
+ */
+export const blogCategories = pgTable(
+  "blog_categories",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    slug: text("slug").notNull().default(""),
+    parentId: uuid("parent_id").references((): AnyPgColumn => blogCategories.id, { onDelete: "set null" }),
+    description: text("description").notNull().default(""),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("blog_categories_name_idx").on(t.name)]
 );
 
 // Redirects 301 de slugs históricos del blog: cambiar el slug de un post

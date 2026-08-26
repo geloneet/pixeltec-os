@@ -16,6 +16,7 @@ import {
   LayoutGrid,
   Send,
   Bell,
+  Newspaper,
   Wand2,
   UserCog,
   type LucideIcon,
@@ -88,6 +89,14 @@ export const PALETTE_NAV_ITEMS: PaletteNavItem[] = [
     description: "Inbox del bot de WhatsApp: conversaciones en vivo, takeover humano y envío manual",
     icon: MessageCircle,
     module: "whatsapp",
+  },
+  // ── Blog (WO-2026-00088, paridad Encino) ────────────────────────────────────
+  {
+    href: "/blog-cms",
+    label: "Blog",
+    description: "Entradas del blog de pixeltec.mx: crear, editar, programar y publicar",
+    icon: Newspaper,
+    module: "blog",
   },
   // ── Finanzas ────────────────────────────────────────────────────────────────
   {

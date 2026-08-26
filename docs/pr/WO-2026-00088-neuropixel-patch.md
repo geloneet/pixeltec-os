@@ -4,7 +4,7 @@ El Worker no escribe en el vault salvo su check-in/check-out. Este archivo conti
 
 ## 1. `07_DECISIONES/ADR-0054 - Registro central de modulos y limpieza del dashboard de PixelTEC OS.md`
 
-Copiar íntegro `docs/adr/ADR-0054-registro-central-de-modulos-y-limpieza-del-dashboard.md` (frontmatter incluido; `status: propuesta` hasta la firma). Numeración verificada: el último ADR en `07_DECISIONES/` es ADR-0053 (2026-08-25).
+Copiar íntegro `docs/adr/ADR-0054-registro-central-de-modulos-y-limpieza-del-dashboard.md` (frontmatter incluido; `status: propuesta` hasta la firma — `blog_status: ejecutada` ya refleja que el Blog está implementado y verificado, no solo diseñado). Numeración verificada: el último ADR en `07_DECISIONES/` es ADR-0053 (2026-08-25).
 
 ## 2. `04_PRODUCTOS/PixelTEC OS/PixelTEC OS.md` — añadir tras «Rol `reviewer`…»
 
@@ -19,7 +19,7 @@ Excepción explícita al freeze de v1.0 ordenada por Miguel (mismo patrón que G
 - **Clientes:** solo información general, cuentas, «requiere atención», notas y actividad reciente (`src/lib/modules/client-workspace.ts`); Proyectos/Comercial/Documentos/Portal ocultos; test de regresión: guardar información general no toca datos ocultos.
 - **Congelados (diff vacío verificado):** WhatsApp/PixelBot y Finanzas.
 - **Publicaciones:** oculto, flujo del token de Meta documentado sin secretos en `docs/publicaciones-token-redes.md` (18 puntos + checklist de reactivación).
-- **Blog:** matriz origen→destino con Encino (`docs/pr/WO-2026-00088-blog-matriz.md`); modelo de datos = decisión D-C de Miguel; superficie pública `/blog` solo dentro del contrato real de Encino (gate `public-blog-surface`).
+- **Blog:** `/blog-cms` implementado con paridad a las capacidades comprobadas de Muebles Encino sobre la MISMA tabla `blog_posts` del blog legacy (D-C Opción A, aditiva: migración `0043` — `faq`, `scheduled_at`, `maps_embed`, `ai_params`, tabla `blog_categories` — aplicada en BD de dev, nunca en prod); wizard de generación IA sobre el cliente Anthropic ya existente (D-C-bis, sin dependencias nuevas); superficie pública `/blog` extendida con FAQ, etiquetas, embed de Maps y filtros dentro del contrato real de Encino, verificado end-to-end (200/404/canonical/JSON-LD/sitemap); excepción mínima de CSP para el host de Maps. Detalle y evidencia: `docs/pr/WO-2026-00088-blog-matriz.md` §6.
 - Reporte completo: `docs/pr/WO-2026-00088.md`.
 ```
 
@@ -62,6 +62,7 @@ El check-in/check-out de este WO los escribe el propio Worker (ADR-0041); no req
 
 ## 6. Pendientes que NO forman parte del parche (decisiones de Miguel)
 
-- D-C (modelo de datos del Blog) y, según su respuesta, ADR-0054 §9 y la ficha se completan con la migración y el alcance público final.
-- `frame-src` de la CSP para el embed de Google Maps del Blog (Encino lo soporta; PixelTEC OS lo bloquea globalmente en `src/lib/security/csp.ts`, fuera del alcance del WO).
-- Cifrado en reposo de `growth_social_accounts.access_token` (riesgo documentado, no corregido).
+- D-C y D-C-bis quedaron **resueltas y ejecutadas** el 2026-08-25 (Opción A + wizard sobre Anthropic); la excepción de CSP para el embed de Maps también quedó aplicada (`frame-src` + `https://www.google.com`). Ninguna de las tres sigue pendiente.
+- **Aplicar la migración `drizzle/0043_blog_encino_parity.sql` en producción** — hoy solo está en la BD de dev (127.0.0.1:5437); requiere el mismo procedimiento gobernado que 0042 (`docker exec … psql` + fila de control), gate de Miguel en `merge-to-main`/deploy.
+- Cifrado en reposo de `growth_social_accounts.access_token` (riesgo documentado, no corregido) — sin relación con el Blog.
+- Verificar en un entorno con salida real a `google.com` que el embed de Maps renderiza contenido (este WO solo confirmó ausencia de errores de CSP; la red del sandbox de desarrollo no llegó al servidor de Google — ver matriz §6).

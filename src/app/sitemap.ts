@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { getPublishedPosts } from "@/lib/blog/queries/posts";
+import { publishDueScheduledPosts } from "@/lib/blog-cms/queries";
 import { SITE } from "@/lib/site-config";
 
 const BASE_URL = SITE.url;
@@ -15,6 +16,8 @@ export const dynamic = 'force-dynamic';
 
 async function getBlogRoutes(): Promise<MetadataRoute.Sitemap> {
   try {
+    // Paridad Encino (WO-2026-00088): los programados vencidos entran al sitemap.
+    await publishDueScheduledPosts().catch(() => []);
     const posts = await getPublishedPosts();
     return posts.map((post) => ({
       url: `${BASE_URL}/blog/${post.slug}`,
