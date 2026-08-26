@@ -4,7 +4,19 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { Sun, FolderKanban, Users, Receipt, Megaphone, Server, Plus, type LucideIcon } from "lucide-react";
+import {
+  Sun,
+  FolderKanban,
+  Users,
+  MessageCircle,
+  Receipt,
+  Newspaper,
+  UserCog,
+  Megaphone,
+  Server,
+  Plus,
+  type LucideIcon,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SITE } from "@/lib/site-config";
 import { useCmdK } from "@/components/cmd-k/CmdKProvider";
@@ -28,9 +40,12 @@ import { PALETTE_NAV_ITEMS } from "./command-palette-items";
  */
 const AREA_ICONS: Record<NavArea, LucideIcon> = {
   hoy: Sun,
-  proyectos: FolderKanban,
   crm: Users,
+  whatsapp: MessageCircle,
   finanzas: Receipt,
+  blog: Newspaper,
+  usuarios: UserCog,
+  proyectos: FolderKanban,
   marketing: Megaphone,
   infra: Server,
 };

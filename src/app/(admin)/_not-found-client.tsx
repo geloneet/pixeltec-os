@@ -2,14 +2,22 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDays, Users, KeyRound } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PALETTE_NAV_ITEMS } from "@/components/nav/command-palette-items";
+import { isNavItemVisible } from "@/components/nav/nav-config";
 
-export const QUICK_LINKS = [
-  { href: "/hoy",      icon: CalendarDays, label: "Hoy"          },
-  { href: "/clientes", icon: Users,        label: "Clientes"     },
-  { href: "/accesos",  icon: KeyRound,     label: "Conocimiento" },
-] as const;
+/**
+ * Accesos rápidos del 404 del admin: se derivan del catálogo de navegación y
+ * del registro central de módulos (WO-2026-00088) — un destino oculto
+ * desaparece de aquí sin editar este archivo.
+ */
+const QUICK_LINK_HREFS = ["/hoy", "/clientes", "/accesos"] as const;
+
+export const QUICK_LINKS = QUICK_LINK_HREFS.map((href) =>
+  PALETTE_NAV_ITEMS.find((item) => item.href === href)
+)
+  .filter((item): item is (typeof PALETTE_NAV_ITEMS)[number] => !!item && isNavItemVisible(item))
+  .map(({ href, icon, label }) => ({ href, icon, label }));
 
 export function AdminNotFoundClient() {
   const pathname = usePathname();

@@ -18,12 +18,12 @@ import { useUserProfile } from "@/hooks/use-user-profile";
 import { useVpsStatus } from "@/lib/vps-swr";
 import { normalize, searchAcrossCRM } from "@/lib/cmdk-search";
 import {
-  PALETTE_NAV_ITEMS,
   RECENT_ROUTES_KEY,
   MAX_RECENT_ROUTES,
   type PaletteNavItem,
 } from "./command-palette-items";
 import {
+  getVisibleCatalog,
   getVisibleNavItems,
   NAV_AREA_ORDER,
   NAV_AREA_LABELS,
@@ -86,9 +86,10 @@ export function CommandPalette() {
   const crm = useCRM();
   const { data: vpsData } = useVpsStatus();
 
-  // Record current route in recents (longest-prefix, igual que la pill activa)
+  // Record current route in recents (longest-prefix, igual que la pill activa;
+  // solo destinos de módulos visibles — registro central, WO-2026-00088)
   useEffect(() => {
-    const href = resolveActiveHref(PALETTE_NAV_ITEMS, pathname);
+    const href = resolveActiveHref(getVisibleCatalog(), pathname);
     if (href) pushRecentRoute(href);
   }, [pathname]);
 
@@ -100,6 +101,10 @@ export function CommandPalette() {
     }
   }, [open]);
 
+  // WO-2026-00051: el reviewer solo ve WhatsApp en ⌘K (presentación).
+  const { userProfile } = useUserProfile();
+  const role = userProfile?.role;
+
   const results = useMemo(
     () =>
       searchAcrossCRM({
@@ -109,10 +114,6 @@ export function CommandPalette() {
       }),
     [query, crm.clients, vpsData?.projects]
   );
-
-  // WO-2026-00051: el reviewer solo ve WhatsApp en ⌘K (presentación).
-  const { userProfile } = useUserProfile();
-  const role = userProfile?.role;
 
   const filteredNavItems = useMemo<PaletteNavItem[]>(() => {
     const visible = getVisibleNavItems(role);
@@ -143,13 +144,15 @@ export function CommandPalette() {
     return { byArea, general };
   }, [filteredNavItems]);
 
+  // Recientes: solo destinos visibles hoy (un href guardado en localStorage de
+  // un módulo que después se ocultó no reaparece por aquí).
   const recentNavItems = useMemo<PaletteNavItem[]>(
     () =>
       recentRoutes
-        .map((href) => PALETTE_NAV_ITEMS.find((item) => item.href === href))
+        .map((href) => getVisibleNavItems(role).find((item) => item.href === href))
         .filter((item): item is PaletteNavItem => !!item)
         .filter((item) => item.href !== pathname),
-    [recentRoutes, pathname]
+    [recentRoutes, pathname, role]
   );
 
   const handleNavigate = useCallback(

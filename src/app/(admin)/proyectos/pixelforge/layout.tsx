@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { IBM_Plex_Mono } from "next/font/google";
 import "./pixelforge-theme.css";
+import { assertModuleRouteEnabled } from "@/lib/modules/route-guard";
 
 /**
  * Layout de scoping visual del módulo PixelForge (PF-X1 T1).
@@ -46,6 +47,8 @@ export default function PixelforgeModuleLayout({
 }: {
   children: ReactNode;
 }) {
+  // Guard de módulo oculto (WO-2026-00088, patrón único): ver registry.ts.
+  assertModuleRouteEnabled("pixelforge");
   return (
     <div
       data-product="pixelforge"

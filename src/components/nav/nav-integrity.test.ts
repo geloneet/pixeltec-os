@@ -11,6 +11,8 @@ import {
   getActiveArea,
   getItemArea,
   getSecondaryItems,
+  getVisibleNavAreas,
+  getVisibleNavItems,
   resolveActiveHref,
 } from "./nav-config";
 import { QUICK_LINKS } from "@/app/(admin)/_not-found-client";
@@ -41,61 +43,79 @@ function extractRedirects(): Array<{ source: string; destination: string; perman
   return out;
 }
 
-describe("taxonomía Gate 1 (ADR-0030)", () => {
-  it("exactamente seis áreas L1, en orden, con las etiquetas operativas", () => {
-    expect(NAV_AREA_ORDER.map((a) => NAV_AREA_LABELS[a])).toEqual([
-      "Hoy",
-      "Trabajo",
+describe("taxonomía visible (ADR-0030 · ADR-0039 · WO-2026-00088/ADR-0054 propuesta)", () => {
+  it("navegación visible para admin/staff, en orden, con las etiquetas aprobadas", () => {
+    // «Blog» aparecerá cuando la FASE 8 registre sus rutas (nunca un área vacía).
+    expect(getVisibleNavAreas("admin").map((a) => NAV_AREA_LABELS[a])).toEqual([
+      "Inicio",
       "Clientes",
+      "WhatsApp",
       "Finanzas",
-      "Marketing",
-      "Sistema",
+      "Usuarios y Accesos",
     ]);
+    expect(getVisibleNavAreas("staff")).toEqual(getVisibleNavAreas("admin"));
+    expect(getVisibleNavAreas(undefined)).toEqual(getVisibleNavAreas("admin"));
   });
 
-  it("IA, Infra, CRM, Ventas y Tareas no existen como etiquetas L1", () => {
-    const labels = Object.values(NAV_AREA_LABELS);
-    for (const prohibida of ["IA", "Infra", "CRM", "Ventas", "Tareas"]) {
-      expect(labels, `etiqueta prohibida: ${prohibida}`).not.toContain(prohibida);
+  it("el reviewer no ve áreas y en ⌘K solo ve WhatsApp (WO-2026-00051 intacto)", () => {
+    expect(getVisibleNavAreas("reviewer")).toEqual([]);
+    expect(getVisibleNavItems("reviewer").map((i) => i.href)).toEqual(["/whatsapp"]);
+  });
+
+  it("«Hoy» ya no es etiqueta visible: la ruta /hoy se muestra como «Inicio»", () => {
+    expect(NAV_AREA_LABELS.hoy).toBe("Inicio");
+    expect(getNavLabel("/hoy")).toBe("Inicio");
+    expect(getAreaHref("hoy")).toBe("/hoy");
+  });
+
+  it("IA, Infra, CRM, Ventas, Tareas, Hoy y Conocimiento no existen como etiquetas visibles", () => {
+    const visibleLabels = [
+      ...getVisibleNavAreas("admin").map((a) => NAV_AREA_LABELS[a]),
+      ...getVisibleNavItems("admin").map((i) => i.label),
+    ];
+    for (const prohibida of ["IA", "Infra", "CRM", "Ventas", "Tareas", "Hoy", "Conocimiento", "Trabajo", "Marketing", "Sistema"]) {
+      expect(visibleLabels, `etiqueta prohibida: ${prohibida}`).not.toContain(prohibida);
     }
   });
 
-  it("L2 exacto por área (etiquetas de secondary nav)", () => {
+  it("L2 exacto por área visible (etiquetas de secondary nav)", () => {
     const l2 = (area: (typeof NAV_AREA_ORDER)[number]) =>
       getSecondaryItems(area).map((i) => i.secondaryLabel);
-    expect(l2("hoy")).toEqual(["Hoy"]);
-    expect(l2("proyectos")).toEqual(["Proyectos", "Definición", "PixelForge"]);
-    expect(l2("crm")).toEqual(["Cuentas", "PixelBot"]);
+    expect(l2("hoy")).toEqual(["Inicio"]);
+    expect(l2("crm")).toEqual(["Cuentas"]);
+    // PixelBot conserva su acceso (item «PixelBot» → /whatsapp) dentro de WhatsApp: excepción explícita.
+    expect(l2("whatsapp")).toEqual(["PixelBot"]);
     expect(l2("finanzas")).toEqual(["Cobros"]);
-    expect(l2("marketing")).toEqual([
-      "Resumen",
-      "Blog",
-      "Contenido",
-      "Campañas",
-      "Calendario",
-      "Publicación",
-    ]);
-    expect(l2("infra")).toEqual([
-      "Infraestructura",
-      "Conocimiento",
-      "Plantillas",
-      "Usuarios y acceso",
-    ]);
+    expect(l2("usuarios")).toEqual(["Usuarios", "Accesos"]);
   });
 
-  it("Configuración de marca: en ⌘K y en el área Marketing, pero fuera de la secondary nav", () => {
+  it("las áreas de módulos ocultos no exponen tabs ni pill", () => {
+    for (const area of ["proyectos", "marketing", "infra"] as const) {
+      expect(getSecondaryItems(area)).toEqual([]);
+      expect(getVisibleNavAreas("admin")).not.toContain(area);
+    }
+  });
+
+  it("D-88-2: Usuarios y Accesos conserva las dos rutas sin fusionarlas", () => {
+    expect(getItemArea("/usuarios")).toBe("usuarios");
+    expect(getItemArea("/accesos")).toBe("usuarios");
+    expect(getAreaHref("usuarios")).toBe("/usuarios");
+    expect(routeExists("/usuarios")).toBe(true);
+    expect(routeExists("/accesos")).toBe(true);
+  });
+
+  it("Configuración de marca sigue catalogada en Marketing (oculta) y fuera de toda secondary nav", () => {
     expect(getNavLabel("/crecimiento/brand-brain")).toBe("Configuración de marca");
     expect(getItemArea("/crecimiento/brand-brain")).toBe("marketing");
-    const tabs = getSecondaryItems("marketing").map((i) => i.href);
-    expect(tabs).not.toContain("/crecimiento/brand-brain");
+    for (const area of NAV_AREA_ORDER) {
+      expect(getSecondaryItems(area).map((i) => i.href)).not.toContain("/crecimiento/brand-brain");
+    }
   });
 
-  it("/documentos está fuera de la navegación y en ⌘K como Archivo documental", () => {
+  it("/documentos está fuera de la navegación, catalogado como Archivo documental y oculto en ⌘K", () => {
     expect(getItemArea("/documentos")).toBeUndefined();
     expect(getNavLabel("/documentos")).toBe("Archivo documental");
-    for (const area of NAV_AREA_ORDER) {
-      expect(getSecondaryItems(area).map((i) => i.href)).not.toContain("/documentos");
-    }
+    expect(getVisibleNavItems("admin").map((i) => i.href)).not.toContain("/documentos");
   });
 
   it("Notificaciones y Perfil son transversales: en ⌘K, sin área ni overflow", () => {
@@ -103,6 +123,9 @@ describe("taxonomía Gate 1 (ADR-0030)", () => {
     expect(getItemArea("/perfil")).toBeUndefined();
     expect(getNavLabel("/notificaciones")).toBe("Notificaciones");
     expect(getNavLabel("/perfil")).toBe("Perfil y seguridad");
+    expect(getVisibleNavItems("admin").map((i) => i.href)).toEqual(
+      expect.arrayContaining(["/notificaciones", "/perfil"])
+    );
   });
 
   it("el catálogo no contiene rutas legacy ni inexistentes", () => {
@@ -168,23 +191,32 @@ describe("integridad de navegación", () => {
 
 describe("resolución de área activa", () => {
   it("rutas anidadas encienden el área correcta", () => {
-    expect(getActiveArea("/proyectos/pixelforge/abc/contexto")).toBe("proyectos");
-    expect(getActiveArea("/proyectos/123")).toBe("proyectos");
+    expect(getActiveArea("/hoy")).toBe("hoy");
     expect(getActiveArea("/clientes/cli-1")).toBe("crm");
-    expect(getActiveArea("/whatsapp")).toBe("crm");
+    expect(getActiveArea("/whatsapp")).toBe("whatsapp");
+    expect(getActiveArea("/whatsapp/config")).toBe("whatsapp");
     expect(getActiveArea("/cobros")).toBe("finanzas");
-    expect(getActiveArea("/blog-admin/p9/editar")).toBe("marketing");
-    expect(getActiveArea("/crecimiento")).toBe("marketing");
-    expect(getActiveArea("/crecimiento/campanas/c1")).toBe("marketing");
-    expect(getActiveArea("/crecimiento/brand-brain/b1")).toBe("marketing");
-    expect(getActiveArea("/vps")).toBe("infra");
-    expect(getActiveArea("/accesos/tool-1")).toBe("infra");
-    expect(getActiveArea("/ia-factory")).toBe("infra");
-    expect(getActiveArea("/usuarios")).toBe("infra");
+    expect(getActiveArea("/accesos/tool-1")).toBe("usuarios");
+    expect(getActiveArea("/usuarios")).toBe("usuarios");
+  });
+
+  it("las rutas de módulos ocultos no encienden ningún pill (el registro manda)", () => {
+    for (const p of [
+      "/proyectos/pixelforge/abc/contexto",
+      "/proyectos/123",
+      "/blog-admin/p9/editar",
+      "/crecimiento",
+      "/crecimiento/campanas/c1",
+      "/crecimiento/brand-brain/b1",
+      "/vps",
+      "/ia-factory",
+      "/documentos",
+    ]) {
+      expect(getActiveArea(p), p).toBeNull();
+    }
   });
 
   it("las rutas transversales no encienden ningún pill", () => {
-    expect(getActiveArea("/documentos")).toBeNull();
     expect(getActiveArea("/notificaciones")).toBeNull();
     expect(getActiveArea("/perfil")).toBeNull();
     expect(getActiveArea("/ruta-inexistente")).toBeNull();

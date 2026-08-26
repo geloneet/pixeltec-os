@@ -1,34 +1,51 @@
 import { PALETTE_NAV_ITEMS, type PaletteNavItem } from "./command-palette-items";
 import { isRestrictedRole, REVIEWER_PAGE_ROOT } from "@/lib/routes/reviewer-access";
+import { isModuleVisible } from "@/lib/modules/registry";
 
 /**
- * Taxonomía operativa de la navegación (ADR-0030): las áreas L1 representan
- * dominios del ciclo de negocio (demanda → venta → cliente → trabajo → cobro →
- * soporte → crecimiento), no tecnologías. Los slugs internos se conservan por
- * estabilidad (crm/proyectos/infra); la etiqueta visible vive en NAV_AREA_LABELS.
+ * Taxonomía operativa de la navegación (ADR-0030, ADR-0039). Las áreas L1
+ * representan dominios del ciclo de negocio, no tecnologías. Los slugs
+ * internos se conservan por estabilidad (crm/proyectos/infra); la etiqueta
+ * visible vive en NAV_AREA_LABELS.
+ *
+ * WO-2026-00088 (ADR-0054 propuesta): la navegación visible queda en
+ * Inicio · Clientes · WhatsApp · Finanzas · Blog · Usuarios y Accesos. Las
+ * áreas y destinos de los módulos ocultos se CONSERVAN en este catálogo; su
+ * visibilidad la decide el registro central (`src/lib/modules/registry.ts`):
+ * un área se muestra solo si tiene al menos un destino de un módulo visible.
  */
 export type NavArea =
   | "hoy"
-  | "proyectos"
   | "crm"
+  | "whatsapp"
   | "finanzas"
+  | "blog"
+  | "usuarios"
+  | "proyectos"
   | "marketing"
   | "infra";
 
+/** Orden completo (visibles primero, en el orden aprobado; ocultas después). */
 export const NAV_AREA_ORDER: NavArea[] = [
   "hoy",
-  "proyectos",
   "crm",
+  "whatsapp",
   "finanzas",
+  "blog",
+  "usuarios",
+  "proyectos",
   "marketing",
   "infra",
 ];
 
 export const NAV_AREA_LABELS: Record<NavArea, string> = {
-  hoy: "Hoy",
-  proyectos: "Trabajo",
+  hoy: "Inicio",
   crm: "Clientes",
+  whatsapp: "WhatsApp",
   finanzas: "Finanzas",
+  blog: "Blog",
+  usuarios: "Usuarios y Accesos",
+  proyectos: "Trabajo",
   marketing: "Marketing",
   infra: "Sistema",
 };
@@ -57,16 +74,19 @@ interface AreaItemRef {
  */
 const AREA_ITEMS: Record<NavArea, AreaItemRef[]> = {
   hoy: [{ href: "/hoy" }],
+  crm: [{ href: "/clientes" }],
+  // PixelBot conserva su acceso actual (item "PixelBot" → /whatsapp) dentro
+  // del área WhatsApp: excepción explícita de la orden (§3.3).
+  whatsapp: [{ href: "/whatsapp" }],
+  finanzas: [{ href: "/cobros" }],
+  // Las rutas del Blog nuevo se registran en FASE 8 de WO-2026-00088.
+  blog: [],
+  usuarios: [{ href: "/usuarios" }, { href: "/accesos" }],
   proyectos: [
     { href: "/proyectos" },
     { href: "/proyectos/definicion", secondaryLabel: "Definición" },
     { href: "/proyectos/pixelforge" },
   ],
-  crm: [
-    { href: "/clientes" },
-    { href: "/whatsapp" },
-  ],
-  finanzas: [{ href: "/cobros" }],
   marketing: [
     { href: "/crecimiento", secondaryLabel: "Resumen" },
     { href: "/blog-admin" },
@@ -76,15 +96,7 @@ const AREA_ITEMS: Record<NavArea, AreaItemRef[]> = {
     { href: "/crecimiento/publisher" },
     { href: "/crecimiento/brand-brain", navHidden: true },
   ],
-  infra: [
-    { href: "/vps" },
-    { href: "/accesos" },
-    { href: "/ia-factory" },
-    // C-PR5: administración del equipo interno (solo admins — la página
-    // rebota a /hoy y cada action pasa por requireAdmin). L2 permitido;
-    // la L1 queda intacta (ADR-0030).
-    { href: "/usuarios" },
-  ],
+  infra: [{ href: "/vps" }, { href: "/ia-factory" }],
 };
 
 /** Lookup href → area, derivado de AREA_ITEMS (una sola fuente de verdad). */
@@ -97,9 +109,33 @@ export function getItemArea(href: string): NavArea | undefined {
   return HREF_TO_AREA.get(href);
 }
 
-/** Href al que apunta el pill L1 de un área (el primer sub-módulo). */
+/** Destino del catálogo visible según el registro de módulos. */
+export function isNavItemVisible(item: PaletteNavItem): boolean {
+  return isModuleVisible(item.module);
+}
+
+/** Catálogo completo filtrado por el registro (sin considerar el rol). */
+export function getVisibleCatalog(): PaletteNavItem[] {
+  return PALETTE_NAV_ITEMS.filter(isNavItemVisible);
+}
+
+function areaItems(area: NavArea): Array<{ ref: AreaItemRef; item: PaletteNavItem }> {
+  return AREA_ITEMS[area]
+    .map((ref) => {
+      const item = PALETTE_NAV_ITEMS.find((i) => i.href === ref.href);
+      return item && isNavItemVisible(item) ? { ref, item } : null;
+    })
+    .filter((x): x is { ref: AreaItemRef; item: PaletteNavItem } => x !== null);
+}
+
+/** `true` si el área tiene al menos un destino de un módulo visible. */
+export function isAreaVisible(area: NavArea): boolean {
+  return areaItems(area).length > 0;
+}
+
+/** Href al que apunta el pill L1 de un área (el primer sub-módulo visible). */
 export function getAreaHref(area: NavArea): string {
-  return AREA_ITEMS[area][0]?.href ?? "/hoy";
+  return areaItems(area)[0]?.item.href ?? "/hoy";
 }
 
 export interface SecondaryNavItem extends PaletteNavItem {
@@ -108,14 +144,9 @@ export interface SecondaryNavItem extends PaletteNavItem {
 
 /** Sub-módulos visibles (nivel 2) de un área, en el orden definido arriba. */
 export function getSecondaryItems(area: NavArea): SecondaryNavItem[] {
-  return AREA_ITEMS[area]
-    .filter((ref) => !ref.navHidden)
-    .map((ref) => {
-      const item = PALETTE_NAV_ITEMS.find((i) => i.href === ref.href);
-      if (!item) return null;
-      return { ...item, secondaryLabel: ref.secondaryLabel ?? item.label };
-    })
-    .filter((i): i is SecondaryNavItem => !!i);
+  return areaItems(area)
+    .filter(({ ref }) => !ref.navHidden)
+    .map(({ ref, item }) => ({ ...item, secondaryLabel: ref.secondaryLabel ?? item.label }));
 }
 
 /**
@@ -138,13 +169,16 @@ export function resolveActiveHref(
   return best?.href ?? null;
 }
 
+/** Item activo para el pathname — solo entre destinos visibles. */
 export function getActiveItem(pathname: string): PaletteNavItem | null {
-  const href = resolveActiveHref(PALETTE_NAV_ITEMS, pathname);
-  return PALETTE_NAV_ITEMS.find((i) => i.href === href) ?? null;
+  const visible = getVisibleCatalog();
+  const href = resolveActiveHref(visible, pathname);
+  return visible.find((i) => i.href === href) ?? null;
 }
 
 /** Área activa para el pathname actual, o null si no hay match (las rutas
- * transversales como /documentos, /notificaciones o /perfil no encienden pill). */
+ * transversales como /notificaciones o /perfil, y las rutas de módulos
+ * ocultos, no encienden pill). */
 export function getActiveArea(pathname: string): NavArea | null {
   const item = getActiveItem(pathname);
   if (!item) return null;
@@ -154,19 +188,22 @@ export function getActiveArea(pathname: string): NavArea | null {
 /**
  * Navegación visible para un rol (WO-2026-00051). PRESENTACIÓN solamente: el
  * enforcement vive en src/middleware.ts + guards; ocultar un enlace no
- * protege nada. El reviewer solo ve WhatsApp; admin y staff ven todo.
+ * protege nada. El reviewer solo ve WhatsApp; admin y staff ven las áreas con
+ * módulos visibles en el registro.
  *
  * `role === undefined` (sesión aún cargando) se trata como acceso completo
  * para no parpadear el menú de admin/staff; el middleware sigue mandando.
  */
 export function getVisibleNavAreas(role: string | undefined): NavArea[] {
-  if (role === undefined) return NAV_AREA_ORDER;
-  return isRestrictedRole(role) ? [] : NAV_AREA_ORDER;
+  const areas = NAV_AREA_ORDER.filter(isAreaVisible);
+  if (role === undefined) return areas;
+  return isRestrictedRole(role) ? [] : areas;
 }
 
 export function getVisibleNavItems(role: string | undefined): PaletteNavItem[] {
-  if (role === undefined) return PALETTE_NAV_ITEMS;
+  const visible = getVisibleCatalog();
+  if (role === undefined) return visible;
   return isRestrictedRole(role)
-    ? PALETTE_NAV_ITEMS.filter((item) => item.href === REVIEWER_PAGE_ROOT)
-    : PALETTE_NAV_ITEMS;
+    ? visible.filter((item) => item.href === REVIEWER_PAGE_ROOT)
+    : visible;
 }
