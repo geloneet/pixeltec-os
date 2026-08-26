@@ -40,7 +40,9 @@ const EXPECTED_STATES: Record<ModuleId, ReturnType<typeof getModule>["state"]> =
   finanzas: "protected",
   blog: "active",
   usuarios: "active",
-  accesos: "active",
+  // Oculto por orden de Miguel (2026-08-26): la base de conocimiento del CRM
+  // no debe aparecer en ninguna superficie (criterio 2 de WO-2026-00088).
+  accesos: "hidden",
   notificaciones: "active",
   perfil: "active",
   "smilemore-respuestas": "active",
@@ -151,7 +153,7 @@ describe("superficies: un módulo oculto no aparece en ninguna", () => {
       expect(hiddenHrefs.has(item.href), item.href).toBe(false);
     }
     expect(getVisibleNavItems("admin").map((i) => i.href)).toEqual(
-      expect.arrayContaining(["/hoy", "/clientes", "/whatsapp", "/cobros", "/blog-cms", "/usuarios", "/accesos"])
+      expect.arrayContaining(["/hoy", "/clientes", "/whatsapp", "/cobros", "/blog-cms", "/usuarios"])
     );
   });
 

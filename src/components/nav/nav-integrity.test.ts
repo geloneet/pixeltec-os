@@ -87,7 +87,9 @@ describe("taxonomía visible (ADR-0030 · ADR-0039 · WO-2026-00088/ADR-0054 pro
     expect(l2("whatsapp")).toEqual(["PixelBot"]);
     expect(l2("finanzas")).toEqual(["Cobros"]);
     expect(l2("blog")).toEqual(["Blog"]);
-    expect(l2("usuarios")).toEqual(["Usuarios", "Accesos"]);
+    // «Accesos» (base de conocimiento del CRM) quedó oculto por orden de
+    // Miguel (2026-08-26): el área conserva su nombre y un solo destino.
+    expect(l2("usuarios")).toEqual(["Usuarios"]);
   });
 
   it("las áreas de módulos ocultos no exponen tabs ni pill", () => {
@@ -198,7 +200,6 @@ describe("resolución de área activa", () => {
     expect(getActiveArea("/whatsapp/config")).toBe("whatsapp");
     expect(getActiveArea("/cobros")).toBe("finanzas");
     expect(getActiveArea("/blog-cms/abc/editar")).toBe("blog");
-    expect(getActiveArea("/accesos/tool-1")).toBe("usuarios");
     expect(getActiveArea("/usuarios")).toBe("usuarios");
   });
 
@@ -206,6 +207,8 @@ describe("resolución de área activa", () => {
     for (const p of [
       "/proyectos/pixelforge/abc/contexto",
       "/proyectos/123",
+      "/accesos",
+      "/accesos/tool-1",
       "/blog-admin/p9/editar",
       "/crecimiento",
       "/crecimiento/campanas/c1",

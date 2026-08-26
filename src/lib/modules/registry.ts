@@ -123,9 +123,9 @@ const REGISTRY = [
   {
     id: "accesos",
     label: "Accesos",
-    state: "active",
+    state: "hidden",
     routes: ["/accesos"],
-    note: "Parte del módulo conceptual «Usuarios y Accesos» (D-88-2): ruta /accesos intacta, sin fusionar con /usuarios. Etiqueta «Conocimiento» retirada de toda superficie (criterio 5).",
+    note: "Base de conocimiento del CRM (tools + knowledge_tips). OCULTO por orden de Miguel (2026-08-26): el criterio 2 de WO-2026-00088 ya pedía que «Conocimiento» no apareciera en ninguna superficie; se había retirado solo la etiqueta y la sección seguía visible como «Accesos». Código, ruta, tablas y datos intactos: reactivar = state «active».",
   },
   // ── Controles globales ────────────────────────────────────────────────────
   {
