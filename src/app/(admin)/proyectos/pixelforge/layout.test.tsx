@@ -18,9 +18,26 @@ vi.mock("next/font/google", () => ({
   IBM_Plex_Mono: () => ({ variable: "mock-pfx-font-mono-src" }),
 }));
 
+// WO-2026-00088: el layout llama al guard del registro central de módulos
+// (PixelForge está oculto ⇒ `notFound()` en la app real). Aquí se mockea para
+// seguir probando el scoping visual, y se verifica aparte que el guard se
+// invoca con el id correcto (revisión explícita, no snapshot).
+const { guardMock } = vi.hoisted(() => ({ guardMock: vi.fn() }));
+vi.mock("@/lib/modules/route-guard", () => ({ assertModuleRouteEnabled: guardMock }));
+
 import PixelforgeModuleLayout from "./layout";
 
 describe("PixelforgeModuleLayout", () => {
+  it("consulta el registro central con el id del módulo antes de renderizar (WO-2026-00088)", () => {
+    guardMock.mockClear();
+    render(
+      <PixelforgeModuleLayout>
+        <p>contenido de la ruta</p>
+      </PixelforgeModuleLayout>
+    );
+    expect(guardMock).toHaveBeenCalledWith("pixelforge");
+  });
+
   it("envuelve a los children en [data-product=\"pixelforge\"]", () => {
     render(
       <PixelforgeModuleLayout>
