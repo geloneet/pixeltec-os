@@ -23,7 +23,7 @@ import { AppSidebar } from "@/components/nav/app-sidebar";
 import { AdminTopbar } from "@/components/nav/admin-topbar";
 import { CommandPalette } from "@/components/nav/command-palette";
 import { RestrictedShellBoundary } from "@/components/nav/restricted-shell-boundary";
-import { getActiveArea } from "@/components/nav/nav-config";
+import { getActiveArea, NAV_AREA_LABELS } from "@/components/nav/nav-config";
 
 // ─── Shell ────────────────────────────────────────────────────────────────────
 
@@ -38,6 +38,13 @@ function Shell({
   const pathname = usePathname();
   const activeArea = getActiveArea(pathname);
   const { resolvedTheme } = useTheme();
+
+  // Título de la pestaña (Miguel, 2026-08-26): con varios proyectos abiertos,
+  // el título por defecto del sitio público no dice cuál es esta ventana. Se
+  // hace aquí y no con `metadata` porque este layout es un Client Component.
+  useEffect(() => {
+    document.title = activeArea ? `PIXELTEC-OS · ${NAV_AREA_LABELS[activeArea]}` : "PIXELTEC-OS";
+  }, [activeArea]);
 
   return (
     <div className="flex h-dvh w-full flex-col overflow-hidden bg-background text-foreground font-sans">

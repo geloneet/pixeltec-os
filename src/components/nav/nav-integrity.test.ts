@@ -51,6 +51,8 @@ describe("taxonomía visible (ADR-0030 · ADR-0039 · WO-2026-00088/ADR-0054 pro
       "WhatsApp",
       "Finanzas",
       "Blog",
+      // «SEO» añadido por orden de Miguel (2026-08-26, WO-2026-00095).
+      "SEO",
       "Usuarios y Accesos",
     ]);
     expect(getVisibleNavAreas("staff")).toEqual(getVisibleNavAreas("admin"));
@@ -90,6 +92,40 @@ describe("taxonomía visible (ADR-0030 · ADR-0039 · WO-2026-00088/ADR-0054 pro
     // «Accesos» (base de conocimiento del CRM) quedó oculto por orden de
     // Miguel (2026-08-26): el área conserva su nombre y un solo destino.
     expect(l2("usuarios")).toEqual(["Usuarios"]);
+    expect(l2("seo")).toEqual([
+      "Salud",
+      "llms.txt",
+      "robots.txt",
+      "Negocio local",
+      "Datos estructurados",
+      "Schema por página",
+      "Redes",
+      "Sitemap",
+    ]);
+  });
+
+  /**
+   * Regresión (2026-08-26): el módulo SEO se registró en el registro central y
+   * sus rutas respondían, pero sus destinos NO estaban en PALETTE_NAV_ITEMS.
+   * `areaItems()` los busca ahí, así que devolvía [] y el pill jamás se
+   * dibujaba: el módulo existía y era inalcanzable desde la interfaz. Los
+   * tests de entonces no lo vieron porque ninguno exigía que un área activa
+   * tuviera destinos visibles.
+   */
+  it("toda área de un módulo ACTIVO tiene al menos un destino visible", () => {
+    for (const area of getVisibleNavAreas("admin")) {
+      expect(getSecondaryItems(area).length, `área ${area} sin destinos`).toBeGreaterThan(0);
+    }
+  });
+
+  it("todo módulo activo con rutas de navegación aparece en alguna área visible", () => {
+    const visibleHrefs = new Set(
+      getVisibleNavAreas("admin").flatMap((a) => getSecondaryItems(a).map((i) => i.href))
+    );
+    for (const mod of ["blog", "seo", "usuarios", "clientes"] as const) {
+      const some = PALETTE_NAV_ITEMS.some((i) => i.module === mod && visibleHrefs.has(i.href));
+      expect(some, `el módulo ${mod} no es alcanzable desde la navegación`).toBe(true);
+    }
   });
 
   it("las áreas de módulos ocultos no exponen tabs ni pill", () => {

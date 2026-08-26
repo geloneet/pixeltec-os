@@ -39,8 +39,16 @@ export function AdminTopbar({
         className
       )}
     >
-      <span className="truncate text-sm font-medium text-muted-foreground">
-        {activeArea ? NAV_AREA_LABELS[activeArea] : "PixelTEC OS"}
+      {/* Miguel (2026-08-26): el producto siempre visible — con varios
+          proyectos abiertos, el nombre del área solo no dice dónde estás. */}
+      <span className="flex min-w-0 items-center gap-2 text-sm">
+        <span className="font-semibold tracking-tight text-foreground">PIXELTEC-OS</span>
+        {activeArea ? (
+          <>
+            <span aria-hidden className="text-muted-foreground/50">·</span>
+            <span className="truncate font-medium text-muted-foreground">{NAV_AREA_LABELS[activeArea]}</span>
+          </>
+        ) : null}
       </span>
 
       <div className="flex flex-shrink-0 items-center gap-3">

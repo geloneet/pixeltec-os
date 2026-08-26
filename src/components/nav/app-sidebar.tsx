@@ -105,6 +105,9 @@ export function AppSidebar({
         />
         <span className="font-logo truncate text-xl font-extrabold uppercase tracking-tight text-foreground">
           Pixel<span className="text-brand-blue">Tec</span>
+          {/* Sufijo del producto (Miguel, 2026-08-26): la marca sola no dice en
+              qué se está trabajando cuando hay varios proyectos abiertos. */}
+          <span className="text-muted-foreground">-OS</span>
         </span>
       </Link>
 
