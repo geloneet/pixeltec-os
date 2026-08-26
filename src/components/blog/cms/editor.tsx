@@ -4,8 +4,12 @@
  * Editor del Blog (WO-2026-00088, paridad Encino `blog-editor.tsx`) adaptado a
  * PixelTEC OS: cuerpo en Markdown con el editor Tiptap existente, portada e
  * imágenes a R2, guardado por intención (autosave 2.5 s / borrador / publicar /
- * programar), inspector de 3 pestañas (Publicar · Contenido · SEO — la pestaña
- * «Snippets» de Encino depende de su módulo SEO Control Center, ausente aquí).
+ * programar), inspector de 4 pestañas (Publicar · Contenido · SEO · Snippets).
+ *
+ * FASE 11: la pestaña «Snippets» se había omitido declarándola dependiente del
+ * SEO Control Center de Encino. Era falso: solo dependía de DÓNDE guardar los
+ * tipos. Aquí viven en `blog_posts.seo.schemaTypes` (jsonb aditivo, sin
+ * migración) y se emiten server-side en `src/app/blog/[slug]/page.tsx`.
  */
 import dynamic from "next/dynamic";
 import Link from "next/link";
@@ -23,6 +27,7 @@ import { generateSlug } from "@/lib/blog/ai/generate-post";
 import type { BlogPostSerialized } from "@/lib/blog/types";
 import type { BlogPostVersionMeta } from "@/lib/blog/versions";
 import { extractMapsEmbedUrl } from "@/lib/blog-cms/maps-embed";
+import { selectableBlogSchemaTypes } from "@/lib/blog-cms/schema-types";
 import { AI_ARTICLE_TONES, toAiArticleParams, type AiArticleTone } from "@/lib/blog-cms/ai-params";
 import { isSystemSlug } from "@/lib/blog-cms/transitions";
 import type { BlogCmsIntent } from "@/lib/blog-cms/schemas";
@@ -43,6 +48,7 @@ const TABS = [
   { id: "publicar", label: "Publicar" },
   { id: "contenido", label: "Contenido" },
   { id: "seo", label: "SEO" },
+  { id: "snippets", label: "Snippets" },
 ] as const;
 type Tab = (typeof TABS)[number]["id"];
 
@@ -63,6 +69,7 @@ interface FormState {
   coverImage: string | null;
   coverImageAlt: string;
   mapsEmbed: string;
+  schemaTypes: string[];
 }
 
 interface EditorProps {
@@ -104,6 +111,7 @@ export function BlogCmsEditor({ post, categories, revisions, isAdmin, startWithA
     coverImage: post.coverImage,
     coverImageAlt: post.seo.ogImageAlt,
     mapsEmbed: post.mapsEmbed ?? "",
+    schemaTypes: post.seo.schemaTypes ?? [],
   });
   const [slugTouched, setSlugTouched] = useState(!isSystemSlug(post.slug) && post.slug !== generateSlug(post.title));
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -148,6 +156,7 @@ export function BlogCmsEditor({ post, categories, revisions, isAdmin, startWithA
       coverImage: f.coverImage,
       coverImageAlt: f.coverImageAlt,
       mapsEmbed: f.mapsEmbed,
+      schemaTypes: f.schemaTypes,
       intent,
       scheduledAt: when,
     };
@@ -370,6 +379,69 @@ export function BlogCmsEditor({ post, categories, revisions, isAdmin, startWithA
               <Field label={`Resumen para Google (meta description) · ${form.metaDescription.length}/160`}><Textarea aria-label="Resumen para Google" rows={3} value={form.metaDescription} maxLength={160} onChange={(e) => set("metaDescription", e.target.value)} /></Field>
               <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={form.noindex} onChange={(e) => set("noindex", e.target.checked)} /> noindex (no aparece en buscadores ni en el sitio público)</label>
               <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={form.nofollow} onChange={(e) => set("nofollow", e.target.checked)} /> nofollow</label>
+            </Card>
+          </section>
+
+          {/* Snippets — paridad Encino (tab «Snippets»). Los tipos viajan en el
+              guardado normal de la entrada; no hay botón aparte. */}
+          <section hidden={tab !== "snippets"} className="space-y-4">
+            <Card title="Rich snippets">
+              <p className="text-xs text-muted-foreground">
+                Datos estructurados que esta entrada ya envía a Google en automático:
+              </p>
+              <ul className="mt-2 space-y-1.5 text-xs text-foreground">
+                <li className="flex items-center gap-2"><span aria-hidden className="text-emerald-600">✓</span>Artículo (BlogPosting)</li>
+                <li className="flex items-center gap-2"><span aria-hidden className="text-emerald-600">✓</span>Migas de pan (BreadcrumbList)</li>
+                <li className="flex items-center gap-2">
+                  <span aria-hidden className={form.faq.length > 0 ? "text-emerald-600" : "text-muted-foreground"}>{form.faq.length > 0 ? "✓" : "○"}</span>
+                  <span>
+                    FAQ —{" "}
+                    {form.faq.length > 0
+                      ? `activo (${form.faq.length} ${form.faq.length === 1 ? "pregunta" : "preguntas"})`
+                      : "se activa al agregar preguntas en Contenido"}
+                  </span>
+                </li>
+              </ul>
+
+              <div className="mt-4 border-t border-border/60 pt-3">
+                <p className="text-xs font-medium text-foreground">Tipos adicionales para esta entrada</p>
+                {form.schemaTypes.length > 0 ? (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {form.schemaTypes.map((t) => (
+                      <span key={t} className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 px-2 py-0.5 text-xs text-foreground">
+                        {t}
+                        <button
+                          type="button"
+                          aria-label={`Quitar ${t}`}
+                          onClick={() => set("schemaTypes", form.schemaTypes.filter((x) => x !== t))}
+                          className="text-muted-foreground transition-colors hover:text-destructive"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+                <select
+                  value=""
+                  aria-label="Agregar tipo de rich snippet"
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value && !form.schemaTypes.includes(value)) set("schemaTypes", [...form.schemaTypes, value]);
+                  }}
+                  className="mt-2 h-8 w-full rounded-md border border-input bg-background px-2 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                >
+                  <option value="">+ Agregar tipo…</option>
+                  {selectableBlogSchemaTypes()
+                    .filter((t) => !form.schemaTypes.includes(t.value))
+                    .map((t) => (
+                      <option key={t.value} value={t.value}>{t.label}</option>
+                    ))}
+                </select>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Cada tipo se publica como JSON-LD adicional en la entrada. Se guardan con la entrada (autosave, borrador o publicar).
+                </p>
+              </div>
             </Card>
           </section>
         </aside>

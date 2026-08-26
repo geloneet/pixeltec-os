@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { buildMetadata } from '@/lib/seo';
 import { absoluteUrl } from '@/lib/site-config';
 import { BlogPostingStructuredData, BreadcrumbStructuredData, FAQPageStructuredData } from '@/components/seo/structured-data';
+import { buildExtraSchemaNodes } from '@/lib/blog-cms/schema-types';
 import BlogPostClient from './blog-post-client';
 import { extractHeadings } from '@/lib/blog/heading-utils';
 import { toPublicBlogPost } from '@/lib/blog/public-post';
@@ -110,6 +111,19 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
       />
       {/* Paridad Encino: FAQPage solo cuando hay FAQ visible (mismo texto). */}
       {publicPost.faq.length > 0 && <FAQPageStructuredData items={publicPost.faq.map((f) => ({ q: f.question, a: f.answer }))} />}
+      {/* Tipos de rich snippet ADICIONALES elegidos en el editor (tab
+          «Snippets», WO-2026-00088 FASE 11). Nodo mínimo por tipo, igual que el
+          SchemaInjector de Encino pero resuelto en el servidor. */}
+      {buildExtraSchemaNodes(post.seo.schemaTypes ?? [], {
+        title: post.title,
+        url: `https://pixeltec.mx/blog/${post.slug}`,
+      }).map((node) => (
+        <script
+          key={node['@type']}
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(node) }}
+        />
+      ))}
       {/* Frontera P1-A: al cliente cruza SOLO el DTO público (allowlist). */}
       <BlogPostClient
         post={publicPost}

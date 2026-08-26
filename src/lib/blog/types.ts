@@ -154,6 +154,10 @@ export interface BlogPostDoc {
     /** `robots: nofollow` del artículo (WO-2026-00088, paridad Encino; jsonb
      *  aditivo — sin migración). Ausente ⇒ false. */
     nofollow?: boolean;
+    /** Tipos de rich snippet ADICIONALES de la entrada (WO-2026-00088 FASE 11,
+     *  paridad Encino tab «Snippets»; jsonb aditivo — sin migración). Se emiten
+     *  como JSON-LD extra en la página pública. Ausente ⇒ []. */
+    schemaTypes?: string[];
   };
 
   // ── WO-2026-00088 (D-C Opción A, migración 0043) — paridad Encino ──────────

@@ -30,6 +30,7 @@ import {
 } from './schemas';
 import { resolveSaveTransition } from './transitions';
 import { extractMapsEmbedUrl } from './maps-embed';
+import { sanitizeBlogSchemaTypes } from './schema-types';
 import {
   deleteBlogCategory,
   deleteBlogPostIfEmpty,
@@ -191,6 +192,9 @@ export async function saveBlogCmsPost(raw: unknown): Promise<ActionResult<SaveBl
       noindex: data.noindex ?? false,
       nofollow: data.nofollow ?? false,
       ogImageAlt: (data.coverImageAlt ?? '').trim(),
+      // FASE 11 (paridad Encino, tab «Snippets»): tipos adicionales saneados
+      // contra el catálogo — lo que no esté en él se descarta en silencio.
+      schemaTypes: sanitizeBlogSchemaTypes(data.schemaTypes ?? currentSeo.schemaTypes),
     };
     const wordCount = computeWordCount(body);
     const readingTimeMin = computeReadingTime(wordCount);

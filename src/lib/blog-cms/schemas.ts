@@ -32,6 +32,7 @@ export const SaveBlogCmsPostSchema = z.object({
   coverImage: z.string().max(500).nullable(),
   coverImageAlt: z.string().max(200).optional(),
   mapsEmbed: z.string().max(2000).optional(),
+  schemaTypes: z.array(z.string().max(60)).max(10).optional(),
   intent: z.enum(BLOG_CMS_INTENTS),
   scheduledAt: z.string().max(40).optional(),
 });
