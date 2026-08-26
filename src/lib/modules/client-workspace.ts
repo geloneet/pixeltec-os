@@ -10,7 +10,7 @@ import { isModuleVisible, type ModuleId } from "./registry";
  *
  * Reactivar una sección = `state: "active"` aquí.
  */
-export type ClientWorkspaceSection = "resumen" | "proyectos" | "comercial" | "documentos" | "portal";
+export type ClientWorkspaceSection = "resumen" | "cotizaciones" | "proyectos" | "comercial" | "documentos" | "portal";
 
 export interface ClientWorkspaceSectionDefinition {
   id: ClientWorkspaceSection;
@@ -31,6 +31,12 @@ export const CLIENT_WORKSPACE_SECTIONS: readonly ClientWorkspaceSectionDefinitio
     label: "Resumen",
     state: "active",
     note: "Información general, estado comercial, «requiere atención» (próxima acción), notas y actividad reciente (orden §6).",
+  },
+  {
+    id: "cotizaciones",
+    label: "Cotizaciones",
+    state: "active",
+    note: "Cotizaciones simples sin IA (WO-2026-00102, orden de Miguel 2026-08-26). Tabla propia `quotes`; NO reactiva «Comercial» ni la máquina de propuestas.",
   },
   {
     id: "proyectos",

@@ -858,6 +858,51 @@ export const toolsRelations = relations(tools, ({ many, one }) => ({
 // Documentos CRM (scoped por owner) — src/types/documents.ts
 // ════════════════════════════════════════════════════════════════════════
 
+/**
+ * Cotizaciones simples (WO-2026-00101, orden de Miguel 2026-08-26).
+ *
+ * Deliberadamente SEPARADA de `proposals`: aquella arrastra definición previa,
+ * generación con IA, versiones, contrato y aceptación del cliente, y vive en
+ * módulos que hoy están ocultos. Una cotización es un documento plano —
+ * conceptos, importes, vigencia — que se crea a mano y se envía.
+ *
+ * Los importes son ENTEROS EN CENTAVOS (MXN). Nunca se guardan flotantes:
+ * la aritmética vive en `src/lib/quotes/money.ts`, cubierta por tests.
+ */
+export const quotes = pgTable(
+  "quotes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    clientId: uuid("client_id")
+      .notNull()
+      .references(() => clients.id, { onDelete: "cascade" }),
+    /** Folio visible, único: COT-2026-0001. */
+    folio: text("folio").notNull(),
+    title: text("title").notNull(),
+    /** Conceptos: [{ description, quantity, unitPriceCents }]. */
+    items: jsonb("items").notNull().default([]),
+    /** IVA del 16 % aplicado a esta cotización. */
+    taxEnabled: boolean("tax_enabled").notNull().default(true),
+    notes: text("notes").notNull().default(""),
+    validUntil: timestamp("valid_until", { withTimezone: true }),
+    /** borrador | enviada. No hay «aceptada»: el cliente no actúa aquí. */
+    status: text("status").notNull().default("borrador"),
+    /** Token del enlace público de solo lectura. */
+    publicToken: text("public_token").notNull(),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("quotes_client_idx").on(t.clientId),
+    uniqueIndex("quotes_folio_idx").on(t.folio),
+    uniqueIndex("quotes_public_token_idx").on(t.publicToken),
+  ]
+);
+
+export type Quote = typeof quotes.$inferSelect;
+
 export const proposals = pgTable(
   "proposals",
   {

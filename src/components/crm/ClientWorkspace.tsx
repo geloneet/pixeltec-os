@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import type { CRMClient } from "@/types/crm";
 import { ClientDetail } from "./ClientDetail";
 import { ProyectosTab } from "@/components/crm/workspace-tabs/ProyectosTab";
+import { CotizacionesTabLoader } from "@/components/crm/workspace-tabs/CotizacionesTabLoader";
 import { ComercialTab, type ComercialSub } from "@/components/crm/workspace-tabs/ComercialTab";
 import { DocumentosTab } from "@/components/crm/workspace-tabs/DocumentosTab";
 import { PortalTab } from "@/components/crm/workspace-tabs/PortalTab";
@@ -123,6 +124,14 @@ export function ClientWorkspace({ client, onBack, navigateToProject, setModal, d
               if (enabled && isClientSectionVisible("portal")) setActiveTab("portal");
             }}
             onOpenComercial={() => setActiveTab("comercial")}
+          />
+        )}
+        {activeTab === "cotizaciones" && (
+          <CotizacionesTabLoader
+            clientId={client.id}
+            clientName={client.name}
+            clientEmail={client.email ?? null}
+            clientPhone={client.phone || null}
           />
         )}
         {activeTab === "proyectos" && (
