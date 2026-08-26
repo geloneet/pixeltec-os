@@ -40,21 +40,21 @@ afterEach(cleanup);
 
 describe("sidebar del panel", () => {
   it("dibuja las áreas aprobadas, SEO incluida", () => {
-    render(<AppSidebar />);
+    render(<AppSidebar activeArea={null} />);
     for (const label of ["Inicio", "Clientes", "WhatsApp", "Finanzas", "Blog", "SEO", "Usuarios y Accesos"]) {
       expect(screen.getAllByText(label).length, `falta el área ${label}`).toBeGreaterThan(0);
     }
   });
 
   it("no dibuja las áreas de módulos ocultos", () => {
-    render(<AppSidebar />);
+    render(<AppSidebar activeArea={null} />);
     for (const label of ["Trabajo", "Marketing", "Sistema"]) {
       expect(screen.queryByText(label), `${label} no debería verse`).toBeNull();
     }
   });
 
   it("la marca dice PIXELTEC-OS, no solo PixelTEC", () => {
-    const { container } = render(<AppSidebar />);
+    const { container } = render(<AppSidebar activeArea={null} />);
     expect(container.textContent).toContain("-OS");
   });
 });
