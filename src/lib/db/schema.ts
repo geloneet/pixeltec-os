@@ -1458,6 +1458,24 @@ export const blogPosts = pgTable(
  * categoría deja intacto el texto de los posts. Solo crear/eliminar (Encino no
  * edita categorías).
  */
+/**
+ * Ajustes dinámicos del panel (WO-2026-00095, módulo SEO — paridad Muebles
+ * Encino `settings`). Clave/valor de texto: cada herramienta del módulo SEO
+ * guarda aquí su contenido y su interruptor de publicación.
+ *
+ * Alcance decidido por Miguel (2026-08-26): un solo sitio (pixeltec.mx). Si
+ * algún día hay multi-sitio, la clave admite namespacing (`site:<id>:<key>`)
+ * sin romper el contrato ni exigir otra migración.
+ */
+export const appSettings = pgTable("app_settings", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedBy: uuid("updated_by").references(() => users.id, { onDelete: "set null" }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const blogCategories = pgTable(
   "blog_categories",
   {
@@ -2083,6 +2101,7 @@ export type NewTask = typeof tasks.$inferInsert;
 export type RecurringCharge = typeof recurringCharges.$inferSelect;
 export type NewRecurringCharge = typeof recurringCharges.$inferInsert;
 export type ProjectLogEntry = typeof projectLogEntries.$inferSelect;
+export type AppSetting = typeof appSettings.$inferSelect;
 export type Tool = typeof tools.$inferSelect;
 export type KnowledgeTip = typeof knowledgeTips.$inferSelect;
 export type WorkSession = typeof workSessions.$inferSelect;

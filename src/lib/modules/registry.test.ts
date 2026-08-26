@@ -39,6 +39,7 @@ const EXPECTED_STATES: Record<ModuleId, ReturnType<typeof getModule>["state"]> =
   whatsapp: "protected",
   finanzas: "protected",
   blog: "active",
+  seo: "active",
   usuarios: "active",
   // Oculto por orden de Miguel (2026-08-26): la base de conocimiento del CRM
   // no debe aparecer en ninguna superficie (criterio 2 de WO-2026-00088).

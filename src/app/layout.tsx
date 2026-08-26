@@ -7,6 +7,7 @@ import { SessionProvider } from 'next-auth/react';
 import { ThemeProvider } from '@/components/theme-provider';
 import { Poppins, Roboto, League_Spartan } from 'next/font/google';
 import { OrganizationStructuredData } from '@/components/seo/structured-data';
+import { PublishedStructuredData } from '@/components/seo/published-structured-data';
 import { MetaPixel } from '@/components/analytics/meta-pixel';
 import { headers } from 'next/headers';
 
@@ -60,6 +61,8 @@ export default async function RootLayout({
       <body className={cn('font-body antialiased min-h-screen bg-background text-foreground')}>
         <ThemeProvider nonce={nonce}>
           <OrganizationStructuredData />
+          {/* JSON-LD publicado desde el módulo SEO (WO-2026-00095). */}
+          <PublishedStructuredData />
           <MetaPixel nonce={nonce} />
           <SessionProvider>
             {children}

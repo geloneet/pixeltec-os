@@ -22,6 +22,7 @@ export const ADMIN_ROUTES = [
   'blog-admin',
   // WO-2026-00088: Blog nuevo (paridad Encino). /blog sigue siendo público.
   'blog-cms',
+  'seo',
   'crecimiento',
   'documentos',
   'ia-factory',

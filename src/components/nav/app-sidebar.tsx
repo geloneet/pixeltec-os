@@ -16,6 +16,7 @@ import {
   Server,
   Plus,
   type LucideIcon,
+  Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SITE } from "@/lib/site-config";
@@ -44,6 +45,7 @@ const AREA_ICONS: Record<NavArea, LucideIcon> = {
   whatsapp: MessageCircle,
   finanzas: Receipt,
   blog: Newspaper,
+  seo: Search,
   usuarios: UserCog,
   proyectos: FolderKanban,
   marketing: Megaphone,

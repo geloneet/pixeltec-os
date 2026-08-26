@@ -2,6 +2,8 @@ import type { MetadataRoute } from "next";
 import { getPublishedPosts } from "@/lib/blog/queries/posts";
 import { publishDueScheduledPosts } from "@/lib/blog-cms/queries";
 import { SITE } from "@/lib/site-config";
+import { getFlag } from "@/lib/settings/queries";
+import { SETTING_SITEMAP_ENABLED } from "@/lib/seo/keys";
 
 const BASE_URL = SITE.url;
 
@@ -55,6 +57,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     changeFrequency: "monthly" as const,
     priority: 0.8,
   }));
+
+  // Interruptor del módulo SEO (WO-2026-00095, paridad Encino): apagado ⇒ solo
+  // la portada. Ausente ⇒ ENCENDIDO, que es lo que PixelTEC OS ya servía antes
+  // de existir el módulo: portarlo no puede apagarle el sitemap al sitio.
+  const enabled = await getFlag(SETTING_SITEMAP_ENABLED, true).catch(() => true);
+  if (!enabled) return [staticRoutes[0]];
 
   const blogRoutes = await getBlogRoutes();
 

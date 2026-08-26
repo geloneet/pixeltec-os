@@ -23,7 +23,8 @@ export type NavArea =
   | "usuarios"
   | "proyectos"
   | "marketing"
-  | "infra";
+  | "infra"
+  | "seo";
 
 /** Orden completo (visibles primero, en el orden aprobado; ocultas después). */
 export const NAV_AREA_ORDER: NavArea[] = [
@@ -32,6 +33,7 @@ export const NAV_AREA_ORDER: NavArea[] = [
   "whatsapp",
   "finanzas",
   "blog",
+  "seo",
   "usuarios",
   "proyectos",
   "marketing",
@@ -44,6 +46,7 @@ export const NAV_AREA_LABELS: Record<NavArea, string> = {
   whatsapp: "WhatsApp",
   finanzas: "Finanzas",
   blog: "Blog",
+  seo: "SEO",
   usuarios: "Usuarios y Accesos",
   proyectos: "Trabajo",
   marketing: "Marketing",
@@ -80,6 +83,16 @@ const AREA_ITEMS: Record<NavArea, AreaItemRef[]> = {
   whatsapp: [{ href: "/whatsapp" }],
   finanzas: [{ href: "/cobros" }],
   blog: [{ href: "/blog-cms" }],
+  seo: [
+    { href: "/seo/salud", secondaryLabel: "Salud" },
+    { href: "/seo/llms" },
+    { href: "/seo/robots" },
+    { href: "/seo/local-business", secondaryLabel: "Negocio local" },
+    { href: "/seo/structured-data", secondaryLabel: "Datos estructurados" },
+    { href: "/seo/schema", secondaryLabel: "Schema por página" },
+    { href: "/seo/redes", secondaryLabel: "Redes" },
+    { href: "/seo/sitemap", secondaryLabel: "Sitemap" },
+  ],
   usuarios: [{ href: "/usuarios" }, { href: "/accesos" }],
   proyectos: [
     { href: "/proyectos" },

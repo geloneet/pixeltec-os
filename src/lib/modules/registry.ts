@@ -35,6 +35,7 @@ export type ModuleId =
   | "whatsapp"
   | "finanzas"
   | "blog"
+  | "seo"
   | "usuarios"
   | "accesos"
   // Controles globales (campana, menú de usuario) — no son dominios de navegación
@@ -112,6 +113,13 @@ const REGISTRY = [
     state: "active",
     routes: ["/blog-cms"],
     note: "Nueva sección Blog con paridad a Muebles Encino (orden §10, D-C Opción A): admin en /blog-cms (D-A del SG), misma tabla blog_posts que el legacy, público /blog de pixeltec.mx.",
+  },
+  {
+    id: "seo",
+    label: "SEO",
+    state: "active",
+    routes: ["/seo", "/seo/salud", "/seo/llms", "/seo/robots", "/seo/local-business", "/seo/structured-data", "/seo/schema", "/seo/redes", "/seo/sitemap"],
+    note: "Módulo SEO portado de Muebles Encino (WO-2026-00095, orden de Miguel 2026-08-26). Administra ÚNICAMENTE pixeltec.mx. Los ajustes viven en `app_settings` (migración 0044).",
   },
   {
     id: "usuarios",
