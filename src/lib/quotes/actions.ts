@@ -21,7 +21,14 @@ import { toPublicFailure } from '@/lib/errors/public-failure';
 import type { ActionResult } from '@/lib/blog/schemas';
 import { sendEmail } from '@/lib/email';
 import { SITE } from '@/lib/site-config';
-import { computeTotals, usableItems, validateQuote, type QuoteItem } from './money';
+import {
+  RECURRENCES,
+  RECURRENCE_TOTAL_LABEL,
+  computeBreakdown,
+  usableItems,
+  validateQuote,
+  type QuoteItem,
+} from './money';
 import {
   CURRENCIES,
   DEFAULT_EXCLUSIONS,
@@ -39,7 +46,7 @@ import {
   parsePaymentTerms,
   type PaymentTerms,
 } from './terms';
-import { createChargeFromQuote } from './billing-bridge';
+import { createChargeFromQuote, toBillingFrequency } from './billing-bridge';
 import { nextFolio } from './folio';
 import { buildEmailSubject } from './share';
 import { getQuoteById, getQuoteClient, listFolios } from './queries';
@@ -64,6 +71,9 @@ const ItemSchema = z.object({
   description: z.string().max(500),
   quantity: z.number().finite().min(0).max(1_000_000),
   unitPriceCents: z.number().int().min(0).max(999_999_999),
+  // Ausente ⇒ pago único: las cotizaciones guardadas antes de esta orden no lo
+  // traen y deben seguir guardándose sin tocar nada.
+  recurrence: z.enum(RECURRENCES).optional(),
 });
 
 const SaveQuoteSchema = z.object({
@@ -210,7 +220,9 @@ export async function sendQuoteByEmail(id: string, to?: string): Promise<ActionR
       return { ok: false, error: `Antes de enviarla falta ${blocking.join(', ')}.` };
     }
 
-    const totals = computeTotals(quote.items, quote.taxEnabled);
+    // El importe que se comunica es el de la inversión inicial: sumarle una
+    // mensualidad daría un número que no significa nada.
+    const totals = computeBreakdown(quote.items, quote.taxEnabled).oneTime;
     const url = `${SITE.url}/c/${quote.publicToken}`;
 
     const pdf = await renderQuotePdf({ quote, clientName: client.name });
@@ -381,7 +393,9 @@ export async function snoozeFollowUp(id: string): Promise<ActionResult<{ nextFol
  * Inserta en `billing_items` desde `billing-bridge.ts`, un archivo nuevo:
  * Finanzas no se modifica. No crea proyectos, tareas ni contratos.
  */
-export async function createChargeForQuote(id: string): Promise<ActionResult<{ concept: string; amount: string }>> {
+export async function createChargeForQuote(
+  id: string,
+): Promise<ActionResult<{ concept: string; amount: string; recurrentes: string[] }>> {
   try {
     const guard = await requireAdmin();
     if (!guard.ok) return { ok: false, error: 'Crear un cobro requiere rol administrador.' };
@@ -392,7 +406,8 @@ export async function createChargeForQuote(id: string): Promise<ActionResult<{ c
       return { ok: false, error: 'Solo se crea el cobro de una cotización aceptada.' };
     }
 
-    const totals = computeTotals(quote.items, quote.taxEnabled);
+    const breakdown = computeBreakdown(quote.items, quote.taxEnabled);
+    const totals = breakdown.oneTime;
     const instalment = firstInstalment(totals.totalCents, quote.paymentTerms);
     if (!instalment || instalment.amountCents <= 0) {
       return { ok: false, error: 'La cotización no tiene un importe que cobrar.' };
@@ -408,12 +423,39 @@ export async function createChargeForQuote(id: string): Promise<ActionResult<{ c
       amountCents: instalment.amountCents,
       currency: quote.currency,
       dueDate,
+      frequency: 'unico',
     });
     if (!created) return { ok: false, error: 'No se pudo crear el cobro.' };
 
+    // Los conceptos recurrentes se dan de alta como cobros recurrentes de
+    // verdad: `billing_items.frequency` ya admite mensual, trimestral y anual,
+    // así que no hace falta inventar nada. Sin esto, un concepto mensual
+    // quedaría cotizado y jamás cobrado.
+    const recurrentes: string[] = [];
+    for (const grupo of breakdown.recurring) {
+      if (grupo.totals.totalCents <= 0) continue;
+      const etiqueta = RECURRENCE_TOTAL_LABEL[grupo.recurrence];
+      const ok = await createChargeFromQuote({
+        clientId: quote.clientId,
+        concept: `${etiqueta} ${quote.folio}`,
+        amountCents: grupo.totals.totalCents,
+        currency: quote.currency,
+        dueDate,
+        frequency: toBillingFrequency(grupo.recurrence),
+      });
+      if (ok) recurrentes.push(`${etiqueta}: ${formatAmountWithCode(grupo.totals.totalCents, quote.currency)}`);
+    }
+
     revalidateClient(quote.clientId);
     revalidatePath('/cobros');
-    return { ok: true, data: { concept, amount: formatAmountWithCode(instalment.amountCents, quote.currency) } };
+    return {
+      ok: true,
+      data: {
+        concept,
+        amount: formatAmountWithCode(instalment.amountCents, quote.currency),
+        recurrentes,
+      },
+    };
   } catch (err) {
     return fail(err, 'create_charge_failed', 'No se pudo crear el cobro.');
   }

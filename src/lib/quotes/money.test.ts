@@ -8,6 +8,10 @@ import {
   centsToInput,
   validateQuote,
   usableItems,
+  RECURRENCES,
+  recurrenceOf,
+  computeBreakdown,
+  hasRecurring,
   type QuoteItem,
 } from './money';
 
@@ -150,5 +154,105 @@ describe('limpieza de conceptos', () => {
     const out = usableItems([item('  Landing  ', 1, 100), item('   ', 1, 0)]);
     expect(out).toHaveLength(1);
     expect(out[0].description).toBe('Landing');
+  });
+});
+
+/**
+ * Recurrencia por concepto (orden de Miguel 2026-08-26). La regla que protegen
+ * estos tests: un mensual NUNCA se suma a un pago único.
+ */
+describe('periodicidad por concepto', () => {
+  const rec = (description: string, unitPriceCents: number, recurrence?: QuoteItem['recurrence']): QuoteItem => ({
+    description,
+    quantity: 1,
+    unitPriceCents,
+    recurrence,
+  });
+
+  it('un concepto sin periodicidad es de pago único (compatibilidad)', () => {
+    expect(recurrenceOf({})).toBe('unica');
+    expect(recurrenceOf({ recurrence: 'inventada' })).toBe('unica');
+    expect(recurrenceOf({ recurrence: 'mensual' })).toBe('mensual');
+  });
+
+  it('las cotizaciones antiguas, sin el campo, siguen dando el mismo total', () => {
+    const antiguas = [rec('Desarrollo', 2500000), rec('Configuración', 500000)];
+    const b = computeBreakdown(antiguas, true);
+    expect(b.oneTime.totalCents).toBe(computeTotals(antiguas, true).totalCents);
+    expect(b.recurring).toEqual([]);
+  });
+
+  it('NO suma el mensual dentro del pago único', () => {
+    const b = computeBreakdown([rec('Desarrollo', 2500000), rec('Hospedaje', 50000, 'mensual')], false);
+    expect(b.oneTime.totalCents).toBe(2500000);
+    expect(b.recurring).toHaveLength(1);
+    expect(b.recurring[0]).toEqual({
+      recurrence: 'mensual',
+      totals: { subtotalCents: 50000, taxCents: 0, totalCents: 50000 },
+    });
+  });
+
+  it('agrupa varios conceptos de la misma frecuencia', () => {
+    const b = computeBreakdown([rec('Hospedaje', 90000, 'mensual'), rec('Mantenimiento', 250000, 'mensual')], false);
+    expect(b.oneTime.totalCents).toBe(0);
+    expect(b.recurring.map((r) => [r.recurrence, r.totals.totalCents])).toEqual([['mensual', 340000]]);
+  });
+
+  it('solo hay dos frecuencias: única vez y mensual', () => {
+    expect([...RECURRENCES]).toEqual(['unica', 'mensual']);
+    // Un valor retirado del catálogo cae a pago único, no rompe la pantalla.
+    expect(recurrenceOf({ recurrence: 'trimestral' })).toBe('unica');
+  });
+
+  it('aplica el IVA dentro de cada periodicidad, no al conjunto', () => {
+    const b = computeBreakdown([rec('Desarrollo', 100000), rec('Hospedaje', 50000, 'mensual')], true);
+    expect(b.oneTime).toEqual({ subtotalCents: 100000, taxCents: 16000, totalCents: 116000 });
+    expect(b.recurring[0].totals).toEqual({ subtotalCents: 50000, taxCents: 8000, totalCents: 58000 });
+  });
+
+  it('el ejemplo real de Miguel: desarrollo único + dos mensuales', () => {
+    const b = computeBreakdown(
+      [rec('Desarrollo del sitio', 2000000), rec('Hosting administrado', 90000, 'mensual'), rec('Mantenimiento', 250000, 'mensual')],
+      true,
+    );
+    // Pago único: 20,000 + IVA 3,200 = 23,200
+    expect(b.oneTime).toEqual({ subtotalCents: 2000000, taxCents: 320000, totalCents: 2320000 });
+    // Mensual: 3,400 + IVA 544 = 3,944
+    expect(b.recurring).toHaveLength(1);
+    expect(b.recurring[0].totals).toEqual({ subtotalCents: 340000, taxCents: 54400, totalCents: 394400 });
+    // Y sobre todo: NUNCA aparece 23,400 ni la suma de ambos.
+    expect(b.oneTime.totalCents + b.recurring[0].totals.totalCents).not.toBe(2340000);
+  });
+
+  it('las filas en blanco no crean grupos fantasma', () => {
+    const b = computeBreakdown([rec('Desarrollo', 2500000), rec('   ', 0, 'mensual')], false);
+    expect(b.recurring).toEqual([]);
+  });
+
+  it('sabe si la cotización lleva algo recurrente', () => {
+    expect(hasRecurring([rec('Desarrollo', 100)])).toBe(false);
+    expect(hasRecurring([rec('Hospedaje', 100, 'mensual')])).toBe(true);
+    expect(hasRecurring([rec('  ', 100, 'mensual')])).toBe(false);
+  });
+});
+
+/**
+ * Regresión (2026-08-26): la frecuencia se guardaba correctamente en el jsonb
+ * pero el saneador de lectura no la copiaba, así que al reabrir la cotización
+ * un concepto mensual volvía como pago único y el documento sumaba de más.
+ * Este test protege el contrato de ida y vuelta del jsonb.
+ */
+describe('ida y vuelta de la frecuencia por el jsonb', () => {
+  it('sobrevive a serializar y volver a leer', () => {
+    const original: QuoteItem[] = [
+      { description: 'Desarrollo del sitio', quantity: 1, unitPriceCents: 2000000, recurrence: 'unica' },
+      { description: 'Hosting administrado', quantity: 1, unitPriceCents: 90000, recurrence: 'mensual' },
+    ];
+    const leidos = (JSON.parse(JSON.stringify(original)) as QuoteItem[]).map((i) => ({
+      ...i,
+      recurrence: recurrenceOf(i),
+    }));
+    expect(computeBreakdown(leidos, true)).toEqual(computeBreakdown(original, true));
+    expect(leidos[1].recurrence).toBe('mensual');
   });
 });

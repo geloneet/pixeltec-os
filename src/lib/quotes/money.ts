@@ -12,12 +12,61 @@
 /** Tasa de IVA vigente en México, en puntos porcentuales. */
 export const IVA_RATE = 16;
 
+/**
+ * Cada cuánto se cobra un concepto. Se guarda DENTRO del jsonb `items`, así que
+ * no hizo falta migración: un concepto sin `recurrence` es de pago único, que
+ * es como se comportaban todos los guardados hasta ahora.
+ *
+ * SOLO dos opciones (decisión de Miguel, 2026-08-26): resuelven el caso real de
+ * la agencia —implementación por un lado, servicio recurrente por otro— y
+ * trimestral/anual se añadirán si algún día se usan de verdad, no por si acaso.
+ * Se comprobó que ninguna cotización guardada los usaba antes de quitarlos.
+ */
+export const RECURRENCES = ['unica', 'mensual'] as const;
+export type Recurrence = (typeof RECURRENCES)[number];
+export const DEFAULT_RECURRENCE: Recurrence = 'unica';
+
+/** Lo que se elige en la columna «Frecuencia». */
+export const RECURRENCE_LABEL: Record<Recurrence, string> = {
+  unica: 'Única vez',
+  mensual: 'Mensual',
+};
+
+/** Cómo se titula el bloque de totales de cada frecuencia. */
+export const RECURRENCE_TOTAL_LABEL: Record<Recurrence, string> = {
+  unica: 'Pago único',
+  mensual: 'Mensual',
+};
+
+/** Cómo se llama el «total» de cada bloque en el resumen. */
+export const RECURRENCE_GRAND_LABEL: Record<Recurrence, string> = {
+  unica: 'Total inicial',
+  mensual: 'Mensualidad',
+};
+
+/** Cómo se llama el subtotal de cada bloque. */
+export const RECURRENCE_SUBTOTAL_LABEL: Record<Recurrence, string> = {
+  unica: 'Subtotal',
+  mensual: 'Servicios',
+};
+
+export function isRecurrence(value: unknown): value is Recurrence {
+  return typeof value === 'string' && (RECURRENCES as readonly string[]).includes(value);
+}
+
+/** Periodicidad de un concepto; ausente o desconocida ⇒ pago único. */
+export function recurrenceOf(item: { recurrence?: string }): Recurrence {
+  return isRecurrence(item.recurrence) ? item.recurrence : DEFAULT_RECURRENCE;
+}
+
 export interface QuoteItem {
   description: string;
   /** Cantidad. Admite decimales (horas, metros); se redondea a 2 al calcular. */
   quantity: number;
   /** Precio unitario en CENTAVOS enteros. */
   unitPriceCents: number;
+  /** Cada cuánto se paga. Ausente ⇒ «unica» (compatibilidad hacia atrás). */
+  recurrence?: Recurrence;
 }
 
 export interface QuoteTotals {
@@ -123,4 +172,44 @@ export function validateQuote(input: {
 /** Descarta las líneas en blanco que deja el formulario al añadir filas. */
 export function usableItems(items: readonly QuoteItem[]): QuoteItem[] {
   return items.filter((i) => i.description.trim()).map((i) => ({ ...i, description: i.description.trim() }));
+}
+
+/**
+ * Totales separados por periodicidad.
+ *
+ * NO se suma un mensual con un pago único: son unidades distintas y un total
+ * mezclado sería un número falso en un documento que va a un cliente. Una
+ * cotización de «$25,000 de desarrollo + $500 al mes de hospedaje» no vale
+ * $25,500: vale $25,000 ahora y $500 cada mes.
+ */
+export interface QuoteBreakdown {
+  /** Lo que se paga una sola vez. Es la base del reparto de anticipos. */
+  oneTime: QuoteTotals;
+  /** Un bloque por periodicidad presente, en el orden del catálogo. */
+  recurring: { recurrence: Recurrence; totals: QuoteTotals }[];
+}
+
+export function itemsByRecurrence(items: readonly QuoteItem[]): Map<Recurrence, QuoteItem[]> {
+  const groups = new Map<Recurrence, QuoteItem[]>();
+  for (const item of items) {
+    if (!item.description.trim()) continue;
+    const key = recurrenceOf(item);
+    groups.set(key, [...(groups.get(key) ?? []), item]);
+  }
+  return groups;
+}
+
+export function computeBreakdown(items: readonly QuoteItem[], taxEnabled: boolean): QuoteBreakdown {
+  const groups = itemsByRecurrence(items);
+  return {
+    oneTime: computeTotals(groups.get('unica') ?? [], taxEnabled),
+    recurring: RECURRENCES.filter((r) => r !== 'unica')
+      .filter((r) => (groups.get(r) ?? []).length > 0)
+      .map((recurrence) => ({ recurrence, totals: computeTotals(groups.get(recurrence)!, taxEnabled) })),
+  };
+}
+
+/** `true` si la cotización mezcla pago único con algo recurrente. */
+export function hasRecurring(items: readonly QuoteItem[]): boolean {
+  return items.some((i) => i.description.trim() && recurrenceOf(i) !== 'unica');
 }

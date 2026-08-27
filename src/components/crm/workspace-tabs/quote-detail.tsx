@@ -17,10 +17,12 @@ import {
   XCircle,
   CalendarClock,
   Receipt,
+  Eye,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { lineTotalCents } from "@/lib/quotes/money";
 import {
   REJECTION_LABEL,
@@ -43,6 +45,7 @@ import {
   snoozeFollowUp,
 } from "@/lib/quotes/actions";
 import { StatusBadge, type QuoteView } from "./quote-shared";
+import { QuoteDocument } from "./quote-document";
 
 function Block({ title, body }: { title: string; body: string }) {
   if (!body.trim()) return null;
@@ -75,6 +78,9 @@ export function QuoteDetail({
 }) {
   const [pending, start] = useTransition();
   const [rejecting, setRejecting] = useState(false);
+  // Vista previa como pop-up (orden de Miguel): el mismo documento que ve el
+  // cliente, sin salir de la pantalla ni abrir otra pestaña.
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [reason, setReason] = useState<RejectionReason>("precio");
   const [comment, setComment] = useState("");
 
@@ -156,14 +162,10 @@ export function QuoteDetail({
           <FileDown className="mr-1.5 h-3.5 w-3.5" />
           PDF
         </a>
-        <a
-          href={url}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex h-8 items-center rounded-md border border-input px-3 text-xs font-medium transition-colors hover:bg-accent"
-        >
+        <Button type="button" variant="outline" size="sm" onClick={() => setPreviewOpen(true)}>
+          <Eye className="mr-1.5 h-3.5 w-3.5" />
           Vista previa
-        </a>
+        </Button>
         <Button
           type="button"
           variant="outline"
@@ -275,6 +277,38 @@ export function QuoteDetail({
           ) : null}
         </div>
       ) : null}
+
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-medium text-muted-foreground">
+              Vista previa · así la recibe el cliente
+            </DialogTitle>
+          </DialogHeader>
+          <div className="pt-2">
+            <QuoteDocument quote={quote} clientName={clientName} />
+          </div>
+          <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4">
+            <a
+              href={`/api/documents/quote-pdf?id=${quote.id}`}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex h-8 items-center rounded-md border border-input px-3 text-xs font-medium transition-colors hover:bg-accent"
+            >
+              <FileDown className="mr-1.5 h-3.5 w-3.5" />
+              Descargar PDF
+            </a>
+            <a
+              href={url}
+              target="_blank"
+              rel="noreferrer"
+              className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
+            >
+              Abrir el enlace público
+            </a>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Contenido */}
       <div className="space-y-6">

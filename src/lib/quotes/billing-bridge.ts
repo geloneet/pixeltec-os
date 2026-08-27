@@ -30,6 +30,26 @@ export interface CreateChargeInput {
    * no la tiene, hoy.
    */
   dueDate: string;
+  /**
+   * Periodicidad del cobro. Coincide con el enum `billing_frequency` que ya
+   * existía: un concepto mensual de la cotización nace como cobro mensual.
+   */
+  frequency: 'unico' | 'mensual' | 'trimestral' | 'anual';
+}
+
+/**
+ * La cotización dice «unica»; el enum de Finanzas dice «unico». La traducción
+ * vive aquí, en la frontera, y no repartida por las acciones.
+ */
+export function toBillingFrequency(recurrence: string): CreateChargeInput['frequency'] {
+  switch (recurrence) {
+    case 'mensual':
+    case 'trimestral':
+    case 'anual':
+      return recurrence;
+    default:
+      return 'unico';
+  }
 }
 
 /**
@@ -54,8 +74,7 @@ export async function createChargeFromQuote(input: CreateChargeInput): Promise<{
       // Centavos → decimal con dos posiciones. La división vive SOLO aquí.
       amount: (input.amountCents / 100).toFixed(2),
       currency: input.currency,
-      // Un anticipo se cobra una vez; los recurrentes se dan de alta en Cobros.
-      frequency: 'unico',
+      frequency: input.frequency,
       status: 'pendiente',
       dueDate: input.dueDate,
     })

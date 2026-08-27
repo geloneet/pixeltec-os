@@ -6,7 +6,7 @@
  * conversión de filas — nunca dos versiones que se desincronizan.
  */
 import { cn } from "@/lib/utils";
-import { centsToInput, parseMoneyToCents, type QuoteItem } from "@/lib/quotes/money";
+import { centsToInput, parseMoneyToCents, recurrenceOf, type QuoteItem, type Recurrence } from "@/lib/quotes/money";
 import { STATUS_LABEL, type QuoteStatus, type PaymentTerms, type Rejection, type Currency } from "@/lib/quotes/terms";
 
 export interface QuoteView {
@@ -56,15 +56,17 @@ export interface DraftItem {
   description: string;
   quantity: string;
   unitPrice: string;
+  recurrence: Recurrence;
 }
 
-export const emptyRow = (): DraftItem => ({ description: "", quantity: "1", unitPrice: "" });
+export const emptyRow = (): DraftItem => ({ description: "", quantity: "1", unitPrice: "", recurrence: "unica" });
 
 export function toQuoteItems(rows: DraftItem[]): QuoteItem[] {
   return rows.map((r) => ({
     description: r.description,
     quantity: Number(r.quantity.replace(",", ".")) || 0,
     unitPriceCents: parseMoneyToCents(r.unitPrice) ?? 0,
+    recurrence: r.recurrence,
   }));
 }
 
@@ -73,6 +75,8 @@ export function fromQuote(quote: QuoteView): DraftItem[] {
     description: i.description,
     quantity: String(i.quantity),
     unitPrice: centsToInput(i.unitPriceCents),
+    // Las cotizaciones guardadas antes de esta orden no traen el campo.
+    recurrence: recurrenceOf(i),
   }));
   return rows.length > 0 ? rows : [emptyRow()];
 }

@@ -2,7 +2,7 @@ import 'server-only';
 import { desc, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { quotes, clients } from '@/lib/db/schema';
-import type { QuoteItem } from './money';
+import { recurrenceOf, type QuoteItem } from './money';
 import { parsePaymentTerms, type Currency, type PaymentTerms, type Rejection, isCurrency } from './terms';
 
 /**
@@ -58,6 +58,10 @@ function toItems(raw: unknown): QuoteItem[] {
       description: typeof i.description === 'string' ? i.description : '',
       quantity: Number.isFinite(i.quantity) ? Number(i.quantity) : 0,
       unitPriceCents: Number.isInteger(i.unitPriceCents) ? Number(i.unitPriceCents) : 0,
+      // La frecuencia se guardaba bien pero este saneador NO la copiaba: al
+      // releer, un concepto mensual volvía como pago único y el documento
+      // sumaba lo que no debía. `recurrenceOf` tolera ausente o desconocida.
+      recurrence: recurrenceOf(i as { recurrence?: string }),
     }));
 }
 

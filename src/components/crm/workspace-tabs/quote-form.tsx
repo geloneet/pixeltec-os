@@ -24,7 +24,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { centsToInput, lineTotalCents, parseMoneyToCents, validateQuote } from "@/lib/quotes/money";
+import {
+  RECURRENCES,
+  RECURRENCE_LABEL,
+  RECURRENCE_TOTAL_LABEL,
+  RECURRENCE_GRAND_LABEL,
+  RECURRENCE_SUBTOTAL_LABEL,
+  lineTotalCents,
+  parseMoneyToCents,
+  validateQuote,
+  type Recurrence,
+} from "@/lib/quotes/money";
 import {
   CURRENCIES,
   DEFAULT_EXCLUSIONS,
@@ -35,7 +45,7 @@ import {
   formatAmount,
   formatDate,
   paymentSchedule,
-  totalsFor,
+  breakdownFor,
   type Currency,
   type PaymentType,
 } from "@/lib/quotes/terms";
@@ -145,7 +155,10 @@ export function QuoteForm({
   const priceRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const items = useMemo(() => toQuoteItems(rows), [rows]);
-  const totals = useMemo(() => totalsFor(items, taxEnabled), [items, taxEnabled]);
+  const breakdown = useMemo(() => breakdownFor(items, taxEnabled), [items, taxEnabled]);
+  const totals = breakdown.oneTime;
+  // El reparto de anticipos SOLO aplica a lo que se paga una vez: un «50% de
+  // anticipo» sobre una mensualidad no significa nada.
   const schedule = useMemo(
     () => paymentSchedule(totals.totalCents, { type: paymentType, custom: paymentCustom }),
     [totals.totalCents, paymentType, paymentCustom],
@@ -273,8 +286,9 @@ export function QuoteForm({
           {/* Cabecera de tabla: solo en pantallas donde las columnas caben. */}
           <div className="hidden items-center gap-2 px-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground sm:flex">
             <span className="min-w-0 flex-1">Concepto</span>
+            <span className="w-28">Frecuencia</span>
             <span className="w-14 text-right">Cant.</span>
-            <span className="w-24 text-right">P. unitario</span>
+            <span className="w-24 text-right">Precio</span>
             <span className="w-24 text-right">Importe</span>
             <span className="w-8" />
           </div>
@@ -294,6 +308,25 @@ export function QuoteForm({
                     aria-label={`Concepto ${index + 1}`}
                     className={cn(CELL, "w-full min-w-0 sm:w-auto sm:flex-1")}
                   />
+                  {/* Frecuencia del concepto (orden de Miguel): un servicio
+                      recurrente no se suma al pago único — ver el resumen. */}
+                  <select
+                    value={row.recurrence}
+                    onChange={(e) => patch(index, { recurrence: e.target.value as Recurrence })}
+                    aria-label={`Frecuencia del concepto ${index + 1}`}
+                    className={cn(
+                      "h-9 w-28 rounded-md border border-transparent bg-transparent px-2 text-xs transition-colors",
+                      "hover:border-input hover:bg-accent/40 focus-visible:border-input focus-visible:bg-accent/30",
+                      "focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none",
+                      row.recurrence !== "unica" ? "text-foreground" : "text-muted-foreground",
+                    )}
+                  >
+                    {RECURRENCES.map((r) => (
+                      <option key={r} value={r}>
+                        {RECURRENCE_LABEL[r]}
+                      </option>
+                    ))}
+                  </select>
                   <Input
                     value={row.quantity}
                     onChange={(e) => patch(index, { quantity: e.target.value })}
@@ -471,6 +504,9 @@ export function QuoteForm({
         <div className="space-y-4 rounded-xl border border-border bg-card/60 p-4">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Resumen</h3>
 
+          {breakdown.recurring.length > 0 ? (
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Pago único</p>
+          ) : null}
           <dl className="space-y-2 text-sm tabular-nums">
             <div className="flex items-center justify-between gap-3">
               <dt className="text-muted-foreground">Subtotal</dt>
@@ -496,7 +532,9 @@ export function QuoteForm({
               </dd>
             </div>
             <div className="flex items-baseline justify-between gap-3 border-t border-border pt-3">
-              <dt className="text-sm font-medium text-foreground">Total</dt>
+              <dt className="text-sm font-medium text-foreground">
+                {breakdown.recurring.length > 0 ? "Total inicial" : "Total"}
+              </dt>
               {/* La conclusión comercial de toda la pantalla: pesa más que
                   cualquier otro número, sin recurrir al color. */}
               <dd className="text-2xl font-semibold tracking-tight text-foreground">
@@ -506,8 +544,10 @@ export function QuoteForm({
             </div>
           </dl>
 
+          {/* El reparto pertenece al PAGO ÚNICO: un «50% de anticipo» sobre una
+              mensualidad no significa nada. Por eso va aquí y no al final. */}
           {schedule.length > 0 ? (
-            <dl className="space-y-1.5 border-t border-border/70 pt-3 text-xs tabular-nums">
+            <dl className="space-y-1.5 pt-1 text-xs tabular-nums">
               {schedule.map((i) => (
                 <div key={i.label} className="flex items-center justify-between gap-3">
                   <dt className="text-muted-foreground">
@@ -518,6 +558,35 @@ export function QuoteForm({
               ))}
             </dl>
           ) : null}
+
+          {/* Un bloque por periodicidad. NUNCA se suman al total inicial: son
+              unidades distintas y mezclarlas daría un número falso. */}
+          {breakdown.recurring.map(({ recurrence, totals: t }) => (
+            <div key={recurrence} className="space-y-2 border-t border-border/70 pt-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {RECURRENCE_TOTAL_LABEL[recurrence]}
+              </p>
+              <dl className="space-y-2 text-sm tabular-nums">
+                <div className="flex items-center justify-between gap-3">
+                  <dt className="text-muted-foreground">{RECURRENCE_SUBTOTAL_LABEL[recurrence]}</dt>
+                  <dd className="text-foreground">{formatAmount(t.subtotalCents, currency)}</dd>
+                </div>
+                {taxEnabled ? (
+                  <div className="flex items-center justify-between gap-3">
+                    <dt className="text-muted-foreground">IVA 16%</dt>
+                    <dd className="text-foreground">{formatAmount(t.taxCents, currency)}</dd>
+                  </div>
+                ) : null}
+                <div className="flex items-baseline justify-between gap-3 border-t border-border pt-2">
+                  <dt className="text-sm font-medium text-foreground">{RECURRENCE_GRAND_LABEL[recurrence]}</dt>
+                  <dd className="text-lg font-semibold text-foreground">
+                    {formatAmount(t.totalCents, currency)}{" "}
+                    <span className="text-xs font-normal text-muted-foreground">{currency}</span>
+                  </dd>
+                </div>
+              </dl>
+            </div>
+          ))}
 
           <div className="space-y-2 border-t border-border/70 pt-4">
             <Button type="button" className="w-full" onClick={submit} disabled={saving || issues.length > 0}>

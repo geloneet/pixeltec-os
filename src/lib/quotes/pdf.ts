@@ -4,7 +4,14 @@ import { promisify } from 'node:util';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { computeTotals, lineTotalCents } from './money';
+import {
+  RECURRENCE_LABEL,
+  RECURRENCE_SUBTOTAL_LABEL,
+  RECURRENCE_GRAND_LABEL,
+  computeBreakdown,
+  lineTotalCents,
+  recurrenceOf,
+} from './money';
 import { formatAmount, paymentSummary } from './terms';
 import type { QuoteRecord } from './queries';
 
@@ -46,7 +53,8 @@ export async function renderQuotePdf({
   quote: QuoteRecord;
   clientName: string;
 }): Promise<Buffer> {
-  const totals = computeTotals(quote.items, quote.taxEnabled);
+  const breakdown = computeBreakdown(quote.items, quote.taxEnabled);
+  const totals = breakdown.oneTime;
 
   // El worker solo recibe TEXTO YA FORMATEADO: la aritmética y el formato de
   // moneda viven en `money.ts`, que está cubierto por tests. El worker no
@@ -66,8 +74,17 @@ export async function renderQuotePdf({
     paymentSummary: paymentSummary(totals.totalCents, quote.paymentTerms, quote.currency),
     currency: quote.currency,
     taxEnabled: quote.taxEnabled,
+    hasRecurring: breakdown.recurring.length > 0,
+    recurring: breakdown.recurring.map((g) => ({
+      subtotalLabel: RECURRENCE_SUBTOTAL_LABEL[g.recurrence],
+      grandLabel: RECURRENCE_GRAND_LABEL[g.recurrence],
+      subtotal: formatAmount(g.totals.subtotalCents, quote.currency),
+      tax: formatAmount(g.totals.taxCents, quote.currency),
+      total: `${formatAmount(g.totals.totalCents, quote.currency)} ${quote.currency}`,
+    })),
     items: quote.items.map((item) => ({
       description: item.description,
+      recurrence: RECURRENCE_LABEL[recurrenceOf(item)],
       quantity: formatQty(item.quantity),
       unitPrice: formatAmount(item.unitPriceCents, quote.currency),
       lineTotal: formatAmount(lineTotalCents(item), quote.currency),

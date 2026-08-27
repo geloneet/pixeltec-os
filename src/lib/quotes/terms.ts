@@ -5,7 +5,7 @@
  * el formulario, la vista de detalle, el PDF y el correo leen de aquí. Ninguna
  * pantalla vuelve a calcular un reparto de pago por su cuenta.
  */
-import { computeTotals, type QuoteItem, type QuoteTotals } from './money';
+import { computeBreakdown, computeTotals, type QuoteBreakdown, type QuoteItem, type QuoteTotals } from './money';
 
 // ── Moneda (§4) ──────────────────────────────────────────────────────────────
 
@@ -277,4 +277,13 @@ export function missingToSend(quote: QuoteForValidation): string[] {
 /** Totales de la cotización — reexportado para que nadie importe dos módulos. */
 export function totalsFor(items: readonly QuoteItem[], taxEnabled: boolean): QuoteTotals {
   return computeTotals(items.filter((i) => i.description.trim()), taxEnabled);
+}
+
+/**
+ * Desglose por periodicidad. Es lo que deben usar las pantallas: el reparto de
+ * anticipos, el cobro y el «Total» del listado se apoyan en `oneTime`, porque
+ * un anticipo del 50 % de una mensualidad no significa nada.
+ */
+export function breakdownFor(items: readonly QuoteItem[], taxEnabled: boolean): QuoteBreakdown {
+  return computeBreakdown(items, taxEnabled);
 }

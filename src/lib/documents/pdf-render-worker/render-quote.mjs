@@ -60,6 +60,7 @@ const styles = StyleSheet.create({
   th: { fontSize: 8, fontWeight: 700, color: COLOR.ink, letterSpacing: 0.4 },
   row: { flexDirection: "row", paddingVertical: 8, paddingHorizontal: 8, borderBottomWidth: 0.6, borderBottomColor: COLOR.rule },
   cDesc: { flex: 1, paddingRight: 10 },
+  cRec: { width: 62 },
   cQty: { width: 52, textAlign: "right" },
   cUnit: { width: 82, textAlign: "right" },
   cTotal: { width: 90, textAlign: "right" },
@@ -84,6 +85,7 @@ function QuoteDocument({ q }) {
   const rows = q.items.map((item, i) =>
     h(View, { key: `r${i}`, style: styles.row, wrap: false }, [
       h(Text, { key: "d", style: styles.cDesc }, item.description),
+      h(Text, { key: "r", style: [styles.cRec, { color: COLOR.muted }] }, item.recurrence),
       h(Text, { key: "q", style: [styles.cQty, styles.cellRight] }, item.quantity),
       h(Text, { key: "u", style: [styles.cUnit, styles.cellRight] }, item.unitPrice),
       h(Text, { key: "t", style: [styles.cTotal, styles.cellRight] }, item.lineTotal),
@@ -147,8 +149,9 @@ function QuoteDocument({ q }) {
       h(Text, { key: "invLabel", style: [styles.blockTitle, { marginTop: 26, marginBottom: 6 }] }, "INVERSIÓN"),
       h(View, { key: "thead", style: styles.thead }, [
         h(Text, { key: "d", style: [styles.th, styles.cDesc] }, "CONCEPTO"),
+        h(Text, { key: "r", style: [styles.th, styles.cRec] }, "FRECUENCIA"),
         h(Text, { key: "q", style: [styles.th, styles.cQty, styles.cellRight] }, "CANT."),
-        h(Text, { key: "u", style: [styles.th, styles.cUnit, styles.cellRight] }, "P. UNITARIO"),
+        h(Text, { key: "u", style: [styles.th, styles.cUnit, styles.cellRight] }, "PRECIO"),
         h(Text, { key: "t", style: [styles.th, styles.cTotal, styles.cellRight] }, "IMPORTE"),
       ]),
       h(View, { key: "rows" }, rows),
@@ -156,10 +159,31 @@ function QuoteDocument({ q }) {
       h(View, { key: "totals", style: styles.totals }, [
         ...totalRows,
         h(View, { key: "grand", style: styles.grand }, [
-          h(Text, { key: "l", style: styles.grandLabel }, "Total"),
+          h(Text, { key: "l", style: styles.grandLabel }, q.hasRecurring ? "Total inicial" : "Total"),
           h(Text, { key: "v", style: styles.grandValue }, q.total),
         ]),
       ]),
+
+      // Un bloque por periodicidad. NUNCA se suman al total inicial: son
+      // unidades distintas y mezclarlas daría un número falso.
+      ...(q.recurring ?? []).map((g, i) =>
+        h(View, { key: `rec${i}`, style: [styles.totals, { marginTop: 12 }] }, [
+          h(View, { key: "sub", style: styles.totalRow }, [
+            h(Text, { key: "l", style: styles.totalLabel }, g.subtotalLabel),
+            h(Text, { key: "v" }, g.subtotal),
+          ]),
+          q.taxEnabled
+            ? h(View, { key: "iva", style: styles.totalRow }, [
+                h(Text, { key: "l", style: styles.totalLabel }, "IVA 16%"),
+                h(Text, { key: "v" }, g.tax),
+              ])
+            : null,
+          h(View, { key: "t", style: [styles.grand, { borderTopColor: COLOR.rule }] }, [
+            h(Text, { key: "l", style: [styles.grandLabel, { fontSize: 9.5 }] }, g.grandLabel),
+            h(Text, { key: "v", style: [styles.grandValue, { fontSize: 11 }] }, g.total),
+          ]),
+        ]),
+      ),
 
       q.estimatedDelivery ? h(View, { key: "time", style: styles.block }, [
         h(Text, { key: "t", style: styles.blockTitle }, "TIEMPO ESTIMADO"),
