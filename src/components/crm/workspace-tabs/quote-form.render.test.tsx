@@ -113,7 +113,7 @@ describe("composición (criterios 5, 6, 7)", () => {
   it("el CTA principal vive dentro del resumen, no al final del formulario (criterio 13)", () => {
     const { container } = renderForm();
     const aside = container.querySelector("aside");
-    expect(aside?.textContent).toContain("Guardar borrador");
+    expect(aside?.textContent).toContain("Crear cotización");
     expect(aside?.textContent).toContain("Cancelar");
   });
 });
@@ -181,7 +181,7 @@ describe("validación del CTA (reporte de Miguel)", () => {
   it("con el formulario vacío, el aviso nombra el título y el CTA está deshabilitado", () => {
     renderForm();
     expect(screen.getByText("La cotización necesita un título.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Guardar borrador" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Crear cotización" })).toBeDisabled();
   });
 
   it("al escribir título y un concepto, el CTA se habilita y el aviso desaparece", () => {
@@ -191,7 +191,7 @@ describe("validación del CTA (reporte de Miguel)", () => {
     });
     fireEvent.change(screen.getByLabelText("Concepto 1"), { target: { value: "Desarrollo" } });
 
-    expect(screen.getByRole("button", { name: "Guardar borrador" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Crear cotización" })).toBeEnabled();
     expect(screen.queryByText("La cotización necesita un título.")).toBeNull();
   });
 
@@ -252,5 +252,24 @@ describe("microajustes de cierre", () => {
     renderForm(baseQuote);
     // El ref de auto-grow fija una altura explícita al montar.
     expect(screen.getByLabelText("Alcance incluido").style.height).not.toBe("");
+  });
+});
+
+/**
+ * El texto del CTA describe lo que hace el usuario, no el estado técnico
+ * (Miguel, 2026-08-26): una cotización nueva se «crea» aunque por dentro nazca
+ * en BORRADOR; una ya creada se «guarda».
+ */
+describe("CTA principal", () => {
+  it("una cotización nueva se CREA", () => {
+    renderForm();
+    expect(screen.getByRole("button", { name: "Crear cotización" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Guardar borrador" })).toBeNull();
+  });
+
+  it("una cotización existente se GUARDA", () => {
+    renderForm(baseQuote);
+    expect(screen.getByRole("button", { name: "Guardar cambios" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Crear cotización" })).toBeNull();
   });
 });

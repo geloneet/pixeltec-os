@@ -155,15 +155,18 @@ export function QuoteDetail({
           <Eye className="mr-1.5 h-3.5 w-3.5" />
           Vista previa
         </Button>
+        {/* Con la cotización creada, el siguiente paso natural es enviarla: es
+            la acción principal mientras siga en borrador. Editar, PDF y vista
+            previa quedan como secundarias. */}
         <Button
           type="button"
-          variant="outline"
+          variant={status === "borrador" ? "default" : "outline"}
           size="sm"
           onClick={() => run(() => sendQuoteByEmail(quote.id), "Enviada por correo.")}
           disabled={pending || !clientEmail}
         >
           <Mail className="mr-1.5 h-3.5 w-3.5" />
-          Enviar por correo
+          {status === "borrador" ? "Enviar cotización" : "Enviar por correo"}
         </Button>
         {waLink ? (
           <a

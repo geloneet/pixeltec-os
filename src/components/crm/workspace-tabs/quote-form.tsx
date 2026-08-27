@@ -204,7 +204,14 @@ export function QuoteForm({
       }
     });
 
-  const saveLabel = saving ? "Guardando…" : quote ? "Guardar cambios" : "Guardar borrador";
+  /**
+   * El botón describe lo que hace el USUARIO, no el estado técnico. Al crear,
+   * la acción es «crear la cotización» aunque por dentro nazca en BORRADOR:
+   * «Guardar borrador» sugería un proceso a medias con la cotización ya lista,
+   * y dejaba al usuario preguntándose qué falta. El envío es una acción aparte
+   * y explícita, desde el detalle.
+   */
+  const saveLabel = saving ? "Guardando…" : quote ? "Guardar cambios" : "Crear cotización";
 
   return (
     // Sin mega-card (§1): la superficie es el fondo de la página. Dos columnas
