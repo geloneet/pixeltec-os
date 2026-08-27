@@ -186,32 +186,32 @@ function QuoteDocument({ q }) {
         ]),
       ),
 
-      q.estimatedDelivery ? h(View, { key: "time", wrap: false, style: styles.block }, [
+      q.estimatedDelivery ? h(View, { key: "time", minPresenceAhead: 46, style: styles.block }, [
         h(Text, { key: "t", style: styles.blockTitle }, "TIEMPO ESTIMADO"),
         h(Text, { key: "b", style: styles.blockBody }, q.estimatedDelivery),
       ]) : null,
-      q.paymentSummary ? h(View, { key: "pay", wrap: false, style: styles.block }, [
+      q.paymentSummary ? h(View, { key: "pay", minPresenceAhead: 46, style: styles.block }, [
         h(Text, { key: "t", style: styles.blockTitle }, "FORMA DE PAGO"),
         h(Text, { key: "b", style: styles.blockBody }, q.paymentSummary),
       ]) : null,
       // La renovación va aquí, en texto y después de la forma de pago (Miguel,
       // 2026-08-27). Como columna de totales la etiqueta larga se montaba
       // encima del importe: la columna mide ~130 pt y no hay dónde partirla.
-      q.annualRenewal ? h(View, { key: "renew", wrap: false, style: styles.block }, [
+      q.annualRenewal ? h(View, { key: "renew", minPresenceAhead: 46, style: styles.block }, [
         h(Text, { key: "t", style: styles.blockTitle }, "RENOVACIÓN ANUAL"),
         h(Text, { key: "b", style: styles.blockBody }, q.annualRenewal),
       ]) : null,
-      q.exclusions ? h(View, { key: "excl", wrap: false, style: styles.block }, [
+      q.exclusions ? h(View, { key: "excl", minPresenceAhead: 46, style: styles.block }, [
         h(Text, { key: "t", style: styles.blockTitle }, "FUERA DE ALCANCE"),
         h(Text, { key: "b", style: styles.blockBody }, q.exclusions),
       ]) : null,
       q.notes
-        ? h(View, { key: "notes", wrap: false, style: styles.block }, [
+        ? h(View, { key: "notes", minPresenceAhead: 46, style: styles.block }, [
             h(Text, { key: "t", style: styles.blockTitle }, "NOTAS Y CONDICIONES"),
             h(Text, { key: "b", style: styles.blockBody }, q.notes),
           ])
         : null,
-      h(View, { key: "next", wrap: false, style: [styles.block, { backgroundColor: COLOR.band, borderRadius: 4, padding: 12 }] }, [
+      h(View, { key: "next", wrap: false, minPresenceAhead: 46, style: [styles.block, { backgroundColor: COLOR.band, borderRadius: 4, padding: 12 }] }, [
         h(Text, { key: "t", style: styles.blockTitle }, "SIGUIENTE PASO"),
         h(Text, { key: "b", style: styles.blockBody }, "Aceptar la propuesta y realizar el anticipo correspondiente."),
       ]),

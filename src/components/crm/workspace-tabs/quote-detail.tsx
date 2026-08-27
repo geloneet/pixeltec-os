@@ -143,6 +143,13 @@ export function QuoteDetail({
         </Button>
         <a
           href={`/api/documents/quote-pdf?id=${quote.id}`}
+          // El PDF se re-renderiza en cada petición, pero la URL era siempre la
+          // misma y el visor de Chrome reusaba el que ya tenía en la pestaña:
+          // un cambio de plantilla no se veía hasta forzar recarga. Se sella la
+          // URL al pulsar —no al renderizar, que rompería la hidratación—.
+          onClick={(e) => {
+            e.currentTarget.href = `/api/documents/quote-pdf?id=${quote.id}&t=${Date.now()}`;
+          }}
           target="_blank"
           rel="noreferrer"
           className="inline-flex h-8 items-center rounded-md border border-input px-3 text-xs font-medium transition-colors hover:bg-accent"
@@ -277,6 +284,9 @@ export function QuoteDetail({
           <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4">
             <a
               href={`/api/documents/quote-pdf?id=${quote.id}`}
+              onClick={(e) => {
+                e.currentTarget.href = `/api/documents/quote-pdf?id=${quote.id}&t=${Date.now()}`;
+              }}
               target="_blank"
               rel="noreferrer"
               className="inline-flex h-8 items-center rounded-md border border-input px-3 text-xs font-medium transition-colors hover:bg-accent"
