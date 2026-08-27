@@ -17,12 +17,12 @@ export const IVA_RATE = 16;
  * no hizo falta migración: un concepto sin `recurrence` es de pago único, que
  * es como se comportaban todos los guardados hasta ahora.
  *
- * SOLO dos opciones (decisión de Miguel, 2026-08-26): resuelven el caso real de
- * la agencia —implementación por un lado, servicio recurrente por otro— y
- * trimestral/anual se añadirán si algún día se usan de verdad, no por si acaso.
- * Se comprobó que ninguna cotización guardada los usaba antes de quitarlos.
+ * Tres opciones (Miguel, 2026-08-26): única vez, mensual y anual. Trimestral
+ * queda fuera a propósito — se añadirá si algún día se usa de verdad, no por si
+ * acaso. `recurring_charges.frequency` ya admitía `monthly|annual`, así que
+ * «anual» no necesitó ni migración ni columna nueva.
  */
-export const RECURRENCES = ['unica', 'mensual'] as const;
+export const RECURRENCES = ['unica', 'mensual', 'anual'] as const;
 export type Recurrence = (typeof RECURRENCES)[number];
 export const DEFAULT_RECURRENCE: Recurrence = 'unica';
 
@@ -30,24 +30,35 @@ export const DEFAULT_RECURRENCE: Recurrence = 'unica';
 export const RECURRENCE_LABEL: Record<Recurrence, string> = {
   unica: 'Única vez',
   mensual: 'Mensual',
+  anual: 'Anual',
 };
 
 /** Cómo se titula el bloque de totales de cada frecuencia. */
 export const RECURRENCE_TOTAL_LABEL: Record<Recurrence, string> = {
   unica: 'Pago único',
   mensual: 'Mensual',
+  anual: 'Anual',
 };
 
 /** Cómo se llama el «total» de cada bloque en el resumen. */
 export const RECURRENCE_GRAND_LABEL: Record<Recurrence, string> = {
   unica: 'Total inicial',
   mensual: 'Mensualidad',
+  anual: 'Anualidad',
 };
 
 /** Cómo se llama el subtotal de cada bloque. */
 export const RECURRENCE_SUBTOTAL_LABEL: Record<Recurrence, string> = {
   unica: 'Subtotal',
   mensual: 'Servicios',
+  anual: 'Servicios',
+};
+
+/** Cómo se lee el periodo junto a un importe: «$900.00 / mes». */
+export const RECURRENCE_PER_LABEL: Record<Recurrence, string> = {
+  unica: '',
+  mensual: '/ mes',
+  anual: '/ año',
 };
 
 export function isRecurrence(value: unknown): value is Recurrence {

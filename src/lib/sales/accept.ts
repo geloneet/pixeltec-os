@@ -60,7 +60,10 @@ function toDueDate(validUntil: string | null, fallback: Date): string {
  * valores (`monthly|annual`) — distinto del `billing_frequency` de los cobros.
  * La traducción vive aquí y no repartida por el código.
  */
-const FREQUENCY: Record<Exclude<Recurrence, 'unica'>, 'monthly'> = { mensual: 'monthly' };
+const FREQUENCY: Record<Exclude<Recurrence, 'unica'>, 'monthly' | 'annual'> = {
+  mensual: 'monthly',
+  anual: 'annual',
+};
 
 export async function acceptQuoteAndCreateSale(input: AcceptQuoteInput): Promise<AcceptQuoteResult> {
   const breakdown = computeBreakdown(input.items, input.taxEnabled);

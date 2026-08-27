@@ -198,10 +198,35 @@ describe('periodicidad por concepto', () => {
     expect(b.recurring.map((r) => [r.recurrence, r.totals.totalCents])).toEqual([['mensual', 340000]]);
   });
 
-  it('solo hay dos frecuencias: única vez y mensual', () => {
-    expect([...RECURRENCES]).toEqual(['unica', 'mensual']);
-    // Un valor retirado del catálogo cae a pago único, no rompe la pantalla.
+  it('las frecuencias son única vez, mensual y anual', () => {
+    expect([...RECURRENCES]).toEqual(['unica', 'mensual', 'anual']);
+    // Trimestral quedó fuera a propósito: cae a pago único, no rompe nada.
     expect(recurrenceOf({ recurrence: 'trimestral' })).toBe('unica');
+    expect(recurrenceOf({ recurrence: 'anual' })).toBe('anual');
+  });
+
+  it('anual y mensual NO se mezclan entre sí ni con el pago único', () => {
+    const b = computeBreakdown(
+      [
+        rec('Desarrollo', 2000000),
+        rec('Hosting', 90000, 'mensual'),
+        rec('Dominio y SSL', 120000, 'anual'),
+      ],
+      true,
+    );
+    expect(b.oneTime).toEqual({ subtotalCents: 2000000, taxCents: 320000, totalCents: 2320000 });
+    expect(b.recurring.map((r) => [r.recurrence, r.totals.totalCents])).toEqual([
+      ['mensual', 104400], // 900 + IVA
+      ['anual', 139200], // 1,200 + IVA
+    ]);
+  });
+
+  it('los grupos salen en el orden del catálogo, no en el de captura', () => {
+    const b = computeBreakdown(
+      [rec('Dominio', 120000, 'anual'), rec('Hosting', 90000, 'mensual')],
+      false,
+    );
+    expect(b.recurring.map((r) => r.recurrence)).toEqual(['mensual', 'anual']);
   });
 
   it('aplica el IVA dentro de cada periodicidad, no al conjunto', () => {

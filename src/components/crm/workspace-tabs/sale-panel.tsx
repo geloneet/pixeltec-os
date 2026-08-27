@@ -35,6 +35,12 @@ import {
   type SaleStatus,
 } from "@/lib/sales/model";
 
+/**
+ * `recurring_charges.frequency` guarda el enum en inglés (`monthly|annual`).
+ * Aquí solo se traduce para leerlo junto al importe.
+ */
+const PER_LABEL: Record<string, string> = { monthly: "/ mes", annual: "/ año" };
+
 /** Hoy en `YYYY-MM-DD`, que es lo que espera el input date. */
 function today(): string {
   const d = new Date();
@@ -250,7 +256,8 @@ export function SalePanel({ quotationId, onOpenCharges }: { quotationId: string;
                   <span className="truncate text-foreground">{r.concept}</span>
                 </span>
                 <span className="shrink-0 tabular-nums text-foreground">
-                  {money(r.amount, sale.currency)} <span className="text-xs text-muted-foreground">/ mes</span>
+                  {money(r.amount, sale.currency)}{" "}
+                  <span className="text-xs text-muted-foreground">{PER_LABEL[r.frequency] ?? ""}</span>
                 </span>
               </div>
               <div className="flex flex-wrap items-center gap-2 pl-5">
