@@ -78,6 +78,60 @@ export interface QuoteItem {
   unitPriceCents: number;
   /** Cada cuánto se paga. Ausente ⇒ «unica» (compatibilidad hacia atrás). */
   recurrence?: Recurrence;
+  /**
+   * Solo para conceptos anuales: el primer año va incluido y NO se cobra al
+   * firmar (Miguel, 2026-08-27). El precio se sigue capturando —es lo que se
+   * cobrará cada aniversario— pero aporta cero al total inicial.
+   *
+   * Vive en el jsonb `quotes.items`, así que no hizo falta migración; ausente
+   * ⇒ `false`, que es como se comportaban todos los guardados hasta ahora.
+   */
+  firstYearFree?: boolean;
+}
+
+/**
+ * ¿Este concepto lleva el primer año incluido? Solo tiene sentido en los
+ * anuales: marcarlo en un mensual o en un pago único no significa nada, y esta
+ * función lo ignora en vez de inventar un comportamiento.
+ */
+export function isFirstYearFree(item: { recurrence?: string; firstYearFree?: boolean }): boolean {
+  return recurrenceOf(item) === 'anual' && item.firstYearFree === true;
+}
+
+/**
+ * Lo que se elige en la columna «Frecuencia». Son CUATRO opciones aunque solo
+ * haya tres periodicidades: «primer año gratis» no es otra periodicidad, es un
+ * anual que no se cobra la primera vez. Modelarlo como una cuarta recurrencia
+ * obligaría a tratarlo aparte en cada agrupación; como bandera, el anual sigue
+ * siendo anual en todo el sistema y solo cambia lo que aporta al total.
+ */
+export const FREQUENCY_KEYS = ['unica', 'mensual', 'anual', 'anual_primer_anio_gratis'] as const;
+export type FrequencyKey = (typeof FREQUENCY_KEYS)[number];
+
+export const FREQUENCY_KEY_LABEL: Record<FrequencyKey, string> = {
+  unica: 'Única vez',
+  mensual: 'Mensual',
+  anual: 'Anual',
+  anual_primer_anio_gratis: 'Anual · primer año gratis',
+};
+
+/** Qué opción del desplegable le corresponde a un concepto ya guardado. */
+export function frequencyKeyOf(item: { recurrence?: string; firstYearFree?: boolean }): FrequencyKey {
+  if (isFirstYearFree(item)) return 'anual_primer_anio_gratis';
+  return recurrenceOf(item);
+}
+
+/**
+ * Traduce la opción elegida a los dos campos que se guardan. Se limpia la
+ * bandera al salir de «anual» para que no quede un `firstYearFree: true`
+ * colgado en un concepto mensual, invisible y esperando a confundir a alguien.
+ */
+export function applyFrequencyKey<T extends object>(
+  item: T,
+  key: FrequencyKey,
+): T & { recurrence: Recurrence; firstYearFree: boolean } {
+  if (key === 'anual_primer_anio_gratis') return { ...item, recurrence: 'anual', firstYearFree: true };
+  return { ...item, recurrence: key, firstYearFree: false };
 }
 
 export interface QuoteTotals {
@@ -98,12 +152,21 @@ export function lineTotalCents(item: QuoteItem): number {
 }
 
 /**
+ * Lo que esa línea aporta HOY. Idéntico a `lineTotalCents` salvo en un anual
+ * con el primer año incluido, que aporta cero: el precio se conserva porque es
+ * lo que se cobrará cada aniversario, pero no se cobra al firmar.
+ */
+export function chargeableLineTotalCents(item: QuoteItem): number {
+  return isFirstYearFree(item) ? 0 : lineTotalCents(item);
+}
+
+/**
  * Totales de la cotización. El IVA se calcula sobre el subtotal ya redondeado,
  * no línea por línea: es como lo hace una factura mexicana y evita que la suma
  * de los IVAs de cada línea difiera del IVA del total.
  */
 export function computeTotals(items: readonly QuoteItem[], taxEnabled: boolean): QuoteTotals {
-  const subtotalCents = items.reduce((sum, item) => sum + lineTotalCents(item), 0);
+  const subtotalCents = items.reduce((sum, item) => sum + chargeableLineTotalCents(item), 0);
   const taxCents = taxEnabled ? roundHalfUp((subtotalCents * IVA_RATE) / 100) : 0;
   return { subtotalCents, taxCents, totalCents: subtotalCents + taxCents };
 }
@@ -152,28 +215,43 @@ export function validateQuote(input: {
   const issues: QuoteValidationIssue[] = [];
 
   if (!input.title.trim()) {
-    issues.push({ field: 'title', message: 'La cotización necesita un título.' });
+    issues.push({
+      field: 'title',
+      message: 'La cotización necesita un título.',
+    });
   }
 
   const usable = input.items.filter((i) => i.description.trim());
   if (usable.length === 0) {
-    issues.push({ field: 'items', message: 'Agrega al menos un concepto con descripción.' });
+    issues.push({
+      field: 'items',
+      message: 'Agrega al menos un concepto con descripción.',
+    });
   }
 
   input.items.forEach((item, index) => {
     if (!item.description.trim()) return;
     if (!(item.quantity > 0)) {
-      issues.push({ field: `items.${index}.quantity`, message: 'La cantidad debe ser mayor que cero.' });
+      issues.push({
+        field: `items.${index}.quantity`,
+        message: 'La cantidad debe ser mayor que cero.',
+      });
     }
     if (item.unitPriceCents < 0) {
-      issues.push({ field: `items.${index}.unitPriceCents`, message: 'El precio no puede ser negativo.' });
+      issues.push({
+        field: `items.${index}.unitPriceCents`,
+        message: 'El precio no puede ser negativo.',
+      });
     }
   });
 
   if (input.validUntil) {
     const date = new Date(input.validUntil);
     if (Number.isNaN(date.getTime())) {
-      issues.push({ field: 'validUntil', message: 'La fecha de vigencia no es válida.' });
+      issues.push({
+        field: 'validUntil',
+        message: 'La fecha de vigencia no es válida.',
+      });
     }
   }
 
@@ -186,18 +264,35 @@ export function usableItems(items: readonly QuoteItem[]): QuoteItem[] {
 }
 
 /**
- * Totales separados por periodicidad.
+ * Totales separados por lo que el cliente paga AHORA y lo que pagará después.
  *
- * NO se suma un mensual con un pago único: son unidades distintas y un total
- * mezclado sería un número falso en un documento que va a un cliente. Una
+ * Sigue sin sumarse un mensual con un pago único: son unidades distintas y un
+ * total mezclado sería un número falso en un documento que va a un cliente. Una
  * cotización de «$25,000 de desarrollo + $500 al mes de hospedaje» no vale
  * $25,500: vale $25,000 ahora y $500 cada mes.
+ *
+ * La ANUAL es el caso distinto, y por decisión de Miguel (2026-08-27) sí entra
+ * en el total inicial: su primera anualidad se cobra al firmar, junto con el
+ * desarrollo, así que es dinero de la misma factura y no un compromiso futuro.
+ * Lo que queda a futuro es la RENOVACIÓN, y esa se declara aparte en
+ * `annualRenewal` para que el cliente vea qué le tocará pagar cada aniversario.
+ *
+ * Consecuencia que obliga al flujo de venta: si el primer año se cobra aquí, el
+ * cargo recurrente NO puede volver a cobrarlo — arranca al primer aniversario.
+ * Y si el primer año va incluido («primer año gratis»), el primer cobro cae en
+ * esa misma fecha. Misma fecha de arranque en los dos casos; lo único que
+ * cambia es si la anualidad suma o no al total inicial.
  */
 export interface QuoteBreakdown {
-  /** Lo que se paga una sola vez. Es la base del reparto de anticipos. */
+  /** Lo que se cobra al firmar: pagos únicos + la primera anualidad cobrable.
+   *  Es la base del reparto de anticipos (Miguel: sobre el total completo). */
   oneTime: QuoteTotals;
-  /** Un bloque por periodicidad presente, en el orden del catálogo. */
+  /** Bloques que se muestran aparte por no cobrarse al firmar. Hoy: mensual. */
   recurring: { recurrence: Recurrence; totals: QuoteTotals }[];
+  /** Lo que se renovará cada aniversario, a precio completo. `null` si no hay
+   *  conceptos anuales. Incluye los de primer año gratis: gratis es el primer
+   *  año, no la renovación. */
+  annualRenewal: QuoteTotals | null;
 }
 
 export function itemsByRecurrence(items: readonly QuoteItem[]): Map<Recurrence, QuoteItem[]> {
@@ -212,11 +307,26 @@ export function itemsByRecurrence(items: readonly QuoteItem[]): Map<Recurrence, 
 
 export function computeBreakdown(items: readonly QuoteItem[], taxEnabled: boolean): QuoteBreakdown {
   const groups = itemsByRecurrence(items);
+  const anuales = groups.get('anual') ?? [];
   return {
-    oneTime: computeTotals(groups.get('unica') ?? [], taxEnabled),
-    recurring: RECURRENCES.filter((r) => r !== 'unica')
+    // Los anuales con primer año gratis viajan en esta lista y aportan cero:
+    // `chargeableLineTotalCents` ya lo resuelve, así que el IVA se calcula una
+    // sola vez sobre el subtotal real y no hay dos bases imponibles distintas.
+    oneTime: computeTotals([...(groups.get('unica') ?? []), ...anuales], taxEnabled),
+    recurring: RECURRENCES.filter((r) => r !== 'unica' && r !== 'anual')
       .filter((r) => (groups.get(r) ?? []).length > 0)
-      .map((recurrence) => ({ recurrence, totals: computeTotals(groups.get(recurrence)!, taxEnabled) })),
+      .map((recurrence) => ({
+        recurrence,
+        totals: computeTotals(groups.get(recurrence)!, taxEnabled),
+      })),
+    // A precio completo: la renovación no hereda la gratuidad del primer año.
+    annualRenewal:
+      anuales.length > 0
+        ? computeTotals(
+            anuales.map((i) => ({ ...i, firstYearFree: false })),
+            taxEnabled,
+          )
+        : null,
   };
 }
 

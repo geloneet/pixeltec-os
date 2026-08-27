@@ -9,7 +9,9 @@
  * No calcula: pide el desglose a `@/lib/quotes/money` y `terms` (fuente única).
  */
 import {
-  RECURRENCE_LABEL,
+  FREQUENCY_KEY_LABEL,
+  frequencyKeyOf,
+  isFirstYearFree,
   RECURRENCE_TOTAL_LABEL,
   RECURRENCE_GRAND_LABEL,
   RECURRENCE_SUBTOTAL_LABEL,
@@ -18,7 +20,14 @@ import {
   type QuoteItem,
   type Recurrence,
 } from "@/lib/quotes/money";
-import { breakdownFor, formatAmount, formatDate, paymentSummary, type Currency, type PaymentTerms } from "@/lib/quotes/terms";
+import {
+  breakdownFor,
+  formatAmount,
+  formatDate,
+  paymentSummary,
+  type Currency,
+  type PaymentTerms,
+} from "@/lib/quotes/terms";
 
 export interface QuoteDocumentData {
   folio: string;
@@ -53,13 +62,17 @@ function Block({ title, body }: { title: string; body: string }) {
 
 /** Bloque de totales de una periodicidad. */
 function TotalsBlock({
-  recurrence,
+  heading,
+  subtotalLabel,
+  grandLabel,
   totals,
   currency,
   taxEnabled,
   emphasis,
 }: {
-  recurrence: Recurrence;
+  heading: string;
+  subtotalLabel: string;
+  grandLabel: string;
   totals: { subtotalCents: number; taxCents: number; totalCents: number };
   currency: Currency;
   taxEnabled: boolean;
@@ -67,11 +80,9 @@ function TotalsBlock({
 }) {
   return (
     <dl className="w-60 space-y-1.5 text-sm tabular-nums">
-      <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-        {RECURRENCE_TOTAL_LABEL[recurrence]}
-      </p>
+      <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">{heading}</p>
       <div className="flex justify-between text-muted-foreground">
-        <dt>{RECURRENCE_SUBTOTAL_LABEL[recurrence]}</dt>
+        <dt>{subtotalLabel}</dt>
         <dd>{formatAmount(totals.subtotalCents, currency)}</dd>
       </div>
       {taxEnabled ? (
@@ -87,7 +98,7 @@ function TotalsBlock({
             : "flex items-baseline justify-between border-t border-border pt-2 text-sm font-medium text-foreground"
         }
       >
-        <dt>{RECURRENCE_GRAND_LABEL[recurrence]}</dt>
+        <dt>{grandLabel}</dt>
         <dd>
           {formatAmount(totals.totalCents, currency)} <span className="text-xs font-normal">{currency}</span>
         </dd>
@@ -141,11 +152,13 @@ export function QuoteDocument({ quote, clientName }: { quote: QuoteDocumentData;
             </thead>
             <tbody>
               {quote.items.map((item, i) => {
-                const r = recurrenceOf(item);
+                const gratis = isFirstYearFree(item);
                 return (
                   <tr key={i} className="border-b border-border/60">
                     <td className="py-2.5 pr-3 text-foreground">{item.description}</td>
-                    <td className="py-2.5 px-3 text-xs text-muted-foreground">{RECURRENCE_LABEL[r]}</td>
+                    <td className="py-2.5 px-3 text-xs text-muted-foreground">
+                      {FREQUENCY_KEY_LABEL[frequencyKeyOf(item)]}
+                    </td>
                     <td className="py-2.5 px-3 text-right tabular-nums text-muted-foreground">
                       {formatQty(item.quantity)}
                     </td>
@@ -153,7 +166,16 @@ export function QuoteDocument({ quote, clientName }: { quote: QuoteDocumentData;
                       {formatAmount(item.unitPriceCents, quote.currency)}
                     </td>
                     <td className="py-2.5 pl-3 text-right tabular-nums text-foreground">
-                      {formatAmount(lineTotalCents(item), quote.currency)}
+                      {gratis ? (
+                        // El precio se muestra igual —es lo que costará al
+                        // renovar— pero tachado y con el importe real de hoy.
+                        <span className="text-muted-foreground">
+                          <span className="line-through">{formatAmount(lineTotalCents(item), quote.currency)}</span>{" "}
+                          <span className="text-xs">incluido</span>
+                        </span>
+                      ) : (
+                        formatAmount(lineTotalCents(item), quote.currency)
+                      )}
                     </td>
                   </tr>
                 );
@@ -164,7 +186,9 @@ export function QuoteDocument({ quote, clientName }: { quote: QuoteDocumentData;
 
         <div className="flex flex-wrap justify-end gap-x-10 gap-y-5 pt-2">
           <TotalsBlock
-            recurrence="unica"
+            heading={breakdown.annualRenewal ? "Al firmar" : RECURRENCE_TOTAL_LABEL.unica}
+            subtotalLabel={RECURRENCE_SUBTOTAL_LABEL.unica}
+            grandLabel={RECURRENCE_GRAND_LABEL.unica}
             totals={breakdown.oneTime}
             currency={quote.currency}
             taxEnabled={quote.taxEnabled}
@@ -173,13 +197,28 @@ export function QuoteDocument({ quote, clientName }: { quote: QuoteDocumentData;
           {breakdown.recurring.map(({ recurrence, totals }) => (
             <TotalsBlock
               key={recurrence}
-              recurrence={recurrence}
+              heading={RECURRENCE_TOTAL_LABEL[recurrence]}
+              subtotalLabel={RECURRENCE_SUBTOTAL_LABEL[recurrence]}
+              grandLabel={RECURRENCE_GRAND_LABEL[recurrence]}
               totals={totals}
               currency={quote.currency}
               taxEnabled={quote.taxEnabled}
               emphasis={false}
             />
           ))}
+          {/* La renovación no se cobra hoy, pero es un compromiso que el
+              cliente adquiere al firmar: va en el documento, no en una nota. */}
+          {breakdown.annualRenewal ? (
+            <TotalsBlock
+              heading="Renovación anual"
+              subtotalLabel="Servicios"
+              grandLabel="Cada año, desde el 1.er aniversario"
+              totals={breakdown.annualRenewal}
+              currency={quote.currency}
+              taxEnabled={quote.taxEnabled}
+              emphasis={false}
+            />
+          ) : null}
         </div>
       </section>
 
@@ -193,9 +232,7 @@ export function QuoteDocument({ quote, clientName }: { quote: QuoteDocumentData;
 
       <section className="rounded-lg border border-border bg-muted/30 p-4">
         <h3 className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Siguiente paso</h3>
-        <p className="mt-1.5 text-sm text-foreground">
-          Aceptar la propuesta y realizar el anticipo correspondiente.
-        </p>
+        <p className="mt-1.5 text-sm text-foreground">Aceptar la propuesta y realizar el anticipo correspondiente.</p>
       </section>
     </article>
   );

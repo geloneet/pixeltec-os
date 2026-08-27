@@ -2,7 +2,7 @@ import 'server-only';
 import { desc, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { quotes, clients } from '@/lib/db/schema';
-import { recurrenceOf, type QuoteItem } from './money';
+import { isFirstYearFree, recurrenceOf, type QuoteItem } from './money';
 import { parsePaymentTerms, type Currency, type PaymentTerms, type Rejection, isCurrency } from './terms';
 
 /**
@@ -62,6 +62,10 @@ function toItems(raw: unknown): QuoteItem[] {
       // releer, un concepto mensual volvía como pago único y el documento
       // sumaba lo que no debía. `recurrenceOf` tolera ausente o desconocida.
       recurrence: recurrenceOf(i as { recurrence?: string }),
+      // Misma trampa que la frecuencia: si el saneador no copia la bandera, al
+      // reabrir la cotización un «primer año gratis» vuelve como anual cobrada
+      // y el total inicial sube 899 sin que nadie lo haya tocado.
+      firstYearFree: isFirstYearFree(i as { recurrence?: string; firstYearFree?: boolean }),
     }));
 }
 
@@ -108,9 +112,7 @@ export async function getQuoteById(id: string): Promise<QuoteRecord | null> {
 }
 
 /** Para la vista pública: la cotización más el nombre del cliente. */
-export async function getQuoteByToken(
-  token: string,
-): Promise<(QuoteRecord & { clientName: string }) | null> {
+export async function getQuoteByToken(token: string): Promise<(QuoteRecord & { clientName: string }) | null> {
   const rows = await db
     .select({ quote: quotes, clientName: clients.name })
     .from(quotes)
@@ -128,11 +130,21 @@ export async function listFolios(): Promise<string[]> {
 }
 
 /** Datos del cliente que necesita la cotización (destinatarios y encabezado). */
-export async function getQuoteClient(
-  clientId: string,
-): Promise<{ id: string; name: string; email: string | null; phone: string | null; whatsapp: string | null } | null> {
+export async function getQuoteClient(clientId: string): Promise<{
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  whatsapp: string | null;
+} | null> {
   const rows = await db
-    .select({ id: clients.id, name: clients.name, email: clients.email, phone: clients.phone, whatsapp: clients.whatsapp })
+    .select({
+      id: clients.id,
+      name: clients.name,
+      email: clients.email,
+      phone: clients.phone,
+      whatsapp: clients.whatsapp,
+    })
     .from(clients)
     .where(eq(clients.id, clientId))
     .limit(1);

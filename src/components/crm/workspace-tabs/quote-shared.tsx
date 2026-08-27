@@ -6,7 +6,14 @@
  * conversión de filas — nunca dos versiones que se desincronizan.
  */
 import { cn } from "@/lib/utils";
-import { centsToInput, parseMoneyToCents, recurrenceOf, type QuoteItem, type Recurrence } from "@/lib/quotes/money";
+import {
+  applyFrequencyKey,
+  centsToInput,
+  frequencyKeyOf,
+  parseMoneyToCents,
+  type FrequencyKey,
+  type QuoteItem,
+} from "@/lib/quotes/money";
 import { STATUS_LABEL, type QuoteStatus, type PaymentTerms, type Rejection, type Currency } from "@/lib/quotes/terms";
 
 export interface QuoteView {
@@ -45,7 +52,9 @@ const BADGE: Record<QuoteStatus, string> = {
 /** Insignia discreta de estado (§14). */
 export function StatusBadge({ status, className }: { status: QuoteStatus; className?: string }) {
   return (
-    <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium whitespace-nowrap", BADGE[status], className)}>
+    <span
+      className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium whitespace-nowrap", BADGE[status], className)}
+    >
       {STATUS_LABEL[status]}
     </span>
   );
@@ -56,18 +65,31 @@ export interface DraftItem {
   description: string;
   quantity: string;
   unitPrice: string;
-  recurrence: Recurrence;
+  /** La opción elegida en «Frecuencia»: cuatro, porque «primer año gratis» es
+   *  una de ellas aunque por dentro sea un anual con bandera. */
+  frequency: FrequencyKey;
 }
 
-export const emptyRow = (): DraftItem => ({ description: "", quantity: "1", unitPrice: "", recurrence: "unica" });
+export const emptyRow = (): DraftItem => ({
+  description: "",
+  quantity: "1",
+  unitPrice: "",
+  frequency: "unica",
+});
 
 export function toQuoteItems(rows: DraftItem[]): QuoteItem[] {
-  return rows.map((r) => ({
-    description: r.description,
-    quantity: Number(r.quantity.replace(",", ".")) || 0,
-    unitPriceCents: parseMoneyToCents(r.unitPrice) ?? 0,
-    recurrence: r.recurrence,
-  }));
+  return rows.map((r) =>
+    // La opción del desplegable se traduce aquí a los dos campos que se
+    // guardan (`recurrence` + `firstYearFree`), en un solo sitio.
+    applyFrequencyKey(
+      {
+        description: r.description,
+        quantity: Number(r.quantity.replace(",", ".")) || 0,
+        unitPriceCents: parseMoneyToCents(r.unitPrice) ?? 0,
+      },
+      r.frequency,
+    ),
+  );
 }
 
 export function fromQuote(quote: QuoteView): DraftItem[] {
@@ -76,7 +98,7 @@ export function fromQuote(quote: QuoteView): DraftItem[] {
     quantity: String(i.quantity),
     unitPrice: centsToInput(i.unitPriceCents),
     // Las cotizaciones guardadas antes de esta orden no traen el campo.
-    recurrence: recurrenceOf(i),
+    frequency: frequencyKeyOf(i),
   }));
   return rows.length > 0 ? rows : [emptyRow()];
 }

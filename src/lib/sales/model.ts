@@ -114,3 +114,35 @@ export function deriveSaleStatus(current: SaleStatus, charges: readonly ChargeSt
 export function readyForProject(status: SaleStatus): boolean {
   return status === 'activa' || status === 'completada';
 }
+
+// ── Aniversario de la anualidad (Miguel, 2026-08-27) ────────────────────────
+
+/**
+ * Fecha del primer cobro de un concepto ANUAL, en `YYYY-MM-DD`.
+ *
+ * Es el primer aniversario de la aceptación, y vale para los dos casos:
+ * - anualidad cobrada al firmar ⇒ el año 1 ya está pagado, el recurrente
+ *   arranca en el aniversario (si arrancara hoy se cobraría dos veces);
+ * - «primer año gratis» ⇒ el año 1 no se cobra, el primero que se cobra es
+ *   justo ese aniversario.
+ *
+ * Se usan los getters LOCALES a propósito: es una fecha de negocio («el 27 de
+ * agosto del año que viene»), no un instante. Con `toISOString()` una
+ * aceptación de las 8 de la noche en México caería al día siguiente en UTC y el
+ * aniversario saldría corrido un día.
+ *
+ * 29 de febrero: JavaScript desborda a marzo, así que se retrocede al 28 —
+ * cobrar el 1 de marzo un servicio contratado en febrero es un error visible en
+ * un estado de cuenta.
+ */
+export function firstAnniversary(acceptedAt: Date): string {
+  const year = acceptedAt.getFullYear() + 1;
+  const month = acceptedAt.getMonth();
+  const day = acceptedAt.getDate();
+  const candidate = new Date(year, month, day);
+  // Si el mes cambió, el día no existía en el año destino (29 de febrero).
+  if (candidate.getMonth() !== month) candidate.setDate(0);
+  const mm = String(candidate.getMonth() + 1).padStart(2, '0');
+  const dd = String(candidate.getDate()).padStart(2, '0');
+  return `${candidate.getFullYear()}-${mm}-${dd}`;
+}

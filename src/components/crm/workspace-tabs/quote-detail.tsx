@@ -22,7 +22,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { lineTotalCents } from "@/lib/quotes/money";
+import { isFirstYearFree, lineTotalCents, RECURRENCE_GRAND_LABEL } from "@/lib/quotes/money";
 import {
   REJECTION_LABEL,
   REJECTION_REASONS,
@@ -31,17 +31,11 @@ import {
   formatAmount,
   formatDate,
   paymentSummary,
-  totalsFor,
+  breakdownFor,
   type RejectionReason,
 } from "@/lib/quotes/terms";
 import { buildWhatsAppLink } from "@/lib/quotes/share";
-import {
-  acceptQuote,
-  markQuoteShared,
-  rejectQuote,
-  sendQuoteByEmail,
-  snoozeFollowUp,
-} from "@/lib/quotes/actions";
+import { acceptQuote, markQuoteShared, rejectQuote, sendQuoteByEmail, snoozeFollowUp } from "@/lib/quotes/actions";
 import { StatusBadge, type QuoteView } from "./quote-shared";
 import { QuoteDocument } from "./quote-document";
 import { AcceptDialog, SalePanel } from "./sale-panel";
@@ -86,7 +80,11 @@ export function QuoteDetail({
 
   const now = new Date();
   const status = displayStatus(quote.status, quote.validUntil, now);
-  const totals = totalsFor(quote.items, quote.taxEnabled);
+  // `breakdownFor(...).oneTime`, no `totalsFor`: este panel debe mostrar lo que
+  // se cobra AL FIRMAR. `totalsFor` suma todos los conceptos, así que con una
+  // mensualidad daba un «Total» que nadie va a pagar de una sola vez.
+  const breakdown = breakdownFor(quote.items, quote.taxEnabled);
+  const totals = breakdown.oneTime;
   const url = `${siteUrl}/c/${quote.publicToken}`;
   const follow = followUpLabel(quote.nextFollowUpAt, status, now);
 
@@ -204,7 +202,6 @@ export function QuoteDetail({
               </Button>
             </>
           ) : null}
-
         </span>
       </div>
 
@@ -254,18 +251,11 @@ export function QuoteDetail({
       {quote.rejection ? (
         <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 p-4 text-sm">
           <p className="font-medium text-foreground">Rechazada: {REJECTION_LABEL[quote.rejection.reason]}</p>
-          {quote.rejection.comment ? (
-            <p className="mt-1 text-muted-foreground">{quote.rejection.comment}</p>
-          ) : null}
+          {quote.rejection.comment ? <p className="mt-1 text-muted-foreground">{quote.rejection.comment}</p> : null}
         </div>
       ) : null}
 
-      <AcceptDialog
-        quoteId={quote.id}
-        open={acceptOpen}
-        onOpenChange={setAcceptOpen}
-        onAccepted={onChanged}
-      />
+      <AcceptDialog quoteId={quote.id} open={acceptOpen} onOpenChange={setAcceptOpen} onAccepted={onChanged} />
 
       {/* §10: tras aceptar, el resumen aparece aquí mismo — nada de pantallas
           vacías ni de ir a Finanzas a capturar de nuevo. */}
@@ -334,7 +324,14 @@ export function QuoteDetail({
                       {formatAmount(item.unitPriceCents, quote.currency)}
                     </td>
                     <td className="py-2.5 pl-3 text-right tabular-nums text-foreground">
-                      {formatAmount(lineTotalCents(item), quote.currency)}
+                      {isFirstYearFree(item) ? (
+                        <span className="text-muted-foreground">
+                          <span className="line-through">{formatAmount(lineTotalCents(item), quote.currency)}</span>{" "}
+                          <span className="text-xs">1.er año incluido</span>
+                        </span>
+                      ) : (
+                        formatAmount(lineTotalCents(item), quote.currency)
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -354,11 +351,29 @@ export function QuoteDetail({
                 </div>
               ) : null}
               <div className="flex justify-between border-t border-border pt-1.5 text-base font-semibold text-foreground">
-                <dt>Total</dt>
+                <dt>{breakdown.recurring.length > 0 || breakdown.annualRenewal ? "Total inicial" : "Total"}</dt>
                 <dd>
                   {formatAmount(totals.totalCents, quote.currency)} {quote.currency}
                 </dd>
               </div>
+              {/* Lo que no se cobra hoy, dicho aquí y no solo en el documento:
+                  quien mira este panel decide sobre el cobro. */}
+              {breakdown.recurring.map(({ recurrence, totals: t }) => (
+                <div key={recurrence} className="flex justify-between pt-1.5 text-sm text-muted-foreground">
+                  <dt>{RECURRENCE_GRAND_LABEL[recurrence]}</dt>
+                  <dd>
+                    {formatAmount(t.totalCents, quote.currency)} {quote.currency}
+                  </dd>
+                </div>
+              ))}
+              {breakdown.annualRenewal ? (
+                <div className="flex justify-between pt-1.5 text-sm text-muted-foreground">
+                  <dt>Renovación anual</dt>
+                  <dd>
+                    {formatAmount(breakdown.annualRenewal.totalCents, quote.currency)} {quote.currency}
+                  </dd>
+                </div>
+              ) : null}
             </dl>
           </div>
         </section>

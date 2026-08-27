@@ -5,12 +5,13 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import {
-  RECURRENCE_LABEL,
+  FREQUENCY_KEY_LABEL,
+  frequencyKeyOf,
+  isFirstYearFree,
   RECURRENCE_SUBTOTAL_LABEL,
   RECURRENCE_GRAND_LABEL,
   computeBreakdown,
   lineTotalCents,
-  recurrenceOf,
 } from './money';
 import { formatAmount, paymentSummary } from './terms';
 import type { QuoteRecord } from './queries';
@@ -38,7 +39,11 @@ function humanDate(iso: string | null): string | null {
   if (!iso) return null;
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return null;
-  return new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'long', year: 'numeric' }).format(date);
+  return new Intl.DateTimeFormat('es-MX', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(date);
 }
 
 /** Cantidad sin decimales cuando es entera: «3», no «3.00». */
@@ -74,20 +79,41 @@ export async function renderQuotePdf({
     paymentSummary: paymentSummary(totals.totalCents, quote.paymentTerms, quote.currency),
     currency: quote.currency,
     taxEnabled: quote.taxEnabled,
-    hasRecurring: breakdown.recurring.length > 0,
-    recurring: breakdown.recurring.map((g) => ({
-      subtotalLabel: RECURRENCE_SUBTOTAL_LABEL[g.recurrence],
-      grandLabel: RECURRENCE_GRAND_LABEL[g.recurrence],
-      subtotal: formatAmount(g.totals.subtotalCents, quote.currency),
-      tax: formatAmount(g.totals.taxCents, quote.currency),
-      total: `${formatAmount(g.totals.totalCents, quote.currency)} ${quote.currency}`,
-    })),
+    // «Total inicial» en vez de «Total» en cuanto haya algo que no se cobre
+    // hoy: una mensualidad o una renovación anual.
+    hasRecurring: breakdown.recurring.length > 0 || breakdown.annualRenewal !== null,
+    recurring: [
+      ...breakdown.recurring.map((g) => ({
+        subtotalLabel: RECURRENCE_SUBTOTAL_LABEL[g.recurrence],
+        grandLabel: RECURRENCE_GRAND_LABEL[g.recurrence],
+        subtotal: formatAmount(g.totals.subtotalCents, quote.currency),
+        tax: formatAmount(g.totals.taxCents, quote.currency),
+        total: `${formatAmount(g.totals.totalCents, quote.currency)} ${quote.currency}`,
+      })),
+      // La renovación viaja como un bloque más: el worker solo pinta texto ya
+      // formateado, así que no hizo falta tocarlo.
+      ...(breakdown.annualRenewal
+        ? [
+            {
+              subtotalLabel: 'Servicios',
+              grandLabel: 'Cada año, desde el 1.er aniversario',
+              subtotal: formatAmount(breakdown.annualRenewal.subtotalCents, quote.currency),
+              tax: formatAmount(breakdown.annualRenewal.taxCents, quote.currency),
+              total: `${formatAmount(breakdown.annualRenewal.totalCents, quote.currency)} ${quote.currency}`,
+            },
+          ]
+        : []),
+    ],
     items: quote.items.map((item) => ({
       description: item.description,
-      recurrence: RECURRENCE_LABEL[recurrenceOf(item)],
+      recurrence: FREQUENCY_KEY_LABEL[frequencyKeyOf(item)],
       quantity: formatQty(item.quantity),
       unitPrice: formatAmount(item.unitPriceCents, quote.currency),
-      lineTotal: formatAmount(lineTotalCents(item), quote.currency),
+      // Con primer año gratis el PDF muestra el precio y lo marca: tacharlo no
+      // se puede en @react-pdf sin tocar el worker, así que se dice con texto.
+      lineTotal: isFirstYearFree(item)
+        ? `${formatAmount(lineTotalCents(item), quote.currency)} (incluido)`
+        : formatAmount(lineTotalCents(item), quote.currency),
     })),
     subtotal: formatAmount(totals.subtotalCents, quote.currency),
     tax: formatAmount(totals.taxCents, quote.currency),
@@ -99,7 +125,9 @@ export async function renderQuotePdf({
   const outputPath = path.join(dir, 'quote.pdf');
   try {
     await writeFile(inputPath, JSON.stringify(payload), 'utf-8');
-    await execFileAsync('node', [WORKER_PATH, inputPath, outputPath], { timeout: WORKER_TIMEOUT_MS });
+    await execFileAsync('node', [WORKER_PATH, inputPath, outputPath], {
+      timeout: WORKER_TIMEOUT_MS,
+    });
     return await readFile(outputPath);
   } finally {
     await rm(dir, { recursive: true, force: true });

@@ -8,6 +8,7 @@ import {
   isSaleStatus,
   isRecurringStatus,
   type ChargeState,
+  firstAnniversary,
 } from './model';
 
 /** WO-2026-00106 — la Venta. El estado se DERIVA de los cobros, no se declara. */
@@ -21,7 +22,10 @@ const charge = (concept: string, status: string, isDeposit = false): ChargeState
 describe('folio de venta', () => {
   it('sigue el formato VTA-año-consecutivo', () => {
     expect(buildSaleFolio(2026, 1)).toBe('VTA-2026-0001');
-    expect(parseSaleFolio('VTA-2026-0042')).toEqual({ year: 2026, sequence: 42 });
+    expect(parseSaleFolio('VTA-2026-0042')).toEqual({
+      year: 2026,
+      sequence: 42,
+    });
   });
 
   it('el consecutivo avanza y reinicia cada año', () => {
@@ -61,9 +65,9 @@ describe('el gate del anticipo (§7, §12)', () => {
   });
 
   it('con todos los cobros cubiertos, la venta queda completada', () => {
-    expect(
-      deriveSaleStatus('activa', [charge('Anticipo', 'pagado', true), charge('Contra entrega', 'pagado')]),
-    ).toBe('completada');
+    expect(deriveSaleStatus('activa', [charge('Anticipo', 'pagado', true), charge('Contra entrega', 'pagado')])).toBe(
+      'completada',
+    );
   });
 
   it('los cobros cancelados no cuentan para decidir', () => {
@@ -106,5 +110,23 @@ describe('vocabulario', () => {
       expect(isRecurringStatus(s)).toBe(true);
     }
     expect(isRecurringStatus('inventado')).toBe(false);
+  });
+});
+
+describe('aniversario de la anualidad', () => {
+  it('es el mismo día del año siguiente', () => {
+    expect(firstAnniversary(new Date(2026, 7, 27, 10, 0))).toBe('2027-08-27');
+  });
+
+  it('una aceptación de noche no corre el día (fecha de negocio, no UTC)', () => {
+    expect(firstAnniversary(new Date(2026, 7, 27, 20, 30))).toBe('2027-08-27');
+  });
+
+  it('el 29 de febrero retrocede al 28, no salta a marzo', () => {
+    expect(firstAnniversary(new Date(2028, 1, 29, 9, 0))).toBe('2029-02-28');
+  });
+
+  it('el 31 de enero cae en enero, no en febrero', () => {
+    expect(firstAnniversary(new Date(2026, 0, 31, 9, 0))).toBe('2027-01-31');
   });
 });

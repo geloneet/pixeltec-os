@@ -12,6 +12,11 @@ import {
   recurrenceOf,
   computeBreakdown,
   hasRecurring,
+  chargeableLineTotalCents,
+  isFirstYearFree,
+  frequencyKeyOf,
+  applyFrequencyKey,
+  FREQUENCY_KEYS,
   type QuoteItem,
 } from './money';
 
@@ -73,7 +78,11 @@ describe('totales', () => {
   });
 
   it('una cotización vacía suma cero', () => {
-    expect(computeTotals([], true)).toEqual({ subtotalCents: 0, taxCents: 0, totalCents: 0 });
+    expect(computeTotals([], true)).toEqual({
+      subtotalCents: 0,
+      taxCents: 0,
+      totalCents: 0,
+    });
   });
 
   it('todos los importes son enteros', () => {
@@ -116,7 +125,11 @@ describe('formato en pantalla', () => {
 });
 
 describe('validación', () => {
-  const ok = { title: 'Sitio web', items: [item('Landing', 1, 1500000)], validUntil: null };
+  const ok = {
+    title: 'Sitio web',
+    items: [item('Landing', 1, 1500000)],
+    validUntil: null,
+  };
 
   it('una cotización completa no tiene problemas', () => {
     expect(validateQuote(ok)).toEqual([]);
@@ -131,7 +144,10 @@ describe('validación', () => {
   });
 
   it('rechaza cantidad cero o negativa y precio negativo', () => {
-    const fields = validateQuote({ ...ok, items: [item('Landing', 0, -100)] }).map((i) => i.field);
+    const fields = validateQuote({
+      ...ok,
+      items: [item('Landing', 0, -100)],
+    }).map((i) => i.field);
     expect(fields).toContain('items.0.quantity');
     expect(fields).toContain('items.0.unitPriceCents');
   });
@@ -145,7 +161,12 @@ describe('validación', () => {
   });
 
   it('no se queja de las filas en blanco que deja el formulario', () => {
-    expect(validateQuote({ ...ok, items: [item('Landing', 1, 100), item('', 0, 0)] })).toEqual([]);
+    expect(
+      validateQuote({
+        ...ok,
+        items: [item('Landing', 1, 100), item('', 0, 0)],
+      }),
+    ).toEqual([]);
   });
 });
 
@@ -205,46 +226,74 @@ describe('periodicidad por concepto', () => {
     expect(recurrenceOf({ recurrence: 'anual' })).toBe('anual');
   });
 
-  it('anual y mensual NO se mezclan entre sí ni con el pago único', () => {
+  /**
+   * CAMBIO DE REGLA (Miguel, 2026-08-27). Hasta hoy la anual vivía en su propio
+   * bloque y NO entraba en el total inicial. Ahora sí: su primera anualidad se
+   * cobra al firmar. La mensual sigue fuera — eso no cambió.
+   */
+  it('la anual SÍ entra al total inicial; la mensual sigue fuera', () => {
     const b = computeBreakdown(
-      [
-        rec('Desarrollo', 2000000),
-        rec('Hosting', 90000, 'mensual'),
-        rec('Dominio y SSL', 120000, 'anual'),
-      ],
+      [rec('Desarrollo', 2000000), rec('Hosting', 90000, 'mensual'), rec('Dominio y SSL', 120000, 'anual')],
       true,
     );
-    expect(b.oneTime).toEqual({ subtotalCents: 2000000, taxCents: 320000, totalCents: 2320000 });
+    // 20,000 + 1,200 = 21,200 + IVA 3,392 = 24,592
+    expect(b.oneTime).toEqual({
+      subtotalCents: 2120000,
+      taxCents: 339200,
+      totalCents: 2459200,
+    });
     expect(b.recurring.map((r) => [r.recurrence, r.totals.totalCents])).toEqual([
       ['mensual', 104400], // 900 + IVA
-      ['anual', 139200], // 1,200 + IVA
     ]);
+    // Y queda declarado lo que se renovará cada aniversario.
+    expect(b.annualRenewal).toEqual({
+      subtotalCents: 120000,
+      taxCents: 19200,
+      totalCents: 139200,
+    });
   });
 
-  it('los grupos salen en el orden del catálogo, no en el de captura', () => {
-    const b = computeBreakdown(
-      [rec('Dominio', 120000, 'anual'), rec('Hosting', 90000, 'mensual')],
-      false,
-    );
-    expect(b.recurring.map((r) => r.recurrence)).toEqual(['mensual', 'anual']);
+  it('sin conceptos anuales no hay renovación que declarar', () => {
+    const b = computeBreakdown([rec('Desarrollo', 2000000), rec('Hosting', 90000, 'mensual')], true);
+    expect(b.annualRenewal).toBeNull();
   });
 
   it('aplica el IVA dentro de cada periodicidad, no al conjunto', () => {
     const b = computeBreakdown([rec('Desarrollo', 100000), rec('Hospedaje', 50000, 'mensual')], true);
-    expect(b.oneTime).toEqual({ subtotalCents: 100000, taxCents: 16000, totalCents: 116000 });
-    expect(b.recurring[0].totals).toEqual({ subtotalCents: 50000, taxCents: 8000, totalCents: 58000 });
+    expect(b.oneTime).toEqual({
+      subtotalCents: 100000,
+      taxCents: 16000,
+      totalCents: 116000,
+    });
+    expect(b.recurring[0].totals).toEqual({
+      subtotalCents: 50000,
+      taxCents: 8000,
+      totalCents: 58000,
+    });
   });
 
   it('el ejemplo real de Miguel: desarrollo único + dos mensuales', () => {
     const b = computeBreakdown(
-      [rec('Desarrollo del sitio', 2000000), rec('Hosting administrado', 90000, 'mensual'), rec('Mantenimiento', 250000, 'mensual')],
+      [
+        rec('Desarrollo del sitio', 2000000),
+        rec('Hosting administrado', 90000, 'mensual'),
+        rec('Mantenimiento', 250000, 'mensual'),
+      ],
       true,
     );
     // Pago único: 20,000 + IVA 3,200 = 23,200
-    expect(b.oneTime).toEqual({ subtotalCents: 2000000, taxCents: 320000, totalCents: 2320000 });
+    expect(b.oneTime).toEqual({
+      subtotalCents: 2000000,
+      taxCents: 320000,
+      totalCents: 2320000,
+    });
     // Mensual: 3,400 + IVA 544 = 3,944
     expect(b.recurring).toHaveLength(1);
-    expect(b.recurring[0].totals).toEqual({ subtotalCents: 340000, taxCents: 54400, totalCents: 394400 });
+    expect(b.recurring[0].totals).toEqual({
+      subtotalCents: 340000,
+      taxCents: 54400,
+      totalCents: 394400,
+    });
     // Y sobre todo: NUNCA aparece 23,400 ni la suma de ambos.
     expect(b.oneTime.totalCents + b.recurring[0].totals.totalCents).not.toBe(2340000);
   });
@@ -270,8 +319,18 @@ describe('periodicidad por concepto', () => {
 describe('ida y vuelta de la frecuencia por el jsonb', () => {
   it('sobrevive a serializar y volver a leer', () => {
     const original: QuoteItem[] = [
-      { description: 'Desarrollo del sitio', quantity: 1, unitPriceCents: 2000000, recurrence: 'unica' },
-      { description: 'Hosting administrado', quantity: 1, unitPriceCents: 90000, recurrence: 'mensual' },
+      {
+        description: 'Desarrollo del sitio',
+        quantity: 1,
+        unitPriceCents: 2000000,
+        recurrence: 'unica',
+      },
+      {
+        description: 'Hosting administrado',
+        quantity: 1,
+        unitPriceCents: 90000,
+        recurrence: 'mensual',
+      },
     ];
     const leidos = (JSON.parse(JSON.stringify(original)) as QuoteItem[]).map((i) => ({
       ...i,
@@ -279,5 +338,86 @@ describe('ida y vuelta de la frecuencia por el jsonb', () => {
     }));
     expect(computeBreakdown(leidos, true)).toEqual(computeBreakdown(original, true));
     expect(leidos[1].recurrence).toBe('mensual');
+  });
+});
+
+/**
+ * «Anual · primer año gratis» (Miguel, 2026-08-27).
+ *
+ * El caso literal que pidió: se captura el precio de 899, el total inicial no
+ * lo incluye, y el sistema conserva el importe porque es lo que se cobrará cada
+ * aniversario. Gratis es el PRIMER AÑO, no la renovación.
+ */
+describe('anual con el primer año incluido', () => {
+  const rec = (description: string, unitPriceCents: number, recurrence?: QuoteItem['recurrence']): QuoteItem => ({
+    description,
+    quantity: 1,
+    unitPriceCents,
+    recurrence,
+  });
+
+  const anualGratis = (description: string, cents: number): QuoteItem => ({
+    description,
+    quantity: 1,
+    unitPriceCents: cents,
+    recurrence: 'anual',
+    firstYearFree: true,
+  });
+
+  it('la bandera solo tiene sentido en un anual', () => {
+    expect(isFirstYearFree({ recurrence: 'anual', firstYearFree: true })).toBe(true);
+    expect(isFirstYearFree({ recurrence: 'mensual', firstYearFree: true })).toBe(false);
+    expect(isFirstYearFree({ recurrence: 'unica', firstYearFree: true })).toBe(false);
+    expect(isFirstYearFree({ recurrence: 'anual' })).toBe(false);
+  });
+
+  it('la línea conserva su precio pero aporta cero a lo cobrable', () => {
+    const item = anualGratis('Hospedaje', 89900);
+    expect(lineTotalCents(item)).toBe(89900);
+    expect(chargeableLineTotalCents(item)).toBe(0);
+  });
+
+  it('los 899 salen del total inicial y reaparecen en la renovación', () => {
+    const b = computeBreakdown([rec('Desarrollo', 2500000), anualGratis('Hospedaje', 89900)], true);
+    // 25,000 + IVA 4,000 = 29,000. Los 899 NO están.
+    expect(b.oneTime).toEqual({
+      subtotalCents: 2500000,
+      taxCents: 400000,
+      totalCents: 2900000,
+    });
+    // Pero sí se declara lo que se pagará cada aniversario: 899 + IVA.
+    expect(b.annualRenewal).toEqual({
+      subtotalCents: 89900,
+      taxCents: 14384,
+      totalCents: 104284,
+    });
+  });
+
+  it('gratis y cobrada conviven: solo la cobrada suma al total inicial', () => {
+    const b = computeBreakdown(
+      [rec('Desarrollo', 2500000), anualGratis('Hospedaje', 89900), rec('Dominio', 50000, 'anual')],
+      false,
+    );
+    expect(b.oneTime.totalCents).toBe(2550000); // 25,000 + 500, sin los 899
+    expect(b.annualRenewal!.totalCents).toBe(139900); // 899 + 500: las dos renuevan
+  });
+
+  it('el desplegable tiene cuatro opciones y va y vuelve sin perder nada', () => {
+    expect([...FREQUENCY_KEYS]).toEqual(['unica', 'mensual', 'anual', 'anual_primer_anio_gratis']);
+    const item: QuoteItem = {
+      description: 'Hospedaje',
+      quantity: 1,
+      unitPriceCents: 89900,
+    };
+    const gratis = applyFrequencyKey(item, 'anual_primer_anio_gratis');
+    expect(gratis.recurrence).toBe('anual');
+    expect(gratis.firstYearFree).toBe(true);
+    expect(frequencyKeyOf(gratis)).toBe('anual_primer_anio_gratis');
+  });
+
+  it('cambiar de frecuencia limpia la bandera, no la deja colgada', () => {
+    const gratis = applyFrequencyKey({ recurrence: 'anual' as const, firstYearFree: true }, 'mensual');
+    expect(gratis.firstYearFree).toBe(false);
+    expect(frequencyKeyOf(gratis)).toBe('mensual');
   });
 });

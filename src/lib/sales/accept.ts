@@ -4,7 +4,7 @@ import { db } from '@/lib/db';
 import { billingItems, clients, recurringCharges, sales } from '@/lib/db/schema';
 import { computeBreakdown, RECURRENCE_TOTAL_LABEL, type QuoteItem, type Recurrence } from '@/lib/quotes/money';
 import { paymentSchedule, type Currency, type PaymentTerms } from '@/lib/quotes/terms';
-import { nextSaleFolio, type AcceptedVia } from './model';
+import { firstAnniversary, nextSaleFolio, type AcceptedVia } from './model';
 
 /**
  * Aceptar una cotización: crea la Venta, sus cobros y sus recurrentes
@@ -79,7 +79,10 @@ export async function acceptQuoteAndCreateSale(input: AcceptQuoteInput): Promise
     if (!owner) throw new Error('El cliente ya no existe.');
 
     const folios = await tx.select({ folio: sales.folio }).from(sales);
-    const folio = nextSaleFolio(input.acceptedAt.getFullYear(), folios.map((f) => f.folio));
+    const folio = nextSaleFolio(
+      input.acceptedAt.getFullYear(),
+      folios.map((f) => f.folio),
+    );
 
     const inserted = await tx
       .insert(sales)
@@ -108,7 +111,11 @@ export async function acceptQuoteAndCreateSale(input: AcceptQuoteInput): Promise
         .where(eq(sales.quotationId, input.quoteId))
         .limit(1);
       if (!existing) throw new Error('No se pudo crear la venta.');
-      return { saleId: existing.id, folio: existing.folio, alreadyExisted: true };
+      return {
+        saleId: existing.id,
+        folio: existing.folio,
+        alreadyExisted: true,
+      };
     }
 
     const sale = inserted[0];
@@ -120,9 +127,17 @@ export async function acceptQuoteAndCreateSale(input: AcceptQuoteInput): Promise
     const schedule = paymentSchedule(breakdown.oneTime.totalCents, input.paymentTerms);
     const cobros =
       schedule.length > 0
-        ? schedule.map((i) => ({ concept: `${i.label} ${input.folio}`, amountCents: i.amountCents }))
+        ? schedule.map((i) => ({
+            concept: `${i.label} ${input.folio}`,
+            amountCents: i.amountCents,
+          }))
         : breakdown.oneTime.totalCents > 0
-          ? [{ concept: `Pago ${input.folio}`, amountCents: breakdown.oneTime.totalCents }]
+          ? [
+              {
+                concept: `Pago ${input.folio}`,
+                amountCents: breakdown.oneTime.totalCents,
+              },
+            ]
           : [];
 
     for (const [index, cobro] of cobros.entries()) {
@@ -152,18 +167,25 @@ export async function acceptQuoteAndCreateSale(input: AcceptQuoteInput): Promise
     }
 
     // ── 3. Recurrentes: nacen PENDIENTES DE INICIO ──────────────────────────
-    // No se generan cobros mensuales futuros ni se arranca ningún cron: la
-    // fecha del primer cobro la decide una persona al activarlo (§9, §10).
-    for (const grupo of breakdown.recurring) {
-      if (grupo.totals.totalCents <= 0) continue;
+    // No se generan cobros futuros ni se arranca ningún cron: sigue haciendo
+    // falta que una persona los active (§9, §10). Lo único que cambia respecto
+    // de WO-2026-00106 es que la anualidad ya nace con FECHA PROPUESTA, porque
+    // esa fecha se deduce del contrato y no de una decisión posterior.
+    const nacerRecurrente = async (
+      concept: string,
+      amountCents: number,
+      frequency: 'monthly' | 'annual',
+      startDate: string | null,
+    ) => {
+      if (amountCents <= 0) return;
       await tx.insert(recurringCharges).values({
         saleId: sale.id,
         clientId: input.clientId,
         projectId: null,
-        concept: `${RECURRENCE_TOTAL_LABEL[grupo.recurrence]} ${input.folio}`,
-        amount: toAmount(grupo.totals.totalCents),
-        frequency: FREQUENCY[grupo.recurrence as Exclude<Recurrence, 'unica'>],
-        startDate: null,
+        concept,
+        amount: toAmount(amountCents),
+        frequency,
+        startDate,
         // NOT NULL heredado del modelo antiguo: se rellena desde el cliente.
         clientEmail: owner.email ?? '',
         status: 'pending_start',
@@ -171,6 +193,30 @@ export async function acceptQuoteAndCreateSale(input: AcceptQuoteInput): Promise
         // código congelado de Finanzas lo sigue leyendo.
         active: false,
       });
+    };
+
+    // Mensuales: sin fecha. Cuándo empieza a correr un mantenimiento es una
+    // decisión de operación, no algo que la cotización ya conteste.
+    for (const grupo of breakdown.recurring) {
+      await nacerRecurrente(
+        `${RECURRENCE_TOTAL_LABEL[grupo.recurrence]} ${input.folio}`,
+        grupo.totals.totalCents,
+        FREQUENCY[grupo.recurrence as Exclude<Recurrence, 'unica'>],
+        null,
+      );
+    }
+
+    // Anualidad: SIEMPRE arranca en el primer aniversario de la aceptación
+    // (Miguel, 2026-08-27). Da igual si el primer año se cobró en el total
+    // inicial o si iba incluido: en los dos casos el año 1 ya está resuelto y
+    // el siguiente cobro es el aniversario. Cobrarlo hoy sería duplicarlo.
+    if (breakdown.annualRenewal) {
+      await nacerRecurrente(
+        `Renovación anual ${input.folio}`,
+        breakdown.annualRenewal.totalCents,
+        'annual',
+        firstAnniversary(input.acceptedAt),
+      );
     }
 
     return { saleId: sale.id, folio: sale.folio, alreadyExisted: false };

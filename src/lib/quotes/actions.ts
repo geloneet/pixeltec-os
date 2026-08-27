@@ -14,6 +14,7 @@ import { randomUUID, randomBytes } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { db } from '@/lib/db';
+import { firstAnniversary } from '@/lib/sales/model';
 import { quotes } from '@/lib/db/schema';
 import { requireUserSession } from '@/lib/auth/session';
 import { requireAdmin } from '@/lib/auth-guards';
@@ -76,6 +77,11 @@ const ItemSchema = z.object({
   // Ausente ⇒ pago único: las cotizaciones guardadas antes de esta orden no lo
   // traen y deben seguir guardándose sin tocar nada.
   recurrence: z.enum(RECURRENCES).optional(),
+  // Sin esta línea zod BORRA la bandera en silencio —`z.object` descarta las
+  // claves que no declara— y «primer año gratis» se guardaría como una anual
+  // normal: el total inicial subiría 899 al reabrir. Mismo fallo que ya pasó
+  // con `recurrence` el 2026-08-26, ahora con el saneador de escritura.
+  firstYearFree: z.boolean().optional(),
 });
 
 const SaveQuoteSchema = z.object({
@@ -135,7 +141,8 @@ export async function saveQuote(input: SaveQuoteInput): Promise<ActionResult<{ i
       if (existing.status === 'aceptada') {
         return {
           ok: false,
-          error: 'Esta cotización ya fue aceptada: es el documento que aceptó el cliente. Crea una nueva si cambian las condiciones.',
+          error:
+            'Esta cotización ya fue aceptada: es el documento que aceptó el cliente. Crea una nueva si cambian las condiciones.',
         };
       }
       await db
@@ -498,6 +505,28 @@ export async function createChargeForQuote(
         frequency: toBillingFrequency(grupo.recurrence),
       });
       if (ok) recurrentes.push(`${etiqueta}: ${formatAmountWithCode(grupo.totals.totalCents, quote.currency)}`);
+    }
+
+    // La anualidad ya no viaja dentro de `breakdown.recurring` (desde
+    // 2026-08-27 su primer año va en el total inicial), así que sin este bloque
+    // un concepto anual quedaría cotizado y JAMÁS cobrado por este camino.
+    // Vence en el primer aniversario de la aceptación, no en la vigencia de la
+    // cotización: es el año 2 lo que se está dando de alta.
+    if (breakdown.annualRenewal && breakdown.annualRenewal.totalCents > 0) {
+      const aceptada = quote.acceptedAt ? new Date(quote.acceptedAt) : new Date();
+      const ok = await createChargeFromQuote({
+        clientId: quote.clientId,
+        concept: `Renovación anual ${quote.folio}`,
+        amountCents: breakdown.annualRenewal.totalCents,
+        currency: quote.currency,
+        dueDate: firstAnniversary(Number.isNaN(aceptada.getTime()) ? new Date() : aceptada),
+        frequency: 'anual',
+      });
+      if (ok) {
+        recurrentes.push(
+          `Renovación anual: ${formatAmountWithCode(breakdown.annualRenewal.totalCents, quote.currency)}`,
+        );
+      }
     }
 
     revalidateClient(quote.clientId);

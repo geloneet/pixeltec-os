@@ -25,15 +25,16 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import {
-  RECURRENCES,
-  RECURRENCE_LABEL,
+  FREQUENCY_KEYS,
+  FREQUENCY_KEY_LABEL,
   RECURRENCE_TOTAL_LABEL,
   RECURRENCE_GRAND_LABEL,
   RECURRENCE_SUBTOTAL_LABEL,
+  isFirstYearFree,
   lineTotalCents,
   parseMoneyToCents,
   validateQuote,
-  type Recurrence,
+  type FrequencyKey,
 } from "@/lib/quotes/money";
 import {
   CURRENCIES,
@@ -75,10 +76,7 @@ function countLines(text: string): number {
  * texto el campo se quedaba mostrando cuatro. El efecto corre después del
  * commit, así que mide siempre el contenido real.
  */
-function AutoTextarea({
-  value,
-  ...props
-}: React.ComponentProps<typeof Textarea> & { value: string }) {
+function AutoTextarea({ value, ...props }: React.ComponentProps<typeof Textarea> & { value: string }) {
   const ref = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -160,11 +158,19 @@ export function QuoteForm({
   // El reparto de anticipos SOLO aplica a lo que se paga una vez: un «50% de
   // anticipo» sobre una mensualidad no significa nada.
   const schedule = useMemo(
-    () => paymentSchedule(totals.totalCents, { type: paymentType, custom: paymentCustom }),
+    () =>
+      paymentSchedule(totals.totalCents, {
+        type: paymentType,
+        custom: paymentCustom,
+      }),
     [totals.totalCents, paymentType, paymentCustom],
   );
   // §29: guardar borrador solo exige título y un concepto válido.
-  const issues = validateQuote({ title, items, validUntil: validUntil || null });
+  const issues = validateQuote({
+    title,
+    items,
+    validUntil: validUntil || null,
+  });
 
   /**
    * Escribir en la última fila añade otra vacía debajo: agregar conceptos no
@@ -315,22 +321,27 @@ export function QuoteForm({
                     aria-label={`Concepto ${index + 1}`}
                     className={cn(CELL, "w-full min-w-0 sm:w-auto sm:flex-1")}
                   />
-                  {/* Frecuencia del concepto (orden de Miguel): un servicio
-                      recurrente no se suma al pago único — ver el resumen. */}
+                  {/* Frecuencia del concepto (orden de Miguel): la mensual no
+                      se suma al total inicial; la anual sí, salvo «primer año
+                      gratis», que se cobra desde el primer aniversario. */}
                   <select
-                    value={row.recurrence}
-                    onChange={(e) => patch(index, { recurrence: e.target.value as Recurrence })}
+                    value={row.frequency}
+                    onChange={(e) =>
+                      patch(index, {
+                        frequency: e.target.value as FrequencyKey,
+                      })
+                    }
                     aria-label={`Frecuencia del concepto ${index + 1}`}
                     className={cn(
-                      "h-9 w-28 rounded-md border border-transparent bg-transparent px-2 text-xs transition-colors",
+                      "h-9 w-44 rounded-md border border-transparent bg-transparent px-2 text-xs transition-colors",
                       "hover:border-input hover:bg-accent/40 focus-visible:border-input focus-visible:bg-accent/30",
                       "focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none",
-                      row.recurrence !== "unica" ? "text-foreground" : "text-muted-foreground",
+                      row.frequency !== "unica" ? "text-foreground" : "text-muted-foreground",
                     )}
                   >
-                    {RECURRENCES.map((r) => (
-                      <option key={r} value={r}>
-                        {RECURRENCE_LABEL[r]}
+                    {FREQUENCY_KEYS.map((k) => (
+                      <option key={k} value={k}>
+                        {FREQUENCY_KEY_LABEL[k]}
                       </option>
                     ))}
                   </select>
@@ -349,9 +360,7 @@ export function QuoteForm({
                     ref={(el) => {
                       priceRefs.current[index] = el;
                     }}
-                    value={
-                      priceFocus === index || cents === null ? row.unitPrice : formatAmount(cents, currency)
-                    }
+                    value={priceFocus === index || cents === null ? row.unitPrice : formatAmount(cents, currency)}
                     onChange={(e) => patch(index, { unitPrice: e.target.value })}
                     onFocus={() => setPriceFocus(index)}
                     onBlur={() => setPriceFocus((f) => (f === index ? null : f))}
@@ -360,14 +369,27 @@ export function QuoteForm({
                     aria-label={`Precio unitario del concepto ${index + 1}`}
                     className={cn(CELL, "w-24 text-right tabular-nums", badPrice && "border-destructive")}
                   />
-                  {/* §3 y §4: el importe NUNCA se captura, se calcula — y pesa. */}
+                  {/* §3 y §4: el importe NUNCA se captura, se calcula — y pesa.
+                      Con «primer año gratis» el precio se sigue mostrando (es lo
+                      que se cobrará cada aniversario) pero se marca «incluido»
+                      para que nadie lo busque dentro del total inicial. */}
                   <span
                     className={cn(
                       "w-24 px-2 text-right text-sm tabular-nums",
-                      filled && item ? "font-medium text-foreground" : "text-muted-foreground/50",
+                      filled && item && !isFirstYearFree(item)
+                        ? "font-medium text-foreground"
+                        : "text-muted-foreground/50",
                     )}
                   >
-                    {filled && item ? formatAmount(lineTotalCents(item), currency) : "—"}
+                    {filled && item ? (
+                      isFirstYearFree(item) ? (
+                        <span className="line-through">{formatAmount(lineTotalCents(item), currency)}</span>
+                      ) : (
+                        formatAmount(lineTotalCents(item), currency)
+                      )
+                    ) : (
+                      "—"
+                    )}
                   </span>
                   <Button
                     type="button"
@@ -511,8 +533,11 @@ export function QuoteForm({
         <div className="space-y-4 rounded-xl border border-border bg-card/60 p-4">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Resumen</h3>
 
-          {breakdown.recurring.length > 0 ? (
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Pago único</p>
+          {/* Ya no dice «Pago único»: desde 2026-08-27 este bloque incluye la
+              primera anualidad, que de único no tiene nada. «Al firmar» es lo
+              que de verdad describe el bloque. */}
+          {breakdown.recurring.length > 0 || breakdown.annualRenewal ? (
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Al firmar</p>
           ) : null}
           <dl className="space-y-2 text-sm tabular-nums">
             <div className="flex items-center justify-between gap-3">
@@ -540,7 +565,10 @@ export function QuoteForm({
             </div>
             <div className="flex items-baseline justify-between gap-3 border-t border-border pt-3">
               <dt className="text-sm font-medium text-foreground">
-                {breakdown.recurring.length > 0 ? "Total inicial" : "Total"}
+                {/* «Total inicial» en cuanto quede algo por pagar después: una
+                    mensualidad o la renovación anual. Si es todo hoy, «Total»
+                    a secas — decir «inicial» sin nada detrás confunde. */}
+                {breakdown.recurring.length > 0 || breakdown.annualRenewal ? "Total inicial" : "Total"}
               </dt>
               {/* La conclusión comercial de toda la pantalla: pesa más que
                   cualquier otro número, sin recurrir al color. */}
@@ -551,8 +579,10 @@ export function QuoteForm({
             </div>
           </dl>
 
-          {/* El reparto pertenece al PAGO ÚNICO: un «50% de anticipo» sobre una
-              mensualidad no significa nada. Por eso va aquí y no al final. */}
+          {/* El reparto se calcula sobre el TOTAL INICIAL completo, anualidad
+              incluida (Miguel, 2026-08-27): es un solo número y es el que el
+              cliente ve firmado. La mensual sigue fuera — un «50% de anticipo»
+              sobre una mensualidad no significa nada. */}
           {schedule.length > 0 ? (
             <dl className="space-y-1.5 pt-1 text-xs tabular-nums">
               {schedule.map((i) => (
@@ -566,8 +596,8 @@ export function QuoteForm({
             </dl>
           ) : null}
 
-          {/* Un bloque por periodicidad. NUNCA se suman al total inicial: son
-              unidades distintas y mezclarlas daría un número falso. */}
+          {/* Lo que NO se cobra al firmar. Hoy solo la mensual: sumarla al
+              total inicial daría un número falso, son unidades distintas. */}
           {breakdown.recurring.map(({ recurrence, totals: t }) => (
             <div key={recurrence} className="space-y-2 border-t border-border/70 pt-4">
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -594,6 +624,35 @@ export function QuoteForm({
               </dl>
             </div>
           ))}
+
+          {/* Renovación anual. Su primer año ya está resuelto —cobrado dentro
+              del total inicial o incluido—, así que esto es lo que el cliente
+              pagará CADA aniversario. Se muestra siempre que haya un concepto
+              anual: un compromiso recurrente que no se ve es una sorpresa. */}
+          {breakdown.annualRenewal ? (
+            <div className="space-y-2 border-t border-border/70 pt-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Renovación anual</p>
+              <dl className="space-y-2 text-sm tabular-nums">
+                <div className="flex items-center justify-between gap-3">
+                  <dt className="text-muted-foreground">Servicios</dt>
+                  <dd className="text-foreground">{formatAmount(breakdown.annualRenewal.subtotalCents, currency)}</dd>
+                </div>
+                {taxEnabled ? (
+                  <div className="flex items-center justify-between gap-3">
+                    <dt className="text-muted-foreground">IVA 16%</dt>
+                    <dd className="text-foreground">{formatAmount(breakdown.annualRenewal.taxCents, currency)}</dd>
+                  </div>
+                ) : null}
+                <div className="flex items-baseline justify-between gap-3 border-t border-border pt-2">
+                  <dt className="text-sm font-medium text-foreground">Cada año, desde el 1.er aniversario</dt>
+                  <dd className="text-lg font-semibold text-foreground">
+                    {formatAmount(breakdown.annualRenewal.totalCents, currency)}{" "}
+                    <span className="text-xs font-normal text-muted-foreground">{currency}</span>
+                  </dd>
+                </div>
+              </dl>
+            </div>
+          ) : null}
 
           <div className="space-y-2 border-t border-border/70 pt-4">
             <Button type="button" className="w-full" onClick={submit} disabled={saving || issues.length > 0}>
