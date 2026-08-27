@@ -60,7 +60,8 @@ const styles = StyleSheet.create({
   th: { fontSize: 8, fontWeight: 700, color: COLOR.ink, letterSpacing: 0.4 },
   row: { flexDirection: "row", paddingVertical: 8, paddingHorizontal: 8, borderBottomWidth: 0.6, borderBottomColor: COLOR.rule },
   cDesc: { flex: 1, paddingRight: 10 },
-  cRec: { width: 62 },
+  // 80 pt, no 62: «Anual · primer año gratis» partía en tres líneas.
+  cRec: { width: 80 },
   cQty: { width: 52, textAlign: "right" },
   cUnit: { width: 82, textAlign: "right" },
   cTotal: { width: 90, textAlign: "right" },
@@ -185,25 +186,32 @@ function QuoteDocument({ q }) {
         ]),
       ),
 
-      q.estimatedDelivery ? h(View, { key: "time", style: styles.block }, [
+      q.estimatedDelivery ? h(View, { key: "time", wrap: false, style: styles.block }, [
         h(Text, { key: "t", style: styles.blockTitle }, "TIEMPO ESTIMADO"),
         h(Text, { key: "b", style: styles.blockBody }, q.estimatedDelivery),
       ]) : null,
-      q.paymentSummary ? h(View, { key: "pay", style: styles.block }, [
+      q.paymentSummary ? h(View, { key: "pay", wrap: false, style: styles.block }, [
         h(Text, { key: "t", style: styles.blockTitle }, "FORMA DE PAGO"),
         h(Text, { key: "b", style: styles.blockBody }, q.paymentSummary),
       ]) : null,
-      q.exclusions ? h(View, { key: "excl", style: styles.block }, [
+      // La renovación va aquí, en texto y después de la forma de pago (Miguel,
+      // 2026-08-27). Como columna de totales la etiqueta larga se montaba
+      // encima del importe: la columna mide ~130 pt y no hay dónde partirla.
+      q.annualRenewal ? h(View, { key: "renew", wrap: false, style: styles.block }, [
+        h(Text, { key: "t", style: styles.blockTitle }, "RENOVACIÓN ANUAL"),
+        h(Text, { key: "b", style: styles.blockBody }, q.annualRenewal),
+      ]) : null,
+      q.exclusions ? h(View, { key: "excl", wrap: false, style: styles.block }, [
         h(Text, { key: "t", style: styles.blockTitle }, "FUERA DE ALCANCE"),
         h(Text, { key: "b", style: styles.blockBody }, q.exclusions),
       ]) : null,
       q.notes
-        ? h(View, { key: "notes", style: styles.block }, [
+        ? h(View, { key: "notes", wrap: false, style: styles.block }, [
             h(Text, { key: "t", style: styles.blockTitle }, "NOTAS Y CONDICIONES"),
             h(Text, { key: "b", style: styles.blockBody }, q.notes),
           ])
         : null,
-      h(View, { key: "next", style: [styles.block, { backgroundColor: COLOR.band, borderRadius: 4, padding: 12 }] }, [
+      h(View, { key: "next", wrap: false, style: [styles.block, { backgroundColor: COLOR.band, borderRadius: 4, padding: 12 }] }, [
         h(Text, { key: "t", style: styles.blockTitle }, "SIGUIENTE PASO"),
         h(Text, { key: "b", style: styles.blockBody }, "Aceptar la propuesta y realizar el anticipo correspondiente."),
       ]),

@@ -13,7 +13,7 @@ import {
   computeBreakdown,
   lineTotalCents,
 } from './money';
-import { formatAmount, paymentSummary } from './terms';
+import { annualRenewalSummary, formatAmount, paymentSummary } from './terms';
 import type { QuoteRecord } from './queries';
 
 const execFileAsync = promisify(execFile);
@@ -82,28 +82,24 @@ export async function renderQuotePdf({
     // «Total inicial» en vez de «Total» en cuanto haya algo que no se cobre
     // hoy: una mensualidad o una renovación anual.
     hasRecurring: breakdown.recurring.length > 0 || breakdown.annualRenewal !== null,
-    recurring: [
-      ...breakdown.recurring.map((g) => ({
-        subtotalLabel: RECURRENCE_SUBTOTAL_LABEL[g.recurrence],
-        grandLabel: RECURRENCE_GRAND_LABEL[g.recurrence],
-        subtotal: formatAmount(g.totals.subtotalCents, quote.currency),
-        tax: formatAmount(g.totals.taxCents, quote.currency),
-        total: `${formatAmount(g.totals.totalCents, quote.currency)} ${quote.currency}`,
-      })),
-      // La renovación viaja como un bloque más: el worker solo pinta texto ya
-      // formateado, así que no hizo falta tocarlo.
-      ...(breakdown.annualRenewal
-        ? [
-            {
-              subtotalLabel: 'Servicios',
-              grandLabel: 'Cada año, desde el 1.er aniversario',
-              subtotal: formatAmount(breakdown.annualRenewal.subtotalCents, quote.currency),
-              tax: formatAmount(breakdown.annualRenewal.taxCents, quote.currency),
-              total: `${formatAmount(breakdown.annualRenewal.totalCents, quote.currency)} ${quote.currency}`,
-            },
-          ]
-        : []),
-    ],
+    recurring: breakdown.recurring.map((g) => ({
+      subtotalLabel: RECURRENCE_SUBTOTAL_LABEL[g.recurrence],
+      grandLabel: RECURRENCE_GRAND_LABEL[g.recurrence],
+      subtotal: formatAmount(g.totals.subtotalCents, quote.currency),
+      tax: formatAmount(g.totals.taxCents, quote.currency),
+      total: `${formatAmount(g.totals.totalCents, quote.currency)} ${quote.currency}`,
+    })),
+    // La renovación NO es una columna de totales más: es texto, y va después de
+    // la forma de pago, igual que en pantalla. Mismo `annualRenewalSummary` que
+    // usan el documento y el panel, así que los tres no pueden divergir.
+    annualRenewal: breakdown.annualRenewal
+      ? annualRenewalSummary(
+          breakdown.annualRenewal,
+          quote.taxEnabled,
+          quote.currency,
+          quote.items.some(isFirstYearFree),
+        )
+      : null,
     items: quote.items.map((item) => ({
       description: item.description,
       recurrence: FREQUENCY_KEY_LABEL[frequencyKeyOf(item)],
@@ -111,9 +107,9 @@ export async function renderQuotePdf({
       unitPrice: formatAmount(item.unitPriceCents, quote.currency),
       // Con primer año gratis el PDF muestra el precio y lo marca: tacharlo no
       // se puede en @react-pdf sin tocar el worker, así que se dice con texto.
-      lineTotal: isFirstYearFree(item)
-        ? `${formatAmount(lineTotalCents(item), quote.currency)} (incluido)`
-        : formatAmount(lineTotalCents(item), quote.currency),
+      // Solo «Incluido»: el precio ya está en la columna PRECIO, y repetirlo
+      // aquí desbordaba los 90 pt de la columna y se montaba encima.
+      lineTotal: isFirstYearFree(item) ? 'Incluido' : formatAmount(lineTotalCents(item), quote.currency),
     })),
     subtotal: formatAmount(totals.subtotalCents, quote.currency),
     tax: formatAmount(totals.taxCents, quote.currency),
