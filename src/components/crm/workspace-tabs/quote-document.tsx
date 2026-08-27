@@ -24,6 +24,7 @@ import {
   breakdownFor,
   formatAmount,
   formatDate,
+  annualRenewalSummary,
   paymentSummary,
   type Currency,
   type PaymentTerms,
@@ -206,19 +207,6 @@ export function QuoteDocument({ quote, clientName }: { quote: QuoteDocumentData;
               emphasis={false}
             />
           ))}
-          {/* La renovación no se cobra hoy, pero es un compromiso que el
-              cliente adquiere al firmar: va en el documento, no en una nota. */}
-          {breakdown.annualRenewal ? (
-            <TotalsBlock
-              heading="Renovación anual"
-              subtotalLabel="Servicios"
-              grandLabel="Cada año, desde el 1.er aniversario"
-              totals={breakdown.annualRenewal}
-              currency={quote.currency}
-              taxEnabled={quote.taxEnabled}
-              emphasis={false}
-            />
-          ) : null}
         </div>
       </section>
 
@@ -227,6 +215,20 @@ export function QuoteDocument({ quote, clientName }: { quote: QuoteDocumentData;
         title="Forma de pago"
         body={paymentSummary(breakdown.oneTime.totalCents, quote.paymentTerms, quote.currency)}
       />
+      {/* La renovación va AQUÍ y no en la columna de totales (Miguel,
+          2026-08-27): mismo formato que «Forma de pago» y con la frase que la
+          explica. En la columna, la etiqueta larga se comía el importe. */}
+      {breakdown.annualRenewal ? (
+        <Block
+          title="Renovación anual"
+          body={annualRenewalSummary(
+            breakdown.annualRenewal,
+            quote.taxEnabled,
+            quote.currency,
+            quote.items.some(isFirstYearFree),
+          )}
+        />
+      ) : null}
       <Block title="Fuera de alcance" body={quote.exclusions} />
       <Block title="Notas y condiciones" body={quote.notes} />
 

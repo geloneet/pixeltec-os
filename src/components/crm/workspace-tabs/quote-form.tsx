@@ -47,6 +47,7 @@ import {
   formatDate,
   paymentSchedule,
   breakdownFor,
+  annualRenewalSummary,
   type Currency,
   type PaymentType,
 } from "@/lib/quotes/terms";
@@ -625,32 +626,16 @@ export function QuoteForm({
             </div>
           ))}
 
-          {/* Renovación anual. Su primer año ya está resuelto —cobrado dentro
-              del total inicial o incluido—, así que esto es lo que el cliente
-              pagará CADA aniversario. Se muestra siempre que haya un concepto
-              anual: un compromiso recurrente que no se ve es una sorpresa. */}
+          {/* La renovación se explica DESPUÉS del reparto y en palabras, no
+              como una columna de totales más (Miguel, 2026-08-27): ahí la
+              etiqueta larga se comía el importe, y esto no es un total — es un
+              compromiso que se repite cada año. */}
           {breakdown.annualRenewal ? (
-            <div className="space-y-2 border-t border-border/70 pt-4">
+            <div className="space-y-1.5 border-t border-border/70 pt-4">
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Renovación anual</p>
-              <dl className="space-y-2 text-sm tabular-nums">
-                <div className="flex items-center justify-between gap-3">
-                  <dt className="text-muted-foreground">Servicios</dt>
-                  <dd className="text-foreground">{formatAmount(breakdown.annualRenewal.subtotalCents, currency)}</dd>
-                </div>
-                {taxEnabled ? (
-                  <div className="flex items-center justify-between gap-3">
-                    <dt className="text-muted-foreground">IVA 16%</dt>
-                    <dd className="text-foreground">{formatAmount(breakdown.annualRenewal.taxCents, currency)}</dd>
-                  </div>
-                ) : null}
-                <div className="flex items-baseline justify-between gap-3 border-t border-border pt-2">
-                  <dt className="text-sm font-medium text-foreground">Cada año, desde el 1.er aniversario</dt>
-                  <dd className="text-lg font-semibold text-foreground">
-                    {formatAmount(breakdown.annualRenewal.totalCents, currency)}{" "}
-                    <span className="text-xs font-normal text-muted-foreground">{currency}</span>
-                  </dd>
-                </div>
-              </dl>
+              <p className="whitespace-pre-wrap text-xs leading-relaxed text-muted-foreground">
+                {annualRenewalSummary(breakdown.annualRenewal, taxEnabled, currency, items.some(isFirstYearFree))}
+              </p>
             </div>
           ) : null}
 

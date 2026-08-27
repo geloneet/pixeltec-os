@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  annualRenewalSummary,
   isCurrency,
   formatAmount,
   formatAmountWithCode,
@@ -84,7 +85,9 @@ describe('vigencia y seguimiento (§6, §20)', () => {
 
   it('la columna Seguimiento dice «Hoy», la fecha, o que está pendiente', () => {
     expect(followUpLabel('2026-08-26T09:00:00-06:00', 'enviada', NOW)).toBe('Hoy');
-    expect(followUpLabel('2026-08-29T09:00:00-06:00', 'enviada', NOW)).toBe(formatShortDate('2026-08-29T09:00:00-06:00'));
+    expect(followUpLabel('2026-08-29T09:00:00-06:00', 'enviada', NOW)).toBe(
+      formatShortDate('2026-08-29T09:00:00-06:00'),
+    );
     expect(followUpLabel('2026-08-20T09:00:00-06:00', 'enviada', NOW)).toBe('Seguimiento pendiente');
   });
 
@@ -197,5 +200,31 @@ describe('exclusiones por defecto (§10)', () => {
   it('trae las tres estándar, en líneas separadas', () => {
     expect(DEFAULT_EXCLUSIONS.split('\n')).toHaveLength(3);
     expect(DEFAULT_EXCLUSIONS).toContain('se cotizan por separado');
+  });
+});
+
+/**
+ * La renovación se lee como texto, no como columna de totales (Miguel,
+ * 2026-08-27): mismo formato que «Forma de pago» y con la frase que la explica.
+ */
+describe('resumen de la renovación anual', () => {
+  const renovacion = { subtotalCents: 389800, taxCents: 62368, totalCents: 452168 };
+
+  it('desglosa con el mismo formato que la forma de pago', () => {
+    const texto = annualRenewalSummary(renovacion, true, 'MXN', false);
+    const lineas = texto.split('\n');
+    expect(lineas[0]).toBe('Servicios — $3,898.00 MXN');
+    expect(lineas[1]).toBe('IVA 16% — $623.68 MXN');
+    expect(lineas[2]).toBe('Cada año, desde el 1.er aniversario — $4,521.68 MXN');
+  });
+
+  it('sin IVA no inventa una línea de IVA', () => {
+    const texto = annualRenewalSummary(renovacion, false, 'MXN', false);
+    expect(texto).not.toContain('IVA');
+  });
+
+  it('explica distinto si el primer año va incluido o si ya se cobró', () => {
+    expect(annualRenewalSummary(renovacion, true, 'MXN', true)).toContain('El primer año va incluido');
+    expect(annualRenewalSummary(renovacion, true, 'MXN', false)).toContain('ya está incluida en el total inicial');
   });
 });

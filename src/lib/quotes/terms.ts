@@ -189,6 +189,33 @@ export function paymentSummary(totalCents: number, terms: PaymentTerms, currency
     .join('\n');
 }
 
+/**
+ * Texto de la renovación anual, con el MISMO formato que `paymentSummary`
+ * (Miguel, 2026-08-27): va como bloque propio después de «Forma de pago», no
+ * desglosado en la columna de totales, donde la etiqueta larga se comía el
+ * importe.
+ *
+ * Devuelve el desglose y, debajo, la frase que lo explica — porque un
+ * compromiso que se repite cada año no se entiende solo con un número.
+ */
+export function annualRenewalSummary(
+  renewal: QuoteTotals,
+  taxEnabled: boolean,
+  currency: Currency,
+  hasFreeFirstYear: boolean,
+): string {
+  const lines = [`Servicios — ${formatAmountWithCode(renewal.subtotalCents, currency)}`];
+  if (taxEnabled) lines.push(`IVA 16% — ${formatAmountWithCode(renewal.taxCents, currency)}`);
+  lines.push(`Cada año, desde el 1.er aniversario — ${formatAmountWithCode(renewal.totalCents, currency)}`);
+  lines.push('');
+  lines.push(
+    hasFreeFirstYear
+      ? 'El primer año va incluido: no se cobra hoy. A partir del primer aniversario, este importe se factura una vez al año.'
+      : 'La primera anualidad ya está incluida en el total inicial. A partir del primer aniversario, este importe se factura una vez al año.',
+  );
+  return lines.join('\n');
+}
+
 /** El cobro que se propone al aceptar (§22): la primera parcialidad. */
 export function firstInstalment(totalCents: number, terms: PaymentTerms): PaymentInstalment | null {
   const schedule = paymentSchedule(totalCents, terms);
@@ -200,9 +227,10 @@ export function firstInstalment(totalCents: number, terms: PaymentTerms): Paymen
 export function parsePaymentTerms(raw: unknown): PaymentTerms {
   if (!raw || typeof raw !== 'object') return { ...DEFAULT_PAYMENT_TERMS };
   const value = raw as Record<string, unknown>;
-  const type = typeof value.type === 'string' && (PAYMENT_TYPES as readonly string[]).includes(value.type)
-    ? (value.type as PaymentType)
-    : DEFAULT_PAYMENT_TYPE;
+  const type =
+    typeof value.type === 'string' && (PAYMENT_TYPES as readonly string[]).includes(value.type)
+      ? (value.type as PaymentType)
+      : DEFAULT_PAYMENT_TYPE;
   return { type, custom: typeof value.custom === 'string' ? value.custom : '' };
 }
 
@@ -276,7 +304,10 @@ export function missingToSend(quote: QuoteForValidation): string[] {
 
 /** Totales de la cotización — reexportado para que nadie importe dos módulos. */
 export function totalsFor(items: readonly QuoteItem[], taxEnabled: boolean): QuoteTotals {
-  return computeTotals(items.filter((i) => i.description.trim()), taxEnabled);
+  return computeTotals(
+    items.filter((i) => i.description.trim()),
+    taxEnabled,
+  );
 }
 
 /**

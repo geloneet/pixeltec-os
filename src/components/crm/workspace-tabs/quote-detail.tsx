@@ -31,6 +31,7 @@ import {
   formatAmount,
   formatDate,
   paymentSummary,
+  annualRenewalSummary,
   breakdownFor,
   type RejectionReason,
 } from "@/lib/quotes/terms";
@@ -366,20 +367,26 @@ export function QuoteDetail({
                   </dd>
                 </div>
               ))}
-              {breakdown.annualRenewal ? (
-                <div className="flex justify-between pt-1.5 text-sm text-muted-foreground">
-                  <dt>Renovación anual</dt>
-                  <dd>
-                    {formatAmount(breakdown.annualRenewal.totalCents, quote.currency)} {quote.currency}
-                  </dd>
-                </div>
-              ) : null}
             </dl>
           </div>
         </section>
 
         <Block title="Tiempo estimado" body={quote.estimatedDelivery} />
         <Block title="Forma de pago" body={paymentSummary(totals.totalCents, quote.paymentTerms, quote.currency)} />
+        {/* Mismo criterio que el documento del cliente: la renovación se
+            explica aquí, después de la forma de pago, no en la columna de
+            totales (Miguel, 2026-08-27). */}
+        {breakdown.annualRenewal ? (
+          <Block
+            title="Renovación anual"
+            body={annualRenewalSummary(
+              breakdown.annualRenewal,
+              quote.taxEnabled,
+              quote.currency,
+              quote.items.some(isFirstYearFree),
+            )}
+          />
+        ) : null}
         <Block title="Fuera de alcance" body={quote.exclusions} />
         <Block title="Notas y condiciones" body={quote.notes} />
       </div>
