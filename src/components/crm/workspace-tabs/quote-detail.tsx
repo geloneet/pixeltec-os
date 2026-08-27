@@ -16,7 +16,6 @@ import {
   CheckCircle2,
   XCircle,
   CalendarClock,
-  Receipt,
   Eye,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -38,7 +37,6 @@ import {
 import { buildWhatsAppLink } from "@/lib/quotes/share";
 import {
   acceptQuote,
-  createChargeForQuote,
   markQuoteShared,
   rejectQuote,
   sendQuoteByEmail,
@@ -46,6 +44,7 @@ import {
 } from "@/lib/quotes/actions";
 import { StatusBadge, type QuoteView } from "./quote-shared";
 import { QuoteDocument } from "./quote-document";
+import { AcceptDialog, SalePanel } from "./sale-panel";
 
 function Block({ title, body }: { title: string; body: string }) {
   if (!body.trim()) return null;
@@ -81,6 +80,7 @@ export function QuoteDetail({
   // Vista previa como pop-up (orden de Miguel): el mismo documento que ve el
   // cliente, sin salir de la pantalla ni abrir otra pestaña.
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [acceptOpen, setAcceptOpen] = useState(false);
   const [reason, setReason] = useState<RejectionReason>("precio");
   const [comment, setComment] = useState("");
 
@@ -107,17 +107,6 @@ export function QuoteDetail({
         onChanged();
       } else {
         toast.error(res.error ?? "No se pudo completar la acción.");
-      }
-    });
-
-  const charge = () =>
-    start(async () => {
-      const res = await createChargeForQuote(quote.id);
-      if (res.ok && res.data) {
-        toast.success(`Cobro creado: ${res.data.concept} — ${res.data.amount}`);
-        onChanged();
-      } else {
-        toast.error(res.error ?? "No se pudo crear el cobro.");
       }
     });
 
@@ -202,12 +191,7 @@ export function QuoteDetail({
                 <CalendarClock className="mr-1.5 h-3.5 w-3.5" />
                 Seguir en 7 días
               </Button>
-              <Button
-                type="button"
-                size="sm"
-                onClick={() => run(() => acceptQuote(quote.id), "Marcada como aceptada.")}
-                disabled={pending}
-              >
+              <Button type="button" size="sm" onClick={() => setAcceptOpen(true)}>
                 <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
                 Marcar como aceptada
               </Button>
@@ -217,12 +201,7 @@ export function QuoteDetail({
               </Button>
             </>
           ) : null}
-          {status === "aceptada" ? (
-            <Button type="button" size="sm" onClick={charge} disabled={pending}>
-              <Receipt className="mr-1.5 h-3.5 w-3.5" />
-              Crear cobro
-            </Button>
-          ) : null}
+
         </span>
       </div>
 
@@ -276,6 +255,19 @@ export function QuoteDetail({
             <p className="mt-1 text-muted-foreground">{quote.rejection.comment}</p>
           ) : null}
         </div>
+      ) : null}
+
+      <AcceptDialog
+        quoteId={quote.id}
+        open={acceptOpen}
+        onOpenChange={setAcceptOpen}
+        onAccepted={onChanged}
+      />
+
+      {/* §10: tras aceptar, el resumen aparece aquí mismo — nada de pantallas
+          vacías ni de ir a Finanzas a capturar de nuevo. */}
+      {status === "aceptada" ? (
+        <SalePanel quotationId={quote.id} onOpenCharges={() => window.open("/cobros", "_blank")} />
       ) : null}
 
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>

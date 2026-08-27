@@ -47,6 +47,8 @@ import {
   type PaymentTerms,
 } from './terms';
 import { createChargeFromQuote, toBillingFrequency } from './billing-bridge';
+import { acceptQuoteAndCreateSale } from '@/lib/sales/accept';
+import { ACCEPTED_VIA } from '@/lib/sales/model';
 import { nextFolio } from './folio';
 import { buildEmailSubject } from './share';
 import { getQuoteById, getQuoteClient, listFolios } from './queries';
@@ -127,6 +129,15 @@ export async function saveQuote(input: SaveQuoteInput): Promise<ActionResult<{ i
     if (data.id) {
       const existing = await getQuoteById(data.id);
       if (!existing) return { ok: false, error: 'La cotización ya no existe.' };
+      // §2: una cotización aceptada es evidencia comercial de lo que el cliente
+      // aceptó. No se edita en silencio; si hay que cambiar la propuesta, se
+      // hace otra cotización.
+      if (existing.status === 'aceptada') {
+        return {
+          ok: false,
+          error: 'Esta cotización ya fue aceptada: es el documento que aceptó el cliente. Crea una nueva si cambian las condiciones.',
+        };
+      }
       await db
         .update(quotes)
         .set({
@@ -307,30 +318,73 @@ export async function listQuotesAction(clientId: string): Promise<ActionResult<{
 
 // ── Flujo comercial (WO-2026-00104 §21–§23) ─────────────────────────────────
 
-/** Marca la cotización como aceptada y cancela el seguimiento (§21). */
-export async function acceptQuote(id: string): Promise<ActionResult> {
+const AcceptSchema = z.object({
+  id: z.string().uuid(),
+  acceptedVia: z.enum(ACCEPTED_VIA),
+  /** `YYYY-MM-DD`. Por defecto hoy, pero se puede corregir. */
+  acceptedAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Formato de fecha inválido.'),
+  note: z.string().max(2000),
+});
+
+/**
+ * Aceptar la cotización (WO-2026-00106 §1 y §3).
+ *
+ * La aceptación es explícita: no se acepta por abrir un enlace ni por descargar
+ * el PDF. Y crea la Venta en la MISMA operación — el usuario no vuelve a
+ * capturar cliente, conceptos ni total en Finanzas.
+ *
+ * Es idempotente por construcción: la garantía de «una cotización, una venta»
+ * vive en el índice único de la base, no aquí.
+ */
+export async function acceptQuote(
+  input: z.infer<typeof AcceptSchema>,
+): Promise<ActionResult<{ saleId: string; folio: string; alreadyExisted: boolean }>> {
   try {
     const guard = await requireAdmin();
     if (!guard.ok) return { ok: false, error: 'Requiere rol administrador.' };
 
-    const quote = await getQuoteById(id);
+    const data = AcceptSchema.parse(input);
+    const quote = await getQuoteById(data.id);
     if (!quote) return { ok: false, error: 'La cotización ya no existe.' };
     if (quote.status === 'borrador') {
       return { ok: false, error: 'Primero márcala como enviada.' };
     }
 
+    const acceptedAt = new Date(`${data.acceptedAt}T12:00:00`);
+    if (Number.isNaN(acceptedAt.getTime())) {
+      return { ok: false, error: 'La fecha de aceptación no es válida.' };
+    }
+
+    const sale = await acceptQuoteAndCreateSale({
+      quoteId: quote.id,
+      clientId: quote.clientId,
+      title: quote.title,
+      folio: quote.folio,
+      items: quote.items,
+      taxEnabled: quote.taxEnabled,
+      currency: quote.currency,
+      paymentTerms: quote.paymentTerms,
+      validUntil: quote.validUntil,
+      acceptedAt,
+      acceptedVia: data.acceptedVia,
+      acceptanceNote: data.note.trim(),
+      actorId: guard.uid,
+    });
+
     await db
       .update(quotes)
       .set({
         status: 'aceptada',
-        acceptedAt: new Date(),
+        acceptedAt,
         // §21: aceptada ⇒ deja de pedir seguimiento.
         nextFollowUpAt: null,
         updatedAt: new Date(),
       })
-      .where(eq(quotes.id, id));
+      .where(eq(quotes.id, data.id));
+
     revalidateClient(quote.clientId);
-    return { ok: true };
+    revalidatePath('/cobros');
+    return { ok: true, data: sale };
   } catch (err) {
     return fail(err, 'accept_quote_failed', 'No se pudo marcar como aceptada.');
   }

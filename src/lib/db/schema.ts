@@ -697,15 +697,25 @@ export const recurringCharges = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     firestoreId: text("firestore_id"),
-    projectId: uuid("project_id")
-      .notNull()
-      .references(() => projects.id, { onDelete: "cascade" }),
+    /** Opcional desde WO-2026-00106: un servicio recurrente se vende ANTES de
+     *  que exista el proyecto. Relajar la restricción no invalida ninguna fila
+     *  previa. */
+    projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }),
+    /** Venta que lo originó, cuando nace de una cotización aceptada. */
+    saleId: uuid("sale_id"),
+    clientId: uuid("client_id"),
+    /** pending_start | active | paused | cancelled. Sustituye al booleano
+     *  `active`, que se conserva porque aún lo lee código congelado de
+     *  Finanzas: es derivado (`status === 'active'`), no una segunda verdad. */
+    status: text("status").notNull().default("pending_start"),
     concept: text("concept").notNull(),
     // numeric, NO string libre — corrige el bug identificado en la auditoría
     // de seguridad ("1,500"/"$500" → NaN en los totales de src/lib/crm/next-charge-date.ts).
     amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
     frequency: chargeFrequencyEnum("frequency").notNull(),
-    startDate: date("start_date").notNull(),
+    /** Opcional: un recurrente en `pending_start` aún no tiene fecha; la
+     *  decide una persona al activarlo (WO-2026-00106 §10). */
+    startDate: date("start_date"),
     clientEmail: text("client_email").notNull(),
     active: boolean("active").notNull().default(true),
     lastNotified: timestamp("last_notified", { withTimezone: true }),
@@ -869,6 +879,49 @@ export const toolsRelations = relations(tools, ({ many, one }) => ({
  * Los importes son ENTEROS EN CENTAVOS (MXN). Nunca se guardan flotantes:
  * la aritmética vive en `src/lib/quotes/money.ts`, cubierta por tests.
  */
+/**
+ * Venta (WO-2026-00106, autorizada por ADR-0057).
+ *
+ * Es el puente entre «el cliente aceptó esto» y «ahora existen obligaciones
+ * financieras». NO guarda dinero ni pagos: la deuda vive en `billing_items` y
+ * el dinero recibido en `payment_records`. Una sola fuente de verdad.
+ *
+ * `oneTimeTotalCents` es lo único económico que guarda, como snapshot de lo
+ * aceptado, para que la Venta no dependa de que alguien edite la cotización.
+ */
+export const sales = pgTable(
+  "sales",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    folio: text("folio").notNull(),
+    clientId: uuid("client_id")
+      .notNull()
+      .references(() => clients.id, { onDelete: "cascade" }),
+    quotationId: uuid("quotation_id").notNull(),
+    /** pendiente_anticipo | activa | completada | cancelada */
+    status: text("status").notNull().default("pendiente_anticipo"),
+    currency: text("currency").notNull().default("MXN"),
+    title: text("title").notNull(),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }).notNull(),
+    /** whatsapp | correo | otro */
+    acceptedVia: text("accepted_via").notNull().default("otro"),
+    acceptanceNote: text("acceptance_note").notNull().default(""),
+    oneTimeTotalCents: integer("one_time_total_cents").notNull().default(0),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    // Una cotización, como máximo una venta. La garantía está AQUÍ, no en la
+    // interfaz: dos peticiones concurrentes no pueden crear dos ventas.
+    uniqueIndex("sales_quotation_idx").on(t.quotationId),
+    uniqueIndex("sales_folio_idx").on(t.folio),
+    index("sales_client_idx").on(t.clientId),
+  ]
+);
+
+export type Sale = typeof sales.$inferSelect;
+
 export const quotes = pgTable(
   "quotes",
   {
@@ -1025,6 +1078,10 @@ export const billingItems = pgTable(
       .references(() => clients.id, { onDelete: "cascade" }),
     contractId: uuid("contract_id").references(() => contracts.id, { onDelete: "set null" }),
     proposalId: uuid("proposal_id").references(() => proposals.id, { onDelete: "set null" }),
+    /** Venta que originó esta obligación (WO-2026-00106, ADR-0057).
+     *  `proposalId` explica el origen comercial anterior; `saleId`, la
+     *  obligación ya aceptada. No se rompe ninguna relación actual. */
+    saleId: uuid("sale_id"),
     projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
     concept: text("concept").notNull(),
     amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),

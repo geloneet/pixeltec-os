@@ -560,7 +560,11 @@ export async function getFullCrmData(ownerId: string): Promise<{
             concept: ch.concept,
             amount: ch.amount,
             frequency: ch.frequency,
-            startDate: ch.startDate,
+            // `start_date` pasó a opcional (WO-2026-00106): un recurrente en
+            // «pendiente de inicio» todavía no tiene fecha. El blob del CRM
+            // la sigue esperando como texto, así que aquí se degrada a vacío
+            // en vez de propagar el null y romper el contrato del blob.
+            startDate: ch.startDate ?? '',
             clientEmail: ch.clientEmail,
             active: ch.active,
             lastNotified: ch.lastNotified?.toISOString(),
