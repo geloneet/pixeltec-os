@@ -109,8 +109,15 @@ export function ClientWorkspace({ client, onBack, navigateToProject, setModal, d
         </div>
       </div>
 
-      {/* Tab content */}
-      <div className="flex-1 overflow-auto">
+      {/* Tab content.
+          SIN `overflow-auto`: este contenedor NO scrollea (crece con su
+          contenido; el scroll real lo da el `div` del shell del admin). Pero
+          `overflow` sí lo convertía en el ancestro de referencia de cualquier
+          `position: sticky` de dentro — y como no scrollea, el elemento pegado
+          se iba con la página. Rompía el resumen fijo del editor de
+          cotizaciones (medido: rectTop -372 al hacer scroll). Cada tabla ancha
+          trae su propio `overflow-x-auto`, así que no hace falta aquí. */}
+      <div className="flex-1">
         {activeTab === "resumen" && (
           <ClientDetail
             client={client}

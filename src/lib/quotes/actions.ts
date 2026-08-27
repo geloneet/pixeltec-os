@@ -43,11 +43,20 @@ import { createChargeFromQuote } from './billing-bridge';
 import { nextFolio } from './folio';
 import { buildEmailSubject } from './share';
 import { getQuoteById, getQuoteClient, listFolios } from './queries';
+import { resolveClientPgId } from '@/lib/documents/pg';
 import { renderQuoteEmailHtml } from './email-html';
 import { renderQuotePdf } from './pdf';
 
 function fail(err: unknown, code: string, message: string): ActionResult<never> {
-  console.error(`[quotes] ${code}:`, err instanceof Error ? err.name : typeof err);
+  // Un `ZodError` a secas en el log no dice nada: se registra QUÉ campo falló
+  // (ruta y motivo, nunca el valor) para poder diagnosticar sin adivinar.
+  const detail =
+    err instanceof z.ZodError
+      ? err.issues.map((i) => `${i.path.join('.') || '(raíz)'}: ${i.message}`).join(' · ')
+      : err instanceof Error
+        ? err.name
+        : typeof err;
+  console.error(`[quotes] ${code}:`, detail);
   return { ok: false, error: toPublicFailure(err, { code, message }).message };
 }
 
@@ -59,7 +68,9 @@ const ItemSchema = z.object({
 
 const SaveQuoteSchema = z.object({
   id: z.string().uuid().optional(),
-  clientId: z.string().uuid(),
+  // OJO: es el id PÚBLICO del cliente (ADR-0035), no el uuid de Postgres.
+  // La pantalla de cliente vive en /clientes/<publicId>. Se resuelve abajo.
+  clientId: z.string().min(1).max(64),
   title: z.string().max(200),
   items: z.array(ItemSchema).max(100),
   taxEnabled: z.boolean(),
@@ -76,8 +87,14 @@ const SaveQuoteSchema = z.object({
 });
 export type SaveQuoteInput = z.infer<typeof SaveQuoteSchema>;
 
-function revalidateClient(clientId: string) {
-  revalidatePath(`/clientes/${clientId}`);
+/**
+ * La pestaña recarga sus datos llamando a `listQuotesAction`, no por caché de
+ * ruta. Se revalida solo `/clientes` — interpolar aquí el id sería mentira: en
+ * unos sitios se tiene el id público (el de la URL) y en otros el uuid de
+ * Postgres, y la ruta solo existe con el primero.
+ */
+function revalidateClient(_clientId: string) {
+  revalidatePath('/clientes');
 }
 
 /** Crea o actualiza una cotización. Devuelve su id. */
@@ -87,6 +104,9 @@ export async function saveQuote(input: SaveQuoteInput): Promise<ActionResult<{ i
     if (!session) return { ok: false, error: 'Necesitas iniciar sesión.' };
 
     const data = SaveQuoteSchema.parse(input);
+    const clientPgId = await resolveClientPgId(data.clientId);
+    if (!clientPgId) return { ok: false, error: 'No se encontró el cliente.' };
+
     const items: QuoteItem[] = usableItems(data.items);
 
     const issues = validateQuote({ title: data.title, items, validUntil: data.validUntil });
@@ -122,7 +142,7 @@ export async function saveQuote(input: SaveQuoteInput): Promise<ActionResult<{ i
     const id = randomUUID();
     await db.insert(quotes).values({
       id,
-      clientId: data.clientId,
+      clientId: clientPgId,
       folio: nextFolio(new Date().getFullYear(), await listFolios()),
       title: data.title.trim(),
       items,
@@ -264,7 +284,10 @@ export async function listQuotesAction(clientId: string): Promise<ActionResult<{
     const session = await requireUserSession();
     if (!session) return { ok: false, error: 'Necesitas iniciar sesión.' };
     const { listQuotesForClient } = await import('./queries');
-    return { ok: true, data: { quotes: await listQuotesForClient(clientId) } };
+    // Igual que al guardar: llega el id público, la tabla usa el uuid.
+    const clientPgId = await resolveClientPgId(clientId);
+    if (!clientPgId) return { ok: true, data: { quotes: [] } };
+    return { ok: true, data: { quotes: await listQuotesForClient(clientPgId) } };
   } catch (err) {
     return fail(err, 'list_quotes_failed', 'No se pudieron cargar las cotizaciones.');
   }

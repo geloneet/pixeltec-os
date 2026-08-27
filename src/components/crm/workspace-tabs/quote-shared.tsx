@@ -77,22 +77,49 @@ export function fromQuote(quote: QuoteView): DraftItem[] {
   return rows.length > 0 ? rows : [emptyRow()];
 }
 
-/** Título de sección del formulario (§26). */
-export function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
+/**
+ * Sección del editor (§26). La jerarquía la dan el espacio y la tipografía, no
+ * una caja: un divisor fino arriba y un título legible — nada de mayúsculas
+ * microscópicas en gris (§10).
+ */
+export function FormSection({
+  title,
+  aside,
+  children,
+}: {
+  title: string;
+  /** Contenido alineado a la derecha del título (p. ej. un botón discreto). */
+  aside?: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
-    <section className="space-y-3 border-t border-border pt-5 first:border-0 first:pt-0">
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</h3>
-      {children}
+    <section className="border-t border-border/70 pt-7 first:border-0 first:pt-0">
+      <div className="mb-4 flex items-baseline justify-between gap-3">
+        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+        {aside}
+      </div>
+      <div className="space-y-4">{children}</div>
     </section>
   );
 }
 
-export function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+/** Campo con etiqueta. La etiqueta pesa más que el texto auxiliar (§10). */
+export function Field({
+  label,
+  hint,
+  className,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="space-y-1">
-      <p className="text-xs text-muted-foreground">{label}</p>
+    <div className={cn("space-y-1.5", className)}>
+      <p className="text-xs font-medium text-foreground/80">{label}</p>
       {children}
-      {hint ? <p className="text-[11px] text-muted-foreground/80">{hint}</p> : null}
+      {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
     </div>
   );
 }

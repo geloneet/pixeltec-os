@@ -46,6 +46,7 @@ export function CotizacionesTab({
     return (
       <QuoteForm
         clientId={clientId}
+        clientName={clientName}
         quote={view.quote}
         onCancel={() => setView(view.quote ? { kind: "detail", id: view.quote.id } : { kind: "list" })}
         onSaved={(id) => {
