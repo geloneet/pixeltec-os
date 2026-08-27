@@ -105,9 +105,10 @@ export function AppSidebar({
         />
         <span className="font-logo truncate text-xl font-extrabold uppercase tracking-tight text-foreground">
           Pixel<span className="text-brand-blue">Tec</span>
-          {/* Sufijo del producto (Miguel, 2026-08-26): la marca sola no dice en
-              qué se está trabajando cuando hay varios proyectos abiertos. */}
-          <span className="text-muted-foreground">-OS</span>
+          {/* Identidad de producto visible (Miguel, 2026-08-26 §2). Solo UI:
+              el repo, los paquetes, las rutas y las variables de entorno NO se
+              renombran — sería una migración técnica sin beneficio. */}
+          <span className="text-muted-foreground"> CRM</span>
         </span>
       </Link>
 

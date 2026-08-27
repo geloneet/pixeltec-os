@@ -4,7 +4,8 @@ import { promisify } from 'node:util';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { computeTotals, formatMoney, lineTotalCents } from './money';
+import { computeTotals, lineTotalCents } from './money';
+import { formatAmount, paymentSummary } from './terms';
 import type { QuoteRecord } from './queries';
 
 const execFileAsync = promisify(execFile);
@@ -57,16 +58,23 @@ export async function renderQuotePdf({
     date: humanDate(quote.createdAt) ?? '',
     validUntil: humanDate(quote.validUntil),
     notes: quote.notes,
+    problem: quote.problem,
+    solution: quote.solution,
+    scopeIncluded: quote.scopeIncluded,
+    exclusions: quote.exclusions,
+    estimatedDelivery: quote.estimatedDelivery,
+    paymentSummary: paymentSummary(totals.totalCents, quote.paymentTerms, quote.currency),
+    currency: quote.currency,
     taxEnabled: quote.taxEnabled,
     items: quote.items.map((item) => ({
       description: item.description,
       quantity: formatQty(item.quantity),
-      unitPrice: formatMoney(item.unitPriceCents),
-      lineTotal: formatMoney(lineTotalCents(item)),
+      unitPrice: formatAmount(item.unitPriceCents, quote.currency),
+      lineTotal: formatAmount(lineTotalCents(item), quote.currency),
     })),
-    subtotal: formatMoney(totals.subtotalCents),
-    tax: formatMoney(totals.taxCents),
-    total: formatMoney(totals.totalCents),
+    subtotal: formatAmount(totals.subtotalCents, quote.currency),
+    tax: formatAmount(totals.taxCents, quote.currency),
+    total: `${formatAmount(totals.totalCents, quote.currency)} ${quote.currency}`,
   };
 
   const dir = await mkdtemp(path.join(tmpdir(), 'quote-pdf-'));

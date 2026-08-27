@@ -43,7 +43,7 @@ function Shell({
   // el título por defecto del sitio público no dice cuál es esta ventana. Se
   // hace aquí y no con `metadata` porque este layout es un Client Component.
   useEffect(() => {
-    document.title = activeArea ? `PIXELTEC-OS · ${NAV_AREA_LABELS[activeArea]}` : "PIXELTEC-OS";
+    document.title = activeArea ? `PIXELTEC CRM · ${NAV_AREA_LABELS[activeArea]}` : "PIXELTEC CRM";
   }, [activeArea]);
 
   return (

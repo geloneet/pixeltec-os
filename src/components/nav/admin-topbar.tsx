@@ -42,7 +42,7 @@ export function AdminTopbar({
       {/* Miguel (2026-08-26): el producto siempre visible — con varios
           proyectos abiertos, el nombre del área solo no dice dónde estás. */}
       <span className="flex min-w-0 items-center gap-2 text-sm">
-        <span className="font-semibold tracking-tight text-foreground">PIXELTEC-OS</span>
+        <span className="font-semibold tracking-tight text-foreground">PIXELTEC CRM</span>
         {activeArea ? (
           <>
             <span aria-hidden className="text-muted-foreground/50">·</span>

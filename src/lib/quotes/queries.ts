@@ -3,6 +3,7 @@ import { desc, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { quotes, clients } from '@/lib/db/schema';
 import type { QuoteItem } from './money';
+import { parsePaymentTerms, type Currency, type PaymentTerms, type Rejection, isCurrency } from './terms';
 
 /**
  * Lecturas de cotizaciones (WO-2026-00101). Proyección explícita: la vista
@@ -23,6 +24,29 @@ export interface QuoteRecord {
   sentAt: string | null;
   createdAt: string;
   updatedAt: string;
+  // ── MVP comercial (WO-2026-00104) ─────────────────────────────────────────
+  currency: Currency;
+  problem: string;
+  solution: string;
+  scopeIncluded: string;
+  exclusions: string;
+  estimatedDelivery: string;
+  paymentTerms: PaymentTerms;
+  acceptedAt: string | null;
+  rejectedAt: string | null;
+  nextFollowUpAt: string | null;
+  rejection: Rejection | null;
+}
+
+/** Sanea el motivo de rechazo guardado; `null` si no hay o está corrupto. */
+function toRejection(raw: unknown): Rejection | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const value = raw as Record<string, unknown>;
+  if (typeof value.reason !== 'string') return null;
+  return {
+    reason: value.reason as Rejection['reason'],
+    comment: typeof value.comment === 'string' ? value.comment : '',
+  };
 }
 
 /** Sanea el jsonb: una fila corrupta no puede tumbar la pantalla. */
@@ -54,6 +78,17 @@ function toRecord(row: QuoteRow): QuoteRecord {
     sentAt: row.sentAt ? row.sentAt.toISOString() : null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
+    currency: isCurrency(row.currency) ? row.currency : 'MXN',
+    problem: row.problem,
+    solution: row.solution,
+    scopeIncluded: row.scopeIncluded,
+    exclusions: row.exclusions,
+    estimatedDelivery: row.estimatedDelivery,
+    paymentTerms: parsePaymentTerms(row.paymentTerms),
+    acceptedAt: row.acceptedAt ? row.acceptedAt.toISOString() : null,
+    rejectedAt: row.rejectedAt ? row.rejectedAt.toISOString() : null,
+    nextFollowUpAt: row.nextFollowUpAt ? row.nextFollowUpAt.toISOString() : null,
+    rejection: toRejection(row.rejection),
   };
 }
 

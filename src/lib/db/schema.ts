@@ -890,12 +890,28 @@ export const quotes = pgTable(
     /** Token del enlace público de solo lectura. */
     publicToken: text("public_token").notNull(),
     sentAt: timestamp("sent_at", { withTimezone: true }),
+    // ── MVP comercial (WO-2026-00104, migración 0046) ──────────────────────
+    currency: text("currency").notNull().default("MXN"),
+    problem: text("problem").notNull().default(""),
+    solution: text("solution").notNull().default(""),
+    scopeIncluded: text("scope_included").notNull().default(""),
+    exclusions: text("exclusions").notNull().default(""),
+    estimatedDelivery: text("estimated_delivery").notNull().default(""),
+    /** { type: "50_50"|"40_30_30"|"mensual"|"personalizada", custom: string } */
+    paymentTerms: jsonb("payment_terms").notNull().default({ type: "50_50", custom: "" }),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    rejectedAt: timestamp("rejected_at", { withTimezone: true }),
+    nextFollowUpAt: timestamp("next_follow_up_at", { withTimezone: true }),
+    /** { reason: …, comment: string } */
+    rejection: jsonb("rejection"),
     createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     index("quotes_client_idx").on(t.clientId),
+    index("quotes_status_idx").on(t.status),
+    index("quotes_follow_up_idx").on(t.nextFollowUpAt),
     uniqueIndex("quotes_folio_idx").on(t.folio),
     uniqueIndex("quotes_public_token_idx").on(t.publicToken),
   ]

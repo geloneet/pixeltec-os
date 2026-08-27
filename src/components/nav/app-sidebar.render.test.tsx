@@ -53,8 +53,8 @@ describe("sidebar del panel", () => {
     }
   });
 
-  it("la marca dice PIXELTEC-OS, no solo PixelTEC", () => {
+  it("la marca dice PIXELTEC CRM, no solo PixelTEC", () => {
     const { container } = render(<AppSidebar activeArea={null} />);
-    expect(container.textContent).toContain("-OS");
+    expect(container.textContent).toContain("CRM");
   });
 });

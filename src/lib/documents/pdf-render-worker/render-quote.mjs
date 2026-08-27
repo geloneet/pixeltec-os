@@ -118,7 +118,7 @@ function QuoteDocument({ q }) {
           ]),
         ]),
         h(View, { key: "meta" }, [
-          h(Text, { key: "lab", style: styles.docLabel }, "COTIZACIÓN"),
+          h(Text, { key: "lab", style: styles.docLabel }, "PROPUESTA"),
           h(Text, { key: "fol", style: styles.folio }, q.folio),
           h(Text, { key: "date", style: styles.metaRight }, `Fecha: ${q.date}`),
           q.validUntil ? h(Text, { key: "vig", style: styles.metaRight }, `Vigencia: ${q.validUntil}`) : null,
@@ -131,6 +131,20 @@ function QuoteDocument({ q }) {
         q.clientName,
       ]),
 
+      q.problem ? h(View, { key: "problem", style: styles.block }, [
+        h(Text, { key: "t", style: styles.blockTitle }, "EL PROBLEMA"),
+        h(Text, { key: "b", style: styles.blockBody }, q.problem),
+      ]) : null,
+      q.solution ? h(View, { key: "solution", style: styles.block }, [
+        h(Text, { key: "t", style: styles.blockTitle }, "SOLUCIÓN PROPUESTA"),
+        h(Text, { key: "b", style: styles.blockBody }, q.solution),
+      ]) : null,
+      q.scopeIncluded ? h(View, { key: "scope", style: styles.block }, [
+        h(Text, { key: "t", style: styles.blockTitle }, "ALCANCE INCLUIDO"),
+        h(Text, { key: "b", style: styles.blockBody }, q.scopeIncluded),
+      ]) : null,
+
+      h(Text, { key: "invLabel", style: [styles.blockTitle, { marginTop: 26, marginBottom: 6 }] }, "INVERSIÓN"),
       h(View, { key: "thead", style: styles.thead }, [
         h(Text, { key: "d", style: [styles.th, styles.cDesc] }, "CONCEPTO"),
         h(Text, { key: "q", style: [styles.th, styles.cQty, styles.cellRight] }, "CANT."),
@@ -147,12 +161,28 @@ function QuoteDocument({ q }) {
         ]),
       ]),
 
+      q.estimatedDelivery ? h(View, { key: "time", style: styles.block }, [
+        h(Text, { key: "t", style: styles.blockTitle }, "TIEMPO ESTIMADO"),
+        h(Text, { key: "b", style: styles.blockBody }, q.estimatedDelivery),
+      ]) : null,
+      q.paymentSummary ? h(View, { key: "pay", style: styles.block }, [
+        h(Text, { key: "t", style: styles.blockTitle }, "FORMA DE PAGO"),
+        h(Text, { key: "b", style: styles.blockBody }, q.paymentSummary),
+      ]) : null,
+      q.exclusions ? h(View, { key: "excl", style: styles.block }, [
+        h(Text, { key: "t", style: styles.blockTitle }, "FUERA DE ALCANCE"),
+        h(Text, { key: "b", style: styles.blockBody }, q.exclusions),
+      ]) : null,
       q.notes
         ? h(View, { key: "notes", style: styles.block }, [
-            h(Text, { key: "t", style: styles.blockTitle }, "NOTAS"),
+            h(Text, { key: "t", style: styles.blockTitle }, "NOTAS Y CONDICIONES"),
             h(Text, { key: "b", style: styles.blockBody }, q.notes),
           ])
         : null,
+      h(View, { key: "next", style: [styles.block, { backgroundColor: COLOR.band, borderRadius: 4, padding: 12 }] }, [
+        h(Text, { key: "t", style: styles.blockTitle }, "SIGUIENTE PASO"),
+        h(Text, { key: "b", style: styles.blockBody }, "Aceptar la propuesta y realizar el anticipo correspondiente."),
+      ]),
 
       h(View, { key: "footer", style: styles.footer, fixed: true }, [
         h(Text, { key: "l", style: styles.footerText }, `${q.folio} · PixelTEC`),

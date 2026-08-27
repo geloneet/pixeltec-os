@@ -21,7 +21,25 @@ import { toPublicFailure } from '@/lib/errors/public-failure';
 import type { ActionResult } from '@/lib/blog/schemas';
 import { sendEmail } from '@/lib/email';
 import { SITE } from '@/lib/site-config';
-import { computeTotals, formatMoney, usableItems, validateQuote, type QuoteItem } from './money';
+import { computeTotals, usableItems, validateQuote, type QuoteItem } from './money';
+import {
+  CURRENCIES,
+  DEFAULT_EXCLUSIONS,
+  DEFAULT_PAYMENT_TERMS,
+  PAYMENT_TYPES,
+  REJECTION_REASONS,
+  defaultValidUntil,
+  displayStatus,
+  firstFollowUp,
+  firstInstalment,
+  formatAmountWithCode,
+  formatDate,
+  missingToSend,
+  nextFollowUp,
+  parsePaymentTerms,
+  type PaymentTerms,
+} from './terms';
+import { createChargeFromQuote } from './billing-bridge';
 import { nextFolio } from './folio';
 import { buildEmailSubject } from './share';
 import { getQuoteById, getQuoteClient, listFolios } from './queries';
@@ -47,6 +65,14 @@ const SaveQuoteSchema = z.object({
   taxEnabled: z.boolean(),
   notes: z.string().max(5000),
   validUntil: z.string().max(40).nullable(),
+  // ── MVP comercial (WO-2026-00104) ────────────────────────────────────────
+  currency: z.enum(CURRENCIES),
+  problem: z.string().max(4000),
+  solution: z.string().max(4000),
+  scopeIncluded: z.string().max(4000),
+  exclusions: z.string().max(4000),
+  estimatedDelivery: z.string().max(200),
+  paymentTerms: z.object({ type: z.enum(PAYMENT_TYPES), custom: z.string().max(2000) }),
 });
 export type SaveQuoteInput = z.infer<typeof SaveQuoteSchema>;
 
@@ -79,6 +105,13 @@ export async function saveQuote(input: SaveQuoteInput): Promise<ActionResult<{ i
           taxEnabled: data.taxEnabled,
           notes: data.notes.trim(),
           validUntil,
+          currency: data.currency,
+          problem: data.problem.trim(),
+          solution: data.solution.trim(),
+          scopeIncluded: data.scopeIncluded.trim(),
+          exclusions: data.exclusions.trim(),
+          estimatedDelivery: data.estimatedDelivery.trim(),
+          paymentTerms: data.paymentTerms,
           updatedAt: new Date(),
         })
         .where(eq(quotes.id, data.id));
@@ -95,7 +128,15 @@ export async function saveQuote(input: SaveQuoteInput): Promise<ActionResult<{ i
       items,
       taxEnabled: data.taxEnabled,
       notes: data.notes.trim(),
-      validUntil,
+      // §6: si no la tocó, hoy + 15 días. Nunca se guarda sin vigencia.
+      validUntil: validUntil ?? defaultValidUntil(new Date()),
+      currency: data.currency,
+      problem: data.problem.trim(),
+      solution: data.solution.trim(),
+      scopeIncluded: data.scopeIncluded.trim(),
+      exclusions: data.exclusions.trim() || DEFAULT_EXCLUSIONS,
+      estimatedDelivery: data.estimatedDelivery.trim(),
+      paymentTerms: data.paymentTerms,
       status: 'borrador',
       publicToken: randomBytes(24).toString('base64url'),
       createdBy: session.userId,
@@ -144,6 +185,11 @@ export async function sendQuoteByEmail(id: string, to?: string): Promise<ActionR
     const recipient = (to ?? client.email ?? '').trim();
     if (!recipient) return { ok: false, error: 'Este cliente no tiene correo. Escribe uno para enviar.' };
 
+    const blocking = missingToSend(quote);
+    if (blocking.length > 0) {
+      return { ok: false, error: `Antes de enviarla falta ${blocking.join(', ')}.` };
+    }
+
     const totals = computeTotals(quote.items, quote.taxEnabled);
     const url = `${SITE.url}/c/${quote.publicToken}`;
 
@@ -152,9 +198,9 @@ export async function sendQuoteByEmail(id: string, to?: string): Promise<ActionR
       clientName: client.name,
       folio: quote.folio,
       title: quote.title,
-      total: formatMoney(totals.totalCents),
+      total: formatAmountWithCode(totals.totalCents, quote.currency),
       url,
-      validUntil: quote.validUntil,
+      validUntil: formatDate(quote.validUntil),
     });
 
     const result = await sendEmail(recipient, buildEmailSubject(quote), html, [
@@ -162,9 +208,16 @@ export async function sendQuoteByEmail(id: string, to?: string): Promise<ActionR
     ]);
     if (!result.success) return { ok: false, error: 'El correo no salió. Revisa el destinatario.' };
 
+    const sentAt = new Date();
     await db
       .update(quotes)
-      .set({ status: 'enviada', sentAt: new Date(), updatedAt: new Date() })
+      .set({
+        status: 'enviada',
+        sentAt,
+        // §20: el seguimiento se agenda solo al enviar. Sin jobs ni cron.
+        nextFollowUpAt: firstFollowUp(sentAt),
+        updatedAt: sentAt,
+      })
       .where(eq(quotes.id, id));
     revalidateClient(quote.clientId);
 
@@ -188,9 +241,15 @@ export async function markQuoteShared(id: string): Promise<ActionResult> {
     const quote = await getQuoteById(id);
     if (!quote) return { ok: false, error: 'La cotización ya no existe.' };
 
+    const blocking = missingToSend(quote);
+    if (blocking.length > 0) {
+      return { ok: false, error: `Antes de marcarla enviada falta ${blocking.join(', ')}.` };
+    }
+
+    const sentAt = quote.sentAt ? new Date(quote.sentAt) : new Date();
     await db
       .update(quotes)
-      .set({ status: 'enviada', sentAt: quote.sentAt ? new Date(quote.sentAt) : new Date(), updatedAt: new Date() })
+      .set({ status: 'enviada', sentAt, nextFollowUpAt: firstFollowUp(sentAt), updatedAt: new Date() })
       .where(eq(quotes.id, id));
     revalidateClient(quote.clientId);
     return { ok: true };
@@ -208,5 +267,144 @@ export async function listQuotesAction(clientId: string): Promise<ActionResult<{
     return { ok: true, data: { quotes: await listQuotesForClient(clientId) } };
   } catch (err) {
     return fail(err, 'list_quotes_failed', 'No se pudieron cargar las cotizaciones.');
+  }
+}
+
+// ── Flujo comercial (WO-2026-00104 §21–§23) ─────────────────────────────────
+
+/** Marca la cotización como aceptada y cancela el seguimiento (§21). */
+export async function acceptQuote(id: string): Promise<ActionResult> {
+  try {
+    const guard = await requireAdmin();
+    if (!guard.ok) return { ok: false, error: 'Requiere rol administrador.' };
+
+    const quote = await getQuoteById(id);
+    if (!quote) return { ok: false, error: 'La cotización ya no existe.' };
+    if (quote.status === 'borrador') {
+      return { ok: false, error: 'Primero márcala como enviada.' };
+    }
+
+    await db
+      .update(quotes)
+      .set({
+        status: 'aceptada',
+        acceptedAt: new Date(),
+        // §21: aceptada ⇒ deja de pedir seguimiento.
+        nextFollowUpAt: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(quotes.id, id));
+    revalidateClient(quote.clientId);
+    return { ok: true };
+  } catch (err) {
+    return fail(err, 'accept_quote_failed', 'No se pudo marcar como aceptada.');
+  }
+}
+
+const RejectSchema = z.object({
+  id: z.string().uuid(),
+  reason: z.enum(REJECTION_REASONS),
+  comment: z.string().max(2000),
+});
+
+/** Marca la cotización como rechazada y guarda el motivo (§23). */
+export async function rejectQuote(input: z.infer<typeof RejectSchema>): Promise<ActionResult> {
+  try {
+    const guard = await requireAdmin();
+    if (!guard.ok) return { ok: false, error: 'Requiere rol administrador.' };
+
+    const data = RejectSchema.parse(input);
+    const quote = await getQuoteById(data.id);
+    if (!quote) return { ok: false, error: 'La cotización ya no existe.' };
+
+    await db
+      .update(quotes)
+      .set({
+        status: 'rechazada',
+        rejectedAt: new Date(),
+        rejection: { reason: data.reason, comment: data.comment.trim() },
+        nextFollowUpAt: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(quotes.id, data.id));
+    revalidateClient(quote.clientId);
+    return { ok: true };
+  } catch (err) {
+    return fail(err, 'reject_quote_failed', 'No se pudo marcar como rechazada.');
+  }
+}
+
+/** Aplaza el seguimiento siete días (§20). No hay recordatorios automáticos. */
+export async function snoozeFollowUp(id: string): Promise<ActionResult<{ nextFollowUpAt: string }>> {
+  try {
+    const guard = await requireAdmin();
+    if (!guard.ok) return { ok: false, error: 'Requiere rol administrador.' };
+
+    const quote = await getQuoteById(id);
+    if (!quote) return { ok: false, error: 'La cotización ya no existe.' };
+
+    const next = nextFollowUp(new Date());
+    await db.update(quotes).set({ nextFollowUpAt: next, updatedAt: new Date() }).where(eq(quotes.id, id));
+    revalidateClient(quote.clientId);
+    return { ok: true, data: { nextFollowUpAt: next.toISOString() } };
+  } catch (err) {
+    return fail(err, 'snooze_failed', 'No se pudo reprogramar el seguimiento.');
+  }
+}
+
+/**
+ * Crea el cobro de la primera parcialidad (§22).
+ *
+ * Inserta en `billing_items` desde `billing-bridge.ts`, un archivo nuevo:
+ * Finanzas no se modifica. No crea proyectos, tareas ni contratos.
+ */
+export async function createChargeForQuote(id: string): Promise<ActionResult<{ concept: string; amount: string }>> {
+  try {
+    const guard = await requireAdmin();
+    if (!guard.ok) return { ok: false, error: 'Crear un cobro requiere rol administrador.' };
+
+    const quote = await getQuoteById(id);
+    if (!quote) return { ok: false, error: 'La cotización ya no existe.' };
+    if (quote.status !== 'aceptada') {
+      return { ok: false, error: 'Solo se crea el cobro de una cotización aceptada.' };
+    }
+
+    const totals = computeTotals(quote.items, quote.taxEnabled);
+    const instalment = firstInstalment(totals.totalCents, quote.paymentTerms);
+    if (!instalment || instalment.amountCents <= 0) {
+      return { ok: false, error: 'La cotización no tiene un importe que cobrar.' };
+    }
+
+    const concept = `${instalment.label} ${quote.folio}`;
+    // `billing_items.due_date` es NOT NULL: se usa la vigencia y, si no la hay, hoy.
+    const dueDate = (quote.validUntil ?? new Date().toISOString()).slice(0, 10);
+
+    const created = await createChargeFromQuote({
+      clientId: quote.clientId,
+      concept,
+      amountCents: instalment.amountCents,
+      currency: quote.currency,
+      dueDate,
+    });
+    if (!created) return { ok: false, error: 'No se pudo crear el cobro.' };
+
+    revalidateClient(quote.clientId);
+    revalidatePath('/cobros');
+    return { ok: true, data: { concept, amount: formatAmountWithCode(instalment.amountCents, quote.currency) } };
+  } catch (err) {
+    return fail(err, 'create_charge_failed', 'No se pudo crear el cobro.');
+  }
+}
+
+/** Una cotización suelta, para la vista de detalle (§16). */
+export async function getQuoteAction(id: string): Promise<ActionResult<{ quote: unknown }>> {
+  try {
+    const session = await requireUserSession();
+    if (!session) return { ok: false, error: 'Necesitas iniciar sesión.' };
+    const quote = await getQuoteById(id);
+    if (!quote) return { ok: false, error: 'La cotización ya no existe.' };
+    return { ok: true, data: { quote } };
+  } catch (err) {
+    return fail(err, 'get_quote_failed', 'No se pudo cargar la cotización.');
   }
 }
