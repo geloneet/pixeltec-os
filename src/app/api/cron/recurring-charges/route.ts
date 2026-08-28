@@ -3,8 +3,8 @@ import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { billingItems, clients, recurringCharges, sales } from "@/lib/db/schema";
 import { assertCronExecutionAllowed, cronBlockedResponse } from "@/lib/cron-guard";
-import { getNextChargeDate, planReminders } from "@/lib/crm/next-charge-date";
-import { isChargeDue, buildMaterializedBillingItem } from "@/lib/sales/recurring-scheduler";
+import { getNextChargeDate, getMostRecentUnpaidChargeDate, planReminders } from "@/lib/crm/next-charge-date";
+import { buildMaterializedBillingItem } from "@/lib/sales/recurring-scheduler";
 import { sendBillingReminder } from "@/lib/billing/reminder-notify";
 import { toRouteFailure } from "@/lib/errors/route-failure";
 
@@ -56,9 +56,14 @@ export async function GET(req: NextRequest) {
         continue;
       }
 
-      const dueDate = getNextChargeDate(charge.startDate, charge.frequency);
+      // Sin `lastNotified`: la supresión "ya avisado para este período" de
+      // `getMostRecentUnpaidChargeDate` es innecesaria aquí — la idempotencia
+      // de la materialización viene del índice único parcial de `billing_items`
+      // (`recurring_charge_id` + `due_date`) vía `.onConflictDoNothing()`, no
+      // de este proxy basado en `lastNotified` (pensado para otro consumidor).
+      const dueNow = getMostRecentUnpaidChargeDate(charge.startDate, charge.frequency);
 
-      if (isChargeDue(dueDate, today)) {
+      if (dueNow) {
         const [saleRow] = charge.saleId
           ? await db.select({ currency: sales.currency }).from(sales).where(eq(sales.id, charge.saleId)).limit(1)
           : [];
@@ -72,7 +77,7 @@ export async function GET(req: NextRequest) {
             amount: charge.amount,
             frequency: charge.frequency,
           },
-          dueDate,
+          dueNow,
           saleRow?.currency ?? "MXN",
         );
         const [owner] = await db.select({ ownerId: clients.ownerId }).from(clients).where(eq(clients.id, charge.clientId)).limit(1);
@@ -100,6 +105,9 @@ export async function GET(req: NextRequest) {
         }
         continue; // vencido: ya no manda avisos "antes" — eso terminó
       }
+
+      // No vencido todavía — evaluar avisos de checkpoint contra la próxima fecha.
+      const dueDate = getNextChargeDate(charge.startDate, charge.frequency);
 
       // `reminder_checkpoints_sent` es jsonb (tipo `unknown` para drizzle, mismo
       // criterio que el resto de columnas jsonb de este schema — sin
