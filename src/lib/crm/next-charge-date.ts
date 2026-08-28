@@ -124,6 +124,6 @@ export function planReminders(
   const alreadySent = isNewCycle ? [] : state.reminderCheckpointsSent;
   const daysUntil = differenceInCalendarDays(dueDate, today);
   const thresholds = frequency === 'annual' ? ANNUAL_REMINDER_CHECKPOINTS : MONTHLY_REMINDER_CHECKPOINTS;
-  const checkpointsToSend = thresholds.filter((t) => daysUntil === t && !alreadySent.includes(t));
+  const checkpointsToSend = thresholds.filter((t) => daysUntil <= t && daysUntil > 0 && !alreadySent.includes(t));
   return { cycleDue, checkpointsToSend, isNewCycle };
 }
