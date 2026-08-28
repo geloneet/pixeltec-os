@@ -9,17 +9,21 @@ export interface InvoiceEmailProps {
   clientName: string;
   projectName: string;
   amount: number;
+  /** Moneda real de la transacción (MXN/USD) — antes se formateaba siempre
+   *  como MXN sin importar la moneda real. Opcional para no romper llamadas
+   *  existentes; cae a 'MXN' (comportamiento histórico). */
+  currency?: string;
   method: string;
   type: string;
   date: string;
 }
 
-function formatMXN(amount: number): string {
-  return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount);
+function formatAmount(amount: number, currency: string): string {
+  return new Intl.NumberFormat('es-MX', { style: 'currency', currency }).format(amount);
 }
 
 export function renderInvoiceEmail(props: InvoiceEmailProps): string {
-  const { clientName, projectName, amount, method, type, date } = props;
+  const { clientName, projectName, amount, currency = 'MXN', method, type, date } = props;
 
   return internalLayout({
     title: 'Pago Registrado — PixelTEC OS',
@@ -41,7 +45,7 @@ export function renderInvoiceEmail(props: InvoiceEmailProps): string {
           Monto recibido
         </p>
         <p style="margin:0;font-size:40px;font-weight:800;color:#15803d;font-variant-numeric:tabular-nums;">
-          ${formatMXN(amount)}
+          ${formatAmount(amount, currency)}
         </p>
       </div>
 

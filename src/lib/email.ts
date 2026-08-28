@@ -168,10 +168,14 @@ export async function sendInvoiceToClientEmail(props: {
   clientName: string;
   invoiceNumber: string;
   total: number;
+  /** Moneda real de la factura (MXN/USD) — antes se formateaba siempre como
+   *  MXN sin importar la moneda real de la transacción. Opcional para no
+   *  romper llamadas existentes; cae a 'MXN' (comportamiento histórico). */
+  currency?: string;
   pdfBuffer: Buffer;
   pdfFilename: string;
 }): Promise<EmailResult> {
-  const formattedTotal = new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(props.total);
+  const formattedTotal = new Intl.NumberFormat("es-MX", { style: "currency", currency: props.currency ?? "MXN" }).format(props.total);
   const html = `<!DOCTYPE html>
 <html lang="es">
 <head><meta charset="UTF-8" /></head>
@@ -204,7 +208,7 @@ export async function sendInvoiceEmail(props: InvoiceEmailProps): Promise<EmailR
   const html = renderInvoiceEmail(props);
   return sendEmail(
     TEAM_EMAIL,
-    `💰 Pago recibido · ${props.clientName} — ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(props.amount)}`,
+    `💰 Pago recibido · ${props.clientName} — ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: props.currency ?? 'MXN' }).format(props.amount)}`,
     html
   );
 }

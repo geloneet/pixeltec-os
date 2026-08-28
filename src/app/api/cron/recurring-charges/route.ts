@@ -156,6 +156,17 @@ export async function GET(req: NextRequest) {
           .returning({ id: billingItems.id });
         if (inserted.length > 0) {
           results.push(`Cobro materializado para ${charge.concept} (${charge.id})`);
+        } else {
+          // onConflictDoNothing silenció una violación del índice único —
+          // lo más probable es que ya exista una fila CANCELADA para este
+          // mismo (recurring_charge_id, due_date): el filtro `existing` de
+          // arriba excluye 'cancelado' a propósito (una fila cancelada no
+          // cuenta como "ya materializado" para reanudar avisos), pero el
+          // índice sí la cuenta para unicidad — el recurrente se queda sin
+          // fila viva y sin aviso hasta que alguien lo note. No se reintenta
+          // ni se decide el comportamiento aquí (Finanzas, ADR-0057): se
+          // reporta para que un humano lo revise.
+          results.push(`ANOMALÍA: recurrente ${charge.id} (${charge.concept}) no se pudo materializar para ${dueNow.toISOString().slice(0, 10)} — probable fila cancelada ocupando el mismo período; revisar manualmente`);
         }
         continue; // primera materialización: de aquí en más, recordPayment avanza esta misma fila
       }

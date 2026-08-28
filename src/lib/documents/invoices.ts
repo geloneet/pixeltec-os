@@ -451,6 +451,7 @@ export async function deliverInvoiceEmail(invoiceId: string): Promise<void> {
       clientName: client.name,
       invoiceNumber: row.number,
       total: Number(row.total),
+      currency: row.currency ?? undefined,
       pdfBuffer,
       pdfFilename: safeInvoiceFilename(row.number),
     });

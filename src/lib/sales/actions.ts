@@ -14,6 +14,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { billingItems, clients, recurringCharges, sales } from '@/lib/db/schema';
 import { requireAdmin } from '@/lib/auth-guards';
+import { requireOwner } from '@/lib/documents/pg';
 import { toPublicFailure } from '@/lib/errors/public-failure';
 import { sendBillingReminder } from '@/lib/billing/reminder-notify';
 import { getNextChargeDate } from '@/lib/crm/next-charge-date';
@@ -156,6 +157,10 @@ export async function sendManualRecurringReminder(recurringId: string): Promise<
   try {
     const guard = await requireAdmin();
     if (!guard.ok) return { ok: false, error: 'Requiere rol administrador.' };
+    // Owner scoping — mismo filtro que `listActiveRecurringCharges` (§Parte
+    // E/F/G): antes cualquier admin podía disparar un recordatorio para un
+    // recurrente de un cliente que no le pertenece, con solo conocer su id.
+    const { ownerId } = await requireOwner();
 
     const [row] = await db
       .select({
@@ -169,7 +174,7 @@ export async function sendManualRecurringReminder(recurringId: string): Promise<
       })
       .from(recurringCharges)
       .innerJoin(clients, eq(clients.id, recurringCharges.clientId))
-      .where(eq(recurringCharges.id, recurringId))
+      .where(and(eq(recurringCharges.id, recurringId), eq(clients.ownerId, ownerId)))
       .limit(1);
     if (!row || !row.startDate) return { ok: false, error: 'El recurrente ya no existe o no tiene fecha de inicio.' };
 

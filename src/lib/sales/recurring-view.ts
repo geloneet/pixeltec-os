@@ -3,7 +3,7 @@ import { and, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { clients, recurringCharges } from '@/lib/db/schema';
 import { getNextChargeDate } from '@/lib/crm/next-charge-date';
-import { requireOwner } from '@/lib/documents/pg';
+import { requireOwner, resolveClientPgId } from '@/lib/documents/pg';
 
 export interface RecurringChargeRow {
   id: string;
@@ -19,8 +19,16 @@ export interface RecurringChargeRow {
 export async function listActiveRecurringCharges(clientId?: string): Promise<RecurringChargeRow[]> {
   const { ownerId } = await requireOwner();
 
-  const where = clientId
-    ? and(eq(recurringCharges.status, 'active'), eq(clients.ownerId, ownerId), eq(recurringCharges.clientId, clientId))
+  // `clientId` llega como id PÚBLICO (firestoreId para clientes migrados,
+  // uuid para nuevos — igual que `getBillingItemsForClient`, mismo archivo
+  // hermano). Sin este resolve, Postgres rechaza el id de Firestore como
+  // uuid inválido (22P02) y la pestaña Finanzas se queda cargando para
+  // siempre — bug real encontrado en verificación visual, no hipotético.
+  const clientPgId = clientId ? await resolveClientPgId(clientId) : null;
+  if (clientId && !clientPgId) return [];
+
+  const where = clientPgId
+    ? and(eq(recurringCharges.status, 'active'), eq(clients.ownerId, ownerId), eq(recurringCharges.clientId, clientPgId))
     : and(eq(recurringCharges.status, 'active'), eq(clients.ownerId, ownerId));
 
   const rows = await db
