@@ -152,9 +152,12 @@ interface StandaloneServiceSchemaProps {
   url: string;
   name: string;
   description: string;
+  /** Ciudad servida (páginas locales, WO-2026-00128). Sin ella, cae a País
+   *  (comportamiento histórico) para no romper los llamados existentes. */
+  areaServedCity?: string;
 }
 
-export function StandaloneServiceStructuredData({ url, name, description }: StandaloneServiceSchemaProps) {
+export function StandaloneServiceStructuredData({ url, name, description, areaServedCity }: StandaloneServiceSchemaProps) {
   const schema = {
     "@context": "https://schema.org",
     "@type": "Service",
@@ -162,10 +165,9 @@ export function StandaloneServiceStructuredData({ url, name, description }: Stan
     description,
     url,
     provider: { "@id": ORG_ID },
-    areaServed: {
-      "@type": "Country",
-      name: "Mexico",
-    },
+    areaServed: areaServedCity
+      ? { "@type": "City", name: areaServedCity }
+      : { "@type": "Country", name: "Mexico" },
   };
   return (
     <script

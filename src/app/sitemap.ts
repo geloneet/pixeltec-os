@@ -4,6 +4,8 @@ import { publishDueScheduledPosts } from "@/lib/blog-cms/queries";
 import { SITE } from "@/lib/site-config";
 import { getFlag } from "@/lib/settings/queries";
 import { SETTING_SITEMAP_ENABLED } from "@/lib/seo/keys";
+import { LOCAL_AUTOMATION_CITIES } from "@/lib/content/automatizacion-local";
+import { DESARROLLO_WEB_CITIES, CONSULTORIA_CITIES } from "@/lib/content/local-services";
 
 const BASE_URL = SITE.url;
 
@@ -64,7 +66,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const enabled = await getFlag(SETTING_SITEMAP_ENABLED, true).catch(() => true);
   if (!enabled) return [staticRoutes[0]];
 
+  const localCities = [...LOCAL_AUTOMATION_CITIES, ...DESARROLLO_WEB_CITIES, ...CONSULTORIA_CITIES];
+  const localServiceRoutes: MetadataRoute.Sitemap = localCities.map((city) => ({
+    url: `${BASE_URL}/${city.slug}`,
+    lastModified: new Date('2026-08-28'),
+    changeFrequency: "monthly" as const,
+    priority: 0.7,
+  }));
+
   const blogRoutes = await getBlogRoutes();
 
-  return [...staticRoutes, ...serviceRoutes, ...blogRoutes];
+  return [...staticRoutes, ...serviceRoutes, ...localServiceRoutes, ...blogRoutes];
 }
