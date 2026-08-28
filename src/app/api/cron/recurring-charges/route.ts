@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { and, eq, isNotNull, ne } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { billingItems, clients, recurringCharges, sales } from "@/lib/db/schema";
 import { assertCronExecutionAllowed, cronBlockedResponse } from "@/lib/cron-guard";
@@ -15,10 +15,21 @@ import { toRouteFailure } from "@/lib/errors/route-failure";
  * solo `billing_items`) — mismo patrón que esos dos: cada generación de datos
  * tiene su propio scheduler, ninguno reemplaza al otro.
  *
- * Por cada recurrente `active`: si su período vigente ya venció, materializa
- * un `billing_item` real (idempotente vía el índice único
- * `(recurring_charge_id, due_date)`); si no, evalúa si toca mandar un aviso
- * (30/15 días antes para anual, 2/1 para mensual).
+ * MODELO (corregido 2026-08-28 tras revisión final): un recurrente se
+ * materializa en `billing_items` UNA SOLA VEZ — no una fila por período. A
+ * partir de ahí, la MISMA fila avanza sola en cada pago completo
+ * (`computePaymentTransition`, "recurrente completo -> avanza al siguiente
+ * período") — ese mecanismo ya existe y está congelado (ADR-0057); este cron
+ * nunca vuelve a insertar para un `recurring_charge_id` que ya tiene una fila
+ * viva. Los avisos de checkpoint (30/15/1 anual, 2/1 mensual), una vez
+ * materializado, se calculan sobre la `due_date` VIGENTE de esa fila — no
+ * sobre aritmética de fechas del recurrente — para que sigan funcionando en
+ * el segundo ciclo, el tercero, etc.
+ *
+ * Alcance: solo recurrentes con `sale_id` no nulo (nacidos de una Venta,
+ * WO-2026-00106/ADR-0057) — nunca los del CRM legado (`notifications/charges`
+ * ya los cubre con su propio criterio; la migración 0047 dejó recurrentes
+ * legados en `status='active'` sin que este flujo los haya originado).
  */
 export async function GET(req: NextRequest) {
   const provided = req.headers.get("authorization")?.replace("Bearer ", "") ?? req.nextUrl.searchParams.get("secret");
@@ -36,7 +47,10 @@ export async function GET(req: NextRequest) {
 
   try {
     const today = new Date();
-    const active = await db.select().from(recurringCharges).where(eq(recurringCharges.status, "active"));
+    const active = await db
+      .select()
+      .from(recurringCharges)
+      .where(and(eq(recurringCharges.status, "active"), isNotNull(recurringCharges.saleId)));
 
     const results: string[] = [];
 
@@ -56,11 +70,56 @@ export async function GET(req: NextRequest) {
         continue;
       }
 
+      // ¿Ya existe la fila que representa esta obligación recurrente? Solo
+      // puede haber una viva (no cancelada) por recurrente — una vez creada,
+      // `recordPayment` la hace avanzar sola en cada pago completo. Nunca se
+      // inserta una segunda para el mismo `recurring_charge_id`.
+      const [existing] = await db
+        .select({ id: billingItems.id, dueDate: billingItems.dueDate, currency: billingItems.currency })
+        .from(billingItems)
+        .where(and(eq(billingItems.recurringChargeId, charge.id), ne(billingItems.status, "cancelado")))
+        .limit(1);
+
+      if (existing) {
+        const dueDate = new Date(`${existing.dueDate}T00:00:00`);
+        const reminderState = {
+          reminderCycleDue: charge.reminderCycleDue,
+          reminderCheckpointsSent: (charge.reminderCheckpointsSent as number[] | null) ?? [],
+        };
+        const plan = planReminders(dueDate, charge.frequency, reminderState, today);
+        if (plan.checkpointsToSend.length === 0) continue;
+
+        const { emailOk } = await sendBillingReminder({
+          clientName: client.name,
+          clientEmail: client.email,
+          concept: charge.concept,
+          amount: charge.amount,
+          currency: existing.currency,
+          dueDate,
+          overdue: false,
+        });
+
+        if (emailOk) {
+          await db
+            .update(recurringCharges)
+            .set({
+              reminderCycleDue: plan.cycleDue,
+              reminderCheckpointsSent: [
+                ...(plan.isNewCycle ? [] : reminderState.reminderCheckpointsSent),
+                ...plan.checkpointsToSend,
+              ],
+            })
+            .where(eq(recurringCharges.id, charge.id));
+          results.push(`Aviso ${plan.checkpointsToSend.join(",")}d enviado para ${charge.concept} (ya materializado)`);
+        }
+        continue;
+      }
+
       // Sin `lastNotified`: la supresión "ya avisado para este período" de
       // `getMostRecentUnpaidChargeDate` es innecesaria aquí — la idempotencia
-      // de la materialización viene del índice único parcial de `billing_items`
-      // (`recurring_charge_id` + `due_date`) vía `.onConflictDoNothing()`, no
-      // de este proxy basado en `lastNotified` (pensado para otro consumidor).
+      // de "no materializar dos veces" la garantiza el paso anterior (ya
+      // existe la fila) más el índice único parcial como red de seguridad
+      // ante una carrera entre dos corridas concurrentes.
       const dueNow = getMostRecentUnpaidChargeDate(charge.startDate, charge.frequency);
 
       if (dueNow) {
@@ -85,16 +144,11 @@ export async function GET(req: NextRequest) {
           results.push(`Recurrente ${charge.id}: sin ownerId de cliente — omitido`);
           continue;
         }
-        // Sin `target`: el índice único real (`billing_items_recurring_charge_due_idx`)
-        // es PARCIAL (`WHERE recurring_charge_id IS NOT NULL`, migración 0048).
-        // `.onConflictDoNothing({ target: [...] })` compila sin error de tipos
-        // (drizzle no valida el predicado parcial en tiempo de compilación),
-        // pero en runtime Postgres lo rechaza: "there is no unique or exclusion
-        // constraint matching the ON CONFLICT specification" (42P10) — el
-        // target inferido no incluye el WHERE del índice parcial. Confirmado
-        // en vivo contra la base de dev. La forma sin `target` sí funciona:
-        // Postgres aplica el DO NOTHING a cualquier violación de constraint,
-        // sin necesitar inferencia de árbitro.
+        // Sin `target`: el índice único real es PARCIAL (migración 0048).
+        // `.onConflictDoNothing({ target: [...] })` compila pero Postgres lo
+        // rechaza en runtime (42P10) — confirmado en vivo. La forma sin
+        // `target` sí funciona: aplica DO NOTHING a cualquier violación de
+        // constraint, sin necesitar inferencia de árbitro.
         const inserted = await db
           .insert(billingItems)
           .values({ ...draft, ownerId: owner.ownerId })
@@ -103,15 +157,16 @@ export async function GET(req: NextRequest) {
         if (inserted.length > 0) {
           results.push(`Cobro materializado para ${charge.concept} (${charge.id})`);
         }
-        continue; // vencido: ya no manda avisos "antes" — eso terminó
+        continue; // primera materialización: de aquí en más, recordPayment avanza esta misma fila
       }
 
-      // No vencido todavía — evaluar avisos de checkpoint contra la próxima fecha.
+      // Aún no vence el primer período — evaluar avisos de checkpoint contra
+      // la próxima fecha (aritmética del recurrente: todavía no hay fila real).
       const dueDate = getNextChargeDate(charge.startDate, charge.frequency);
+      const [saleRowForCurrency] = charge.saleId
+        ? await db.select({ currency: sales.currency }).from(sales).where(eq(sales.id, charge.saleId)).limit(1)
+        : [];
 
-      // `reminder_checkpoints_sent` es jsonb (tipo `unknown` para drizzle, mismo
-      // criterio que el resto de columnas jsonb de este schema — sin
-      // `.$type<>()`, se castea al leer, no en la definición de la columna).
       const reminderState = {
         reminderCycleDue: charge.reminderCycleDue,
         reminderCheckpointsSent: (charge.reminderCheckpointsSent as number[] | null) ?? [],
@@ -124,7 +179,7 @@ export async function GET(req: NextRequest) {
         clientEmail: client.email,
         concept: charge.concept,
         amount: charge.amount,
-        currency: "MXN",
+        currency: saleRowForCurrency?.currency ?? "MXN",
         dueDate,
         overdue: false,
       });

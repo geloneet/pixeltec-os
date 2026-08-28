@@ -1,8 +1,9 @@
-import 'server-only';
+'use server';
 import { and, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { clients, recurringCharges } from '@/lib/db/schema';
 import { getNextChargeDate } from '@/lib/crm/next-charge-date';
+import { requireOwner } from '@/lib/documents/pg';
 
 export interface RecurringChargeRow {
   id: string;
@@ -14,11 +15,13 @@ export interface RecurringChargeRow {
   nextChargeDate: string;
 }
 
-/** Recurrentes ACTIVOS, con su próximo cobro ya calculado (§Parte E/F/G). */
+/** Recurrentes ACTIVOS del owner autenticado, con su próximo cobro ya calculado (§Parte E/F/G). */
 export async function listActiveRecurringCharges(clientId?: string): Promise<RecurringChargeRow[]> {
+  const { ownerId } = await requireOwner();
+
   const where = clientId
-    ? and(eq(recurringCharges.status, 'active'), eq(recurringCharges.clientId, clientId))
-    : eq(recurringCharges.status, 'active');
+    ? and(eq(recurringCharges.status, 'active'), eq(clients.ownerId, ownerId), eq(recurringCharges.clientId, clientId))
+    : and(eq(recurringCharges.status, 'active'), eq(clients.ownerId, ownerId));
 
   const rows = await db
     .select({

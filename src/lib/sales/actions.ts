@@ -8,11 +8,11 @@
  * refactorizarlo. Aquí solo se reconcilia el estado de la Venta DESPUÉS de que
  * el sistema financiero haya hecho su trabajo.
  */
-import { eq } from 'drizzle-orm';
+import { and, eq, ne } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { db } from '@/lib/db';
-import { clients, recurringCharges, sales } from '@/lib/db/schema';
+import { billingItems, clients, recurringCharges, sales } from '@/lib/db/schema';
 import { requireAdmin } from '@/lib/auth-guards';
 import { toPublicFailure } from '@/lib/errors/public-failure';
 import { sendBillingReminder } from '@/lib/billing/reminder-notify';
@@ -159,6 +159,7 @@ export async function sendManualRecurringReminder(recurringId: string): Promise<
 
     const [row] = await db
       .select({
+        saleId: recurringCharges.saleId,
         concept: recurringCharges.concept,
         amount: recurringCharges.amount,
         frequency: recurringCharges.frequency,
@@ -172,13 +173,31 @@ export async function sendManualRecurringReminder(recurringId: string): Promise<
       .limit(1);
     if (!row || !row.startDate) return { ok: false, error: 'El recurrente ya no existe o no tiene fecha de inicio.' };
 
-    const dueDate = getNextChargeDate(row.startDate, row.frequency as 'monthly' | 'annual');
+    const [existing] = await db
+      .select({ dueDate: billingItems.dueDate, currency: billingItems.currency })
+      .from(billingItems)
+      .where(and(eq(billingItems.recurringChargeId, recurringId), ne(billingItems.status, 'cancelado')))
+      .limit(1);
+
+    let dueDate: Date;
+    let currency: string;
+    if (existing) {
+      dueDate = new Date(`${existing.dueDate}T00:00:00`);
+      currency = existing.currency;
+    } else {
+      dueDate = getNextChargeDate(row.startDate, row.frequency as 'monthly' | 'annual');
+      const [saleRow] = row.saleId
+        ? await db.select({ currency: sales.currency }).from(sales).where(eq(sales.id, row.saleId)).limit(1)
+        : [];
+      currency = saleRow?.currency ?? 'MXN';
+    }
+
     await sendBillingReminder({
       clientName: row.clientName,
       clientEmail: row.clientEmail,
       concept: row.concept,
       amount: row.amount,
-      currency: 'MXN',
+      currency,
       dueDate,
       overdue: false,
     });
