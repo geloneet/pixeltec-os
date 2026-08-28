@@ -25,6 +25,7 @@ import {
 import Header from '@/components/header';
 import { Footer } from '@/components/ui/footer-section';
 import { ShinyButton } from '@/components/ui/shiny-button';
+import { LOCAL_AUTOMATION_CITIES } from '@/lib/content/automatizacion-local';
 
 const servicesData = [
     {
@@ -243,6 +244,34 @@ export default function ServiceDetailClient({ slug }: { slug: string }) {
             >
               Conocer PixelBot →
             </Link>
+          </motion.aside>
+        )}
+
+        {service.slug === 'automatizacion' && (
+          <motion.aside
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, amount: 0.4 }}
+            variants={sectionVariants}
+            className="mb-16 rounded-2xl border border-border bg-card p-6 sm:p-8"
+          >
+            <h2 className="text-lg sm:text-xl font-semibold text-foreground">
+              Automatización de procesos en tu ciudad
+            </h2>
+            <p className="mt-2 text-sm sm:text-base text-muted-foreground leading-relaxed">
+              Trabajamos con empresas de todo México, con presencia local en:
+            </p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              {LOCAL_AUTOMATION_CITIES.map((city) => (
+                <Link
+                  key={city.slug}
+                  href={`/${city.slug}`}
+                  className="rounded-full border border-primary/25 dark:border-cyan-500/25 bg-primary/5 dark:bg-cyan-500/5 px-4 py-2 text-sm font-medium text-primary dark:text-cyan-400 hover:bg-primary/10 dark:hover:bg-cyan-500/10 transition-colors"
+                >
+                  {city.city}
+                </Link>
+              ))}
+            </div>
           </motion.aside>
         )}
 
