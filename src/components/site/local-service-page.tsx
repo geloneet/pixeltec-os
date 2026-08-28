@@ -14,8 +14,8 @@ import {
 import Header from '@/components/header';
 import { Footer } from '@/components/ui/footer-section';
 import { ShinyButton } from '@/components/ui/shiny-button';
-import type { LocalCity } from '@/lib/content/automatizacion-local';
-import { LOCAL_AUTOMATION_CITIES } from '@/lib/content/automatizacion-local';
+import type { LocalServiceCity } from '@/lib/content/local-services';
+import { DESARROLLO_WEB_CITIES, CONSULTORIA_CITIES } from '@/lib/content/local-services';
 
 const ICONS = {
   MessageSquareText,
@@ -36,15 +36,23 @@ const sectionVariants = {
 };
 
 const PROCESS_STEPS = [
-  'Diagnóstico gratuito de tus procesos actuales',
-  'Diseño e implementación del bot, script o flujo',
-  'Monitoreo, ajuste y soporte continuo',
+  'Diagnóstico gratuito de tu situación actual',
+  'Diseño e implementación a la medida',
+  'Entrega, monitoreo y soporte continuo',
 ];
 
-export default function LocalAutomationPage({ city }: { city: LocalCity }) {
+interface LocalServicePageProps {
+  city: LocalServiceCity;
+  serviceHref: string;
+  serviceLabel: string;
+  ctaVerb: string;
+}
+
+export default function LocalServicePage({ city, serviceHref, serviceLabel, ctaVerb }: LocalServicePageProps) {
+  const allCities = [...DESARROLLO_WEB_CITIES, ...CONSULTORIA_CITIES];
   const neighbors = city.neighborSlugs
-    .map((slug) => LOCAL_AUTOMATION_CITIES.find((c) => c.slug === slug))
-    .filter((c): c is LocalCity => Boolean(c));
+    .map((slug) => allCities.find((c) => c.slug === slug))
+    .filter((c): c is LocalServiceCity => Boolean(c));
 
   return (
     <div className="min-h-screen bg-background text-foreground pt-32 sm:pt-40 pb-16 sm:pb-24">
@@ -52,11 +60,11 @@ export default function LocalAutomationPage({ city }: { city: LocalCity }) {
       <main className="container mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
         <motion.div initial="hidden" animate="visible" custom={0} variants={sectionVariants} className="mb-8 md:mb-10">
           <Link
-            href="/services/automatizacion"
+            href={serviceHref}
             className="group inline-flex items-center font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
             <ArrowLeft className="mr-2 h-5 w-5 transition-transform group-hover:-translate-x-1" />
-            Volver a Automatización de Procesos
+            Volver a {serviceLabel}
           </Link>
         </motion.div>
 
@@ -79,7 +87,7 @@ export default function LocalAutomationPage({ city }: { city: LocalCity }) {
           </p>
         </motion.section>
 
-        {/* Contexto local — contenido único por ciudad, no doorway page */}
+        {/* Contexto local — contenido único por ciudad y servicio */}
         <motion.section
           initial="hidden"
           whileInView="visible"
@@ -142,7 +150,7 @@ export default function LocalAutomationPage({ city }: { city: LocalCity }) {
           </div>
         </motion.section>
 
-        {/* Proceso — mismo proceso real en todas las ciudades */}
+        {/* Proceso — mismo proceso real en todas las páginas de servicio */}
         <motion.section
           initial="hidden"
           whileInView="visible"
@@ -196,17 +204,17 @@ export default function LocalAutomationPage({ city }: { city: LocalCity }) {
           className="mt-12 mb-8 md:mb-16 rounded-2xl bg-gradient-to-tr from-primary/5 via-card to-card border border-border py-12 md:py-16 px-6 text-center shadow-sm dark:from-cyan-950/50 dark:via-[#0A0A0A] dark:to-[#0A0A0A] dark:shadow-[0_0_40px_rgba(0,240,255,0.05)]"
         >
           <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            ¿Listo para automatizar en {city.city}?
+            ¿Listo para {ctaVerb} en {city.city}?
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-lg text-muted-foreground leading-relaxed">
-            Agendemos un diagnóstico gratuito para ver exactamente qué procesos conviene automatizar primero.
+            Agendemos un diagnóstico gratuito para ver exactamente qué conviene hacer primero.
           </p>
           <div className="mt-8">
             <ShinyButton href="/contact" className="w-full sm:w-auto">Hablar con un especialista</ShinyButton>
           </div>
         </motion.section>
 
-        {/* Cobertura — cross-link a ciudades vecinas, internal linking contextual */}
+        {/* Cobertura — cross-link a ciudades vecinas del mismo servicio */}
         {neighbors.length > 0 && (
           <motion.section
             initial="hidden"
@@ -216,7 +224,7 @@ export default function LocalAutomationPage({ city }: { city: LocalCity }) {
             className="mb-8 text-center"
           >
             <p className="text-sm text-muted-foreground">
-              También automatizamos procesos en{' '}
+              También ofrecemos {serviceLabel.toLowerCase()} en{' '}
               {neighbors.map((n, i) => (
                 <span key={n.slug}>
                   <Link href={`/${n.slug}`} className="font-medium text-primary dark:text-cyan-400 hover:underline">
@@ -226,8 +234,8 @@ export default function LocalAutomationPage({ city }: { city: LocalCity }) {
                 </span>
               ))}
               . Conoce el servicio completo en{' '}
-              <Link href="/services/automatizacion" className="font-medium text-primary dark:text-cyan-400 hover:underline">
-                Automatización de Procesos con IA
+              <Link href={serviceHref} className="font-medium text-primary dark:text-cyan-400 hover:underline">
+                {serviceLabel}
               </Link>
               .
             </p>

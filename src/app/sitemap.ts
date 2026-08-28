@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { getPublishedPosts } from "@/lib/blog/queries/posts";
 import { SITE } from "@/lib/site-config";
 import { LOCAL_AUTOMATION_CITIES } from "@/lib/content/automatizacion-local";
+import { DESARROLLO_WEB_CITIES, CONSULTORIA_CITIES } from "@/lib/content/local-services";
 
 const BASE_URL = SITE.url;
 
@@ -54,7 +55,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.8,
   }));
 
-  const localAutomationRoutes: MetadataRoute.Sitemap = LOCAL_AUTOMATION_CITIES.map((city) => ({
+  const localCities = [...LOCAL_AUTOMATION_CITIES, ...DESARROLLO_WEB_CITIES, ...CONSULTORIA_CITIES];
+  const localServiceRoutes: MetadataRoute.Sitemap = localCities.map((city) => ({
     url: `${BASE_URL}/${city.slug}`,
     lastModified: new Date('2026-08-28'),
     changeFrequency: "monthly" as const,
@@ -63,5 +65,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const blogRoutes = await getBlogRoutes();
 
-  return [...staticRoutes, ...serviceRoutes, ...localAutomationRoutes, ...blogRoutes];
+  return [...staticRoutes, ...serviceRoutes, ...localServiceRoutes, ...blogRoutes];
 }

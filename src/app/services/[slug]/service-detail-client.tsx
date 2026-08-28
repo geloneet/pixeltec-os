@@ -26,6 +26,32 @@ import Header from '@/components/header';
 import { Footer } from '@/components/ui/footer-section';
 import { ShinyButton } from '@/components/ui/shiny-button';
 import { LOCAL_AUTOMATION_CITIES } from '@/lib/content/automatizacion-local';
+import { DESARROLLO_WEB_CITIES, CONSULTORIA_CITIES } from '@/lib/content/local-services';
+
+// Jerarquía de información: Home > Servicios > <Servicio> > <Ciudad>. Este
+// mapa alimenta tanto el bloque "presencia local" (enlaces hacia las páginas
+// de ciudad) como el cruce entre los 3 servicios (topical authority — Google
+// entiende mejor un hub cuando los 3 nodos hermanos se enlazan entre sí).
+const LOCAL_CITIES_BY_SERVICE: Record<string, { slug: string; city: string }[]> = {
+  'automatizacion': LOCAL_AUTOMATION_CITIES,
+  'ecosistemas-web': DESARROLLO_WEB_CITIES,
+  'consultoria': CONSULTORIA_CITIES,
+};
+
+const RELATED_SERVICES: Record<string, { slug: string; title: string }[]> = {
+  'ecosistemas-web': [
+    { slug: 'automatizacion', title: 'Automatización de Procesos con IA' },
+    { slug: 'consultoria', title: 'Consultoría Tecnológica Estratégica' },
+  ],
+  'automatizacion': [
+    { slug: 'ecosistemas-web', title: 'Ecosistemas Web Avanzados' },
+    { slug: 'consultoria', title: 'Consultoría Tecnológica Estratégica' },
+  ],
+  'consultoria': [
+    { slug: 'ecosistemas-web', title: 'Ecosistemas Web Avanzados' },
+    { slug: 'automatizacion', title: 'Automatización de Procesos con IA' },
+  ],
+};
 
 const servicesData = [
     {
@@ -247,7 +273,35 @@ export default function ServiceDetailClient({ slug }: { slug: string }) {
           </motion.aside>
         )}
 
-        {service.slug === 'automatizacion' && (
+        {LOCAL_CITIES_BY_SERVICE[service.slug] && (
+          <motion.aside
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, amount: 0.4 }}
+            variants={sectionVariants}
+            className="mb-8 rounded-2xl border border-border bg-card p-6 sm:p-8"
+          >
+            <h2 className="text-lg sm:text-xl font-semibold text-foreground">
+              {service.title} en tu ciudad
+            </h2>
+            <p className="mt-2 text-sm sm:text-base text-muted-foreground leading-relaxed">
+              Trabajamos con empresas de todo México, con presencia local en:
+            </p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              {LOCAL_CITIES_BY_SERVICE[service.slug].map((city) => (
+                <Link
+                  key={city.slug}
+                  href={`/${city.slug}`}
+                  className="rounded-full border border-primary/25 dark:border-cyan-500/25 bg-primary/5 dark:bg-cyan-500/5 px-4 py-2 text-sm font-medium text-primary dark:text-cyan-400 hover:bg-primary/10 dark:hover:bg-cyan-500/10 transition-colors"
+                >
+                  {city.city}
+                </Link>
+              ))}
+            </div>
+          </motion.aside>
+        )}
+
+        {RELATED_SERVICES[service.slug] && (
           <motion.aside
             initial="hidden"
             whileInView="visible"
@@ -256,19 +310,16 @@ export default function ServiceDetailClient({ slug }: { slug: string }) {
             className="mb-16 rounded-2xl border border-border bg-card p-6 sm:p-8"
           >
             <h2 className="text-lg sm:text-xl font-semibold text-foreground">
-              Automatización de procesos en tu ciudad
+              Servicios relacionados
             </h2>
-            <p className="mt-2 text-sm sm:text-base text-muted-foreground leading-relaxed">
-              Trabajamos con empresas de todo México, con presencia local en:
-            </p>
             <div className="mt-4 flex flex-wrap gap-3">
-              {LOCAL_AUTOMATION_CITIES.map((city) => (
+              {RELATED_SERVICES[service.slug].map((related) => (
                 <Link
-                  key={city.slug}
-                  href={`/${city.slug}`}
-                  className="rounded-full border border-primary/25 dark:border-cyan-500/25 bg-primary/5 dark:bg-cyan-500/5 px-4 py-2 text-sm font-medium text-primary dark:text-cyan-400 hover:bg-primary/10 dark:hover:bg-cyan-500/10 transition-colors"
+                  key={related.slug}
+                  href={`/services/${related.slug}`}
+                  className="rounded-full border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:border-primary/40 dark:hover:border-cyan-500/40 transition-colors"
                 >
-                  {city.city}
+                  {related.title}
                 </Link>
               ))}
             </div>

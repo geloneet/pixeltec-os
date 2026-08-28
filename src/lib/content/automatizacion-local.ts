@@ -27,7 +27,9 @@ export interface LocalCity {
   contextBody: string[];
   useCases: { icon: 'MessageSquareText' | 'FileScan' | 'BarChart3' | 'MailCheck' | 'Factory' | 'Building2'; title: string; description: string }[];
   faq: { q: string; a: string }[];
-  externalSource: { label: string; href: string };
+  /** 2 fuentes: la local (cámara/gobierno de la ciudad) y una nacional del
+   *  mismo tipo de autoridad — más señal, sin caer en link-stuffing. */
+  externalSources: { label: string; href: string }[];
   neighborSlugs: string[];
 }
 
@@ -87,7 +89,10 @@ export const LOCAL_AUTOMATION_CITIES: LocalCity[] = [
         a: 'Depende del alcance: un bot de atención o un script de extracción de datos suele estar operando entre 2 y 4 semanas después del diagnóstico inicial.',
       },
     ],
-    externalSource: { label: 'CANIETI Occidente', href: 'https://www.canietisedeoccidente.org/' },
+    externalSources: [
+      { label: 'CANIETI Occidente', href: 'https://www.canietisedeoccidente.org/' },
+      { label: 'CANIETI (nacional)', href: 'https://canieti.org/' },
+    ],
     neighborSlugs: ['automatizacion-zapopan'],
   },
   {
@@ -145,7 +150,10 @@ export const LOCAL_AUTOMATION_CITIES: LocalCity[] = [
         a: 'Sí, sin costo. Revisamos tus procesos actuales y te decimos exactamente qué se puede automatizar y qué impacto tendría.',
       },
     ],
-    externalSource: { label: 'INDEX Occidente (CCIJ)', href: 'https://www.ccij.org.mx/index/' },
+    externalSources: [
+      { label: 'INDEX Occidente (CCIJ)', href: 'https://www.ccij.org.mx/index/' },
+      { label: 'CANIETI (nacional)', href: 'https://canieti.org/' },
+    ],
     neighborSlugs: ['automatizacion-guadalajara'],
   },
   {
@@ -203,7 +211,10 @@ export const LOCAL_AUTOMATION_CITIES: LocalCity[] = [
         a: 'Sí. Automatizamos cotizaciones, seguimiento a prospectos y reportes de ocupación para inmobiliarias y administradoras de la zona.',
       },
     ],
-    externalSource: { label: 'Gobierno de Puerto Vallarta', href: 'https://www.puertovallarta.gob.mx/' },
+    externalSources: [
+      { label: 'Gobierno de Puerto Vallarta', href: 'https://www.puertovallarta.gob.mx/' },
+      { label: 'Secretaría de Turismo (gob.mx)', href: 'https://www.gob.mx/sectur' },
+    ],
     neighborSlugs: ['automatizacion-bahia-de-banderas'],
   },
   {
@@ -261,7 +272,10 @@ export const LOCAL_AUTOMATION_CITIES: LocalCity[] = [
         a: 'Con un diagnóstico gratuito: revisamos tus procesos actuales y te mostramos exactamente qué automatizar primero.',
       },
     ],
-    externalSource: { label: 'Gobierno de Bahía de Banderas', href: 'https://www.bahiadebanderas.gob.mx/' },
+    externalSources: [
+      { label: 'Gobierno de Bahía de Banderas', href: 'https://www.bahiadebanderas.gob.mx/' },
+      { label: 'Secretaría de Turismo (gob.mx)', href: 'https://www.gob.mx/sectur' },
+    ],
     neighborSlugs: ['automatizacion-puerto-vallarta'],
   },
 ];
