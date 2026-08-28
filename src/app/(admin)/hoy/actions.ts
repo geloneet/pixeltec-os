@@ -2,71 +2,49 @@
 
 import { getSessionUserId } from "@/lib/auth/session";
 import { getFullCrmData } from "@/lib/db/repos/crm-sync";
-import { listPixelforgeProjectsByOwner } from "@/lib/db/repos/pixelforge";
-import { listDefinitionsByOwner } from "@/lib/db/repos/definitions";
-import {
-  deriveActiveProjects,
-  deriveAllProjects,
-  deriveRecentClients,
-  deriveActivitySeries,
-} from "@/lib/hoy/crm-data";
+import { listProjects } from "@/lib/projects/queries";
+import { listQuotesForOwner } from "@/lib/quotes/dashboard-queries";
+import { deriveRecentClients } from "@/lib/hoy/crm-data";
 import type { TodayData } from "@/lib/hoy/types";
 
+const EXPIRING_SOON_MS = 7 * 24 * 60 * 60 * 1000;
+
 /**
- * Arma el payload del panel Hoy para el usuario autenticado.
+ * Arma el payload de Inicio para el usuario autenticado. WO-2026-00132:
+ * vistazo puramente comercial — clientes, proyectos (tabla `projects` real,
+ * no las 3 fuentes viejas) y cotizaciones (pendientes/próximas a vencer).
+ * Cero métricas de infraestructura, sesiones de trabajo o "accesos".
  *
- * Proyectos y clientes salen de la tabla `clients` de Postgres, filtrada por
- * `owner_id`. Devuelve null cuando no hay sesión: la página redirige a /login.
- *
- * La identidad es `users.id`. Antes se usaba el `firebaseUid` puente, lo que
- * dejaba fuera a toda cuenta creada tras la migración: sin puente esta función
- * devolvía null y la página rebotaba al login en bucle, pese a haber sesión.
- *
- * Rediseño de distribución (excepción al freeze de v1.0 — ver PixelTEC OS.md
- * en NeuroPIXEL): los KPIs y la gráfica de actividad salen de datos que
- * `getFullCrmData` YA cargaba y el dashboard descartaba (`tools`, `streak`,
- * `sessions`), más `deriveAllProjects` (mismo patrón que `getAllActiveProjects`
- * en `proyectos/actions.ts`) para no omitir proyectos PixelForge/Definición.
- * Cero queries nuevas.
+ * Devuelve null cuando no hay sesión: la página redirige a /login.
  */
 export async function getTodayData(): Promise<TodayData | null> {
   const ownerId = await getSessionUserId();
   if (!ownerId) return null;
 
   const now = new Date();
-  const [{ clients, tools, streak, sessions }, pixelforgeProjects, definitions] =
-    await Promise.all([
-      getFullCrmData(ownerId),
-      listPixelforgeProjectsByOwner(ownerId),
-      listDefinitionsByOwner(ownerId),
-    ]);
+  const [{ clients }, projects, quotes] = await Promise.all([
+    getFullCrmData(ownerId),
+    listProjects(),
+    listQuotesForOwner(),
+  ]);
 
-  const allProjects = deriveAllProjects(clients, pixelforgeProjects, definitions);
-  const openTasks = clients
-    .flatMap((c) => c.projects ?? [])
-    .flatMap((p) => p.tasks ?? [])
-    .filter(
-      (t) =>
-        t.status === "pendiente" ||
-        t.status === "en_progreso" ||
-        t.status === "en_revision"
-    ).length;
+  const pendingQuotes = quotes.filter((q) => q.status === "enviada" || q.status === "lista").length;
+  const expiringQuotes = quotes.filter(
+    (q) =>
+      q.status === "enviada" &&
+      q.validUntil &&
+      new Date(q.validUntil).getTime() - now.getTime() <= EXPIRING_SOON_MS
+  ).length;
+  const activeProjects = projects.filter((p) => p.status !== "Completado").length;
 
   return {
-    projects: deriveActiveProjects(clients, 6),
+    projects: projects.slice(0, 6),
     clients: deriveRecentClients(clients, 5),
     stats: {
-      activeProjects: allProjects.length,
+      activeProjects,
       clients: clients.length,
-      openTasks,
-      streak,
-      sessions: sessions.length,
-      tools: tools.length,
-    },
-    activity: {
-      daily: deriveActivitySeries(sessions, "daily", now),
-      weekly: deriveActivitySeries(sessions, "weekly", now),
-      monthly: deriveActivitySeries(sessions, "monthly", now),
+      pendingQuotes,
+      expiringQuotes,
     },
     asOf: now.toISOString(),
   };

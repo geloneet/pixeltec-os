@@ -63,15 +63,18 @@ vi.mock("@/lib/auth/authority", async (importOriginal) => ({
   }),
 }));
 
-// Los otros dos repos de Proyectos ya recibían ownerId; se neutralizan para
-// aislar la fuente CRM, que es la que cambia de contrato.
-vi.mock("@/lib/db/repos/pixelforge", () => ({ listPixelforgeProjectsByOwner: async () => [] }));
-vi.mock("@/lib/db/repos/definitions", () => ({ listDefinitionsByOwner: async () => [] }));
+// Los proyectos (WO-2026-00132: tabla `projects` real, ya no las 3 fuentes
+// viejas) se neutralizan para aislar la fuente CRM, que es la que cambia de
+// contrato en este test.
+vi.mock("@/lib/projects/queries", () => ({ listProjects: async () => [] }));
+// Igual con cotizaciones (WO-2026-00132): getTodayData ahora también llama a
+// listQuotesForOwner (su propio requireOwner + consulta real). Sin mockear,
+// arrastraría la capa de base fuera del dbSelectMock que este archivo vigila.
+vi.mock("@/lib/quotes/dashboard-queries", () => ({ listQuotesForOwner: async () => [] }));
 
 const { getCrmClientsByOwnerId } = await import("./crm-data");
 const sessionModule = await import("@/lib/auth/session");
 const { getTodayData } = await import("@/app/(admin)/hoy/actions");
-const { getAllActiveProjects } = await import("@/app/(admin)/proyectos/actions");
 
 /** Sesión de cuenta anterior a la migración: conserva el alias heredado. */
 const sesionConPuente = (id: string) => ({ user: { id, role: "admin", firebaseUid: LEGACY_UID } });
@@ -131,7 +134,6 @@ describe("Hoy — getTodayData", () => {
     sessionMock.mockResolvedValue(sesionSinPuente(OWNER_A));
     const sinPuente = await getTodayData();
     expect(sinPuente?.clients).toEqual(conPuente?.clients);
-    expect(sinPuente?.projects).toEqual(conPuente?.projects);
   });
 
   it("sin sesión devuelve null", async () => {
@@ -146,32 +148,9 @@ describe("Hoy — getTodayData", () => {
   });
 });
 
-describe("Proyectos — getAllActiveProjects", () => {
-  it("resuelve por session.user.id con cuenta heredada", async () => {
-    sessionMock.mockResolvedValue(sesionConPuente(OWNER_A));
-    await getAllActiveProjects();
-    expect(getFullCrmDataMock).toHaveBeenCalledWith(OWNER_A);
-  });
-
-  it("funciona con cuenta SIN firebase_uid — antes devolvía [] aunque hubiera datos", async () => {
-    sessionMock.mockResolvedValue(sesionSinPuente(OWNER_A));
-    const proyectos = await getAllActiveProjects();
-    expect(getFullCrmDataMock).toHaveBeenCalledWith(OWNER_A);
-    expect(Array.isArray(proyectos)).toBe(true);
-  });
-
-  it("sin sesión devuelve lista vacía", async () => {
-    sessionMock.mockResolvedValue(null);
-    await expect(getAllActiveProjects()).resolves.toEqual([]);
-  });
-
-  it("no cruza datos entre propietarios", async () => {
-    sessionMock.mockResolvedValue(sesionSinPuente(OWNER_B));
-    await getAllActiveProjects();
-    expect(getFullCrmDataMock).toHaveBeenCalledWith(OWNER_B);
-    expect(getFullCrmDataMock).not.toHaveBeenCalledWith(OWNER_A);
-  });
-});
+// El describe "Proyectos — getAllActiveProjects" se retiró junto con las 3
+// fuentes viejas (WO-2026-00132): los proyectos ahora salen de
+// `@/lib/projects/queries` (tabla `projects` real, no CRM blob).
 
 describe("código muerto retirado", () => {
   it("el módulo de sesión ya no exporta requireAdmin", () => {

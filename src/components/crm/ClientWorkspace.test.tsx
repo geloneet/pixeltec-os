@@ -15,9 +15,6 @@ const { portalStatusMock } = vi.hoisted(() => ({ portalStatusMock: vi.fn() }));
 vi.mock("./ClientDetail", () => ({
   ClientDetail: () => <div data-testid="tab-resumen" />,
 }));
-vi.mock("@/components/crm/workspace-tabs/ProyectosTab", () => ({
-  ProyectosTab: () => <div data-testid="tab-proyectos" />,
-}));
 vi.mock("@/components/crm/workspace-tabs/ComercialTab", () => ({
   ComercialTab: (props: { initialSub?: string }) => (
     <div data-testid="tab-comercial" data-sub={props.initialSub ?? ""} />
@@ -33,6 +30,11 @@ vi.mock("@/components/crm/workspace-tabs/PortalTab", () => ({
 // arrastra las server actions (next-auth) al entorno jsdom del test.
 vi.mock("@/components/crm/workspace-tabs/CotizacionesTabLoader", () => ({
   CotizacionesTabLoader: () => <div data-testid="tab-cotizaciones" />,
+}));
+// Mismo motivo que CotizacionesTabLoader: sin mock, arrastra las server
+// actions (next-auth) al entorno jsdom del test.
+vi.mock("@/components/crm/workspace-tabs/FinanzasTabLoader", () => ({
+  FinanzasTabLoader: () => <div data-testid="tab-finanzas" />,
 }));
 vi.mock("@/lib/client-portal/admin-actions", () => ({
   getPortalStatusForClientAction: portalStatusMock,
@@ -76,26 +78,33 @@ function renderWorkspace(client: CRMClient, extra: Partial<Parameters<typeof Cli
  * de secciones marca visibles. Hoy: únicamente Resumen.
  */
 describe("ClientWorkspace — tabs según el registro de secciones (WO-2026-00088)", () => {
-  it("el registro deja visibles Resumen y Cotizaciones; proyectos/comercial/documentos/portal ocultos", () => {
+  it("el registro deja visibles Resumen, Cotizaciones y Finanzas; proyectos/comercial/documentos/portal ocultos", () => {
     // «Cotizaciones» se añadió por orden de Miguel (2026-08-26, WO-2026-00102);
     // no reactiva «Comercial», que sigue oculto con su propia máquina intacta.
-    expect(getVisibleClientSections().map((s) => s.id)).toEqual(["resumen", "cotizaciones"]);
+    // «Finanzas» es la 7ma pestaña fija (2026-08-27, orden de Miguel).
+    expect(getVisibleClientSections().map((s) => s.id)).toEqual([
+      "resumen",
+      "cotizaciones",
+      "finanzas",
+    ]);
     expect(CLIENT_WORKSPACE_SECTIONS.map((s) => s.id)).toEqual([
       "resumen",
       "cotizaciones",
       "proyectos",
       "comercial",
       "documentos",
+      "finanzas",
       "portal",
     ]);
   });
 
-  it("muestra Resumen y Cotizaciones, y ninguno de los ocultos", () => {
+  it("muestra Resumen, Cotizaciones y Finanzas, y ninguno de los ocultos", () => {
     renderWorkspace(buildClient({ portalAccessEnabled: false }));
 
     expect(screen.getByRole("button", { name: "Resumen" })).toBeInTheDocument();
     expect(screen.getByTestId("tab-resumen")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Cotizaciones" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Finanzas" })).toBeInTheDocument();
     for (const gone of ["Proyectos", "Comercial", "Documentos", "Portal", "Propuesta", "Contratos", "Discovery", "Estrategia"]) {
       expect(screen.queryByRole("button", { name: gone })).not.toBeInTheDocument();
     }

@@ -19,15 +19,11 @@ const SECRETO = "secreto-cron-sintetico";
 
 const sendWhatsApp = vi.fn(async () => ({ ok: true }));
 const sendEmail = vi.fn(async () => ({ success: true }));
-const publishScheduledPosts = vi.fn(async () => ({ published: 0 }));
 const checkEmailEnv = vi.fn(() => ({ ok: true }));
 const dbSelect = vi.fn(() => ({ from: () => [] }));
 
 vi.mock("@/lib/whatsapp/sender", () => ({ sendWhatsApp: () => sendWhatsApp() }));
 vi.mock("@/lib/email", () => ({ sendEmail: () => sendEmail() }));
-vi.mock("@/lib/growth/social/publish", () => ({
-  publishScheduledPosts: () => publishScheduledPosts(),
-}));
 vi.mock("@/lib/email-env-guard", () => ({ checkEmailEnv: () => checkEmailEnv() }));
 vi.mock("@/lib/db", () => ({ db: { select: () => dbSelect() } }));
 // `charges` y `daily` importan estos módulos, que arrastran next-auth y con él
@@ -174,13 +170,6 @@ const RUTAS = [
     metodo: "POST" as const,
     bearer: true,
     efecto: () => sendWhatsApp,
-  },
-  {
-    nombre: "growth/publish/scheduled",
-    mod: () => import("@/app/api/growth/publish/scheduled/route"),
-    metodo: "POST" as const,
-    bearer: true,
-    efecto: () => publishScheduledPosts,
   },
   {
     nombre: "health/email",

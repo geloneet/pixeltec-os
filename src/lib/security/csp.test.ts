@@ -15,29 +15,16 @@ function directive(csp: string, name: string): string | undefined {
 }
 
 describe("csp matchers", () => {
-  it("preview PixelForge es embebible (frame-ancestors)", () => {
-    const p = "/proyectos/pixelforge/abc-123/preview";
-    expect(isSelfFrameable(p)).toBe(true);
-  });
-
-  it("la regex de preview es EXACTA — no matchea subrutas ni otras estaciones", () => {
-    expect(isSelfFrameable("/proyectos/pixelforge/abc/preview/extra")).toBe(false);
-    expect(isSelfFrameable("/proyectos/pixelforge/abc/produccion")).toBe(false);
-    expect(isSelfFrameable("/proyectos/pixelforge/preview")).toBe(false); // falta el segmento id
-  });
-
-  it("produccion no es embebible (no matchea la regex de preview)", () => {
-    const p = "/proyectos/pixelforge/abc-123/produccion";
-    expect(isSelfFrameable(p)).toBe(false);
-  });
-
   it("proposal-pdf (Imprimir) sigue siendo embebible", () => {
     const p = "/api/documents/proposal-pdf";
     expect(isSelfFrameable(p)).toBe(true);
   });
 
+  // WO-2026-00132: PixelForge se borró de verdad (código, rutas y su
+  // excepción de framing). /proyectos ahora es «Trabajo», sin preview
+  // embebible — no es frameable, igual que cualquier otra ruta ajena.
   it("una ruta ajena no es embebible", () => {
-    for (const p of ["/", "/hoy", "/clientes/xyz", "/proyectos/otro"]) {
+    for (const p of ["/", "/hoy", "/clientes/xyz", "/proyectos", "/proyectos/abc-123"]) {
       expect(isSelfFrameable(p)).toBe(false);
     }
   });
@@ -48,14 +35,8 @@ describe("buildCsp — matriz de framing", () => {
   // per-documento y no sobrevive la navegación cliente de una SPA, así que
   // TODAS las rutas la llevan por igual. Lo que sí varía por ruta es
   // `frame-ancestors` (quién puede embeber ESTE documento).
-  it("preview: frame-ancestors 'self' + frame-src 'self' https://www.google.com", () => {
-    const csp = cspForPath(NONCE, "/proyectos/pixelforge/abc/preview");
-    expect(directive(csp, "frame-ancestors")).toBe("frame-ancestors 'self'");
-    expect(directive(csp, "frame-src")).toBe("frame-src 'self' https://www.google.com");
-  });
-
-  it("produccion: frame-src 'self' https://www.google.com + frame-ancestors 'none'", () => {
-    const csp = cspForPath(NONCE, "/proyectos/pixelforge/abc/produccion");
+  it("Trabajo (/proyectos): frame-src 'self' https://www.google.com + frame-ancestors 'none'", () => {
+    const csp = cspForPath(NONCE, "/proyectos/abc-123");
     expect(directive(csp, "frame-src")).toBe("frame-src 'self' https://www.google.com");
     expect(directive(csp, "frame-ancestors")).toBe("frame-ancestors 'none'");
   });

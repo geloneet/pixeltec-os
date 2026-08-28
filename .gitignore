@@ -9,6 +9,10 @@ nginx/ssl/
 
 # Emergency backups created during ops work
 *.bak.*
+# pg_dump de seguridad antes de operaciones destructivas en producción
+# (WO-2026-00132: backup de las tablas pixelforge_* antes de DROP TABLE).
+# Nunca al historial de git — son datos, no código.
+backups/
 
 # TypeScript incremental build cache (artifact, no source)
 tsconfig.tsbuildinfo

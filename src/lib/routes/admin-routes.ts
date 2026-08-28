@@ -11,21 +11,17 @@
  */
 export const ADMIN_ROUTES = [
   'hoy',
+  // WO-2026-00132: sustituye Proyectos/Definición/PixelForge — «Trabajo».
   'proyectos',
   'clientes',
   'whatsapp',
   'cobros',
-  'accesos',
-  'vps',
+  'cotizaciones',
   'perfil',
   'notificaciones',
-  'blog-admin',
   // WO-2026-00088: Blog nuevo (paridad Encino). /blog sigue siendo público.
   'blog-cms',
   'seo',
-  'crecimiento',
-  'documentos',
-  'ia-factory',
   'usuarios',
   'smilemore-respuestas',
 ] as const;

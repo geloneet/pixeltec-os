@@ -41,14 +41,24 @@ afterEach(cleanup);
 describe("sidebar del panel", () => {
   it("dibuja las áreas aprobadas, SEO incluida", () => {
     render(<AppSidebar activeArea={null} />);
-    for (const label of ["Inicio", "Clientes", "WhatsApp", "Finanzas", "Blog", "SEO", "Usuarios y Accesos"]) {
+    for (const label of [
+      "Inicio",
+      "Clientes",
+      "WhatsApp",
+      "Finanzas",
+      "Cotizaciones",
+      "Trabajo",
+      "Blog",
+      "SEO",
+      "Usuarios",
+    ]) {
       expect(screen.getAllByText(label).length, `falta el área ${label}`).toBeGreaterThan(0);
     }
   });
 
-  it("no dibuja las áreas de módulos ocultos", () => {
+  it("no dibuja las áreas de módulos borrados", () => {
     render(<AppSidebar activeArea={null} />);
-    for (const label of ["Trabajo", "Marketing", "Sistema"]) {
+    for (const label of ["Marketing", "Sistema"]) {
       expect(screen.queryByText(label), `${label} no debería verse`).toBeNull();
     }
   });

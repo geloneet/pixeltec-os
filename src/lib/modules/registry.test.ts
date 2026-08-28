@@ -32,7 +32,15 @@ import {
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 const ADMIN_DIR = path.join(REPO_ROOT, "src/app/(admin)");
 
-/** Estados fijados por la orden de Miguel (WO-2026-00088 §3). */
+/**
+ * Estados fijados por WO-2026-00132 (Funcional·Simple·Único). A diferencia
+ * de WO-2026-00088, esta orden fue de BORRAR, no de ocultar: PixelForge,
+ * Definición, todo el Growth Suite (Marketing/Contenido/Campañas/
+ * Calendario/Publicaciones/Brand Brain), Infraestructura, Plantillas,
+ * Documentos, Accesos (base de conocimiento del CRM) y el Blog legacy ya no
+ * son entradas `hidden`/`legacy` del registro — se borraron del código y de
+ * aquí. Por eso hoy no existe ningún módulo `hidden` ni `legacy`.
+ */
 const EXPECTED_STATES: Record<ModuleId, ReturnType<typeof getModule>["state"]> = {
   inicio: "active",
   clientes: "active",
@@ -41,32 +49,18 @@ const EXPECTED_STATES: Record<ModuleId, ReturnType<typeof getModule>["state"]> =
   blog: "active",
   seo: "active",
   usuarios: "active",
-  // Oculto por orden de Miguel (2026-08-26): la base de conocimiento del CRM
-  // no debe aparecer en ninguna superficie (criterio 2 de WO-2026-00088).
-  accesos: "hidden",
+  proyectos: "active",
+  cotizaciones: "active",
   notificaciones: "active",
   perfil: "active",
   "smilemore-respuestas": "active",
-  proyectos: "hidden",
-  definicion: "hidden",
-  pixelforge: "hidden",
-  marketing: "hidden",
-  contenido: "hidden",
-  campanas: "hidden",
-  calendario: "hidden",
-  publicaciones: "hidden",
-  "brand-brain": "hidden",
-  infraestructura: "hidden",
-  plantillas: "hidden",
-  documentos: "hidden",
-  "blog-legacy": "legacy",
 };
 
 const HIDDEN_IDS = (Object.keys(EXPECTED_STATES) as ModuleId[]).filter(
   (id) => EXPECTED_STATES[id] === "hidden" || EXPECTED_STATES[id] === "legacy"
 );
 
-describe("registro central de módulos (WO-2026-00088)", () => {
+describe("registro central de módulos (WO-2026-00088 · renovado por WO-2026-00132)", () => {
   it("cada módulo tiene el estado decidido por la orden", () => {
     for (const m of MODULES) {
       expect(m.state, m.id).toBe(EXPECTED_STATES[m.id]);
@@ -80,29 +74,36 @@ describe("registro central de módulos (WO-2026-00088)", () => {
     for (const m of MODULES) expect(m.note.trim().length, m.id).toBeGreaterThan(0);
   });
 
-  it("legacy declara a quién lo supersede y el padre de cada hijo existe", () => {
+  it("no hay módulos hidden/legacy hoy; legacy (si volviera a haberlo) declara a quién supersede y el padre de cada hijo existe", () => {
+    expect(getModulesByState("legacy")).toEqual([]);
+    expect(getModulesByState("hidden")).toEqual([]);
     for (const m of getModulesByState("legacy")) expect(m.supersededBy, m.id).toBeDefined();
     for (const m of MODULES) if (m.parent) expect(() => getModule(m.parent!)).not.toThrow();
-    expect(getChildModules("proyectos").map((m) => m.id).sort()).toEqual(["definicion", "pixelforge"]);
+    // Nadie tiene padre: PixelForge/Definición (los únicos hijos de "proyectos") se borraron.
+    expect(getChildModules("proyectos")).toEqual([]);
   });
 
-  it("visibilidad: solo active y protected", () => {
+  it("visibilidad: todo módulo vigente (active/protected) es visible", () => {
+    for (const m of MODULES) {
+      expect(isModuleVisible(m.id), m.id).toBe(true);
+    }
     expect(isModuleVisible("clientes")).toBe(true);
     expect(isModuleVisible("whatsapp")).toBe(true);
-    expect(isModuleVisible("proyectos")).toBe(false);
-    expect(isModuleVisible("blog-legacy")).toBe(false);
+    expect(isModuleVisible("proyectos")).toBe(true);
+    expect(isModuleVisible("cotizaciones")).toBe(true);
   });
 
-  it("rutas: un módulo oculto sin hijos activos no se sirve; con un hijo activo, el árbol sí", () => {
+  it("rutas: sin módulos ocultos hoy, toda ruta de un módulo registrado se sirve", () => {
     for (const id of HIDDEN_IDS) expect(isModuleRouteEnabled(id), id).toBe(false);
-    expect(isModuleRouteEnabled("clientes")).toBe(true);
+    for (const m of MODULES) expect(isModuleRouteEnabled(m.id), m.id).toBe(true);
   });
 
   it("resuelve el módulo dueño de un pathname por prefijo más largo", () => {
-    expect(getModuleForPath("/proyectos/definicion/abc")?.id).toBe("definicion");
     expect(getModuleForPath("/proyectos/123")?.id).toBe("proyectos");
-    expect(getModuleForPath("/crecimiento/publisher")?.id).toBe("publicaciones");
+    expect(getModuleForPath("/cotizaciones")?.id).toBe("cotizaciones");
     expect(getModuleForPath("/whatsapp/x")?.id).toBe("whatsapp");
+    expect(getModuleForPath("/seo/salud")?.id).toBe("seo");
+    // "/blog" no es ruta del módulo blog (su ruta admin es /blog-cms).
     expect(getModuleForPath("/blog/algo")).toBeUndefined();
   });
 });
@@ -124,7 +125,8 @@ describe("cobertura: toda ruta admin y todo destino del catálogo pertenecen a u
 });
 
 describe("patrón único de guard: cada módulo oculto tiene layout.tsx con assertModuleRouteEnabled", () => {
-  it("existe un layout con el guard en la raíz de cada ruta oculta", () => {
+  it("existe un layout con el guard en la raíz de cada ruta oculta (hoy: ninguna)", () => {
+    expect(HIDDEN_IDS).toEqual([]);
     for (const id of HIDDEN_IDS) {
       const m = getModule(id);
       expect(m.routes.length, `${id} sin rutas`).toBeGreaterThan(0);
@@ -154,7 +156,16 @@ describe("superficies: un módulo oculto no aparece en ninguna", () => {
       expect(hiddenHrefs.has(item.href), item.href).toBe(false);
     }
     expect(getVisibleNavItems("admin").map((i) => i.href)).toEqual(
-      expect.arrayContaining(["/hoy", "/clientes", "/whatsapp", "/cobros", "/blog-cms", "/usuarios"])
+      expect.arrayContaining([
+        "/hoy",
+        "/clientes",
+        "/whatsapp",
+        "/cobros",
+        "/cotizaciones",
+        "/proyectos",
+        "/blog-cms",
+        "/usuarios",
+      ])
     );
   });
 
@@ -175,9 +186,14 @@ describe("superficies: un módulo oculto no aparece en ninguna", () => {
     for (const link of QUICK_LINKS) expect(hiddenHrefs.has(link.href), link.href).toBe(false);
     for (const a of getVisibleQuickActions()) expect(isModuleVisible(a.module), a.href).toBe(true);
     for (const c of getVisibleStatCards()) expect(isModuleVisible(c.module), c.key).toBe(true);
-    // Las declaraciones completas se conservan para reactivar sin reconstruir.
+    // WO-2026-00132: Trabajo (proyectos) y Cotizaciones son accesos rápidos reales, no declaraciones dormidas.
     expect(INICIO_QUICK_ACTIONS.some((a) => a.module === "proyectos")).toBe(true);
     expect(INICIO_STAT_CARDS.some((c) => c.module === "proyectos")).toBe(true);
-    expect(getVisibleQuickActions().map((a) => a.href)).toEqual(["/clientes", "/cobros"]);
+    expect(getVisibleQuickActions().map((a) => a.href)).toEqual([
+      "/clientes",
+      "/cotizaciones",
+      "/proyectos",
+      "/cobros",
+    ]);
   });
 });

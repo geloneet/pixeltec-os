@@ -1,6 +1,5 @@
 import { describe, expect, test } from "vitest";
 import { SafeUserError, AiProviderError } from "@/lib/ai/errors";
-import { PixelforgeRunError } from "@/lib/pixelforge/ai/failures";
 import { toPublicFailure, type PublicFailure } from "./public-failure";
 
 /**
@@ -8,9 +7,21 @@ import { toPublicFailure, type PublicFailure } from "./public-failure";
  *
  * La lista blanca es de una sola clase a propósito. Lo que se prueba aquí no es
  * que el mensaje sea correcto, sino que **una clase propia no es
- * automáticamente pública**: `PixelforgeRunError` acepta cualquier string en su
- * constructor, así que su texto vale lo que valga quien la lance.
+ * automáticamente pública**: `GenericDomainError` (definida abajo, solo para
+ * esta prueba — antes era `PixelforgeRunError`, retirada en WO-2026-00132)
+ * acepta cualquier string en su constructor, así que su texto vale lo que
+ * valga quien la lance.
  */
+
+/** Error de dominio genérico, mismo shape que cualquier clase propia que
+ *  construye su mensaje con texto libre (p.ej. de un SDK externo). Solo
+ *  existe para probar la propiedad, no representa ningún módulo real. */
+class GenericDomainError extends Error {
+  constructor(public readonly kind: string, message: string) {
+    super(message);
+    this.name = "GenericDomainError";
+  }
+}
 
 const FALLBACK: PublicFailure = {
   code: "operation_failed",
@@ -78,14 +89,14 @@ describe("toPublicFailure — la única clase segura es SafeUserError", () => {
 });
 
 describe("toPublicFailure — que una clase sea nuestra no la vuelve pública", () => {
-  test("PixelforgeRunError NO se preserva: su constructor acepta cualquier string", () => {
-    // Es el caso que justifica la lista blanca corta. `new PixelforgeRunError(kind, message)`
-    // se construye en el motor de IA con texto que puede venir del SDK.
-    esperarFallbackLimpio(new PixelforgeRunError("provider_error", MESSAGE_ENVENENADO));
+  test("GenericDomainError NO se preserva: su constructor acepta cualquier string", () => {
+    // Es el caso que justifica la lista blanca corta. `new GenericDomainError(kind, message)`
+    // representa cualquier error de dominio construido con texto que puede venir de un SDK.
+    esperarFallbackLimpio(new GenericDomainError("provider_error", MESSAGE_ENVENENADO));
   });
 
   test("AiProviderError NO se preserva: su message cita la topología interna", () => {
-    // Matiz importante: a diferencia de `PixelforgeRunError`, esta clase NO
+    // Matiz importante: a diferencia de `GenericDomainError`, esta clase NO
     // acepta texto arbitrario —construye su mensaje con provider/operation/
     // code/status, todos enums nuestros—. Aun así no se preserva, porque decir
     // "anthropic/generate_text falló con 429" describe la arquitectura interna

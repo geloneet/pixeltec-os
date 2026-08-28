@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { PALETTE_NAV_ITEMS, getNavLabel } from "./command-palette-items";
+import { PALETTE_NAV_ITEMS, getNavLabel, type PaletteNavItem } from "./command-palette-items";
 import {
   NAV_AREA_ORDER,
   NAV_AREA_LABELS,
@@ -50,10 +50,14 @@ describe("taxonomía visible (ADR-0030 · ADR-0039 · WO-2026-00088/ADR-0054 pro
       "Clientes",
       "WhatsApp",
       "Finanzas",
+      // WO-2026-00132 (Funcional·Simple·Único): Cotizaciones y Trabajo
+      // reemplazan Proyectos/Definición/PixelForge.
+      "Cotizaciones",
+      "Trabajo",
       "Blog",
       // «SEO» añadido por orden de Miguel (2026-08-26, WO-2026-00095).
       "SEO",
-      "Usuarios y Accesos",
+      "Usuarios",
     ]);
     expect(getVisibleNavAreas("staff")).toEqual(getVisibleNavAreas("admin"));
     expect(getVisibleNavAreas(undefined)).toEqual(getVisibleNavAreas("admin"));
@@ -70,12 +74,14 @@ describe("taxonomía visible (ADR-0030 · ADR-0039 · WO-2026-00088/ADR-0054 pro
     expect(getAreaHref("hoy")).toBe("/hoy");
   });
 
-  it("IA, Infra, CRM, Ventas, Tareas, Hoy y Conocimiento no existen como etiquetas visibles", () => {
+  it("IA, Infra, CRM, Ventas, Tareas, Hoy, Conocimiento y Marketing no existen como etiquetas visibles", () => {
     const visibleLabels = [
       ...getVisibleNavAreas("admin").map((a) => NAV_AREA_LABELS[a]),
       ...getVisibleNavItems("admin").map((i) => i.label),
     ];
-    for (const prohibida of ["IA", "Infra", "CRM", "Ventas", "Tareas", "Hoy", "Conocimiento", "Trabajo", "Marketing", "Sistema"]) {
+    // "Trabajo" quedó fuera de la lista prohibida: es la etiqueta vigente del
+    // área proyectos desde WO-2026-00132 (reemplaza Proyectos/PixelForge).
+    for (const prohibida of ["IA", "Infra", "CRM", "Ventas", "Tareas", "Hoy", "Conocimiento", "Marketing", "Sistema"]) {
       expect(visibleLabels, `etiqueta prohibida: ${prohibida}`).not.toContain(prohibida);
     }
   });
@@ -88,9 +94,11 @@ describe("taxonomía visible (ADR-0030 · ADR-0039 · WO-2026-00088/ADR-0054 pro
     // PixelBot conserva su acceso (item «PixelBot» → /whatsapp) dentro de WhatsApp: excepción explícita.
     expect(l2("whatsapp")).toEqual(["PixelBot"]);
     expect(l2("finanzas")).toEqual(["Cobros"]);
+    // WO-2026-00132: Cotizaciones y Trabajo (antes Proyectos/PixelForge).
+    expect(l2("cotizaciones")).toEqual(["Cotizaciones"]);
+    expect(l2("proyectos")).toEqual(["Trabajo"]);
     expect(l2("blog")).toEqual(["Blog"]);
-    // «Accesos» (base de conocimiento del CRM) quedó oculto por orden de
-    // Miguel (2026-08-26): el área conserva su nombre y un solo destino.
+    // /accesos se borró (WO-2026-00132): Usuarios conserva un solo destino.
     expect(l2("usuarios")).toEqual(["Usuarios"]);
     expect(l2("seo")).toEqual([
       "Salud",
@@ -128,33 +136,24 @@ describe("taxonomía visible (ADR-0030 · ADR-0039 · WO-2026-00088/ADR-0054 pro
     }
   });
 
-  it("las áreas de módulos ocultos no exponen tabs ni pill", () => {
-    for (const area of ["proyectos", "marketing", "infra"] as const) {
-      expect(getSecondaryItems(area)).toEqual([]);
-      expect(getVisibleNavAreas("admin")).not.toContain(area);
-    }
-  });
-
-  it("D-88-2: Usuarios y Accesos conserva las dos rutas sin fusionarlas", () => {
+  it("D-88-2 (cerrado): /accesos se borró en WO-2026-00132, Usuarios conserva un solo destino", () => {
     expect(getItemArea("/usuarios")).toBe("usuarios");
-    expect(getItemArea("/accesos")).toBe("usuarios");
     expect(getAreaHref("usuarios")).toBe("/usuarios");
     expect(routeExists("/usuarios")).toBe(true);
-    expect(routeExists("/accesos")).toBe(true);
+    expect(PALETTE_NAV_ITEMS.map((i) => i.href)).not.toContain("/accesos");
   });
 
-  it("Configuración de marca sigue catalogada en Marketing (oculta) y fuera de toda secondary nav", () => {
-    expect(getNavLabel("/crecimiento/brand-brain")).toBe("Configuración de marca");
-    expect(getItemArea("/crecimiento/brand-brain")).toBe("marketing");
-    for (const area of NAV_AREA_ORDER) {
-      expect(getSecondaryItems(area).map((i) => i.href)).not.toContain("/crecimiento/brand-brain");
+  it("Growth Suite (Marketing/Crecimiento) se borró por completo en WO-2026-00132", () => {
+    for (const href of ["/crecimiento", "/crecimiento/brand-brain", "/crecimiento/campanas"]) {
+      expect(getItemArea(href), href).toBeUndefined();
+      expect(PALETTE_NAV_ITEMS.map((i) => i.href), href).not.toContain(href);
     }
   });
 
-  it("/documentos está fuera de la navegación, catalogado como Archivo documental y oculto en ⌘K", () => {
+  it("/documentos se borró por completo en WO-2026-00132: sin catálogo, sin etiqueta, sin ruta", () => {
     expect(getItemArea("/documentos")).toBeUndefined();
-    expect(getNavLabel("/documentos")).toBe("Archivo documental");
     expect(getVisibleNavItems("admin").map((i) => i.href)).not.toContain("/documentos");
+    expect(routeExists("/documentos")).toBe(false);
   });
 
   it("Notificaciones y Perfil son transversales: en ⌘K, sin área ni overflow", () => {
@@ -237,12 +236,13 @@ describe("resolución de área activa", () => {
     expect(getActiveArea("/cobros")).toBe("finanzas");
     expect(getActiveArea("/blog-cms/abc/editar")).toBe("blog");
     expect(getActiveArea("/usuarios")).toBe("usuarios");
+    // WO-2026-00132: Trabajo (antes oculto) y Cotizaciones (nueva) sí encienden pill.
+    expect(getActiveArea("/proyectos/123")).toBe("proyectos");
+    expect(getActiveArea("/cotizaciones")).toBe("cotizaciones");
   });
 
-  it("las rutas de módulos ocultos no encienden ningún pill (el registro manda)", () => {
+  it("las rutas de módulos borrados no encienden ningún pill (el registro manda)", () => {
     for (const p of [
-      "/proyectos/pixelforge/abc/contexto",
-      "/proyectos/123",
       "/accesos",
       "/accesos/tool-1",
       "/blog-admin/p9/editar",
@@ -264,12 +264,12 @@ describe("resolución de área activa", () => {
   });
 
   it("resolveActiveHref: gana el prefijo más largo", () => {
-    expect(resolveActiveHref(PALETTE_NAV_ITEMS, "/proyectos/pixelforge/abc")).toBe(
-      "/proyectos/pixelforge"
-    );
-    expect(resolveActiveHref(PALETTE_NAV_ITEMS, "/crecimiento/campanas/c1")).toBe(
-      "/crecimiento/campanas"
-    );
+    // Sintético: el catálogo real ya no tiene rutas anidadas (PixelForge se
+    // borró en WO-2026-00132), así que probamos la lógica de desempate con
+    // dos destinos construidos a partir de uno real.
+    const base = PALETTE_NAV_ITEMS.find((i) => i.href === "/proyectos")!;
+    const items: PaletteNavItem[] = [base, { ...base, href: "/proyectos/detalle" }];
+    expect(resolveActiveHref(items, "/proyectos/detalle/123")).toBe("/proyectos/detalle");
     expect(resolveActiveHref(PALETTE_NAV_ITEMS, "/hoy")).toBe("/hoy");
     expect(resolveActiveHref(PALETTE_NAV_ITEMS, "/ruta-inexistente")).toBeNull();
   });

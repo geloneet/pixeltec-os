@@ -49,8 +49,9 @@ const nextConfig: NextConfig = {
       // Temporal (307) a propósito: cuando exista /tareas, el redirect vuelve allí sin caché 301 pegajoso.
       { source: '/asistente', destination: '/hoy', permanent: false },
       { source: '/asistente/:path*', destination: '/hoy', permanent: false },
-      { source: '/herramientas', destination: '/accesos', permanent: true },
-      { source: '/herramientas/:path*', destination: '/accesos/:path*', permanent: true },
+      // /herramientas → /accesos se retiró (WO-2026-00132): /accesos (base de
+      // conocimiento del CRM) se borró de verdad, no hay destino vivo al que
+      // apuntar; mejor 404 real que un redirect encadenado a otro 404.
       // ── PixelBot landing — aliases 301 hacia la única canonical /pixelbot ──
       { source: '/whatsappbot', destination: '/pixelbot', permanent: true },
       { source: '/whatsapp-bot', destination: '/pixelbot', permanent: true },

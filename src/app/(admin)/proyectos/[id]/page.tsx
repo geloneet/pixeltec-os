@@ -1,94 +1,35 @@
-"use client";
+import type { Metadata } from "next";
+import Link from "next/link";
+import { notFound, redirect } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
+import { getSessionUserId } from "@/lib/auth/session";
+import { getProject } from "@/lib/projects/queries";
+import PageHeader from "@/components/dashboard/PageHeader";
+import { ProjectWorkForm } from "./project-work-form";
 
-import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { useCRM } from "@/components/crm/CRMContextCore";
-import { useCRMShell } from "@/components/crm/CRMShellProvider";
-import { ProjectView } from "@/components/crm/ProjectView";
-import { Spinner } from "@/components/ui/spinner";
+export const metadata: Metadata = {
+  title: "Proyecto — PixelTEC OS",
+};
 
-type LegacyView = "clients" | "client" | "project" | "search";
+export default async function ProyectoDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const ownerId = await getSessionUserId();
+  const { id } = await params;
+  if (!ownerId) redirect(`/login?redirect=/proyectos/${id}`);
 
-export default function ProyectoDetailPage() {
-  const params = useParams<{ id: string }>();
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const crm = useCRM();
-  const shell = useCRMShell();
-
-  if (crm.loading) {
-    return (
-      <div className="flex h-full w-full items-center justify-center">
-        <Spinner size="lg" className="text-cyan-400" />
-      </div>
-    );
-  }
-
-  let foundClient = null;
-  let foundProject = null;
-  for (const c of crm.clients) {
-    const p = c.projects.find((pp) => pp.id === params.id);
-    if (p) {
-      foundClient = c;
-      foundProject = p;
-      break;
-    }
-  }
-
-  if (!foundClient || !foundProject) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 text-center">
-        <p className="text-muted-foreground text-sm mb-4">Proyecto no encontrado</p>
-        <button
-          onClick={() => router.push("/clientes")}
-          className="rounded-lg bg-[#0EA5E9] px-4 py-2 text-sm text-white hover:bg-[#0284C7] transition-all duration-150"
-        >
-          ← Ver clientes
-        </button>
-      </div>
-    );
-  }
-
-  const TAB_MIGRATION: Record<string, string> = {
-    notas: "resumen", info: "resumen",
-    llaves: "recursos", readme: "recursos", prompt: "recursos",
-    cobros: "finanzas",
-  };
-  const rawTab = searchParams.get("tab") ?? "resumen";
-  const projectTab = TAB_MIGRATION[rawTab] ?? rawTab;
-  const setProjectTab = (t: string) => {
-    const qs = new URLSearchParams(searchParams.toString());
-    qs.set("tab", t);
-    router.replace(`/proyectos/${params.id}?${qs.toString()}`);
-  };
-
-  const setView = (v: LegacyView) => {
-    if (v === "clients") router.push("/clientes");
-    else if (v === "client") router.push(`/clientes/${foundClient!.id}`);
-    else if (v === "project") router.push(`/proyectos/${foundProject!.id}`);
-  };
+  const proyecto = await getProject(id);
+  if (!proyecto) notFound();
 
   return (
-    <ProjectView
-      client={foundClient}
-      project={foundProject}
-      projectTab={projectTab}
-      setProjectTab={setProjectTab}
-      setView={setView}
-      setModal={shell.setModal}
-      deleteTask={crm.deleteTask}
-      deleteKey={crm.deleteKey}
-      deleteProject={crm.deleteProject}
-      saveQuickNote={crm.saveQuickNote}
-      startPomo={shell.startPomo}
-      pomoRunning={shell.pomoRunning}
-      pomoTaskRef={shell.pomoTaskRef}
-      pomoSeconds={shell.pomoSeconds}
-      pomoMode={shell.pomoMode}
-      pomoSessions={shell.pomoSessions}
-      stopPomo={shell.stopPomo}
-      resetPomo={shell.resetPomo}
-      deleteCharge={crm.deleteCharge}
-      updateCharge={crm.updateCharge}
-    />
+    <div className="mx-auto w-full max-w-[800px] px-4 py-8">
+      <Link
+        href="/proyectos"
+        className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <ArrowLeft className="mr-1 h-4 w-4" />
+        Trabajo
+      </Link>
+      <PageHeader title={proyecto.name} description={proyecto.clientName} />
+      <ProjectWorkForm project={proyecto} />
+    </div>
   );
 }

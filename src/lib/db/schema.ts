@@ -637,6 +637,10 @@ export const projects = pgTable(
     quickNotes: text("quick_notes").notNull().default(""),
     // Estado visible en el portal de clientes (Activo/En desarrollo/etc.)
     status: text("status").notNull().default("Activo"),
+    // WO-2026-00132 — campos simples de "Trabajo" (migración 0049).
+    progressPercent: integer("progress_percent").notNull().default(0),
+    observaciones: text("observaciones").notNull().default(""),
+    recursos: text("recursos").notNull().default(""),
     // Contrato del que nació este proyecto (creación automática al firmar).
     // Sin FK — igual que proposals.contractId — porque `contracts` se
     // declara más abajo en este archivo.

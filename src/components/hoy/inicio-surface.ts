@@ -1,22 +1,20 @@
 import {
   FolderKanban,
   Users,
-  ListChecks,
-  Flame,
-  Clock3,
-  KeyRound,
   Receipt,
-  Server,
+  FileClock,
   type LucideIcon,
 } from "lucide-react";
 import { isModuleVisible, type ModuleId } from "@/lib/modules/registry";
 import type { TodayStats } from "@/lib/hoy/types";
 
 /**
- * Superficie de /hoy («Inicio») declarada por módulo (WO-2026-00088): cada
- * acceso rápido, KPI y widget pertenece a un módulo del registro central y
- * solo se renderiza si ese módulo es visible. Reactivar un módulo devuelve sus
- * tarjetas sin tocar la página.
+ * Superficie de /hoy («Inicio») — WO-2026-00132: vistazo puramente comercial
+ * (leads, cotizaciones, proyectos, clientes). Se retiraron los accesos/KPIs
+ * de infraestructura, sesiones de trabajo y "Accesos" (WO-2026-00088 los
+ * ocultaba; esta vez el módulo entero se borró). Cada acceso rápido y KPI
+ * sigue perteneciendo a un módulo del registro central: solo se renderiza si
+ * ese módulo es visible.
  */
 export interface InicioQuickAction {
   icon: LucideIcon;
@@ -26,15 +24,7 @@ export interface InicioQuickAction {
   module: ModuleId;
 }
 
-/** Accesos rápidos — rutas reales del catálogo de navegación (nav-config.ts). */
 export const INICIO_QUICK_ACTIONS: readonly InicioQuickAction[] = [
-  {
-    icon: FolderKanban,
-    title: "Proyectos",
-    description: "Vista maestra de todos los proyectos",
-    href: "/proyectos",
-    module: "proyectos",
-  },
   {
     icon: Users,
     title: "Clientes",
@@ -44,17 +34,24 @@ export const INICIO_QUICK_ACTIONS: readonly InicioQuickAction[] = [
   },
   {
     icon: Receipt,
+    title: "Cotizaciones",
+    description: "Vencidas, próximas a vencer y el resto",
+    href: "/cotizaciones",
+    module: "cotizaciones",
+  },
+  {
+    icon: FolderKanban,
+    title: "Trabajo",
+    description: "Proyectos realizados y pendientes",
+    href: "/proyectos",
+    module: "proyectos",
+  },
+  {
+    icon: FileClock,
     title: "Cobros",
     description: "Cobros recurrentes y vencimientos",
     href: "/cobros",
     module: "finanzas",
-  },
-  {
-    icon: Server,
-    title: "Infraestructura",
-    description: "Estado del VPS y deploys",
-    href: "/vps",
-    module: "infraestructura",
   },
 ];
 
@@ -67,18 +64,15 @@ export interface InicioStatCard {
 }
 
 export const INICIO_STAT_CARDS: readonly InicioStatCard[] = [
-  { key: "activeProjects", icon: FolderKanban, label: "Proyectos activos", module: "proyectos", format: (s) => String(s.activeProjects) },
   { key: "clients", icon: Users, label: "Clientes", module: "clientes", format: (s) => String(s.clients) },
-  { key: "openTasks", icon: ListChecks, label: "Tareas abiertas", module: "proyectos", format: (s) => String(s.openTasks) },
-  { key: "streak", icon: Flame, label: "Racha", module: "clientes", format: (s) => `${s.streak}d` },
-  { key: "sessions", icon: Clock3, label: "Sesiones", module: "proyectos", format: (s) => String(s.sessions) },
-  { key: "tools", icon: KeyRound, label: "Accesos", module: "accesos", format: (s) => String(s.tools) },
+  { key: "activeProjects", icon: FolderKanban, label: "Proyectos en curso", module: "proyectos", format: (s) => String(s.activeProjects) },
+  { key: "pendingQuotes", icon: Receipt, label: "Cotizaciones pendientes", module: "cotizaciones", format: (s) => String(s.pendingQuotes) },
+  { key: "expiringQuotes", icon: FileClock, label: "Próximas a vencer", module: "cotizaciones", format: (s) => String(s.expiringQuotes) },
 ];
 
 /** Widgets (paneles) de Inicio y el módulo al que pertenecen. */
 export const INICIO_WIDGETS = {
-  activityChart: "proyectos",
-  activeProjects: "proyectos",
+  recentProjects: "proyectos",
   recentClients: "clientes",
 } as const satisfies Record<string, ModuleId>;
 

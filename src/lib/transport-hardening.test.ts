@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { AiProviderError } from "./ai/errors";
 import { ideogramGenerateImage } from "./ai/image-egress";
-import { getFacebookUser } from "./growth/social/meta-api";
 import { fetchVpsApi, VpsTransportError } from "./vpsClient";
 import { sendWhatsApp } from "./whatsapp/sender";
 
@@ -252,27 +251,8 @@ describe("WhatsApp — redirects", () => {
 
 // ── Meta Graph ───────────────────────────────────────────────────────────────
 
-describe("Meta Graph — redirects", () => {
-  test.each(REDIRECTS)("%i se bloquea sin seguirlo", async (status) => {
-    const { res, jsonSpy, headerSpy } = redirectEspia(status);
-    fetchMock.mockResolvedValueOnce(res);
-
-    const err = await capturar(() => getFacebookUser("tok3n-de-whatsapp"));
-
-    expect((err as Error).message).toContain("META_API_ERROR");
-    expect((err as Error).message).toContain(String(status));
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(jsonSpy).not.toHaveBeenCalled();
-    expect(headerSpy).not.toHaveBeenCalled();
-    sinFugas(err);
-  });
-
-  test("la petición sale con redirect: manual", async () => {
-    fetchMock.mockResolvedValueOnce(respuestaOk({ id: "1", name: "x" }));
-    await getFacebookUser("tok3n-de-whatsapp");
-    expect(fetchMock.mock.calls[0][1].redirect).toBe("manual");
-  });
-});
+// El bloque "Meta Graph — redirects" (getFacebookUser, lib/growth/social/
+// meta-api.ts) se retiró junto con el Growth Suite (WO-2026-00132).
 
 // ── VPS ──────────────────────────────────────────────────────────────────────
 

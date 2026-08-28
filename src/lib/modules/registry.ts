@@ -29,7 +29,9 @@
 export type ModuleState = "active" | "protected" | "hidden" | "legacy";
 
 export type ModuleId =
-  // Navegación aprobada (orden visible: Inicio · Clientes · WhatsApp · Finanzas · Blog · Usuarios y Accesos)
+  // Navegación aprobada (WO-2026-00132, Funcional·Simple·Único):
+  // Inicio · Clientes · WhatsApp · Finanzas · Blog · SEO · Trabajo ·
+  // Cotizaciones · Usuarios
   | "inicio"
   | "clientes"
   | "whatsapp"
@@ -37,27 +39,19 @@ export type ModuleId =
   | "blog"
   | "seo"
   | "usuarios"
-  | "accesos"
+  | "proyectos"
+  | "cotizaciones"
   // Controles globales (campana, menú de usuario) — no son dominios de navegación
   | "notificaciones"
   | "perfil"
   // Vistas sin entrada de navegación (se alcanzan por enlace contextual)
-  | "smilemore-respuestas"
-  // Ocultos por la limpieza (reactivables)
-  | "proyectos"
-  | "definicion"
-  | "pixelforge"
-  | "marketing"
-  | "contenido"
-  | "campanas"
-  | "calendario"
-  | "publicaciones"
-  | "brand-brain"
-  | "infraestructura"
-  | "plantillas"
-  | "documentos"
-  // Legacy (superado)
-  | "blog-legacy";
+  | "smilemore-respuestas";
+// WO-2026-00132: PixelForge, Definición, Marketing/Growth Suite completo
+// (Contenido/Campañas/Calendario/Publicaciones/Brand Brain), Infraestructura,
+// Plantillas, Documentos, Accesos (base de conocimiento del CRM) y el Blog
+// legacy se BORRARON (código + esta entrada del registro) — ya no son
+// "hidden", no existen. Antes vivían aquí ocultos y reactivables; esta vez
+// Miguel pidió borrar de verdad, no ocultar.
 
 export interface ModuleDefinition {
   id: ModuleId;
@@ -128,13 +122,6 @@ const REGISTRY = [
     routes: ["/usuarios"],
     note: "Parte del módulo conceptual «Usuarios y Accesos» (D-88-2): ruta /usuarios intacta.",
   },
-  {
-    id: "accesos",
-    label: "Accesos",
-    state: "hidden",
-    routes: ["/accesos"],
-    note: "Base de conocimiento del CRM (tools + knowledge_tips). OCULTO por orden de Miguel (2026-08-26): el criterio 2 de WO-2026-00088 ya pedía que «Conocimiento» no apareciera en ninguna superficie; se había retirado solo la etiqueta y la sección seguía visible como «Accesos». Código, ruta, tablas y datos intactos: reactivar = state «active».",
-  },
   // ── Controles globales ────────────────────────────────────────────────────
   {
     id: "notificaciones",
@@ -157,106 +144,19 @@ const REGISTRY = [
     routes: ["/smilemore-respuestas"],
     note: "Vista solo-admin sin entrada de navegación (se llega desde el aviso de WhatsApp). Sin cambios.",
   },
-  // ── Ocultos (orden §3.8) ──────────────────────────────────────────────────
   {
     id: "proyectos",
-    label: "Trabajo / Proyectos",
-    state: "hidden",
+    label: "Trabajo",
+    state: "active",
     routes: ["/proyectos"],
-    note: "Oculto (orden §3.8: Proyectos, Trabajo). Reactivar: state → active.",
+    note: "WO-2026-00132: reemplaza Proyectos/Definición/PixelForge (borrados, no ocultos). Lista+detalle simple sobre la tabla `projects` real.",
   },
   {
-    id: "definicion",
-    label: "Definición de proyectos",
-    state: "hidden",
-    routes: ["/proyectos/definicion"],
-    parent: "proyectos",
-    note: "Oculto (orden §3.8: Definición).",
-  },
-  {
-    id: "pixelforge",
-    label: "PixelForge",
-    state: "hidden",
-    routes: ["/proyectos/pixelforge"],
-    parent: "proyectos",
-    note: "Oculto (módulo no aprobado expresamente). El preview embebido con token pfqa vive en otro route group y no depende de este guard.",
-  },
-  {
-    id: "marketing",
-    label: "Marketing (resumen)",
-    state: "hidden",
-    routes: ["/crecimiento"],
-    note: "Oculto (orden §3.8: Marketing).",
-  },
-  {
-    id: "contenido",
-    label: "Contenido (Content Studio)",
-    state: "hidden",
-    routes: ["/crecimiento/content-studio"],
-    parent: "marketing",
-    note: "Oculto (orden §3.8: Contenido).",
-  },
-  {
-    id: "campanas",
-    label: "Campañas",
-    state: "hidden",
-    routes: ["/crecimiento/campanas"],
-    parent: "marketing",
-    note: "Oculto (módulo no aprobado expresamente).",
-  },
-  {
-    id: "calendario",
-    label: "Calendario",
-    state: "hidden",
-    routes: ["/crecimiento/calendario"],
-    parent: "marketing",
-    note: "Oculto (módulo no aprobado expresamente).",
-  },
-  {
-    id: "publicaciones",
-    label: "Publicaciones (Publisher)",
-    state: "hidden",
-    routes: ["/crecimiento/publisher"],
-    parent: "marketing",
-    note: "Oculto, NO eliminado (orden §9). El flujo del token de redes se conserva documentado en docs/publicaciones-token-redes.md con checklist de reactivación.",
-  },
-  {
-    id: "brand-brain",
-    label: "Configuración de marca (Brand Brain)",
-    state: "hidden",
-    routes: ["/crecimiento/brand-brain"],
-    parent: "marketing",
-    note: "Oculto (módulo no aprobado expresamente).",
-  },
-  {
-    id: "infraestructura",
-    label: "Infraestructura (VPS)",
-    state: "hidden",
-    routes: ["/vps"],
-    note: "Oculto (orden §3.8: Infraestructura).",
-  },
-  {
-    id: "plantillas",
-    label: "Plantillas (Centro IA)",
-    state: "hidden",
-    routes: ["/ia-factory"],
-    note: "Oculto (orden §3.8: Plantillas).",
-  },
-  {
-    id: "documentos",
-    label: "Archivo documental",
-    state: "hidden",
-    routes: ["/documentos"],
-    note: "Oculto (módulo no aprobado expresamente; WO acceptance «Documentos»).",
-  },
-  // ── Legacy ────────────────────────────────────────────────────────────────
-  {
-    id: "blog-legacy",
-    label: "Blog anterior (blog-admin)",
-    state: "legacy",
-    routes: ["/blog-admin"],
-    supersededBy: "blog",
-    note: "Oculto (orden §3.8: Blog anterior/legacy). Superado por la nueva sección Blog; código, tablas y el blog público de pixeltec.mx siguen intactos.",
+    id: "cotizaciones",
+    label: "Cotizaciones",
+    state: "active",
+    routes: ["/cotizaciones"],
+    note: "WO-2026-00132: vista dedicada (vencidas/próximas a vencer) — antes solo se veían dentro de cada cliente.",
   },
 ] as const satisfies readonly ModuleDefinition[];
 

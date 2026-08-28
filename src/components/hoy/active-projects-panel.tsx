@@ -3,11 +3,11 @@ import { FolderKanban } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { PanelCard } from "@/components/ui/panel-card";
-import type { ActiveProject } from "@/lib/hoy/types";
+import type { ProjectRow } from "@/lib/projects/queries";
 
-export function ActiveProjectsPanel({ projects }: { projects: ActiveProject[] }) {
+export function ActiveProjectsPanel({ projects }: { projects: ProjectRow[] }) {
   return (
-    <PanelCard icon={FolderKanban} title="Proyectos activos">
+    <PanelCard icon={FolderKanban} title="Proyectos en curso">
       {projects.length === 0 ? (
         <p className="py-8 text-center text-sm text-muted-foreground">
           Aún no hay proyectos registrados.
@@ -25,18 +25,15 @@ export function ActiveProjectsPanel({ projects }: { projects: ActiveProject[] })
                     {project.name}
                   </p>
                   <p className="truncate text-xs text-muted-foreground">
-                    {project.clientName}
-                    {project.domain ? ` · ${project.domain}` : ""}
+                    {project.clientName} · {project.status}
                   </p>
                 </div>
-                {project.lastActivityAt && (
-                  <span className="flex-shrink-0 text-[11px] text-muted-foreground/70">
-                    {formatDistanceToNow(new Date(project.lastActivityAt), {
-                      addSuffix: true,
-                      locale: es,
-                    })}
-                  </span>
-                )}
+                <span className="flex-shrink-0 text-[11px] text-muted-foreground/70">
+                  {formatDistanceToNow(new Date(project.createdAt), {
+                    addSuffix: true,
+                    locale: es,
+                  })}
+                </span>
               </Link>
             </li>
           ))}

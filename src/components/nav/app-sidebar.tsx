@@ -12,8 +12,6 @@ import {
   Receipt,
   Newspaper,
   UserCog,
-  Megaphone,
-  Server,
   Plus,
   type LucideIcon,
   Search,
@@ -44,12 +42,11 @@ const AREA_ICONS: Record<NavArea, LucideIcon> = {
   crm: Users,
   whatsapp: MessageCircle,
   finanzas: Receipt,
+  cotizaciones: Receipt,
+  proyectos: FolderKanban,
   blog: Newspaper,
   seo: Search,
   usuarios: UserCog,
-  proyectos: FolderKanban,
-  marketing: Megaphone,
-  infra: Server,
 };
 
 /**

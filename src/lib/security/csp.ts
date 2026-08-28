@@ -64,14 +64,6 @@ const MAPS_EMBED_FRAME_SRC = ['https://www.google.com'].join(' ');
  */
 export const SELF_FRAMEABLE_PATHS = ['/api/documents/proposal-pdf'] as const;
 
-/**
- * Preview embebible de PixelForge (F6A): la landing renderizada que las
- * páginas admin embeben en un <iframe> same-origin. Debe declarar
- * `frame-ancestors 'self'` para dejarse embeber. Segmento dinámico `[id]`, por
- * eso es regex y no entrada de array. Coincide EXACTA con `.../<id>/preview`.
- */
-export const PIXELFORGE_PREVIEW_RE = /^\/proyectos\/pixelforge\/[^/]+\/preview$/;
-
 /** Match por igualdad exacta o por prefijo de segmento (`p` o `p/...`). */
 function matchesExactOrPrefix(paths: readonly string[], pathname: string): boolean {
   return paths.some((p) => pathname === p || pathname.startsWith(`${p}/`));
@@ -82,7 +74,7 @@ function matchesExactOrPrefix(paths: readonly string[], pathname: string): boole
  * → `frame-ancestors 'self'` (si no, `'none'`).
  */
 export function isSelfFrameable(pathname: string): boolean {
-  return matchesExactOrPrefix(SELF_FRAMEABLE_PATHS, pathname) || PIXELFORGE_PREVIEW_RE.test(pathname);
+  return matchesExactOrPrefix(SELF_FRAMEABLE_PATHS, pathname);
 }
 
 export interface CspOptions {

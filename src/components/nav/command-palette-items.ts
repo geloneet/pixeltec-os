@@ -12,20 +12,9 @@ import {
   Users,
   MessageCircle,
   Receipt,
-  KeyRound,
-  Server,
-  FileText,
   Settings2,
-  FolderOpen,
-  Sparkles,
-  Brain,
-  Megaphone,
-  CalendarDays,
-  LayoutGrid,
-  Send,
   Bell,
   Newspaper,
-  Wand2,
   UserCog,
   type LucideIcon,
 } from "lucide-react";
@@ -60,27 +49,21 @@ export const PALETTE_NAV_ITEMS: PaletteNavItem[] = [
     icon: Sun,
     module: "inicio",
   },
-  // ── Trabajo (oculto por WO-2026-00088) ──────────────────────────────────────
+  // ── Trabajo (WO-2026-00132: reemplaza Proyectos/Definición/PixelForge) ──────
   {
     href: "/proyectos",
-    label: "Proyectos",
-    description: "Vista maestra de todos los proyectos activos",
+    label: "Trabajo",
+    description: "Proyectos realizados y pendientes: estatus, avance, observaciones y recursos",
     icon: FolderKanban,
     module: "proyectos",
   },
+  // ── Cotizaciones (WO-2026-00132) ─────────────────────────────────────────────
   {
-    href: "/proyectos/definicion",
-    label: "Definición de proyectos",
-    description: "Pipeline IA por estaciones para aterrizar ideas en entregables sellados",
-    icon: Sparkles,
-    module: "definicion",
-  },
-  {
-    href: "/proyectos/pixelforge",
-    label: "PixelForge",
-    description: "Landings diferenciadas por estaciones: contexto, estrategia, direcciones creativas y producción",
-    icon: Wand2,
-    module: "pixelforge",
+    href: "/cotizaciones",
+    label: "Cotizaciones",
+    description: "Todas las cotizaciones: vencidas, próximas a vencer y el resto",
+    icon: Receipt,
+    module: "cotizaciones",
   },
   // ── Clientes ────────────────────────────────────────────────────────────────
   {
@@ -171,72 +154,7 @@ export const PALETTE_NAV_ITEMS: PaletteNavItem[] = [
     icon: Receipt,
     module: "finanzas",
   },
-  // ── Marketing (oculto por WO-2026-00088) ────────────────────────────────────
-  {
-    href: "/crecimiento",
-    label: "Resumen de marketing",
-    description: "Hub de marketing: contenido, campañas, calendario, publicación y configuración de marca",
-    icon: LayoutGrid,
-    module: "marketing",
-  },
-  {
-    href: "/blog-admin",
-    label: "Blog anterior",
-    description: "Sistema editorial legacy: posts, briefs y pipeline de contenido",
-    icon: FileText,
-    module: "blog-legacy",
-  },
-  {
-    href: "/crecimiento/content-studio",
-    label: "Contenido",
-    description: "Genera posts con IA usando el contexto de tu marca (Content Studio)",
-    icon: Sparkles,
-    module: "contenido",
-  },
-  {
-    href: "/crecimiento/campanas",
-    label: "Campañas",
-    description: "Crea campañas completas desde un objetivo de negocio",
-    icon: Megaphone,
-    module: "campanas",
-  },
-  {
-    href: "/crecimiento/calendario",
-    label: "Calendario",
-    description: "Organiza y programa tus publicaciones por semana o mes",
-    icon: CalendarDays,
-    module: "calendario",
-  },
-  {
-    href: "/crecimiento/publisher",
-    label: "Publicación",
-    description: "Conecta Instagram y Facebook para publicar directamente (Publisher)",
-    icon: Send,
-    module: "publicaciones",
-  },
-  {
-    href: "/crecimiento/brand-brain",
-    label: "Configuración de marca",
-    description: "Memoria de negocio (Brand Brain): servicios, cliente ideal, voz y diferenciadores",
-    icon: Brain,
-    module: "brand-brain",
-  },
-  // ── Sistema (oculto por WO-2026-00088, salvo Usuarios y Accesos) ────────────
-  {
-    href: "/vps",
-    label: "Infraestructura",
-    description: "VPS status, deploys y monitoreo",
-    icon: Server,
-    module: "infraestructura",
-  },
-  {
-    href: "/ia-factory",
-    label: "Plantillas",
-    description: "Plantillas maestras (Centro IA) para contratos, facturas, discovery y documentos",
-    icon: Sparkles,
-    module: "plantillas",
-  },
-  // ── Usuarios y Accesos (D-88-2: dos rutas, un módulo conceptual) ────────────
+  // ── Usuarios ─────────────────────────────────────────────────────────────────
   {
     href: "/usuarios",
     label: "Usuarios",
@@ -244,21 +162,7 @@ export const PALETTE_NAV_ITEMS: PaletteNavItem[] = [
     icon: UserCog,
     module: "usuarios",
   },
-  {
-    href: "/accesos",
-    label: "Accesos",
-    description: "Accesos y documentación técnica por herramienta",
-    icon: KeyRound,
-    module: "accesos",
-  },
   // ── Transversales (solo ⌘K / controles globales) ────────────────────────────
-  {
-    href: "/documentos",
-    label: "Archivo documental",
-    description: "Contratos, facturas, propuestas, notas de pago y bienvenidas",
-    icon: FolderOpen,
-    module: "documentos",
-  },
   {
     href: "/notificaciones",
     label: "Notificaciones",

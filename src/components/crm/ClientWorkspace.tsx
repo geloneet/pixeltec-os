@@ -14,7 +14,6 @@ import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { CRMClient } from "@/types/crm";
 import { ClientDetail } from "./ClientDetail";
-import { ProyectosTab } from "@/components/crm/workspace-tabs/ProyectosTab";
 import { CotizacionesTabLoader } from "@/components/crm/workspace-tabs/CotizacionesTabLoader";
 import { ComercialTab, type ComercialSub } from "@/components/crm/workspace-tabs/ComercialTab";
 import { DocumentosTab } from "@/components/crm/workspace-tabs/DocumentosTab";
@@ -140,13 +139,6 @@ export function ClientWorkspace({ client, onBack, navigateToProject, setModal, d
             clientName={client.name}
             clientEmail={client.email ?? null}
             clientPhone={client.phone || null}
-          />
-        )}
-        {activeTab === "proyectos" && (
-          <ProyectosTab
-            client={client}
-            navigateToProject={navigateToProject}
-            setModal={setModal}
           />
         )}
         {activeTab === "comercial" && (

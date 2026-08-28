@@ -65,16 +65,11 @@ describe("páginas internas", () => {
       "/usuarios",
       "/cobros",
       "/clientes",
-      "/vps",
-      "/accesos",
-      "/ia-factory",
-      "/documentos",
-      "/blog-admin",
+      "/cotizaciones",
       "/smilemore-respuestas",
       "/proyectos",
       "/perfil",
       "/notificaciones",
-      "/crecimiento",
     ]) {
       expect(decide(p), p).toMatchObject({ kind: "deny" });
     }

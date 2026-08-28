@@ -39,32 +39,12 @@ async function run(path: string, auth: unknown = null) {
   );
 }
 
-describe("middleware — preview de PixelForge con token pfqa (BUG-2 smoke F8)", () => {
-  it("con pfqa y SIN auth, NO redirige a /login (el page component valida el token, no el middleware)", async () => {
-    const res = await run("/proyectos/pixelforge/abc-123/preview?pfqa=sometoken", null);
-    expect(res.headers.get("location")).toBeNull();
-    expect(res.status).not.toBe(307);
-  });
-
-  it("la respuesta exenta trae la CSP del preview real: frame-ancestors 'self' (no la de /login)", async () => {
-    const res = await run("/proyectos/pixelforge/abc-123/preview?pfqa=sometoken", null);
-    const csp = res.headers.get("content-security-policy") ?? "";
-    expect(csp).toContain("frame-ancestors 'self'");
-  });
-
-  it("SIN pfqa, la misma ruta de preview sigue protegida: redirige a /login sin auth", async () => {
-    const res = await run("/proyectos/pixelforge/abc-123/preview", null);
-    expect(res.status).toBe(307);
-    expect(res.headers.get("location")).toContain("/login");
-  });
-
-  it("con pfqa mal puesto en OTRA ruta protegida (no /preview), sigue redirigiendo sin auth", async () => {
-    const res = await run("/proyectos/pixelforge/abc-123/produccion?pfqa=sometoken", null);
-    expect(res.status).toBe(307);
-    expect(res.headers.get("location")).toContain("/login");
-  });
-
-  it("rutas protegidas normales (sin pfqa) sin auth siguen redirigiendo — la protección general no se tocó", async () => {
+// La excepción del token pfqa (preview embebido de PixelForge, BUG-2 smoke
+// F8) se retiró junto con PixelForge (WO-2026-00132): la ruta que protegía
+// ya no existe, y con ella la superficie de bypass de auth. Quedan los dos
+// tests de protección general, que no eran específicos de pfqa.
+describe("middleware — protección de sesión básica", () => {
+  it("rutas protegidas normales sin auth redirigen a /login", async () => {
     const res = await run("/hoy", null);
     expect(res.status).toBe(307);
     expect(res.headers.get("location")).toContain("/login");
@@ -91,16 +71,11 @@ const SENSITIVE_PAGES = [
   "/usuarios",
   "/cobros",
   "/clientes",
-  "/vps",
-  "/accesos",
-  "/ia-factory",
-  "/documentos",
-  "/blog-admin",
+  "/cotizaciones",
   "/smilemore-respuestas",
   "/proyectos",
   "/perfil",
   "/notificaciones",
-  "/crecimiento",
 ];
 
 const OTHER_APIS = [

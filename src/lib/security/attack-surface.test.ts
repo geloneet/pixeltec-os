@@ -68,19 +68,7 @@ describe("relay de correo abierto", () => {
   });
 });
 
-describe("token OAuth de Meta", () => {
-  const social = read("lib/growth/actions/social-accounts.ts");
-
-  test("ATAQUE — getAccessToken(accountId, uid) ya no existe", () => {
-    // Tomaba la identidad de un PARÁMETRO en un archivo 'use server': devolvía
-    // el access token de Meta en claro de la cuenta de cualquier uid.
-    expect(social).not.toContain("export async function getAccessToken");
-  });
-
-  test("upsertSocialAccount deriva la identidad de la sesión, no del payload", () => {
-    const start = social.indexOf("export async function upsertSocialAccount");
-    const body = social.slice(start, social.indexOf("export async function", start + 1));
-    expect(body).toContain("getSessionUserId()");
-    expect(body).not.toMatch(/resolveOwnerId\(\s*data\.uid\s*\)/);
-  });
-});
+// El bloque "token OAuth de Meta" (lib/growth/actions/social-accounts.ts) se
+// retiró en WO-2026-00132: el archivo probado ya no existe, el Growth Suite
+// completo se borró. El flujo OAuth queda documentado (sin secretos) en
+// docs/marketing/conexion-meta-fb-instagram.md.

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth/config';
 import { PROTECTED_PATHS } from '@/lib/routes/admin-routes';
 import { decideRestrictedAccess, isRestrictedRole } from '@/lib/routes/reviewer-access';
-import { cspForPath, PIXELFORGE_PREVIEW_RE } from '@/lib/security/csp';
+import { cspForPath } from '@/lib/security/csp';
 
 export const runtime = 'nodejs';
 
@@ -62,22 +62,6 @@ function forbiddenForRestrictedRole(request: Request, nonce: string, pathname: s
 export default auth(async (request) => {
   const nonce = crypto.randomUUID().replace(/-/g, '');
   const { pathname } = request.nextUrl;
-
-  // ── Excepción: preview de PixelForge con token pfqa (BUG-2, smoke F8) ─────
-  // El qa-runner (contenedor Playwright, T6) navega esta MISMA ruta SIN
-  // cookie de sesión — el token `pfqa` (HMAC efímero) es su credencial. El
-  // page component `(embed)/proyectos/pixelforge/[id]/preview/page.tsx` (rama
-  // pfqa, T3) YA exige token válido + `exp` vigente + qa_run `running` +
-  // projectId/pageVersionId coincidentes, y resuelve `notFound()` ante
-  // cualquier fallo — esa es la defensa real. El middleware solo reconoce la
-  // FORMA de la request (ruta exacta del preview + parámetro presente), NUNCA
-  // valida el contenido del token, así que esto no abre superficie nueva: sin
-  // esta excepción, el middleware redirigía a /login antes de que el page
-  // component corriera, y la fase de navegador del QA terminaba midiendo la
-  // página de login en vez de la landing compuesta.
-  if (PIXELFORGE_PREVIEW_RE.test(pathname) && request.nextUrl.searchParams.has('pfqa')) {
-    return withSecurityHeaders(NextResponse.next(), nonce, pathname);
-  }
 
   // ── Rol restringido (reviewer, WO-2026-00051): deny-by-default ───────────
   // Solo con sesión. El rol viene del JWT, que el callback `jwt` refresca desde

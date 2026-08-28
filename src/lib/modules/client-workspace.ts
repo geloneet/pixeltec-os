@@ -55,7 +55,10 @@ export const CLIENT_WORKSPACE_SECTIONS: readonly ClientWorkspaceSectionDefinitio
     id: "documentos",
     label: "Documentos",
     state: "hidden",
-    module: "documentos",
+    // Sin `module`: el archivo documental de nivel superior (ruta /documentos)
+    // se borró por completo en WO-2026-00132 (código y registro). Esta
+    // pestaña del workspace de cliente es un concepto distinto —
+    // `clients.documents` por cliente— y sigue oculta por su propio `state`.
     note: "Oculto (orden §6: documentos). `clients.documents` (jsonb) no forma parte del blob-sync: no puede sobrescribirse al guardar.",
   },
   {

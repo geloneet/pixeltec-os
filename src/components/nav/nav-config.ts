@@ -5,39 +5,35 @@ import { isModuleVisible } from "@/lib/modules/registry";
 /**
  * Taxonomía operativa de la navegación (ADR-0030, ADR-0039). Las áreas L1
  * representan dominios del ciclo de negocio, no tecnologías. Los slugs
- * internos se conservan por estabilidad (crm/proyectos/infra); la etiqueta
- * visible vive en NAV_AREA_LABELS.
+ * internos se conservan por estabilidad; la etiqueta visible vive en
+ * NAV_AREA_LABELS.
  *
- * WO-2026-00088 (ADR-0054 propuesta): la navegación visible queda en
- * Inicio · Clientes · WhatsApp · Finanzas · Blog · Usuarios y Accesos. Las
- * áreas y destinos de los módulos ocultos se CONSERVAN en este catálogo; su
- * visibilidad la decide el registro central (`src/lib/modules/registry.ts`):
- * un área se muestra solo si tiene al menos un destino de un módulo visible.
+ * WO-2026-00132 (Funcional·Simple·Único): nav = Inicio · Clientes ·
+ * WhatsApp · Finanzas · Cotizaciones · Trabajo · Blog · SEO · Usuarios.
+ * Marketing e Infraestructura se BORRARON (código y área), no se ocultan.
  */
 export type NavArea =
   | "hoy"
   | "crm"
   | "whatsapp"
   | "finanzas"
+  | "cotizaciones"
+  | "proyectos"
   | "blog"
   | "usuarios"
-  | "proyectos"
-  | "marketing"
-  | "infra"
   | "seo";
 
-/** Orden completo (visibles primero, en el orden aprobado; ocultas después). */
+/** Orden completo. */
 export const NAV_AREA_ORDER: NavArea[] = [
   "hoy",
   "crm",
   "whatsapp",
   "finanzas",
+  "cotizaciones",
+  "proyectos",
   "blog",
   "seo",
   "usuarios",
-  "proyectos",
-  "marketing",
-  "infra",
 ];
 
 export const NAV_AREA_LABELS: Record<NavArea, string> = {
@@ -45,12 +41,11 @@ export const NAV_AREA_LABELS: Record<NavArea, string> = {
   crm: "Clientes",
   whatsapp: "WhatsApp",
   finanzas: "Finanzas",
+  cotizaciones: "Cotizaciones",
+  proyectos: "Trabajo",
   blog: "Blog",
   seo: "SEO",
-  usuarios: "Usuarios y Accesos",
-  proyectos: "Trabajo",
-  marketing: "Marketing",
-  infra: "Sistema",
+  usuarios: "Usuarios",
 };
 
 interface AreaItemRef {
@@ -93,22 +88,9 @@ const AREA_ITEMS: Record<NavArea, AreaItemRef[]> = {
     { href: "/seo/redes", secondaryLabel: "Redes" },
     { href: "/seo/sitemap", secondaryLabel: "Sitemap" },
   ],
-  usuarios: [{ href: "/usuarios" }, { href: "/accesos" }],
-  proyectos: [
-    { href: "/proyectos" },
-    { href: "/proyectos/definicion", secondaryLabel: "Definición" },
-    { href: "/proyectos/pixelforge" },
-  ],
-  marketing: [
-    { href: "/crecimiento", secondaryLabel: "Resumen" },
-    { href: "/blog-admin" },
-    { href: "/crecimiento/content-studio" },
-    { href: "/crecimiento/campanas" },
-    { href: "/crecimiento/calendario" },
-    { href: "/crecimiento/publisher" },
-    { href: "/crecimiento/brand-brain", navHidden: true },
-  ],
-  infra: [{ href: "/vps" }, { href: "/ia-factory" }],
+  usuarios: [{ href: "/usuarios" }],
+  proyectos: [{ href: "/proyectos" }],
+  cotizaciones: [{ href: "/cotizaciones" }],
 };
 
 /** Lookup href → area, derivado de AREA_ITEMS (una sola fuente de verdad). */

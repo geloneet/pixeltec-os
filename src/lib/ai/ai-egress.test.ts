@@ -50,19 +50,13 @@ vi.mock("@/lib/auth/session", () => ({
   getSessionUserId: vi.fn(async () => "11111111-1111-4111-8111-111111111111"),
 }));
 
-const { authMock, getClientByIdMock, getDefinitionFullMock } = vi.hoisted(() => ({
+const { authMock, getClientByIdMock } = vi.hoisted(() => ({
   authMock: vi.fn(),
   getClientByIdMock: vi.fn(),
-  getDefinitionFullMock: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/config", () => ({ auth: authMock }));
 vi.mock("@/lib/db/repos/crm", () => ({ getClientById: getClientByIdMock }));
-vi.mock("@/lib/db/repos/definitions", () => ({
-  getDefinitionFull: getDefinitionFullMock,
-  appendMessage: vi.fn(async () => undefined),
-  updateStationDraft: vi.fn(async () => undefined),
-}));
 
 import { assertAiEgressAllowed, EgressBlockedError, assertEgressAllowed } from "@/lib/egress-guard";
 import { anthropicCreate, anthropicStreamFinalMessage, AiProviderError } from "./anthropic-egress";
@@ -72,7 +66,6 @@ import { POST as postAiPrompt } from "@/app/api/workspace/ai-prompt/route";
 import { POST as postProposal } from "@/app/api/documents/proposal-generate/route";
 import { POST as postWelcome } from "@/app/api/documents/welcome-generate/route";
 import { POST as postDiscovery } from "@/app/api/documents/discovery-generate/route";
-import { POST as postDefinition } from "@/app/api/definition/generate/route";
 import { generatePostFromBrief } from "@/lib/blog/ai/generate-post";
 import type { WorkSession } from "@/types/session";
 import type { BlogBriefDoc } from "@/lib/blog/types";
@@ -80,8 +73,6 @@ import type { BlogBriefDoc } from "@/lib/blog/types";
 // ── Constantes sintéticas ─────────────────────────────────────────────────────
 
 const MODELO_RUTAS = "modelo-sintetico-rutas";
-const MODELO_DEFINICION = "modelo-sintetico-definicion";
-const DEFINITION_ID = "33333333-3333-3333-3333-333333333333";
 const CLIENT_ID = "44444444-4444-4444-4444-444444444444";
 
 const ENV_ORIGINAL = { ...process.env };
@@ -110,7 +101,6 @@ beforeEach(() => {
   limpiar();
   vi.stubEnv("NODE_ENV", "test");
   vi.stubEnv("ANTHROPIC_MODEL", MODELO_RUTAS);
-  vi.stubEnv("DEFINITION_AI_MODEL", MODELO_DEFINICION);
   vi.stubEnv("ANTHROPIC_API_KEY", "sk-ant-sintetica-de-prueba");
 
   anthropicConstructor.mockClear();
@@ -120,17 +110,6 @@ beforeEach(() => {
 
   authMock.mockReset().mockResolvedValue({ user: { id: "owner-1" } });
   getClientByIdMock.mockReset().mockResolvedValue({ id: CLIENT_ID, name: "Cliente Sintético" });
-  getDefinitionFullMock.mockReset().mockResolvedValue({
-    definition: {
-      id: DEFINITION_ID,
-      status: "active",
-      currentStation: "boceto",
-      brainDump: "Descarga mental sintética para la prueba.",
-      clientId: CLIENT_ID,
-    },
-    stations: [{ station: "boceto", status: "active", sealedContent: null }],
-    messages: [],
-  });
 });
 
 afterEach(() => {
@@ -554,17 +533,6 @@ const FRONTERAS: Frontera[] = [
     invocar: () =>
       postDiscovery(
         pedirRuta("http://localhost/api/documents/discovery-generate", { industry: "Industria" })
-      ),
-  },
-  {
-    nombre: "definition/generate",
-    modelo: MODELO_DEFINICION,
-    invocar: () =>
-      postDefinition(
-        pedirRuta("http://localhost/api/definition/generate", {
-          definitionId: DEFINITION_ID,
-          station: "boceto",
-        })
       ),
   },
   {

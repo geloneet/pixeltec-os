@@ -1,12 +1,13 @@
-// Server-only helpers that derive the projection types used by /hoy and
-// /proyectos. Fase 4: el núcleo CRM ya vive en Postgres (tabla `clients`,
-// source='crm_blob') — se dejó de leer el blob `crm_data/{uid}` de Firestore.
+// Server-only helpers que alimentan /hoy (Inicio). Fase 4: el núcleo CRM ya
+// vive en Postgres (tabla `clients`, source='crm_blob') — se dejó de leer el
+// blob `crm_data/{uid}` de Firestore.
+//
+// WO-2026-00132: se retiraron `deriveActiveProjects`/`deriveAllProjects` (las
+// 3 fuentes viejas — CRM blob, Definición, PixelForge). Los proyectos de
+// Inicio ahora salen de `@/lib/projects/queries` (tabla `projects` real).
 import { getFullCrmData } from "@/lib/db/repos/crm-sync";
 import type { CRMClient } from "@/types/crm";
-import type { ActiveProject, RecentClient, ActivityPoint } from "@/lib/hoy/types";
-import type { PixelforgeProjectListItem } from "@/lib/db/repos/pixelforge";
-import type { DefinitionListItem } from "@/lib/db/repos/definitions";
-import type { WorkSession } from "@/types/session";
+import type { RecentClient } from "@/lib/hoy/types";
 
 /**
  * Clientes del propietario indicado.
@@ -24,97 +25,6 @@ import type { WorkSession } from "@/types/session";
 export async function getCrmClientsByOwnerId(ownerId: string): Promise<CRMClient[]> {
   const data = await getFullCrmData(ownerId);
   return data.clients;
-}
-
-/** Flatten nested client.projects[] into ActiveProject rows, newest first. Pass `limit` to cap. */
-export function deriveActiveProjects(
-  clients: CRMClient[],
-  limit?: number,
-): ActiveProject[] {
-  const projects: ActiveProject[] = [];
-  for (const client of clients) {
-    for (const p of client.projects ?? []) {
-      projects.push({
-        id: p.id,
-        kind: "crm",
-        href: `/proyectos/${p.id}`,
-        clientId: client.id,
-        clientName: client.name,
-        name: p.name,
-        domain: p.domain,
-        station: null,
-        status: null,
-        lastActivityAt: p.createdAt ?? null,
-      });
-    }
-  }
-  projects.sort((a, b) =>
-    (b.lastActivityAt ?? "").localeCompare(a.lastActivityAt ?? ""),
-  );
-  return typeof limit === "number" ? projects.slice(0, limit) : projects;
-}
-
-/**
- * Une las tres fuentes de proyectos del mismo owner (CRM clásico, Definición
- * de Proyecto y PixelForge) en una sola lista, newest first, sin doble
- * conteo. Cada fuente vive en una tabla física distinta — no hay solapamiento
- * real de ids entre ellas — pero se deduplica por `kind:id` como salvaguarda.
- *
- * Antes de esto, "Todos" (`getAllActiveProjects`) solo llamaba
- * `deriveActiveProjects` y por eso una cuenta con únicamente proyectos
- * PixelForge/Definición veía la lista vacía.
- */
-export function deriveAllProjects(
-  clients: CRMClient[],
-  pixelforgeProjects: PixelforgeProjectListItem[],
-  definitions: DefinitionListItem[],
-): ActiveProject[] {
-  const seen = new Set<string>();
-  const all: ActiveProject[] = [];
-
-  const push = (project: ActiveProject) => {
-    const key = `${project.kind}:${project.id}`;
-    if (seen.has(key)) return;
-    seen.add(key);
-    all.push(project);
-  };
-
-  for (const project of deriveActiveProjects(clients)) {
-    push(project);
-  }
-
-  for (const p of pixelforgeProjects) {
-    push({
-      id: p.id,
-      kind: "pixelforge",
-      href: `/proyectos/pixelforge/${p.id}/${p.currentStation}`,
-      clientId: p.clientId,
-      clientName: p.clientName ?? "Cliente",
-      name: p.title,
-      domain: "",
-      station: p.currentStation,
-      status: p.status,
-      lastActivityAt: p.updatedAt.toISOString(),
-    });
-  }
-
-  for (const d of definitions) {
-    push({
-      id: d.id,
-      kind: "definicion",
-      href: `/proyectos/definicion/${d.id}`,
-      clientId: d.clientId,
-      clientName: d.clientName ?? "Cliente",
-      name: d.title,
-      domain: "",
-      station: d.currentStation,
-      status: d.status,
-      lastActivityAt: d.updatedAt.toISOString(),
-    });
-  }
-
-  all.sort((a, b) => (b.lastActivityAt ?? "").localeCompare(a.lastActivityAt ?? ""));
-  return all;
 }
 
 /** Map clients to RecentClient rows, newest first. slug carries the id. Pass `limit` to cap. */
@@ -135,49 +45,6 @@ export function deriveRecentClients(
   return typeof limit === "number" ? mapped.slice(0, limit) : mapped;
 }
 
-/**
- * Agrupa `WorkSession.startedAt` en cubetas por día/semana/mes — serie real
- * para el toggle de la gráfica de actividad de `/hoy`. Cero datos inventados:
- * cubetas sin sesiones cuentan 0, no se rellena con valores sintéticos.
- */
-export function deriveActivitySeries(
-  sessions: WorkSession[],
-  granularity: "daily" | "weekly" | "monthly",
-  now: Date,
-): ActivityPoint[] {
-  const buckets: { label: string; start: Date }[] = [];
-
-  if (granularity === "daily") {
-    for (let i = 13; i >= 0; i--) {
-      const d = new Date(now);
-      d.setHours(0, 0, 0, 0);
-      d.setDate(d.getDate() - i);
-      buckets.push({ label: d.toLocaleDateString("es-MX", { day: "2-digit", month: "short" }), start: d });
-    }
-  } else if (granularity === "weekly") {
-    for (let i = 7; i >= 0; i--) {
-      const d = new Date(now);
-      d.setHours(0, 0, 0, 0);
-      d.setDate(d.getDate() - d.getDay() - i * 7);
-      buckets.push({ label: `Sem ${8 - i}`, start: d });
-    }
-  } else {
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      buckets.push({ label: d.toLocaleDateString("es-MX", { month: "short" }), start: d });
-    }
-  }
-
-  const counts = new Array(buckets.length).fill(0);
-  for (const session of sessions) {
-    const started = new Date(session.startedAt);
-    for (let i = buckets.length - 1; i >= 0; i--) {
-      if (started >= buckets[i].start) {
-        counts[i]++;
-        break;
-      }
-    }
-  }
-
-  return buckets.map((bucket, i) => ({ label: bucket.label, count: counts[i] }));
-}
+// WO-2026-00132: se retiró `deriveActivitySeries` (gráfica de sesiones de
+// trabajo) — era una métrica operativa/interna, no comercial. Inicio ahora
+// muestra clientes, proyectos y cotizaciones.
