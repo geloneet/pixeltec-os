@@ -54,4 +54,15 @@ Lo único que se repite a propósito es la sección "Cómo trabajamos" (el proce
 - Estructura de encabezados (playbook `estructura-contenido-seo`): 1 H1 por página, H2/H3 sin saltos de nivel — verificado con `curl | grep -oE '<h[1-6]...'` en las 4 páginas.
 - JSON-LD: Organization/WebSite/Breadcrumb/Service(`areaServed`=Ciudad)/FAQPage — parseados y válidos en las 4 páginas.
 - Internal linking verificado en ambas direcciones (`/services/automatizacion` ↔ 4 ciudades) y sitemap.xml confirmado con las 4 URLs.
-- **Pendiente:** verificación visual en navegador real (Chrome) — ING-001. La extensión de Chrome no estaba conectada en esta sesión (`Browser extension is not connected`). Dev server queda vivo a propósito en `localhost:9003` para que Miguel lo revise, o para repetir la verificación en cuanto la extensión esté disponible.
+- ~~**Pendiente:** verificación visual en navegador real~~ → **Resuelto**: extensión de Chrome conectada, verificado desktop + mobile real (viewport 500×813) en las 4 páginas de Automatización.
+
+## 6. Ampliación 2026-08-28 — Desarrollo Web y Consultoría (mismo WO-2026-00128)
+
+Miguel confirmó: los 3 servicios se quedan como están ("Desarrollo de Apps" sigue dentro de Ecosistemas Web/Desarrollo Web, no se separa) y pidió repetir el patrón de páginas locales para los otros 2 servicios, más autoridad en los enlaces.
+
+- **8 páginas nuevas:** `desarrollo-web-{guadalajara,zapopan,puerto-vallarta,bahia-de-banderas}` (servicio `ecosistemas-web`) y `consultoria-{guadalajara,zapopan,puerto-vallarta,bahia-de-banderas}`. Slug de URL en "desarrollo web" (término de búsqueda real) aunque el servicio interno se llame `ecosistemas-web`.
+- **Contenido único por ciudad Y por servicio** — no es el texto de `automatizacion-<ciudad>` con el título cambiado: casos de uso, contexto y FAQ distintos por combinación ciudad×servicio (ej. Zapopan+Automatización = bots para aseguradoras; Zapopan+Desarrollo Web = portales de clientes/CRM para aseguradoras; Zapopan+Consultoría = auditoría de procesos de aseguradoras).
+- **Doble fuente de autoridad por página** (pedido explícito de Miguel, "más autoridad"): la fuente local de siempre + una fuente **nacional** del mismo tipo — `canieti.org` (nacional) en Guadalajara/Zapopan, `gob.mx/sectur` en Puerto Vallarta/Bahía de Banderas (economía turística, contextualmente correcto). Las 8 páginas × 2 fuentes: todas `.org.mx`/`.gob.mx`, cero Wikipedia, verificadas con curl 200.
+- **Jerarquía de información (Google):** Home → Servicios → `<Servicio>` → `<Ciudad>`, reflejada en el Breadcrumb schema de cada página nueva. Se agregó cross-linking horizontal entre los 3 servicios hermanos ("Servicios relacionados" en cada `/services/<slug>`) — topical authority: cada hub de servicio ahora enlaza a los otros 2 y a sus 4 ciudades.
+- **Corrección importante:** Miguel preguntó por un "dashboard SEO" a rellenar — se verificó en código que PixelTEC OS **no tiene** ese panel (es una función de Muebles Encino, otro proyecto). No se inventó ni se tocó nada de `/admin`; sigue fuera de alcance por la instrucción explícita de Miguel de trabajar "solo en la página pública".
+- Verificación: typecheck limpio, lint 0/0, build EXIT 0 (123 rutas), vitest 2933/0, smoke curl (H1, HTTP 200, cross-links, sitemap 12 rutas), visual Chrome real en 2 páginas nuevas + `/services/ecosistemas-web`.
