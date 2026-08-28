@@ -12,9 +12,11 @@ import { eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { db } from '@/lib/db';
-import { recurringCharges, sales } from '@/lib/db/schema';
+import { clients, recurringCharges, sales } from '@/lib/db/schema';
 import { requireAdmin } from '@/lib/auth-guards';
 import { toPublicFailure } from '@/lib/errors/public-failure';
+import { sendBillingReminder } from '@/lib/billing/reminder-notify';
+import { getNextChargeDate } from '@/lib/crm/next-charge-date';
 import type { ActionResult } from '@/lib/blog/schemas';
 import { RECURRING_STATUSES, readyForProject } from './model';
 import { provisionProjectAndRecurrents } from './provision';
@@ -146,5 +148,43 @@ export async function setRecurringStatus(input: z.infer<typeof SetRecurringStatu
     return { ok: true };
   } catch (err) {
     return fail(err, 'set_recurring_status_failed', 'No se pudo cambiar el estado.');
+  }
+}
+
+/** Recordatorio manual de un recurrente — mismo transporte que el cron (§Parte E). */
+export async function sendManualRecurringReminder(recurringId: string): Promise<ActionResult> {
+  try {
+    const guard = await requireAdmin();
+    if (!guard.ok) return { ok: false, error: 'Requiere rol administrador.' };
+
+    const [row] = await db
+      .select({
+        concept: recurringCharges.concept,
+        amount: recurringCharges.amount,
+        frequency: recurringCharges.frequency,
+        startDate: recurringCharges.startDate,
+        clientName: clients.name,
+        clientEmail: clients.email,
+      })
+      .from(recurringCharges)
+      .innerJoin(clients, eq(clients.id, recurringCharges.clientId))
+      .where(eq(recurringCharges.id, recurringId))
+      .limit(1);
+    if (!row || !row.startDate) return { ok: false, error: 'El recurrente ya no existe o no tiene fecha de inicio.' };
+
+    const dueDate = getNextChargeDate(row.startDate, row.frequency as 'monthly' | 'annual');
+    await sendBillingReminder({
+      clientName: row.clientName,
+      clientEmail: row.clientEmail,
+      concept: row.concept,
+      amount: row.amount,
+      currency: 'MXN',
+      dueDate,
+      overdue: false,
+    });
+
+    return { ok: true };
+  } catch (err) {
+    return fail(err, 'manual_reminder_failed', 'No se pudo enviar el recordatorio.');
   }
 }
