@@ -33,6 +33,8 @@ export interface SaleRecurring {
 
 export interface SaleRecord {
   id: string;
+  /** Proyecto ya creado para esta venta, o `null` si aún no se aprovisiona. */
+  projectId: string | null;
   folio: string;
   clientId: string;
   clientName: string;
@@ -109,6 +111,7 @@ async function hydrate(saleId: string): Promise<SaleRecord | null> {
 
   return {
     id: row.sale.id,
+    projectId: row.sale.projectId,
     folio: row.sale.folio,
     clientId: row.sale.clientId,
     clientName: row.clientName,

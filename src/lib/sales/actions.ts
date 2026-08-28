@@ -16,7 +16,8 @@ import { recurringCharges, sales } from '@/lib/db/schema';
 import { requireAdmin } from '@/lib/auth-guards';
 import { toPublicFailure } from '@/lib/errors/public-failure';
 import type { ActionResult } from '@/lib/blog/schemas';
-import { RECURRING_STATUSES } from './model';
+import { RECURRING_STATUSES, readyForProject } from './model';
+import { provisionProjectAndRecurrents } from './provision';
 import { getSaleById, getSaleByQuotation, type SaleRecord } from './queries';
 
 function fail(err: unknown, code: string, message: string): ActionResult<never> {
@@ -30,11 +31,21 @@ function fail(err: unknown, code: string, message: string): ActionResult<never> 
   return { ok: false, error: toPublicFailure(err, { code, message }).message };
 }
 
-/** Lee la venta y, si el estado guardado quedó atrás, lo pone al día. */
+/** Lee la venta y, si el estado guardado quedó atrás, lo pone al día —
+ *  y si ACABA de volverse cobrable, dispara el aprovisionamiento automático
+ *  (Parte A/B, 2026-08-27). */
 async function syncStatus(sale: SaleRecord): Promise<SaleRecord> {
   if (sale.status === sale.storedStatus) return sale;
+
   await db.update(sales).set({ status: sale.status, updatedAt: new Date() }).where(eq(sales.id, sale.id));
-  return { ...sale, storedStatus: sale.status };
+  let projectId = sale.projectId;
+
+  if (readyForProject(sale.status) && !readyForProject(sale.storedStatus) && !sale.projectId) {
+    const result = await provisionProjectAndRecurrents(sale.id);
+    projectId = result.projectId;
+  }
+
+  return { ...sale, storedStatus: sale.status, projectId };
 }
 
 /** La venta de una cotización, con su estado ya reconciliado. */
