@@ -18,6 +18,7 @@ import { ProyectosTab } from "@/components/crm/workspace-tabs/ProyectosTab";
 import { CotizacionesTabLoader } from "@/components/crm/workspace-tabs/CotizacionesTabLoader";
 import { ComercialTab, type ComercialSub } from "@/components/crm/workspace-tabs/ComercialTab";
 import { DocumentosTab } from "@/components/crm/workspace-tabs/DocumentosTab";
+import { FinanzasTabLoader } from "@/components/crm/workspace-tabs/FinanzasTabLoader";
 import { PortalTab } from "@/components/crm/workspace-tabs/PortalTab";
 import { getPortalStatusForClientAction } from "@/lib/client-portal/admin-actions";
 import {
@@ -163,6 +164,7 @@ export function ClientWorkspace({ client, onBack, navigateToProject, setModal, d
             <DocumentosTab clientId={client.id} />
           </div>
         )}
+        {activeTab === "finanzas" && <FinanzasTabLoader clientId={client.id} />}
         {activeTab === "portal" && portalTabVisible && (
           <div className="p-6">
             <PortalTab clientId={client.id} clientName={client.name} clientEmail={client.email} />

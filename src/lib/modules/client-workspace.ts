@@ -10,7 +10,7 @@ import { isModuleVisible, type ModuleId } from "./registry";
  *
  * Reactivar una sección = `state: "active"` aquí.
  */
-export type ClientWorkspaceSection = "resumen" | "cotizaciones" | "proyectos" | "comercial" | "documentos" | "portal";
+export type ClientWorkspaceSection = "resumen" | "cotizaciones" | "proyectos" | "comercial" | "documentos" | "finanzas" | "portal";
 
 export interface ClientWorkspaceSectionDefinition {
   id: ClientWorkspaceSection;
@@ -57,6 +57,12 @@ export const CLIENT_WORKSPACE_SECTIONS: readonly ClientWorkspaceSectionDefinitio
     state: "hidden",
     module: "documentos",
     note: "Oculto (orden §6: documentos). `clients.documents` (jsonb) no forma parte del blob-sync: no puede sobrescribirse al guardar.",
+  },
+  {
+    id: "finanzas",
+    label: "Finanzas",
+    state: "active",
+    note: "7ma pestaña fija — extiende ADR-0035 (2026-08-27, orden de Miguel). Cobros y recurrentes de ESTE cliente, agrupados por frecuencia; sin la card global de «Próximos a vencer» (esa vive en /cobros).",
   },
   {
     id: "portal",
