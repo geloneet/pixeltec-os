@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { Fragment, useState, useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
 import { Spinner } from "@/components/ui/spinner";
 import { getBillingItems } from "@/lib/documents/billing";
+import { listActiveRecurringCharges, type RecurringChargeRow } from "@/lib/sales/recurring-view";
+import { sendManualRecurringReminder } from "@/lib/sales/actions";
 import { formatCurrency } from "@/lib/utils";
 import {
   BILLING_FREQUENCY_LABELS,
@@ -41,8 +43,19 @@ function formatDateES(dateOnly: string): string {
   return new Date(y, m - 1, d).toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" });
 }
 
+const FREQUENCY_GROUP_ORDER: BillingFrequency[] = ["unico", "anual", "mensual", "trimestral", "semestral"];
+
+const FREQUENCY_GROUP_LABEL: Record<BillingFrequency, string> = {
+  unico: "Pago único",
+  anual: "Recurrente anual",
+  mensual: "Recurrente mensual",
+  trimestral: "Recurrente trimestral",
+  semestral: "Recurrente semestral",
+};
+
 export function CobrosView() {
   const [items, setItems] = useState<BillingItem[]>([]);
+  const [recurring, setRecurring] = useState<RecurringChargeRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [pill, setPill] = useState<PillFilter>("todos");
   const [statusFilter, setStatusFilter] = useState<BillingStatus | "">("");
@@ -58,6 +71,7 @@ export function CobrosView() {
     try {
       const data = await getBillingItems();
       setItems(data);
+      setRecurring(await listActiveRecurringCharges());
     } finally {
       setLoading(false);
     }
@@ -92,7 +106,30 @@ export function CobrosView() {
     return true;
   });
 
+  const sortedFiltered = useMemo(
+    () =>
+      [...filtered].sort(
+        (a, b) => FREQUENCY_GROUP_ORDER.indexOf(a.frequency) - FREQUENCY_GROUP_ORDER.indexOf(b.frequency),
+      ),
+    [filtered],
+  );
+
   const activeItems = items.filter((i) => i.status !== "cancelado");
+
+  const upcoming = useMemo(() => {
+    const horizon = new Date();
+    horizon.setDate(horizon.getDate() + 30);
+    const horizonKey = horizon.toISOString().slice(0, 10);
+    return recurring
+      .filter((r) => r.nextChargeDate <= horizonKey)
+      .sort((a, b) => a.nextChargeDate.localeCompare(b.nextChargeDate));
+  }, [recurring]);
+
+  const remindRecurring = useCallback(async (id: string) => {
+    const res = await sendManualRecurringReminder(id);
+    if (res.ok) toast.success("Recordatorio enviado.");
+    else toast.error(res.error ?? "No se pudo enviar el recordatorio.");
+  }, []);
 
   // Lo que falta del período vigente: a un item con pagos parciales se le
   // resta lo ya cobrado de ese período (periodKey === dueDate actual).
@@ -146,6 +183,28 @@ export function CobrosView() {
           <p className="font-league-spartan text-2xl font-bold tabular-nums text-emerald-700 dark:text-emerald-400">{formatCurrency(totalPagado)}</p>
         </div>
       </div>
+
+      {upcoming.length > 0 && (
+        <div className="mb-6 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
+          <h3 className="mb-3 text-sm font-semibold text-foreground">Próximos a vencer (30 días)</h3>
+          <div className="space-y-2">
+            {upcoming.map((r) => (
+              <div key={r.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                <span className="text-foreground">
+                  {r.clientName} — {r.concept} · {formatCurrency(Number(r.amount))} · {formatDateES(r.nextChargeDate)}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => remindRecurring(r.id)}
+                  className="rounded-md border border-input px-2 py-1 text-xs font-medium hover:bg-accent"
+                >
+                  Enviar recordatorio
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Pills */}
       <div className="mb-4 flex flex-wrap gap-1.5">
@@ -247,75 +306,97 @@ export function CobrosView() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {filtered.map((item) => (
-                  <tr key={item.id} className="transition-colors hover:bg-secondary/40">
-                    <td className="px-4 py-3">
-                      <span className="font-medium text-foreground">{item.concept}</span>
-                      {item.contractTitle && <p className="text-[10px] text-muted-foreground/60">{item.contractTitle}</p>}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">{item.clientName ?? "—"}</td>
-                    <td className="px-4 py-3 text-right font-medium tabular-nums text-foreground">
-                      {formatCurrency(item.amount)}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <span className="inline-flex items-center rounded-md bg-[#0EA5E9]/10 px-2 py-0.5 text-[11px] font-medium text-[#0EA5E9]">
-                        {BILLING_FREQUENCY_LABELS[item.frequency]}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground">
-                      {formatDateES(item.dueDate)}
-                      {item.nextDueDate && (
-                        <p className="text-[10px] text-muted-foreground/60">Próximo: {formatDateES(item.nextDueDate)}</p>
+                {sortedFiltered.map((item, index) => {
+                  const showGroupHeader = index === 0 || sortedFiltered[index - 1].frequency !== item.frequency;
+                  return (
+                    <Fragment key={item.id}>
+                      {showGroupHeader && (
+                        <tr className="bg-secondary/20">
+                          <td colSpan={7} className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                            {FREQUENCY_GROUP_LABEL[item.frequency]}
+                          </td>
+                        </tr>
                       )}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium ${STATUS_CLASSES[item.status]}`}>
-                        {BILLING_STATUS_LABELS[item.status]}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      {item.status !== "pagado" && item.status !== "cancelado" ? (
-                        <button
-                          onClick={() => setPaymentItem(item)}
-                          className="rounded-lg border border-cyan-500/20 bg-cyan-500/10 px-2.5 py-1 text-[11px] font-medium text-cyan-300 transition-all hover:bg-cyan-500/20"
-                        >
-                          Registrar pago
-                        </button>
-                      ) : (
-                        <span className="text-[11px] text-muted-foreground/70">—</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                      <tr className="transition-colors hover:bg-secondary/40">
+                        <td className="px-4 py-3">
+                          <span className="font-medium text-foreground">{item.concept}</span>
+                          {item.contractTitle && <p className="text-[10px] text-muted-foreground/60">{item.contractTitle}</p>}
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground">{item.clientName ?? "—"}</td>
+                        <td className="px-4 py-3 text-right font-medium tabular-nums text-foreground">
+                          {formatCurrency(item.amount)}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span className="inline-flex items-center rounded-md bg-[#0EA5E9]/10 px-2 py-0.5 text-[11px] font-medium text-[#0EA5E9]">
+                            {BILLING_FREQUENCY_LABELS[item.frequency]}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-xs text-muted-foreground">
+                          {formatDateES(item.dueDate)}
+                          {item.nextDueDate && (
+                            <p className="text-[10px] text-muted-foreground/60">Próximo: {formatDateES(item.nextDueDate)}</p>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium ${STATUS_CLASSES[item.status]}`}>
+                            {BILLING_STATUS_LABELS[item.status]}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          {item.status !== "pagado" && item.status !== "cancelado" ? (
+                            <button
+                              onClick={() => setPaymentItem(item)}
+                              className="rounded-lg border border-cyan-500/20 bg-cyan-500/10 px-2.5 py-1 text-[11px] font-medium text-cyan-300 transition-all hover:bg-cyan-500/20"
+                            >
+                              Registrar pago
+                            </button>
+                          ) : (
+                            <span className="text-[11px] text-muted-foreground/70">—</span>
+                          )}
+                        </td>
+                      </tr>
+                    </Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>
 
           {/* Mobile cards */}
           <div className="divide-y divide-border sm:hidden">
-            {filtered.map((item) => (
-              <div key={item.id} className="space-y-2 px-4 py-4">
-                <div className="flex items-start justify-between gap-2">
-                  <p className="text-[13px] font-medium leading-snug text-foreground">{item.concept}</p>
-                  <span className={`flex-shrink-0 inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium ${STATUS_CLASSES[item.status]}`}>
-                    {BILLING_STATUS_LABELS[item.status]}
-                  </span>
-                </div>
-                <p className="text-[11px] text-muted-foreground">{item.clientName ?? "—"}</p>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold tabular-nums text-foreground">{formatCurrency(item.amount)}</span>
-                  <span className="text-[11px] text-muted-foreground">{formatDateES(item.dueDate)}</span>
-                </div>
-                {item.status !== "pagado" && item.status !== "cancelado" && (
-                  <button
-                    onClick={() => setPaymentItem(item)}
-                    className="w-full rounded-lg border border-cyan-500/20 bg-cyan-500/10 py-1.5 text-xs font-medium text-cyan-300 transition-all hover:bg-cyan-500/20"
-                  >
-                    Registrar pago
-                  </button>
-                )}
-              </div>
-            ))}
+            {sortedFiltered.map((item, index) => {
+              const showGroupHeader = index === 0 || sortedFiltered[index - 1].frequency !== item.frequency;
+              return (
+                <Fragment key={item.id}>
+                  {showGroupHeader && (
+                    <p className="bg-secondary/20 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      {FREQUENCY_GROUP_LABEL[item.frequency]}
+                    </p>
+                  )}
+                  <div className="space-y-2 px-4 py-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-[13px] font-medium leading-snug text-foreground">{item.concept}</p>
+                      <span className={`flex-shrink-0 inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium ${STATUS_CLASSES[item.status]}`}>
+                        {BILLING_STATUS_LABELS[item.status]}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">{item.clientName ?? "—"}</p>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold tabular-nums text-foreground">{formatCurrency(item.amount)}</span>
+                      <span className="text-[11px] text-muted-foreground">{formatDateES(item.dueDate)}</span>
+                    </div>
+                    {item.status !== "pagado" && item.status !== "cancelado" && (
+                      <button
+                        onClick={() => setPaymentItem(item)}
+                        className="w-full rounded-lg border border-cyan-500/20 bg-cyan-500/10 py-1.5 text-xs font-medium text-cyan-300 transition-all hover:bg-cyan-500/20"
+                      >
+                        Registrar pago
+                      </button>
+                    )}
+                  </div>
+                </Fragment>
+              );
+            })}
           </div>
         </div>
       )}
