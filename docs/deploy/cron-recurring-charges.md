@@ -23,3 +23,11 @@ docker exec -i pixeltec-os-db psql -U pixeltec_os -d pixeltec_os < drizzle/0048_
 ```
 
 Verificado en dev: ya aplicada, columnas `sales.project_id` / `recurring_charges.reminder_cycle_due` / `billing_items.recurring_charge_id` existentes. Reversión documentada en el encabezado del propio `.sql`.
+
+## Aplicado a producción 2026-08-28 (Claude Code, GO de Miguel)
+
+Producción estaba en `drizzle.__drizzle_migrations` id=42 (2026-08-25) y **no tenía las tablas `app_settings`/`quotes`/`sales`** — todo el flujo cotización→proyecto→finanzas era nuevo ahí. Aplicadas en orden vía `docker exec -i pixeltec-os-db psql ... -v ON_ERROR_STOP=1 < drizzle/00NN_*.sql` desde el .sql del repo (no `drizzle-kit migrate`, mismo criterio que el resto de este repo por el drift conocido):
+
+- `0043_blog_encino_parity` — OK, reconciliada en `__drizzle_migrations` (id=43, hash sha256 del .sql, `created_at` = `when` del journal — sí tenía entrada).
+- `0044_app_settings`, `0045_quotes`, `0046_quotes_mvp`, `0047_sales_flow` — aplicadas OK (todas idempotentes, `CREATE TABLE IF NOT EXISTS` / `DO $$ ... EXCEPTION WHEN duplicate_object`). **Sin reconciliar en `__drizzle_migrations`**: `drizzle/meta/_journal.json` no tiene entradas para 44-48 (drift más profundo que el ya documentado — no fue solo el tracking DB, el journal local tampoco se generó con `drizzle-kit generate`). No se fabricó un timestamp para no introducir un drift nuevo con datos inventados. **Pendiente real:** regenerar/reconciliar el journal completo (tarea de higiene de repo aparte, no bloquea el deploy — el schema real ya está correcto y verificado, solo la tabla de bookkeeping de drizzle-kit queda desalineada).
+- `0048_sale_project_recurring_scheduler` — aplicada OK (primer intento falló parcialmente por `sales` inexistente hasta aplicar 0047; reintentada tras 0047, columnas `sales.project_id` / `recurring_charges.reminder_cycle_due` / `billing_items.recurring_charge_id` verificadas en prod).
