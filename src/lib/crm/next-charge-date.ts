@@ -1,4 +1,4 @@
-import { addMonths, addYears, isValid, parse } from "date-fns";
+import { addMonths, addYears, differenceInCalendarDays, isValid, parse } from "date-fns";
 
 type Frequency = "monthly" | "annual";
 
@@ -85,4 +85,45 @@ export function getMostRecentUnpaidChargeDate(
   if (lastNotified === periodKey) return null;
 
   return mostRecent;
+}
+
+export const ANNUAL_REMINDER_CHECKPOINTS = [30, 15, 1] as const;
+export const MONTHLY_REMINDER_CHECKPOINTS = [2, 1] as const;
+
+export interface ReminderCycleState {
+  reminderCycleDue: string | null;
+  reminderCheckpointsSent: number[];
+}
+
+export interface ReminderPlan {
+  /** Ciclo (YYYY-MM-DD) sobre el que aplican estos avisos. */
+  cycleDue: string;
+  /** Checkpoints (días antes) que toca mandar HOY. */
+  checkpointsToSend: number[];
+  /** `true` si el ciclo cambió respecto al guardado — hay que reiniciar `reminderCheckpointsSent`. */
+  isNewCycle: boolean;
+}
+
+/**
+ * Qué avisos de un recurrente ACTIVO tocan hoy — función pura, sin `db`.
+ *
+ * Anual: 30, 15 y 1 día antes. Mensual: 2 y 1 día antes (Miguel, 2026-08-27).
+ * Después de que el período vence, esta función deja de mandar avisos "antes"
+ * — de ahí en adelante lo materializa `recurring-scheduler.ts` como cobro
+ * pendiente y el aviso pasa a ser el de `billing-charges` (ADR-0040) o el
+ * recordatorio manual.
+ */
+export function planReminders(
+  dueDate: Date,
+  frequency: Frequency,
+  state: ReminderCycleState,
+  today: Date,
+): ReminderPlan {
+  const cycleDue = dueDate.toISOString().slice(0, 10);
+  const isNewCycle = state.reminderCycleDue !== cycleDue;
+  const alreadySent = isNewCycle ? [] : state.reminderCheckpointsSent;
+  const daysUntil = differenceInCalendarDays(dueDate, today);
+  const thresholds = frequency === 'annual' ? ANNUAL_REMINDER_CHECKPOINTS : MONTHLY_REMINDER_CHECKPOINTS;
+  const checkpointsToSend = thresholds.filter((t) => daysUntil === t && !alreadySent.includes(t));
+  return { cycleDue, checkpointsToSend, isNewCycle };
 }
