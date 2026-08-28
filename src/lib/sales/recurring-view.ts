@@ -34,21 +34,23 @@ export async function listActiveRecurringCharges(clientId?: string): Promise<Rec
     .innerJoin(clients, eq(clients.id, recurringCharges.clientId))
     .where(where);
 
+  // `recurringCharges.clientId` es nullable en el schema; el innerJoin de
+  // arriba (`clients.id = recurringCharges.clientId`) ya garantiza que
+  // ninguna fila devuelta aquí tiene clientId nulo (una comparación SQL
+  // contra NULL nunca es verdadera, así que esas filas quedan fuera del
+  // join) — pero en vez de confiar en esa garantía con un `!`, el type
+  // predicate de abajo la vuelve explícita y a prueba de fallos: si algún
+  // día el join cambia y sí llega null, la fila simplemente se filtra en
+  // vez de propagar un `null` mal tipado como `string`.
   return rows
-    .filter((r) => r.startDate)
+    .filter((r): r is typeof r & { clientId: string; startDate: string } => r.clientId !== null && r.startDate !== null)
     .map((r) => ({
       id: r.id,
-      // `recurringCharges.clientId` es nullable en el schema, pero el
-      // innerJoin de arriba (`clients.id = recurringCharges.clientId`)
-      // garantiza que cualquier fila devuelta aquí tiene clientId no-nulo
-      // (una comparación SQL contra NULL nunca es verdadera, así que esas
-      // filas quedan fuera del join). No es una desviación del brief: es
-      // el tipo real de la columna vs. la garantía del propio JOIN.
-      clientId: r.clientId!,
+      clientId: r.clientId,
       clientName: r.clientName,
       concept: r.concept,
       amount: r.amount,
       frequency: r.frequency as 'monthly' | 'annual',
-      nextChargeDate: getNextChargeDate(r.startDate!, r.frequency as 'monthly' | 'annual').toISOString().slice(0, 10),
+      nextChargeDate: getNextChargeDate(r.startDate, r.frequency as 'monthly' | 'annual').toISOString().slice(0, 10),
     }));
 }
