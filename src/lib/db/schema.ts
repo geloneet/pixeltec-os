@@ -719,6 +719,12 @@ export const recurringCharges = pgTable(
     clientEmail: text("client_email").notNull(),
     active: boolean("active").notNull().default(true),
     lastNotified: timestamp("last_notified", { withTimezone: true }),
+    /** Fecha (YYYY-MM-DD) del ciclo de cobro vigente que se está avisando —
+     *  cuando `getNextChargeDate` avanza más allá de este valor, es un ciclo
+     *  nuevo y `reminderCheckpointsSent` se reinicia (2026-08-27). */
+    reminderCycleDue: date("reminder_cycle_due"),
+    /** Checkpoints (días antes: 30|15|2|1) ya avisados PARA `reminderCycleDue`. */
+    reminderCheckpointsSent: jsonb("reminder_checkpoints_sent").notNull().default([]),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
@@ -893,6 +899,9 @@ export const sales = pgTable(
   "sales",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    /** Proyecto creado automáticamente cuando la venta se vuelve cobrable
+     *  (Parte A, 2026-08-27). Null hasta entonces; guarda de idempotencia. */
+    projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
     folio: text("folio").notNull(),
     clientId: uuid("client_id")
       .notNull()
@@ -917,6 +926,7 @@ export const sales = pgTable(
     uniqueIndex("sales_quotation_idx").on(t.quotationId),
     uniqueIndex("sales_folio_idx").on(t.folio),
     index("sales_client_idx").on(t.clientId),
+    uniqueIndex("sales_project_idx").on(t.projectId),
   ]
 );
 
@@ -1083,6 +1093,9 @@ export const billingItems = pgTable(
      *  obligación ya aceptada. No se rompe ninguna relación actual. */
     saleId: uuid("sale_id"),
     projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
+    /** El recurrente que generó este cobro al vencer (Parte C, 2026-08-27).
+     *  Null para todo lo demás (pagos únicos, legado de contratos/propuestas). */
+    recurringChargeId: uuid("recurring_charge_id").references(() => recurringCharges.id, { onDelete: "set null" }),
     concept: text("concept").notNull(),
     amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
     currency: text("currency").notNull().default("MXN"),
