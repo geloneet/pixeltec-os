@@ -32,15 +32,19 @@ function fail(err: unknown, code: string, message: string): ActionResult<never> 
 }
 
 /** Lee la venta y, si el estado guardado quedó atrás, lo pone al día —
- *  y si ACABA de volverse cobrable, dispara el aprovisionamiento automático
- *  (Parte A/B, 2026-08-27). */
+ *  y si está cobrable pero todavía no tiene proyecto (incluye reintentar un
+ *  aprovisionamiento que falló después de persistir el estado, Parte A/B,
+ *  2026-08-27), dispara/reintenta el aprovisionamiento automático. */
 async function syncStatus(sale: SaleRecord): Promise<SaleRecord> {
-  if (sale.status === sale.storedStatus) return sale;
+  const needsProvisioning = readyForProject(sale.status) && !sale.projectId;
+  if (sale.status === sale.storedStatus && !needsProvisioning) return sale;
 
-  await db.update(sales).set({ status: sale.status, updatedAt: new Date() }).where(eq(sales.id, sale.id));
+  if (sale.status !== sale.storedStatus) {
+    await db.update(sales).set({ status: sale.status, updatedAt: new Date() }).where(eq(sales.id, sale.id));
+  }
+
   let projectId = sale.projectId;
-
-  if (readyForProject(sale.status) && !readyForProject(sale.storedStatus) && !sale.projectId) {
+  if (needsProvisioning) {
     const result = await provisionProjectAndRecurrents(sale.id);
     projectId = result.projectId;
   }
