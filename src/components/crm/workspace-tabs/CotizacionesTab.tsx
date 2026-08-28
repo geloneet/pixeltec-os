@@ -142,7 +142,7 @@ function QuoteList({
         </thead>
         <tbody>
           {quotes.map((quote) => {
-            const status = displayStatus(quote.status, quote.validUntil, now);
+            const status = displayStatus(quote, now);
             const totals = totalsFor(quote.items, quote.taxEnabled);
             const follow = followUpLabel(quote.nextFollowUpAt, status, now);
             return (

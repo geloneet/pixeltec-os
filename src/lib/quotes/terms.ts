@@ -33,11 +33,12 @@ export function formatAmountWithCode(cents: number, currency: Currency): string 
 
 // ── Estados (§14) ────────────────────────────────────────────────────────────
 
-export const QUOTE_STATUSES = ['borrador', 'enviada', 'aceptada', 'rechazada', 'vencida'] as const;
+export const QUOTE_STATUSES = ['borrador', 'lista', 'enviada', 'aceptada', 'rechazada', 'vencida'] as const;
 export type QuoteStatus = (typeof QUOTE_STATUSES)[number];
 
 export const STATUS_LABEL: Record<QuoteStatus, string> = {
   borrador: 'Borrador',
+  lista: 'Lista',
   enviada: 'Enviada',
   aceptada: 'Aceptada',
   rechazada: 'Rechazada',
@@ -45,16 +46,26 @@ export const STATUS_LABEL: Record<QuoteStatus, string> = {
 };
 
 /**
- * Estado que se muestra. «Vencida» NO se guarda: se deriva de la vigencia, y
- * solo mientras la cotización siga esperando respuesta. Una cotización
- * aceptada no se vuelve vencida por que pase la fecha.
+ * Estado que se muestra. Ninguno de «Lista» ni «Vencida» se guarda: se
+ * derivan, igual que hace `missingToSend` con lo que falta para enviar.
+ *
+ * «Borrador» pasó a significar de verdad «incompleta» (le falta algo para
+ * poder enviarse) — no «todavía no se envió por el sistema». Una cotización
+ * ya terminada, aunque se haya entregado impresa o en persona, se muestra
+ * «Lista»: el estado deja de depender de por dónde salió. «Vencida» se
+ * deriva de la vigencia, y solo mientras la cotización siga esperando
+ * respuesta — una cotización aceptada no se vuelve vencida por que pase la
+ * fecha.
  */
-export function displayStatus(stored: string, validUntil: string | null, now: Date): QuoteStatus {
-  const status = (QUOTE_STATUSES as readonly string[]).includes(stored) ? (stored as QuoteStatus) : 'borrador';
-  if (status !== 'enviada' || !validUntil) return status;
-  const limit = new Date(validUntil);
-  if (Number.isNaN(limit.getTime())) return status;
-  return limit.getTime() < now.getTime() ? 'vencida' : status;
+export function displayStatus(quote: QuoteForValidation & { status: string }, now: Date): QuoteStatus {
+  const stored = (QUOTE_STATUSES as readonly string[]).includes(quote.status)
+    ? (quote.status as QuoteStatus)
+    : 'borrador';
+  if (stored === 'borrador') return missingToSend(quote).length === 0 ? 'lista' : 'borrador';
+  if (stored !== 'enviada' || !quote.validUntil) return stored;
+  const limit = new Date(quote.validUntil);
+  if (Number.isNaN(limit.getTime())) return stored;
+  return limit.getTime() < now.getTime() ? 'vencida' : stored;
 }
 
 // ── Vigencia y seguimiento (§6, §20) ─────────────────────────────────────────
@@ -195,8 +206,9 @@ export function paymentSummary(totalCents: number, terms: PaymentTerms, currency
  * desglosado en la columna de totales, donde la etiqueta larga se comía el
  * importe.
  *
- * Devuelve el desglose y, debajo, la frase que lo explica — porque un
- * compromiso que se repite cada año no se entiende solo con un número.
+ * Devuelve el desglose, la frase que lo explica y la política de posibles
+ * ajustes futuros — porque un compromiso que se repite cada año no se
+ * entiende solo con un número.
  */
 export function annualRenewalSummary(
   renewal: QuoteTotals,
@@ -206,12 +218,15 @@ export function annualRenewalSummary(
 ): string {
   const lines = [`Servicios — ${formatAmountWithCode(renewal.subtotalCents, currency)}`];
   if (taxEnabled) lines.push(`IVA 16% — ${formatAmountWithCode(renewal.taxCents, currency)}`);
-  lines.push(`Cada año, desde el 1.er aniversario — ${formatAmountWithCode(renewal.totalCents, currency)}`);
+  lines.push(`Costo anual — ${formatAmountWithCode(renewal.totalCents, currency)}`);
   lines.push('');
   lines.push(
     hasFreeFirstYear
-      ? 'El primer año va incluido: no se cobra hoy. A partir del primer aniversario, este importe se factura una vez al año.'
-      : 'La primera anualidad ya está incluida en el total inicial. A partir del primer aniversario, este importe se factura una vez al año.',
+      ? 'El primer año no se cobra: va incluido sin costo. Desde el segundo año se factura una vez al año.'
+      : 'El costo del primer año ya está incluido en el total inicial. Desde el segundo año se factura una vez al año.',
+  );
+  lines.push(
+    'Este monto podrá ajustarse en renovaciones futuras conforme al costo operativo de mantenimiento y al nivel de escalamiento del proyecto; cualquier ajuste se notificará con anticipación antes de la renovación correspondiente.',
   );
   return lines.join('\n');
 }

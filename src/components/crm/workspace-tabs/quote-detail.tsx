@@ -80,7 +80,10 @@ export function QuoteDetail({
   const [comment, setComment] = useState("");
 
   const now = new Date();
-  const status = displayStatus(quote.status, quote.validUntil, now);
+  const status = displayStatus(quote, now);
+  // «Lista» es tan «sin enviar» como «Borrador» — solo cambia si le falta
+  // algo. El CTA de enviar y su etiqueta tratan ambas igual.
+  const notSent = status === "borrador" || status === "lista";
   // `breakdownFor(...).oneTime`, no `totalsFor`: este panel debe mostrar lo que
   // se cobra AL FIRMAR. `totalsFor` suma todos los conceptos, así que con una
   // mensualidad daba un «Total» que nadie va a pagar de una sola vez.
@@ -166,13 +169,13 @@ export function QuoteDetail({
             previa quedan como secundarias. */}
         <Button
           type="button"
-          variant={status === "borrador" ? "default" : "outline"}
+          variant={notSent ? "default" : "outline"}
           size="sm"
           onClick={() => run(() => sendQuoteByEmail(quote.id), "Enviada por correo.")}
           disabled={pending || !clientEmail}
         >
           <Mail className="mr-1.5 h-3.5 w-3.5" />
-          {status === "borrador" ? "Enviar cotización" : "Enviar por correo"}
+          {notSent ? "Enviar cotización" : "Enviar por correo"}
         </Button>
         {waLink ? (
           <a

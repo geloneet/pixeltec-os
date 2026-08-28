@@ -43,6 +43,7 @@ export interface QuoteView {
 
 const BADGE: Record<QuoteStatus, string> = {
   borrador: "bg-muted text-muted-foreground",
+  lista: "bg-violet-500/10 text-violet-500",
   enviada: "bg-sky-500/10 text-sky-500",
   aceptada: "bg-emerald-500/10 text-emerald-500",
   rechazada: "bg-rose-500/10 text-rose-500",

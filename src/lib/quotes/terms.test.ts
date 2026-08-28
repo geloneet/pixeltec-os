@@ -34,6 +34,17 @@ const item = (description: string, quantity: number, unitPriceCents: number): Qu
 // Fecha fija: los tests no dependen del reloj de la máquina.
 const NOW = new Date('2026-08-26T12:00:00-06:00');
 
+/** Cotización completa (§29): nada en `missingToSend`. Base para variarla por test. */
+const complete = {
+  title: 'Sistema de citas',
+  items: [item('Plataforma', 1, 2500000)],
+  validUntil: '2026-09-10T00:00:00Z',
+  problem: 'Citas por WhatsApp y Excel.',
+  solution: 'Plataforma web centralizada.',
+  scopeIncluded: 'Landing, panel, agenda.',
+  paymentTerms: DEFAULT_PAYMENT_TERMS,
+};
+
 describe('moneda (§4)', () => {
   it('acepta MXN y USD, y nada más', () => {
     expect(isCurrency('MXN')).toBe(true);
@@ -50,25 +61,38 @@ describe('moneda (§4)', () => {
 });
 
 describe('estados (§14)', () => {
-  it('un borrador nunca se muestra vencido, aunque la fecha haya pasado', () => {
-    expect(displayStatus('borrador', '2026-01-01T00:00:00Z', NOW)).toBe('borrador');
+  it('borrador es de verdad «incompleta»: le falta algo para poder enviarse', () => {
+    expect(displayStatus({ ...complete, status: 'borrador', problem: '' }, NOW)).toBe('borrador');
+  });
+
+  it('una cotización completa que no se ha enviado se muestra «lista», no «borrador»', () => {
+    expect(displayStatus({ ...complete, status: 'borrador' }, NOW)).toBe('lista');
+  });
+
+  it('una borrador incompleta nunca se muestra vencida, aunque la fecha haya pasado', () => {
+    expect(displayStatus({ ...complete, status: 'borrador', problem: '', validUntil: '2026-01-01T00:00:00Z' }, NOW)).toBe(
+      'borrador',
+    );
   });
 
   it('una enviada con la vigencia pasada se muestra vencida', () => {
-    expect(displayStatus('enviada', '2026-08-01T00:00:00Z', NOW)).toBe('vencida');
+    expect(displayStatus({ ...complete, status: 'enviada', validUntil: '2026-08-01T00:00:00Z' }, NOW)).toBe('vencida');
   });
 
   it('una enviada dentro de vigencia sigue enviada', () => {
-    expect(displayStatus('enviada', '2026-09-30T00:00:00Z', NOW)).toBe('enviada');
+    expect(displayStatus({ ...complete, status: 'enviada', validUntil: '2026-09-30T00:00:00Z' }, NOW)).toBe('enviada');
   });
 
   it('aceptada y rechazada NO caducan por que pase la fecha', () => {
-    expect(displayStatus('aceptada', '2026-01-01T00:00:00Z', NOW)).toBe('aceptada');
-    expect(displayStatus('rechazada', '2026-01-01T00:00:00Z', NOW)).toBe('rechazada');
+    expect(displayStatus({ ...complete, status: 'aceptada', validUntil: '2026-01-01T00:00:00Z' }, NOW)).toBe('aceptada');
+    expect(displayStatus({ ...complete, status: 'rechazada', validUntil: '2026-01-01T00:00:00Z' }, NOW)).toBe(
+      'rechazada',
+    );
   });
 
-  it('un estado desconocido en la base cae a borrador, no rompe la pantalla', () => {
-    expect(displayStatus('lo-que-sea', null, NOW)).toBe('borrador');
+  it('un estado desconocido en la base cae a borrador (o lista si ya está completa)', () => {
+    expect(displayStatus({ ...complete, status: 'lo-que-sea', validUntil: null, problem: '' }, NOW)).toBe('borrador');
+    expect(displayStatus({ ...complete, status: 'lo-que-sea' }, NOW)).toBe('lista');
   });
 });
 
@@ -164,16 +188,6 @@ describe('forma de pago (§12)', () => {
 });
 
 describe('validación por intención (§29)', () => {
-  const complete = {
-    title: 'Sistema de citas',
-    items: [item('Plataforma', 1, 2500000)],
-    validUntil: '2026-09-10T00:00:00Z',
-    problem: 'Citas por WhatsApp y Excel.',
-    solution: 'Plataforma web centralizada.',
-    scopeIncluded: 'Landing, panel, agenda.',
-    paymentTerms: DEFAULT_PAYMENT_TERMS,
-  };
-
   it('una cotización completa se puede enviar', () => {
     expect(missingToSend(complete)).toEqual([]);
   });
@@ -215,7 +229,7 @@ describe('resumen de la renovación anual', () => {
     const lineas = texto.split('\n');
     expect(lineas[0]).toBe('Servicios — $3,898.00 MXN');
     expect(lineas[1]).toBe('IVA 16% — $623.68 MXN');
-    expect(lineas[2]).toBe('Cada año, desde el 1.er aniversario — $4,521.68 MXN');
+    expect(lineas[2]).toBe('Costo anual — $4,521.68 MXN');
   });
 
   it('sin IVA no inventa una línea de IVA', () => {
@@ -224,7 +238,14 @@ describe('resumen de la renovación anual', () => {
   });
 
   it('explica distinto si el primer año va incluido o si ya se cobró', () => {
-    expect(annualRenewalSummary(renovacion, true, 'MXN', true)).toContain('El primer año va incluido');
-    expect(annualRenewalSummary(renovacion, true, 'MXN', false)).toContain('ya está incluida en el total inicial');
+    expect(annualRenewalSummary(renovacion, true, 'MXN', true)).toContain('El primer año no se cobra');
+    expect(annualRenewalSummary(renovacion, true, 'MXN', false)).toContain('ya está incluido en el total inicial');
+  });
+
+  it('advierte que el monto puede ajustarse por costo operativo y escalamiento', () => {
+    const texto = annualRenewalSummary(renovacion, true, 'MXN', false);
+    expect(texto).toContain('podrá ajustarse en renovaciones futuras');
+    expect(texto).toContain('costo operativo de mantenimiento');
+    expect(texto).toContain('nivel de escalamiento del proyecto');
   });
 });
