@@ -353,8 +353,15 @@ export async function acceptQuote(
     const data = AcceptSchema.parse(input);
     const quote = await getQuoteById(data.id);
     if (!quote) return { ok: false, error: 'La cotización ya no existe.' };
+    // «Lista» (borrador sin nada pendiente) se acepta igual que «Enviada»:
+    // el mismo comentario de displayStatus() lo dice — una cotización
+    // entregada impresa o en persona no depende de por dónde salió. Solo se
+    // bloquea si de verdad le falta algo para poder enviarse.
     if (quote.status === 'borrador') {
-      return { ok: false, error: 'Primero márcala como enviada.' };
+      const blocking = missingToSend(quote);
+      if (blocking.length > 0) {
+        return { ok: false, error: `Antes de aceptarla falta ${blocking.join(', ')}.` };
+      }
     }
 
     const acceptedAt = new Date(`${data.acceptedAt}T12:00:00`);

@@ -213,6 +213,17 @@ export function QuoteDetail({
               </Button>
             </>
           ) : null}
+          {/* «Lista» (nada pendiente, aún no enviada por el sistema) también
+              se puede aceptar directo: entregada impresa o en persona no es
+              menos válida que por WhatsApp o correo — mismo criterio que
+              displayStatus() ya documenta. Sin «Seguir en 7 días» aquí: ese
+              seguimiento presupone que ya se envió y se espera respuesta. */}
+          {status === "lista" ? (
+            <Button type="button" size="sm" onClick={() => setAcceptOpen(true)}>
+              <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+              Marcar como aceptada
+            </Button>
+          ) : null}
         </span>
       </div>
 
