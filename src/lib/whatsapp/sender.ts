@@ -3,10 +3,6 @@
  *
  * Único transport de WhatsApp del sistema desde la migración del legacy
  * Twilio (ver historial git si necesitas el shim anterior). Usado por:
- *   - /api/notifications/test
- *   - /api/notifications/send
- *   - /api/notifications/daily
- *   - /api/notifications/charges
  *   - /api/whatsapp/send-test (smoke test)
  *   - submitSmilemoreQa (plantilla `nueva_respuesta_cuestionario`, WO-2026-00019)
  *

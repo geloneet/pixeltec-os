@@ -9,13 +9,11 @@ import {
   Clock,
   Rocket,
   Search,
-  Server,
   Users,
 } from "lucide-react";
 import { useCmdK } from "@/components/cmd-k/CmdKProvider";
 import { useCRM } from "@/components/crm/CRMContextCore";
 import { useUserProfile } from "@/hooks/use-user-profile";
-import { useVpsStatus } from "@/lib/vps-swr";
 import { normalize, searchAcrossCRM } from "@/lib/cmdk-search";
 import {
   RECENT_ROUTES_KEY,
@@ -84,7 +82,6 @@ export function CommandPalette() {
   const router = useRouter();
   const pathname = usePathname();
   const crm = useCRM();
-  const { data: vpsData } = useVpsStatus();
 
   // Record current route in recents (longest-prefix, igual que la pill activa;
   // solo destinos de módulos visibles — registro central, WO-2026-00088)
@@ -110,9 +107,8 @@ export function CommandPalette() {
       searchAcrossCRM({
         query,
         clients: crm.clients || [],
-        vpsProjects: vpsData?.projects || [],
       }),
-    [query, crm.clients, vpsData?.projects]
+    [query, crm.clients]
   );
 
   const filteredNavItems = useMemo<PaletteNavItem[]>(() => {
@@ -428,36 +424,6 @@ export function CommandPalette() {
                 </>
               )}
 
-              {/* CRM: VPS */}
-              {results.vpsProjects.length > 0 && (
-                <>
-                  {DIVIDER}
-                  <Cmdk.Group heading="VPS" className={GROUP_CLS}>
-                    {results.vpsProjects.map((vp) => (
-                      <Cmdk.Item
-                        key={`vps-${vp.id}`}
-                        value={normalize(
-                          `vps ${vp.name} ${vp.domain ?? ""} ${vp.type}`
-                        )}
-                        onSelect={() => handleNavigate("/vps")}
-                        className={ITEM_CLS}
-                      >
-                        <span className={cn(ICON_CLS, "text-orange-400")}>
-                          <Server className="h-4 w-4" strokeWidth={1.75} />
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium text-foreground truncate">
-                            {vp.name}
-                          </div>
-                          <div className="text-xs text-muted-foreground truncate">
-                            {vp.domain || "Sin dominio"} · {vp.type}
-                          </div>
-                        </div>
-                      </Cmdk.Item>
-                    ))}
-                  </Cmdk.Group>
-                </>
-              )}
             </Cmdk.List>
 
             {/* Footer */}

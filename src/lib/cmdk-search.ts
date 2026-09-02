@@ -1,5 +1,4 @@
 import type { CRMClient } from "@/types/crm";
-import type { VpsProject } from "@/lib/vps-types";
 
 export interface CmdKClientResult {
   id: string;
@@ -22,18 +21,10 @@ export interface CmdKTaskResult {
   clientName: string;
 }
 
-export interface CmdKVpsResult {
-  id: string;
-  name: string;
-  domain: string | null;
-  type: string;
-}
-
 export interface CmdKResults {
   clients: CmdKClientResult[];
   projects: CmdKProjectResult[];
   tasks: CmdKTaskResult[];
-  vpsProjects: CmdKVpsResult[];
 }
 
 export function normalize(s: string): string {
@@ -53,14 +44,12 @@ const LIMIT_PER_GROUP = 8;
 export function searchAcrossCRM({
   query,
   clients,
-  vpsProjects,
 }: {
   query: string;
   clients: CRMClient[];
-  vpsProjects: VpsProject[];
 }): CmdKResults {
   if (query.trim().length === 1) {
-    return { clients: [], projects: [], tasks: [], vpsProjects: [] };
+    return { clients: [], projects: [], tasks: [] };
   }
 
   const shouldFilter = query.trim().length > 0;
@@ -116,20 +105,10 @@ export function searchAcrossCRM({
     )
     .slice(0, LIMIT_PER_GROUP);
 
-  const resultVps: CmdKVpsResult[] = vpsProjects
-    .filter(
-      (v) =>
-        !shouldFilter ||
-        matches(v.name, query) ||
-        (v.domain ? matches(v.domain, query) : false),
-    )
-    .slice(0, LIMIT_PER_GROUP)
-    .map((v) => ({ id: v.id, name: v.name, domain: v.domain, type: v.type }));
 
   return {
     clients: resultClients,
     projects: resultProjects,
     tasks: resultTasks,
-    vpsProjects: resultVps,
   };
 }
