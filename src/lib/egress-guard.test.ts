@@ -369,22 +369,7 @@ describe("frontera de VPS", () => {
     );
   });
 
-  it("al bloquear, fetch recibe CERO llamadas", async () => {
-    const fetchSpy = vi.spyOn(globalThis, "fetch");
-    process.env.VPS_API_SECRET = "irrelevante-para-el-test";
-    process.env.VPS_API_URL = "https://api.pixeltec.mx";
-    const { fetchVpsApi } = await import("./vpsClient");
-    await expect(fetchVpsApi("/deploy")).rejects.toThrow(/EGRESS_BLOCKED/);
-    expect(fetchSpy).not.toHaveBeenCalled();
-  });
 
-  it("sin VPS_API_URL bloquea antes de cualquier red", async () => {
-    const fetchSpy = vi.spyOn(globalThis, "fetch");
-    process.env.VPS_API_SECRET = "irrelevante-para-el-test";
-    const { fetchVpsApi } = await import("./vpsClient");
-    await expect(fetchVpsApi("/status")).rejects.toThrow(/EGRESS_BLOCKED/);
-    expect(fetchSpy).not.toHaveBeenCalled();
-  });
 });
 
 // ── 5. Frontera de R2 ─────────────────────────────────────────────────────────

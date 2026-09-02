@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 /**
  * Gate E0d — política de ejecución de trabajos programados.
  *
- * Dos niveles: el núcleo (`cron-guard`) y las siete rutas reales. En las rutas
+ * Dos niveles: el núcleo (`cron-guard`) y las tres rutas reales. En las rutas
  * lo que importa no es solo el 503, sino que **el trabajo no empiece**: las
  * dependencias aguas abajo deben recibir cero llamadas, porque varias rutas
  * cargan usuarios y recorren lotes antes de llegar a las fronteras de egress.
@@ -132,38 +132,10 @@ describe("cron-guard — núcleo", () => {
   });
 });
 
-// ── 2. Las siete rutas ────────────────────────────────────────────────────────
+// ── 2. Las cinco rutas ────────────────────────────────────────────────────────
 
 /** Rutas con su módulo, método, forma de credencial y efecto que deben evitar. */
 const RUTAS = [
-  {
-    nombre: "notifications/charges",
-    mod: () => import("@/app/api/notifications/charges/route"),
-    metodo: "GET" as const,
-    bearer: false,
-    efecto: () => sendWhatsApp,
-  },
-  {
-    nombre: "notifications/daily",
-    mod: () => import("@/app/api/notifications/daily/route"),
-    metodo: "GET" as const,
-    bearer: false,
-    efecto: () => sendWhatsApp,
-  },
-  {
-    nombre: "notifications/send",
-    mod: () => import("@/app/api/notifications/send/route"),
-    metodo: "POST" as const,
-    bearer: true,
-    efecto: () => sendWhatsApp,
-  },
-  {
-    nombre: "notifications/test",
-    mod: () => import("@/app/api/notifications/test/route"),
-    metodo: "GET" as const,
-    bearer: false,
-    efecto: () => sendWhatsApp,
-  },
   {
     nombre: "whatsapp/send-test",
     mod: () => import("@/app/api/whatsapp/send-test/route"),

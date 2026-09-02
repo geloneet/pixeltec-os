@@ -162,10 +162,8 @@ export function CRMProvider({ children }: { children: ReactNode }) {
 
   // Debounced save.
   //
-  // `crm_data/{uid}` is also written by the charges cron
-  // (src/app/api/notifications/charges/route.ts, via its own Admin SDK
-  // transaction that only touches the `clients` field) and can be open in
-  // multiple browser tabs at once. A blind `setDoc` of the whole document
+  // `crm_data/{uid}` can be open in multiple browser tabs at once (the legacy
+  // charges cron that also wrote it was removed in WO-2026-00186). A blind `setDoc` of the whole document
   // built from this tab's in-memory `dataRef` would silently revert
   // whatever any other writer touched since this tab last loaded.
   //

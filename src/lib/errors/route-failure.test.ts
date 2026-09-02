@@ -1,7 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { SafeUserError } from "@/lib/ai/errors";
 import { EgressBlockedError } from "@/lib/egress-guard";
-import { VpsTransportError } from "@/lib/vpsClient";
 import { toRouteFailure, type RouteFailure } from "./route-failure";
 
 /**
@@ -184,39 +183,8 @@ describe("toRouteFailure — las clases seguras conservan lo que es nuestro", ()
     expect(salida).not.toContain("deploy");
   });
 
-  test("VpsTransportError conserva código y status upstream, pero no su message", () => {
-    const err = new VpsTransportError("vps_redirect_blocked", 302);
-    const failure = toRouteFailure(err, FALLBACK);
 
-    expect(failure).toEqual({
-      code: "vps_redirect_blocked",
-      message: FALLBACK.message,
-      status: 500,
-      upstreamStatus: 302,
-    });
-    // El prefijo interno de la clase no viaja.
-    expect(serializar(failure)).not.toContain("VPS_TRANSPORT_ERROR");
-  });
 
-  test("VpsTransportError sin status upstream omite el campo, no lo inventa", () => {
-    const err = new VpsTransportError("vps_unreachable");
-    const failure = toRouteFailure(err, FALLBACK);
-
-    expect(failure).toEqual({
-      code: "vps_unreachable",
-      message: FALLBACK.message,
-      status: 500,
-    });
-    expect(failure.upstreamStatus).toBeUndefined();
-  });
-
-  test("el status HTTP es siempre el nuestro, nunca el del upstream", () => {
-    // Que el vps-api conteste 502 no convierte nuestra respuesta en un 502.
-    const failure = toRouteFailure(new VpsTransportError("vps_invalid_response", 502), FALLBACK);
-
-    expect(failure.status).toBe(500);
-    expect(failure.upstreamStatus).toBe(502);
-  });
 });
 
 describe("toRouteFailure — el fallback manda", () => {

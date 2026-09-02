@@ -755,11 +755,11 @@ export function CRMShellProvider({ children }: { children: ReactNode }) {
               <input
                 ref={ref("label")}
                 className={inputClass}
-                placeholder="OPENAI_API_KEY"
+                placeholder="API_KEY"
                 autoFocus
               />
               <div className="flex gap-1.5 mt-1.5">
-                {["OPENAI_API_KEY", "Token WhatsApp Cloud", "Stripe Secret Key"].map((s) => (
+                {["API Key", "Token WhatsApp Cloud", "Stripe Secret Key"].map((s) => (
                   <button
                     key={s}
                     type="button"

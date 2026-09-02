@@ -37,7 +37,6 @@
  */
 import { NextResponse } from "next/server";
 import { EgressBlockedError } from "@/lib/egress-guard";
-import { VpsTransportError } from "@/lib/vpsClient";
 import { toPublicFailure } from "./public-failure";
 
 /**
@@ -83,17 +82,6 @@ export function toRouteFailure(error: unknown, fallback: RouteFailure): RouteFai
     return { code: "egress_blocked", message: fallback.message, status: fallback.status };
   }
 
-  // El código es un enum cerrado nuestro (`vps_timeout`, `vps_unreachable`…) y
-  // el status es un número. Ambos son seguros. El `message` de la clase no se
-  // usa: lleva el prefijo `VPS_TRANSPORT_ERROR:` que es ruido interno.
-  if (error instanceof VpsTransportError) {
-    return {
-      code: error.code,
-      message: fallback.message,
-      status: fallback.status,
-      ...(error.status !== undefined ? { upstreamStatus: error.status } : {}),
-    };
-  }
 
   // 2. Lo común a cualquier salida: `SafeUserError` conserva su texto —lo
   //    redactamos nosotros— y todo lo desconocido se descarta sin mirarlo.

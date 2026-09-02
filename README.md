@@ -115,8 +115,6 @@ src/
 | `/api/crypto-intel/alerts/evaluate` | `POST` | Evaluar y disparar alertas |
 | `/api/crypto-intel/telegram/webhook` | `POST` | Webhook del bot Telegram |
 | `/api/notifications/send` | `POST` | Enviar notificación |
-| `/api/notifications/daily` | `POST` | Resumen diario |
-| `/api/notifications/charges` | `POST` | Notificación de cobro |
 | `/api/send-email` | `POST` | Envío de email transaccional |
 
 ---
