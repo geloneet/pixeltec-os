@@ -32,6 +32,10 @@ const ALLOWLIST_FILES: Record<string, string> = {
   "GET /config/versions": "config/versions/route.ts",
   "GET /examples": "examples/route.ts",
   "POST /simulate": "simulate/route.ts",
+  // WO-2026-00181 — gestión de la cuenta (whatsapp_business_management).
+  "GET /account": "account/route.ts",
+  "GET /templates": "templates/route.ts",
+  "POST /templates": "templates/route.ts",
 };
 
 /**
@@ -105,8 +109,8 @@ describe("contrato allowlist reviewer ↔ guards de /api/whatsapp-inbox", () => 
         expect(guards, `${key} debe usar exactamente requireAdmin`).toEqual(["requireAdmin"]);
       }
     }
-    // 21 handlers en main (22 cuando aterrice coexistence/status).
-    expect(seen.length).toBeGreaterThanOrEqual(21);
+    // 24 handlers tras WO-2026-00181 (25 cuando aterrice coexistence/status).
+    expect(seen.length).toBeGreaterThanOrEqual(24);
     const excluded = seen.filter((k) => !allowed.has(k));
     expect(excluded.sort()).toEqual(
       [

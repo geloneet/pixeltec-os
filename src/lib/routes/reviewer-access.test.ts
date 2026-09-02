@@ -108,8 +108,12 @@ describe("API routes", () => {
       "GET /config/versions": "/api/whatsapp-inbox/config/versions",
       "GET /examples": "/api/whatsapp-inbox/examples",
       "POST /simulate": "/api/whatsapp-inbox/simulate",
+      // WO-2026-00181 — gestión de la cuenta (whatsapp_business_management).
+      "GET /account": "/api/whatsapp-inbox/account",
+      "GET /templates": "/api/whatsapp-inbox/templates",
+      "POST /templates": "/api/whatsapp-inbox/templates",
     };
-    expect(REVIEWER_API_ALLOWLIST).toHaveLength(13);
+    expect(REVIEWER_API_ALLOWLIST).toHaveLength(16);
     for (const rule of REVIEWER_API_ALLOWLIST) {
       const path = ejemplos[rule.label];
       expect(path, `falta ejemplo para ${rule.label}`).toBeDefined();
@@ -124,6 +128,15 @@ describe("API routes", () => {
     expect(decide("/api/whatsapp-inbox/examples", "POST")).toMatchObject({ kind: "deny" });
     expect(decide("/api/whatsapp-inbox/contacts/123/notes", "POST")).toMatchObject({ kind: "deny" });
     expect(decide("/api/whatsapp-inbox/conversations", "DELETE")).toMatchObject({ kind: "deny" });
+  });
+
+  test("gestión (WO-2026-00181): solo los 3 métodos allowlisted", () => {
+    // La cuenta es de solo lectura y las plantillas no se editan ni se borran.
+    expect(decide("/api/whatsapp-inbox/account", "POST")).toMatchObject({ kind: "deny" });
+    expect(decide("/api/whatsapp-inbox/templates", "DELETE")).toMatchObject({ kind: "deny" });
+    expect(decide("/api/whatsapp-inbox/templates", "PUT")).toMatchObject({ kind: "deny" });
+    expect(decide("/api/whatsapp-inbox/templates/1001", "GET")).toMatchObject({ kind: "deny" });
+    expect(decide("/api/whatsapp-inbox/account/extra", "GET")).toMatchObject({ kind: "deny" });
   });
 
   test("mutaciones de configuración y escrituras internas excluidas", () => {

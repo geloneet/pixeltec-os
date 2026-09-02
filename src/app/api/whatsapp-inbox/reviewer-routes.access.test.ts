@@ -2,16 +2,17 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 import { NextRequest } from "next/server";
 
 /**
- * Acceso REAL por rol a los 21 handlers de /api/whatsapp-inbox (WO-2026-00051).
+ * Acceso REAL por rol a los 24 handlers de /api/whatsapp-inbox
+ * (WO-2026-00051 · +3 de gestión en WO-2026-00181).
  *
  * A diferencia de routes-contract.test.ts (que mockea el guard), aquí corre el
  * guard verdadero (`@/lib/auth-guards`) con la autoridad canónica mockeada por
  * rol. Se prueba la segunda capa — independiente del middleware — que decide
  * en cada handler:
  *
- *   reviewer → 200 en los 12 de la allowlist presentes en main · 403 en los 9 excluidos
- *   admin    → 200 en los 21 (regresión: nada cambia)
- *   staff    → 403 en los 21 (regresión: nada cambia)
+ *   reviewer → OK en los 15 de la allowlist presentes en main · 403 en los 9 excluidos
+ *   admin    → OK en los 24 (regresión: nada cambia)
+ *   staff    → 403 en los 24 (regresión: nada cambia)
  */
 
 const {
@@ -23,6 +24,11 @@ const {
   upsertContactMock,
   listNotesMock,
   addNoteMock,
+  managementConfigMock,
+  phoneInfoMock,
+  businessProfileMock,
+  listTemplatesMock,
+  createTemplateMock,
   dbMock,
 } = vi.hoisted(() => ({
   authMock: vi.fn(),
@@ -33,6 +39,11 @@ const {
   upsertContactMock: vi.fn(),
   listNotesMock: vi.fn(),
   addNoteMock: vi.fn(),
+  managementConfigMock: vi.fn(),
+  phoneInfoMock: vi.fn(),
+  businessProfileMock: vi.fn(),
+  listTemplatesMock: vi.fn(),
+  createTemplateMock: vi.fn(),
   dbMock: {
     insert: vi.fn(() => ({
       values: vi.fn(() => {
@@ -58,6 +69,19 @@ vi.mock("@/lib/egress-guard", async (importOriginal) => {
   const real = await importOriginal<typeof import("@/lib/egress-guard")>();
   return { ...real, assertWhatsAppEgressAllowed: whatsappGuardMock };
 });
+// WO-2026-00181: las rutas de gestión hablan con Graph. Aquí solo se prueba el
+// acceso por rol, así que el cliente se mockea entero — cero red hacia Meta.
+vi.mock("@/lib/whatsapp/management", async (importOriginal) => {
+  const real = await importOriginal<typeof import("@/lib/whatsapp/management")>();
+  return {
+    ...real,
+    getManagementConfig: managementConfigMock,
+    getPhoneNumberInfo: phoneInfoMock,
+    getBusinessProfile: businessProfileMock,
+    listMessageTemplates: listTemplatesMock,
+    createMessageTemplate: createTemplateMock,
+  };
+});
 
 // Varias rutas exigen el tenant configurado (503 si falta): valor sintético.
 process.env.PIXELBOT_TENANT_ID = "tenant-vitest";
@@ -71,7 +95,8 @@ function req(url: string, init?: { method?: string; body?: unknown }) {
   });
 }
 
-type Caso = { nombre: string; invocar: () => Promise<Response> };
+/** `esperado` solo se declara cuando el éxito no es 200 (p. ej. un 201 al crear). */
+type Caso = { nombre: string; invocar: () => Promise<Response>; esperado?: number };
 
 const ALLOWLIST: Caso[] = [
   {
@@ -142,6 +167,30 @@ const ALLOWLIST: Caso[] = [
     invocar: async () =>
       (await import("./simulate/route")).POST(
         req("/api/whatsapp-inbox/simulate", { method: "POST", body: { message: "hola" } })
+      ),
+  },
+  {
+    nombre: "GET /account",
+    invocar: async () => (await import("./account/route")).GET(req("/api/whatsapp-inbox/account")),
+  },
+  {
+    nombre: "GET /templates",
+    invocar: async () => (await import("./templates/route")).GET(req("/api/whatsapp-inbox/templates")),
+  },
+  {
+    nombre: "POST /templates",
+    esperado: 201,
+    invocar: async () =>
+      (await import("./templates/route")).POST(
+        req("/api/whatsapp-inbox/templates", {
+          method: "POST",
+          body: {
+            name: "pedido_listo",
+            language: "es_MX",
+            category: "UTILITY",
+            body: "Hola, tu pedido está listo.",
+          },
+        })
       ),
   },
 ];
@@ -237,22 +286,51 @@ beforeEach(() => {
   upsertContactMock.mockReset().mockResolvedValue({ phone: "5213221234567" });
   listNotesMock.mockReset().mockResolvedValue([]);
   addNoteMock.mockReset().mockResolvedValue({ id: "n-1" });
+  managementConfigMock.mockReset().mockReturnValue({
+    configured: true,
+    phoneNumberId: "111222333444",
+    businessAccountId: "999888777666",
+    apiVersion: "v21.0",
+  });
+  phoneInfoMock.mockReset().mockResolvedValue({
+    id: "111222333444",
+    displayPhoneNumber: "+52 1 322 137 8336",
+    verifiedName: "PixelTEC",
+    qualityRating: "GREEN",
+    nameStatus: "APPROVED",
+    codeVerificationStatus: "VERIFIED",
+    messagingLimitTier: "TIER_1K",
+    platformType: "CLOUD_API",
+  });
+  businessProfileMock.mockReset().mockResolvedValue({
+    about: null,
+    address: null,
+    description: null,
+    email: null,
+    profilePictureUrl: null,
+    websites: [],
+    vertical: null,
+  });
+  listTemplatesMock.mockReset().mockResolvedValue([]);
+  createTemplateMock
+    .mockReset()
+    .mockResolvedValue({ id: "2002", status: "PENDING", name: "pedido_listo" });
 });
 
-describe("cobertura: 21 handlers en main", () => {
-  test("12 allowlist + 9 excluidos, sin duplicados", () => {
+describe("cobertura: 24 handlers en main", () => {
+  test("15 allowlist + 9 excluidos, sin duplicados", () => {
     const nombres = [...ALLOWLIST, ...EXCLUIDOS].map((c) => c.nombre);
-    expect(new Set(nombres).size).toBe(21);
-    expect(ALLOWLIST).toHaveLength(12);
+    expect(new Set(nombres).size).toBe(24);
+    expect(ALLOWLIST).toHaveLength(15);
     expect(EXCLUIDOS).toHaveLength(9);
   });
 });
 
 describe("reviewer", () => {
-  test.each(ALLOWLIST.map((c) => [c.nombre, c] as const))("%s → 200 (guard real)", async (_n, caso) => {
+  test.each(ALLOWLIST.map((c) => [c.nombre, c] as const))("%s → OK (guard real)", async (_n, caso) => {
     sessionAs("reviewer");
     const res = await caso.invocar();
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(caso.esperado ?? 200);
     expect(resolveAuthorityMock).toHaveBeenCalledWith(UID, 1_770_000_000);
   });
 
@@ -271,15 +349,15 @@ describe("reviewer", () => {
   );
 });
 
-describe("regresión admin: los 21 handlers siguen respondiendo 200", () => {
+describe("regresión admin: los 24 handlers siguen respondiendo OK", () => {
   test.each([...ALLOWLIST, ...EXCLUIDOS].map((c) => [c.nombre, c] as const))("%s", async (_n, caso) => {
     sessionAs("admin");
     const res = await caso.invocar();
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(caso.esperado ?? 200);
   });
 });
 
-describe("regresión staff: los 21 handlers siguen en 403", () => {
+describe("regresión staff: los 24 handlers siguen en 403", () => {
   test.each([...ALLOWLIST, ...EXCLUIDOS].map((c) => [c.nombre, c] as const))("%s", async (_n, caso) => {
     sessionAs("staff");
     const res = await caso.invocar();

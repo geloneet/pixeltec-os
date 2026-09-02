@@ -15,6 +15,14 @@ const { refetchConversationsMock, refetchContactsMock } = vi.hoisted(() => ({
   refetchContactsMock: vi.fn(),
 }));
 
+const { useIsRestrictedRoleMock } = vi.hoisted(() => ({ useIsRestrictedRoleMock: vi.fn() }));
+vi.mock("@/hooks/use-restricted-role", () => ({ useIsRestrictedRole: useIsRestrictedRoleMock }));
+
+beforeEach(() => {
+  // Admin por defecto: comportamiento histórico de la bandeja.
+  useIsRestrictedRoleMock.mockReturnValue(false);
+});
+
 let mockConversations: InboxConversation[] = [];
 
 vi.mock("@/hooks/use-inbox-contacts", () => ({
@@ -72,5 +80,21 @@ describe("InboxShell — marca como leída al abrir un hilo (Fase 5)", () => {
 
     await screen.findByText("hilo: +5213221111111");
     expect(fetch).not.toHaveBeenCalled();
+  });
+});
+
+describe("InboxShell — modo revisor (WO-2026-00181)", () => {
+  it("rol restringido: el estado vacío no ofrece «Ver configuración del bot» (la pestaña Bot no existe para él)", () => {
+    mockConversations = [];
+    useIsRestrictedRoleMock.mockReturnValue(true);
+    render(<InboxShell tenantId="pixeltec" onOpenConfig={vi.fn()} />);
+    expect(screen.queryByRole("button", { name: /Ver configuración del bot/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Ver sin responder/ })).toBeInTheDocument();
+  });
+
+  it("admin/staff: el atajo a la configuración del bot sigue en el estado vacío", () => {
+    mockConversations = [];
+    render(<InboxShell tenantId="pixeltec" onOpenConfig={vi.fn()} />);
+    expect(screen.getByRole("button", { name: /Ver configuración del bot/ })).toBeInTheDocument();
   });
 });

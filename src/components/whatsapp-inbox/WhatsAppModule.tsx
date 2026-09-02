@@ -1,27 +1,34 @@
 "use client";
 
 import { useState } from "react";
-import { Bot, FlaskConical, GraduationCap, Inbox, type LucideIcon } from "lucide-react";
+import { BadgeCheck, Bot, FlaskConical, GraduationCap, Inbox, type LucideIcon } from "lucide-react";
+import { useIsRestrictedRole } from "@/hooks/use-restricted-role";
 import { cn } from "@/lib/utils";
+import { AccountView } from "./AccountView";
 import { BotConfigView } from "./BotConfigView";
 import { ConfigVersionsPanel } from "./ConfigVersionsPanel";
 import { ExamplesView } from "./ExamplesView";
 import { InboxShell } from "./InboxShell";
+import { ReviewerGuide } from "./ReviewerGuide";
 
-type ModuleTab = "inbox" | "config" | "examples" | "versions";
+type ModuleTab = "inbox" | "account" | "config" | "examples" | "versions";
 
 /**
  * Navegación por objetivo, no por artefacto técnico (§5 del plan):
- * Bandeja = atender · Bot = configurar comportamiento · Entrenamiento =
- * enseñar respuestas · Pruebas = simular y publicar. Los ids internos se
- * conservan (inbox/config/examples/versions) para no tocar ningún consumo.
+ * Bandeja = atender · Cuenta = activos de WhatsApp Business · Bot = configurar
+ * comportamiento · Entrenamiento = enseñar respuestas · Pruebas = simular y
+ * publicar. Los ids internos se conservan para no tocar ningún consumo.
  */
 const MODULE_TABS: { id: ModuleTab; label: string; icon: LucideIcon }[] = [
   { id: "inbox", label: "Bandeja", icon: Inbox },
+  { id: "account", label: "Cuenta", icon: BadgeCheck },
   { id: "config", label: "Bot", icon: Bot },
   { id: "examples", label: "Entrenamiento", icon: GraduationCap },
   { id: "versions", label: "Pruebas", icon: FlaskConical },
 ];
+
+/** Lo único que un rol restringido (reviewer) puede usar sin toparse con un 403. */
+const REVIEWER_TABS: ModuleTab[] = ["inbox", "account"];
 
 interface WhatsAppModuleProps {
   tenantId: string;
@@ -34,6 +41,15 @@ interface WhatsAppModuleProps {
  */
 export function WhatsAppModule({ tenantId }: WhatsAppModuleProps) {
   const [activeTab, setActiveTab] = useState<ModuleTab>("inbox");
+  const isRestricted = useIsRestrictedRole();
+
+  // Fail-closed en presentación: mientras la sesión carga (`undefined`) se
+  // muestra el juego reducido. Al resolverse a admin/staff aparecen las tres
+  // pestañas restantes; al revés no hay parpadeo de controles que luego dan
+  // 403 —el enforcement real vive en `middleware.ts`, esto solo evita
+  // enseñarle al revisor un botón que no puede usar.
+  const reviewerMode = isRestricted !== false;
+  const tabs = reviewerMode ? MODULE_TABS.filter((tab) => REVIEWER_TABS.includes(tab.id)) : MODULE_TABS;
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -45,7 +61,7 @@ export function WhatsAppModule({ tenantId }: WhatsAppModuleProps) {
           </p>
         </div>
         <nav aria-label="Secciones de PixelBot" className="mt-2 flex items-center gap-0.5 overflow-x-auto scrollbar-none">
-          {MODULE_TABS.map(({ id, label, icon: Icon }) => (
+          {tabs.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               type="button"
@@ -70,8 +86,11 @@ export function WhatsAppModule({ tenantId }: WhatsAppModuleProps) {
         </nav>
       </div>
 
+      <ReviewerGuide />
+
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {activeTab === "inbox" && <InboxShell tenantId={tenantId} onOpenConfig={() => setActiveTab("config")} />}
+        {activeTab === "account" && <AccountView />}
         {activeTab === "config" && <BotConfigView />}
         {activeTab === "examples" && <ExamplesView />}
         {activeTab === "versions" && <ConfigVersionsPanel />}
