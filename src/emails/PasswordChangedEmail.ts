@@ -25,7 +25,7 @@ export function renderPasswordChangedEmail(props: PasswordChangedEmailProps): st
 
   return clientLayout({
     title: 'Tu contraseña de Pixeltec.mx cambió',
-    subtitle: 'System OS · Seguridad',
+    subtitle: 'CRM · Seguridad',
     body: `
       <p style="margin:0 0 8px;font-size:13px;font-weight:600;color:#71717a;text-transform:uppercase;letter-spacing:1.5px;">
         Aviso de seguridad
