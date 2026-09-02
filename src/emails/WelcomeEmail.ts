@@ -1,5 +1,5 @@
 /**
- * Welcome email sent to a new client when they are added to PixelTEC OS.
+ * Welcome email sent to a new client when they are added to Pixeltec.mx.
  */
 
 import { escapeHtml } from './shared';
@@ -94,7 +94,7 @@ export function renderWelcomeEmail(props: WelcomeEmailProps): string {
                 &copy; ${year} PixelTEC &middot; Guadalajara, M&eacute;xico
               </p>
               <p style="margin:6px 0 0;font-size:12px;color:#a1a1aa;">
-                Este mensaje fue generado autom&aacute;ticamente por PixelTEC OS.
+                Este mensaje fue generado autom&aacute;ticamente por Pixeltec.mx.
               </p>
             </td>
           </tr>

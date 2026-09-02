@@ -496,7 +496,7 @@ export default function LoginPage() {
             className="mt-8 text-center md:text-left"
           >
             <p className="font-mono text-[11px] text-zinc-700">
-              v1.0.0 · PixelTEC OS · &copy; {new Date().getFullYear()}
+              v1.0.0 · Pixeltec.mx · &copy; {new Date().getFullYear()}
             </p>
           </motion.div>
         </div>

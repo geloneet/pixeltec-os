@@ -25,7 +25,7 @@ export function renderTaskAssignedEmail(props: TaskAssignedEmailProps): string {
   const statusColor = status === 'En proceso' ? '#f59e0b' : '#06b6d4';
 
   return internalLayout({
-    title: 'Nueva Tarea Asignada — PixelTEC OS',
+    title: 'Nueva Tarea Asignada — Pixeltec.mx',
     section: 'Tareas',
     body: `
       <p style="margin:0 0 6px;font-size:12px;font-weight:600;color:#71717a;text-transform:uppercase;letter-spacing:1px;">

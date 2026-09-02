@@ -24,8 +24,8 @@ export function renderPasswordChangedEmail(props: PasswordChangedEmailProps): st
   });
 
   return clientLayout({
-    title: 'Tu contraseña de PixelTEC OS cambió',
-    subtitle: 'System OS · Seguridad',
+    title: 'Tu contraseña de Pixeltec.mx cambió',
+    subtitle: 'CRM · Seguridad',
     body: `
       <p style="margin:0 0 8px;font-size:13px;font-weight:600;color:#71717a;text-transform:uppercase;letter-spacing:1.5px;">
         Aviso de seguridad
@@ -34,7 +34,7 @@ export function renderPasswordChangedEmail(props: PasswordChangedEmailProps): st
         Hola, ${escapeHtml(name)}
       </h1>
       <p style="margin:0 0 32px;font-size:15px;color:#a1a1aa;line-height:1.5;">
-        La contrase&ntilde;a de tu cuenta del equipo interno de PixelTEC OS se cambi&oacute; correctamente.
+        La contrase&ntilde;a de tu cuenta del equipo interno de Pixeltec.mx se cambi&oacute; correctamente.
       </p>
 
       <div style="background:#1c1917;border:1px solid #292524;border-radius:10px;padding:14px 18px;margin-bottom:28px;text-align:center;">

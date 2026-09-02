@@ -6,7 +6,7 @@ import { listUsersAction } from "@/lib/users-admin/actions";
 import { UsersDashboard } from "@/components/usuarios/users-dashboard";
 
 export const metadata: Metadata = {
-  title: "Usuarios y acceso · PixelTEC OS",
+  title: "Usuarios y acceso · Pixeltec.mx",
   description: "Equipo interno: invitaciones, roles, suspensión y seguridad por cuenta",
 };
 

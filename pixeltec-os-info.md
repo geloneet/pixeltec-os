@@ -1,4 +1,4 @@
-# PixelTEC OS — Documento de referencia
+# Pixeltec.mx — Documento de referencia
 
 **Producción:** https://pixeltec.mx  
 **Repositorio local:** `/home/ubuntu/pixeltec-os`  

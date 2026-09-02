@@ -15,8 +15,8 @@ export function renderPasswordResetEmail(props: PasswordResetEmailProps): string
   const { name, resetUrl, expiresIn } = props;
 
   return clientLayout({
-    title: 'Restablece tu contraseña — PixelTEC OS',
-    subtitle: 'System OS · Acceso',
+    title: 'Restablece tu contraseña — Pixeltec.mx',
+    subtitle: 'CRM · Acceso',
     body: `
       <p style="margin:0 0 8px;font-size:13px;font-weight:600;color:#71717a;text-transform:uppercase;letter-spacing:1.5px;">
         Restablecer contrase&ntilde;a

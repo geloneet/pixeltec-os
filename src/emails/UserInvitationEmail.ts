@@ -17,8 +17,8 @@ export function renderUserInvitationEmail(props: UserInvitationEmailProps): stri
   const { name, inviteUrl, expiresIn } = props;
 
   return clientLayout({
-    title: 'Te invitaron a PixelTEC OS',
-    subtitle: 'System OS · Acceso',
+    title: 'Te invitaron a Pixeltec.mx',
+    subtitle: 'CRM · Acceso',
     body: `
       <p style="margin:0 0 8px;font-size:13px;font-weight:600;color:#71717a;text-transform:uppercase;letter-spacing:1.5px;">
         Invitaci&oacute;n al equipo
@@ -27,7 +27,7 @@ export function renderUserInvitationEmail(props: UserInvitationEmailProps): stri
         Hola, ${escapeHtml(name)}
       </h1>
       <p style="margin:0 0 32px;font-size:15px;color:#a1a1aa;line-height:1.5;">
-        Te invitaron a unirte al equipo interno de PixelTEC OS. Para activar tu
+        Te invitaron a unirte al equipo interno de Pixeltec.mx. Para activar tu
         cuenta, elige tu contrase&ntilde;a desde el siguiente enlace.
       </p>
 

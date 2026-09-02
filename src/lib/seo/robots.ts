@@ -13,7 +13,7 @@ export const BASE_DISALLOW = [...PROTECTED_PATHS, '/login', '/portal', '/reset-p
 
 const SITEMAP_LINE = `Sitemap: ${SITE.url}/sitemap.xml`;
 
-/** El robots.txt que PixelTEC OS sirve cuando no hay ninguno publicado. */
+/** El robots.txt que Pixeltec.mx sirve cuando no hay ninguno publicado. */
 export function derivedRobots(): string {
   return ['User-agent: *', 'Allow: /', ...BASE_DISALLOW.map((p) => `Disallow: ${p}`), '', SITEMAP_LINE, ''].join('\n');
 }
@@ -27,7 +27,7 @@ export function reconcileRobots(published: string): string {
 
   const extra: string[] = [];
   if (missing.length > 0) {
-    extra.push('', '# Añadido por PixelTEC OS: rutas privadas de la aplicación.', ...missing.map((p) => `Disallow: ${p}`));
+    extra.push('', '# Añadido por Pixeltec.mx: rutas privadas de la aplicación.', ...missing.map((p) => `Disallow: ${p}`));
   }
   if (!hasSitemap) extra.push('', SITEMAP_LINE);
 

@@ -24,7 +24,7 @@ import { StatusPill } from "@/components/blog/cms/status-pill";
 import PageHeader from "@/components/dashboard/PageHeader";
 import { cn } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Blog — PixelTEC OS" };
+export const metadata: Metadata = { title: "Blog — Pixeltec.mx" };
 export const dynamic = "force-dynamic";
 
 /** `?estado=` (paridad Encino): '' Todas · publicadas · programadas · borradores · archivadas. */

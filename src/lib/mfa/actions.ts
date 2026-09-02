@@ -97,7 +97,7 @@ export async function startMfaEnrollment(): Promise<StartMfaEnrollmentResult> {
       .onConflictDoUpdate({ target: userMfa.userId, set: { secretEnc, enabledAt: null, lastUsedStep: null } });
 
     const otpauthUri = generateURI({
-      issuer: "PixelTEC OS",
+      issuer: "Pixeltec.mx",
       label: email ?? userId,
       secret,
     });

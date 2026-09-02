@@ -11,7 +11,7 @@ import {
 } from "@/lib/smilemore-qa/definition";
 
 export const metadata: Metadata = {
-  title: "Respuesta Smile More · PixelTEC OS",
+  title: "Respuesta Smile More · Pixeltec.mx",
   description: "Detalle de una respuesta del cuestionario de levantamiento",
 };
 

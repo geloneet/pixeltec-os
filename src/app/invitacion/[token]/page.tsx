@@ -5,8 +5,8 @@ import { checkInvitationTokenAction } from "@/lib/users-admin/invitation-actions
 import { InvitationForm } from "./invitation-form";
 
 export const metadata: Metadata = {
-  title: "Activa tu cuenta · PixelTEC OS",
-  description: "Acepta tu invitación al equipo interno de PixelTEC OS",
+  title: "Activa tu cuenta · Pixeltec.mx",
+  description: "Acepta tu invitación al equipo interno de Pixeltec.mx",
 };
 
 /**
@@ -42,7 +42,7 @@ export default async function InvitacionPage({
               Hola, {check.name}
             </h1>
             <p className="mb-10 text-center text-sm text-zinc-400">
-              Te invitaron a PixelTEC OS. Elige tu contraseña para activar tu cuenta.
+              Te invitaron a Pixeltec.mx. Elige tu contraseña para activar tu cuenta.
             </p>
             <InvitationForm token={token} />
           </>

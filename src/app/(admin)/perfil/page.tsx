@@ -13,7 +13,7 @@ import { MfaSettings } from "@/components/perfil/mfa-settings";
 import { getNavLabel } from "@/components/nav/command-palette-items";
 
 export const metadata: Metadata = {
-  title: "Perfil · PixelTEC OS",
+  title: "Perfil · Pixeltec.mx",
   description: "Configuración de tu perfil y preferencias",
 };
 

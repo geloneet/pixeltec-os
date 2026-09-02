@@ -3,7 +3,7 @@ import { WhatsAppModule } from "@/components/whatsapp-inbox/WhatsAppModule";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "WhatsApp | PixelTEC OS",
+  title: "WhatsApp | Pixeltec.mx",
 };
 
 export default function WhatsAppInboxPage() {
