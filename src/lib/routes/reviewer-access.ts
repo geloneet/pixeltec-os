@@ -47,11 +47,14 @@ export interface ApiAllowRule {
 }
 
 /**
- * Allowlist EXPLÍCITA de `/api/whatsapp-inbox` para el reviewer (13 de los 22
+ * Allowlist EXPLÍCITA de `/api/whatsapp-inbox` para el reviewer (16 de los 25
  * handlers). Cada exclusión está justificada en docs/pr/WO-2026-00051.md:
  * las mutaciones de configuración del bot (PUT config, draft/publish/rollback)
  * y las escrituras en datos internos (contacts, notes, tickets, examples)
  * quedan fuera y conservan `requireAdmin`.
+ *
+ * Las tres últimas son de WO-2026-00181 y siguen el mismo criterio: solo los
+ * activos de la propia cuenta de WhatsApp, nada de datos internos.
  */
 export const REVIEWER_API_ALLOWLIST: readonly ApiAllowRule[] = [
   { method: "GET", pattern: /^\/api\/whatsapp-inbox\/conversations$/, label: "GET /conversations" },
@@ -75,6 +78,17 @@ export const REVIEWER_API_ALLOWLIST: readonly ApiAllowRule[] = [
   { method: "GET", pattern: /^\/api\/whatsapp-inbox\/config\/versions$/, label: "GET /config/versions" },
   { method: "GET", pattern: /^\/api\/whatsapp-inbox\/examples$/, label: "GET /examples" },
   { method: "POST", pattern: /^\/api\/whatsapp-inbox\/simulate$/, label: "POST /simulate" },
+  // WO-2026-00181 — superficie de GESTIÓN de la cuenta de WhatsApp Business.
+  // Meta no aprueba `whatsapp_business_management` con una declaración: exige
+  // ver al revisor, dentro de la app y con su propia cuenta, leyendo los
+  // activos del negocio (número, perfil, plantillas) y CREANDO una plantilla.
+  // Sin estas tres reglas ese flujo termina en 403 y la revisión se rechaza.
+  // Siguen siendo mínimo privilegio: tocan solo activos de la cuenta propia en
+  // Graph —ni datos de clientes, ni configuración del bot— y `POST /templates`
+  // es la única escritura, la que el screencast tiene que demostrar.
+  { method: "GET", pattern: /^\/api\/whatsapp-inbox\/account$/, label: "GET /account" },
+  { method: "GET", pattern: /^\/api\/whatsapp-inbox\/templates$/, label: "GET /templates" },
+  { method: "POST", pattern: /^\/api\/whatsapp-inbox\/templates$/, label: "POST /templates" },
 ];
 
 /**
