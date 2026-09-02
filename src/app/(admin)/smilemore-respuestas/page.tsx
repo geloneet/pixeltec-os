@@ -6,7 +6,7 @@ import { resolveAuthority } from "@/lib/auth/authority";
 import { listSmilemoreQaResponses } from "@/lib/smilemore-qa-repo";
 
 export const metadata: Metadata = {
-  title: "Respuestas Smile More · PixelTEC OS",
+  title: "Respuestas Smile More · Pixeltec.mx",
   description: "Respuestas del cuestionario de corrección y adaptación del sistema de citas",
 };
 

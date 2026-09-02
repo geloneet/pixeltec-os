@@ -7,7 +7,7 @@
  * Body (all optional):
  *   { "message"?: string, "to"?: string }
  *
- *   - message: defaults to "Test desde PixelTEC OS — <iso>"
+ *   - message: defaults to "Test desde Pixeltec.mx — <iso>"
  *   - to:      defaults to META_WHATSAPP_TO; otherwise overrides it
  *
  * Responses:
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
     const message =
       typeof parsed.message === "string" && parsed.message.trim() !== ""
         ? parsed.message
-        : `Test desde PixelTEC OS — ${new Date().toISOString()}`;
+        : `Test desde Pixeltec.mx — ${new Date().toISOString()}`;
     const to = typeof parsed.to === "string" && parsed.to.trim() !== "" ? parsed.to : undefined;
 
     const result = await sendWhatsApp(message, to ? { to } : undefined);

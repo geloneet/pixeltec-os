@@ -35,7 +35,7 @@ function forbiddenForRestrictedRole(request: Request, nonce: string, pathname: s
   const wantsHtml = (request.headers.get('accept') ?? '').includes('text/html');
   const res = wantsHtml
     ? new NextResponse(
-        '<!doctype html><html lang="es"><head><meta charset="utf-8"><title>403 · PixelTEC OS</title></head>' +
+        '<!doctype html><html lang="es"><head><meta charset="utf-8"><title>403 · Pixeltec.mx</title></head>' +
           '<body style="font-family:system-ui;margin:3rem"><h1>403 — Sin acceso</h1>' +
           '<p>Esta cuenta solo puede usar el módulo de WhatsApp.</p>' +
           '<p><a href="/whatsapp">Ir a WhatsApp</a></p></body></html>',

@@ -7,7 +7,7 @@ import { listBlogCategoryNames } from "@/lib/blog-cms/queries";
 import { ADMIN_BLOG_PATH } from "@/lib/blog-cms/paths";
 import { BlogCmsEditor } from "@/components/blog/cms/editor";
 
-export const metadata: Metadata = { title: "Editar entrada — Blog — PixelTEC OS" };
+export const metadata: Metadata = { title: "Editar entrada — Blog — Pixeltec.mx" };
 export const dynamic = "force-dynamic";
 
 /** Editor (paridad Encino `blog/[id]/editar/page.tsx`): id no-UUID ⇒ 404;

@@ -8,7 +8,7 @@ import { ADMIN_BLOG_PATH } from "@/lib/blog-cms/paths";
 import { CategoryPostsButton, DeleteCategoryButton, NewCategoryForm } from "@/components/blog/cms/category-form";
 import PageHeader from "@/components/dashboard/PageHeader";
 
-export const metadata: Metadata = { title: "Categorías del blog — PixelTEC OS" };
+export const metadata: Metadata = { title: "Categorías del blog — Pixeltec.mx" };
 export const dynamic = "force-dynamic";
 
 /** Categorías (paridad Encino `blog/categorias/page.tsx`): un nivel de

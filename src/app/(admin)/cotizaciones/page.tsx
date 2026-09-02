@@ -7,7 +7,7 @@ import { formatAmountWithCode, STATUS_LABEL, type Currency } from "@/lib/quotes/
 import PageHeader from "@/components/dashboard/PageHeader";
 
 export const metadata: Metadata = {
-  title: "Cotizaciones — PixelTEC OS",
+  title: "Cotizaciones — Pixeltec.mx",
 };
 
 const STATUS_TINT: Record<string, string> = {

@@ -6,7 +6,7 @@ import { listProjects } from "@/lib/projects/queries";
 import PageHeader from "@/components/dashboard/PageHeader";
 
 export const metadata: Metadata = {
-  title: "Trabajo — PixelTEC OS",
+  title: "Trabajo — Pixeltec.mx",
 };
 
 const STATUS_TINT: Record<string, string> = {

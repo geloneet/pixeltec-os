@@ -13,7 +13,7 @@ import { QuickActionCard } from "@/components/dashboard/quick-action-card";
 import PageHeader from "@/components/dashboard/PageHeader";
 
 export const metadata: Metadata = {
-  title: "Inicio — PixelTEC OS",
+  title: "Inicio — Pixeltec.mx",
 };
 
 /**

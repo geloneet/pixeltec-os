@@ -26,7 +26,7 @@ export function renderInvoiceEmail(props: InvoiceEmailProps): string {
   const { clientName, projectName, amount, currency = 'MXN', method, type, date } = props;
 
   return internalLayout({
-    title: 'Pago Registrado — PixelTEC OS',
+    title: 'Pago Registrado — Pixeltec.mx',
     section: 'Finanzas',
     banner: `<tr>
       <td style="background:#052e16;padding:16px 40px;border-left:1px solid #e4e4e7;border-right:1px solid #e4e4e7;">

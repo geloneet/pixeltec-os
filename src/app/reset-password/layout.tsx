@@ -4,7 +4,7 @@ import type { Metadata } from 'next';
 // duplicar el del home (antes heredaba el default del root y era indexable).
 export const metadata: Metadata = {
   title: 'Restablecer contraseña',
-  description: 'Restablece la contraseña de tu cuenta de PixelTEC OS.',
+  description: 'Restablece la contraseña de tu cuenta de Pixeltec.mx.',
   robots: {
     index: false,
     follow: false,

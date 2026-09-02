@@ -1,5 +1,5 @@
 /**
- * @fileoverview PixelTEC OS — Centralized Email Service
+ * @fileoverview Pixeltec.mx — Centralized Email Service
  *
  * All email sending goes through this module.
  * Call these functions ONLY from Server Actions or API Routes — never from client code.
@@ -251,7 +251,7 @@ export async function sendTestEmail(to: string): Promise<EmailResult> {
       <h2 style="margin:0 0 12px;font-size:18px;color:#09090b;">✅ Email de Prueba</h2>
       <p style="margin:0 0 16px;font-size:14px;color:#52525b;">
         La integración con Resend está funcionando correctamente.
-        PixelTEC OS puede enviar correos transaccionales.
+        Pixeltec.mx puede enviar correos transaccionales.
       </p>
       <p style="margin:0;font-size:12px;color:#a1a1aa;">
         Enviado el ${new Date().toLocaleString('es-MX', { dateStyle: 'full', timeStyle: 'short' })}
@@ -260,7 +260,7 @@ export async function sendTestEmail(to: string): Promise<EmailResult> {
   </div>
 </body>
 </html>`;
-  return sendEmail(to, '✅ Test de integración — PixelTEC OS', html);
+  return sendEmail(to, '✅ Test de integración — Pixeltec.mx', html);
 }
 
 // ── Public website senders ─────────────────────────────────────────────────────
@@ -307,7 +307,7 @@ export async function sendPasswordResetEmail(
 ): Promise<EmailResult> {
   const { email, ...templateProps } = props;
   const html = renderPasswordResetEmail(templateProps);
-  return sendEmail(email, 'Restablece tu contraseña — PixelTEC OS', html);
+  return sendEmail(email, 'Restablece tu contraseña — Pixeltec.mx', html);
 }
 
 /**
@@ -320,7 +320,7 @@ export async function sendUserInvitationEmail(
 ): Promise<EmailResult> {
   const { email, ...templateProps } = props;
   const html = renderUserInvitationEmail(templateProps);
-  return sendEmail(email, 'Te invitaron a PixelTEC OS', html);
+  return sendEmail(email, 'Te invitaron a Pixeltec.mx', html);
 }
 
 /**
@@ -333,7 +333,7 @@ export async function sendPasswordChangedEmail(
 ): Promise<EmailResult> {
   const { email, ...templateProps } = props;
   const html = renderPasswordChangedEmail(templateProps);
-  return sendEmail(email, 'Tu contraseña de PixelTEC OS cambió', html);
+  return sendEmail(email, 'Tu contraseña de Pixeltec.mx cambió', html);
 }
 
 /** Sent to a visitor who subscribes to the newsletter. */

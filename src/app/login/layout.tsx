@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: 'Iniciar sesión',
-  description: 'Accede a PixelTEC OS con tu cuenta.',
+  description: 'Accede a Pixeltec.mx con tu cuenta.',
   robots: {
     index: false,
     follow: false,

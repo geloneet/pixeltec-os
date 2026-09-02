@@ -8,7 +8,7 @@ import PageHeader from "@/components/dashboard/PageHeader";
 import { ProjectWorkForm } from "./project-work-form";
 
 export const metadata: Metadata = {
-  title: "Proyecto — PixelTEC OS",
+  title: "Proyecto — Pixeltec.mx",
 };
 
 export default async function ProyectoDetailPage({ params }: { params: Promise<{ id: string }> }) {

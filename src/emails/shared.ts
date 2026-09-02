@@ -1,5 +1,5 @@
 /**
- * Shared email layout helpers for PixelTEC OS.
+ * Shared email layout helpers for Pixeltec.mx.
  * Reduces HTML boilerplate duplication across all templates.
  */
 
@@ -49,7 +49,7 @@ export function internalLayout(opts: {
           <tr>
             <td style="background:#f9f9f9;border:1px solid #e4e4e7;border-top:none;border-radius:0 0 16px 16px;padding:24px 40px;text-align:center;">
               <p style="margin:0;font-size:12px;color:#a1a1aa;">
-                Notificación interna · PixelTEC OS · ${YEAR}
+                Notificación interna · Pixeltec.mx · ${YEAR}
               </p>
             </td>
           </tr>

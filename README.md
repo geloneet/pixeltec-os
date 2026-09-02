@@ -1,4 +1,4 @@
-# PixelTEC OS
+# Pixeltec.mx
 
 Sistema operativo interno de PixelTEC — CRM, gestión de proyectos, DevOps, inteligencia crypto y portal de clientes, todo en una sola aplicación.
 
