@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { MessageCircle, Settings2 } from "lucide-react";
 import { useInboxContacts } from "@/hooks/use-inbox-contacts";
 import { useInboxConversations } from "@/hooks/use-inbox-conversations";
+import { useIsRestrictedRole } from "@/hooks/use-restricted-role";
 import { ChatThread } from "./ChatThread";
 import { ContactPanel } from "./ContactPanel";
 import { ConversationList, type CategoryId, type QuickFilterId } from "./ConversationList";
@@ -27,6 +28,10 @@ export function InboxShell({ tenantId, onOpenConfig }: InboxShellProps) {
   const [panelOpen, setPanelOpen] = useState(true);
   const [category, setCategory] = useState<CategoryId>("todos");
   const [quickFilter, setQuickFilter] = useState<QuickFilterId | null>(null);
+  const isRestricted = useIsRestrictedRole();
+  // La pestaña Bot no existe para un rol restringido: ofrecerle el atajo desde
+  // el estado vacío lo llevaría a una sección que no puede abrir.
+  const canOpenConfig = isRestricted === false;
   const { contactsByPhone, refetch: refetchContacts } = useInboxContacts();
   const {
     conversations,
@@ -119,14 +124,16 @@ export function InboxShell({ tenantId, onOpenConfig }: InboxShellProps) {
               description="Elige un chat de la bandeja para revisar mensajes, clasificar el contacto o tomar el control."
               actions={
                 <>
-                  <button
-                    type="button"
-                    onClick={onOpenConfig}
-                    className="inline-flex items-center gap-1.5 rounded-md border border-border bg-secondary/40 px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-secondary/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40"
-                  >
-                    <Settings2 className="h-3.5 w-3.5" />
-                    Ver configuración del bot
-                  </button>
+                  {canOpenConfig && (
+                    <button
+                      type="button"
+                      onClick={onOpenConfig}
+                      className="inline-flex items-center gap-1.5 rounded-md border border-border bg-secondary/40 px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-secondary/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40"
+                    >
+                      <Settings2 className="h-3.5 w-3.5" />
+                      Ver configuración del bot
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => setQuickFilter("sin_responder")}

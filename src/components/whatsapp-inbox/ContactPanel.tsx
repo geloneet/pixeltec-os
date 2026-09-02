@@ -8,6 +8,7 @@ import { useUser } from "@/hooks/use-user";
 import { useCRM } from "@/components/crm/CRMContextCore";
 import { useInboxContactNotes } from "@/hooks/use-inbox-contact-notes";
 import { useInboxBotMemory } from "@/hooks/use-inbox-bot-memory";
+import { useIsRestrictedRole } from "@/hooks/use-restricted-role";
 import type { ContactPatch } from "@/lib/db/repos/whatsapp-contacts";
 import { cn } from "@/lib/utils";
 import { addContactNote, createWhatsappTicket, upsertContact } from "@/lib/whatsapp-inbox/contacts-client";
@@ -88,6 +89,14 @@ interface ContactPanelProps {
 export function ContactPanel({ phone, conv, contact, onClose, refetchContacts }: ContactPanelProps) {
   const user = useUser();
   const crm = useCRM();
+  const isRestricted = useIsRestrictedRole();
+
+  // Presentación (WO-2026-00181): guardar contacto, notas, tickets y
+  // seguimientos son escrituras de CRM que el middleware deniega a un rol
+  // restringido. La ficha se mantiene completa en modo lectura; lo que
+  // desaparece son los controles que devolverían 403. Fail-closed mientras la
+  // sesión carga (`undefined`).
+  const canUseCRM = isRestricted === false;
 
   const [activeTab, setActiveTab] = useState<PanelTab>("perfil");
   const [name, setName] = useState(contact?.name ?? "");
@@ -515,108 +524,111 @@ export function ContactPanel({ phone, conv, contact, onClose, refetchContacts }:
               />
             </WhatsAppSection>
 
-            <WhatsAppSection title="CRM" description="Acciones de negocio sobre este contacto">
-              <div className="space-y-1.5">
-                {!contact && (
-                  <Button
-                    type="button"
-                    onClick={handleSaveContact}
-                    disabled={pendingAction !== null}
-                    className="h-8 w-full bg-cyan-600 text-xs text-white hover:bg-cyan-500"
-                  >
-                    {pendingAction === "saveContact" && <Spinner size="sm" />}
-                    Guardar contacto
-                  </Button>
-                )}
-
-                {contact?.linkedClientId ? (
-                  <p className="rounded-md border border-emerald-500/30 bg-emerald-500/5 px-2 py-1.5 text-xs text-emerald-700 dark:text-emerald-300">
-                    Vinculado al CRM ✓
-                  </p>
-                ) : (
-                  <Button
-                    type="button"
-                    onClick={handleConvertToClient}
-                    disabled={pendingAction !== null}
-                    variant="outline"
-                    size="sm"
-                    className="h-8 w-full border-border bg-secondary/40 text-xs text-muted-foreground hover:bg-secondary/60"
-                  >
-                    {pendingAction === "convertToClient" && <Spinner size="sm" />}
-                    Convertir en cliente
-                  </Button>
-                )}
-
-                {followUpEligible ? (
-                  <div className="space-y-1.5">
-                    {linkedClient!.projects.length > 1 && (
-                      <Select value={followUpProjectId ?? undefined} onValueChange={setFollowUpProjectId}>
-                        <SelectTrigger
-                          aria-label="Proyecto para el seguimiento"
-                          className="h-8 border-border bg-secondary/40 text-xs text-foreground focus:ring-cyan-500/20"
-                        >
-                          <SelectValue placeholder="Selecciona proyecto" />
-                        </SelectTrigger>
-                        <SelectContent className="border-border bg-popover/95 backdrop-blur-xl">
-                          {linkedClient!.projects.map((p) => (
-                            <SelectItem key={p.id} value={p.id} className="text-sm text-popover-foreground focus:bg-secondary focus:text-foreground">
-                              {p.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
+            {/* Acciones de CRM (guardar contacto, ticket…): el middleware las deniega a un rol restringido. */}
+            {canUseCRM && (
+              <WhatsAppSection title="CRM" description="Acciones de negocio sobre este contacto">
+                <div className="space-y-1.5">
+                  {!contact && (
                     <Button
                       type="button"
-                      onClick={handleCreateFollowUp}
-                      disabled={!followUpProject || pendingAction !== null}
-                      variant="outline"
-                      size="sm"
-                      className="h-8 w-full border-border bg-secondary/40 text-xs text-muted-foreground hover:bg-secondary/60 disabled:opacity-40"
+                      onClick={handleSaveContact}
+                      disabled={pendingAction !== null}
+                      className="h-8 w-full bg-cyan-600 text-xs text-white hover:bg-cyan-500"
                     >
-                      {pendingAction === "createFollowUp" && <Spinner size="sm" />}
-                      Crear seguimiento
+                      {pendingAction === "saveContact" && <Spinner size="sm" />}
+                      Guardar contacto
                     </Button>
-                  </div>
-                ) : (
-                  <p className="text-xs text-muted-foreground/60">
-                    Vincula un cliente con proyecto para crear seguimientos
-                  </p>
-                )}
+                  )}
 
-                <Popover open={ticketOpen} onOpenChange={setTicketOpen}>
-                  <PopoverTrigger asChild>
+                  {contact?.linkedClientId ? (
+                    <p className="rounded-md border border-emerald-500/30 bg-emerald-500/5 px-2 py-1.5 text-xs text-emerald-700 dark:text-emerald-300">
+                      Vinculado al CRM ✓
+                    </p>
+                  ) : (
                     <Button
                       type="button"
+                      onClick={handleConvertToClient}
+                      disabled={pendingAction !== null}
                       variant="outline"
                       size="sm"
                       className="h-8 w-full border-border bg-secondary/40 text-xs text-muted-foreground hover:bg-secondary/60"
                     >
-                      <Ticket className="h-3.5 w-3.5" />
-                      Crear ticket de soporte
+                      {pendingAction === "convertToClient" && <Spinner size="sm" />}
+                      Convertir en cliente
                     </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-72 border-border bg-popover/95 p-3 backdrop-blur-xl">
-                    <p className="mb-2 text-xs font-medium text-popover-foreground">¿Cuál es el problema?</p>
-                    <Textarea
-                      value={ticketProblem}
-                      onChange={(e) => setTicketProblem(e.target.value)}
-                      placeholder="Describe el problema..."
-                      className="mb-2 min-h-[70px] border-border bg-secondary/40 text-sm text-foreground"
-                    />
-                    <Button
-                      type="button"
-                      onClick={handleCreateTicket}
-                      disabled={pendingAction !== null}
-                      className="h-8 w-full bg-cyan-600 text-xs text-white hover:bg-cyan-500"
-                    >
-                      {pendingAction === "createTicket" && <Spinner size="sm" />}
-                      Crear ticket
-                    </Button>
-                  </PopoverContent>
-                </Popover>
-              </div>
-            </WhatsAppSection>
+                  )}
+
+                  {followUpEligible ? (
+                    <div className="space-y-1.5">
+                      {linkedClient!.projects.length > 1 && (
+                        <Select value={followUpProjectId ?? undefined} onValueChange={setFollowUpProjectId}>
+                          <SelectTrigger
+                            aria-label="Proyecto para el seguimiento"
+                            className="h-8 border-border bg-secondary/40 text-xs text-foreground focus:ring-cyan-500/20"
+                          >
+                            <SelectValue placeholder="Selecciona proyecto" />
+                          </SelectTrigger>
+                          <SelectContent className="border-border bg-popover/95 backdrop-blur-xl">
+                            {linkedClient!.projects.map((p) => (
+                              <SelectItem key={p.id} value={p.id} className="text-sm text-popover-foreground focus:bg-secondary focus:text-foreground">
+                                {p.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                      <Button
+                        type="button"
+                        onClick={handleCreateFollowUp}
+                        disabled={!followUpProject || pendingAction !== null}
+                        variant="outline"
+                        size="sm"
+                        className="h-8 w-full border-border bg-secondary/40 text-xs text-muted-foreground hover:bg-secondary/60 disabled:opacity-40"
+                      >
+                        {pendingAction === "createFollowUp" && <Spinner size="sm" />}
+                        Crear seguimiento
+                      </Button>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground/60">
+                      Vincula un cliente con proyecto para crear seguimientos
+                    </p>
+                  )}
+
+                  <Popover open={ticketOpen} onOpenChange={setTicketOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-8 w-full border-border bg-secondary/40 text-xs text-muted-foreground hover:bg-secondary/60"
+                      >
+                        <Ticket className="h-3.5 w-3.5" />
+                        Crear ticket de soporte
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-72 border-border bg-popover/95 p-3 backdrop-blur-xl">
+                      <p className="mb-2 text-xs font-medium text-popover-foreground">¿Cuál es el problema?</p>
+                      <Textarea
+                        value={ticketProblem}
+                        onChange={(e) => setTicketProblem(e.target.value)}
+                        placeholder="Describe el problema..."
+                        className="mb-2 min-h-[70px] border-border bg-secondary/40 text-sm text-foreground"
+                      />
+                      <Button
+                        type="button"
+                        onClick={handleCreateTicket}
+                        disabled={pendingAction !== null}
+                        className="h-8 w-full bg-cyan-600 text-xs text-white hover:bg-cyan-500"
+                      >
+                        {pendingAction === "createTicket" && <Spinner size="sm" />}
+                        Crear ticket
+                      </Button>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </WhatsAppSection>
+            )}
           </>
         )}
 
@@ -694,36 +706,39 @@ export function ContactPanel({ phone, conv, contact, onClose, refetchContacts }:
 
         {activeTab === "actividad" && (
           <>
-            <WhatsAppSection title="Notas recientes">
-              <div className="space-y-1.5">
-                {recentNotes.length === 0 && <p className="text-xs text-muted-foreground/60">Sin notas aún</p>}
-                {recentNotes.map((note) => (
-                  <p key={note.id} className="rounded-md border border-violet-500/20 bg-violet-500/5 px-2 py-1.5 text-xs text-violet-700 dark:text-violet-200">
-                    {note.text}
-                  </p>
-                ))}
-              </div>
-              <div className="flex gap-1.5">
-                <Input
-                  value={noteInput}
-                  onChange={(e) => setNoteInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && void handleAddNote()}
-                  placeholder="Nota rápida..."
-                  aria-label="Nota rápida"
-                  className="h-8 border-border bg-secondary/40 text-sm text-foreground"
-                />
-                <Button
-                  type="button"
-                  onClick={() => void handleAddNote()}
-                  variant="outline"
-                  size="icon"
-                  className="h-8 w-8 flex-shrink-0 border-border bg-secondary/40 text-secondary-foreground hover:bg-secondary/60"
-                  aria-label="Añadir nota"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            </WhatsAppSection>
+            {/* Notas: escritura de CRM — oculta para un rol restringido (WO-2026-00181). */}
+            {canUseCRM && (
+              <WhatsAppSection title="Notas recientes">
+                <div className="space-y-1.5">
+                  {recentNotes.length === 0 && <p className="text-xs text-muted-foreground/60">Sin notas aún</p>}
+                  {recentNotes.map((note) => (
+                    <p key={note.id} className="rounded-md border border-violet-500/20 bg-violet-500/5 px-2 py-1.5 text-xs text-violet-700 dark:text-violet-200">
+                      {note.text}
+                    </p>
+                  ))}
+                </div>
+                <div className="flex gap-1.5">
+                  <Input
+                    value={noteInput}
+                    onChange={(e) => setNoteInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && void handleAddNote()}
+                    placeholder="Nota rápida..."
+                    aria-label="Nota rápida"
+                    className="h-8 border-border bg-secondary/40 text-sm text-foreground"
+                  />
+                  <Button
+                    type="button"
+                    onClick={() => void handleAddNote()}
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8 flex-shrink-0 border-border bg-secondary/40 text-secondary-foreground hover:bg-secondary/60"
+                    aria-label="Añadir nota"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </WhatsAppSection>
+            )}
 
             <WhatsAppSection title="Historial">
               <div className="space-y-1">

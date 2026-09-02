@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // src/components/whatsapp-inbox/ContactPanel.test.tsx
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { BotMemoryEntry } from "@/types/whatsapp-inbox";
@@ -13,6 +13,14 @@ afterEach(() => {
 const { useInboxBotMemoryMock } = vi.hoisted(() => ({
   useInboxBotMemoryMock: vi.fn(),
 }));
+
+const { useIsRestrictedRoleMock } = vi.hoisted(() => ({ useIsRestrictedRoleMock: vi.fn() }));
+vi.mock("@/hooks/use-restricted-role", () => ({ useIsRestrictedRole: useIsRestrictedRoleMock }));
+
+beforeEach(() => {
+  // Admin por defecto: comportamiento histórico de la ficha.
+  useIsRestrictedRoleMock.mockReturnValue(false);
+});
 
 vi.mock("@/hooks/use-user", () => ({
   useUser: () => ({ uid: "admin-1", email: "admin@pixeltec.mx" }),
@@ -98,5 +106,34 @@ describe("ContactPanel — ficha tabulada (PixelBot Console, §8.7)", () => {
     fireEvent.keyDown(screen.getByRole("button", { name: "Más acciones" }), { key: "Enter" });
     expect(screen.getByText("Marcar como resuelto")).toBeInTheDocument();
     expect(screen.getByText("Archivar")).toBeInTheDocument();
+  });
+});
+
+describe("ContactPanel — modo revisor (WO-2026-00181)", () => {
+  const emptyMemory = { memory: [], loading: false, error: null, refetch: vi.fn() };
+
+  it("rol restringido: sin «Guardar contacto», sin ticket y sin nota rápida; la ficha sigue legible", () => {
+    useInboxBotMemoryMock.mockReturnValue(emptyMemory);
+    useIsRestrictedRoleMock.mockReturnValue(true);
+    render(<ContactPanel {...noopProps} />);
+
+    expect(screen.queryByRole("button", { name: /Guardar contacto/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Crear ticket de soporte/ })).not.toBeInTheDocument();
+    expect(screen.queryByText("CRM")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Actividad" }));
+    expect(screen.queryByLabelText("Nota rápida")).not.toBeInTheDocument();
+    expect(screen.getByText("Historial")).toBeInTheDocument();
+  });
+
+  it("admin/staff: los controles de CRM y la nota rápida siguen presentes", () => {
+    useInboxBotMemoryMock.mockReturnValue(emptyMemory);
+    render(<ContactPanel {...noopProps} />);
+
+    expect(screen.getByRole("button", { name: /Guardar contacto/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Crear ticket de soporte/ })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Actividad" }));
+    expect(screen.getByLabelText("Nota rápida")).toBeInTheDocument();
   });
 });

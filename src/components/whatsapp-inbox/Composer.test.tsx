@@ -9,10 +9,15 @@ vi.mock("@/lib/whatsapp-inbox/contacts-client", () => ({
   addContactNote: (phone: string, text: string) => addContactNote(phone, text),
 }));
 
+const { useIsRestrictedRoleMock } = vi.hoisted(() => ({ useIsRestrictedRoleMock: vi.fn() }));
+vi.mock("@/hooks/use-restricted-role", () => ({ useIsRestrictedRole: useIsRestrictedRoleMock }));
+
 let fetchMock: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
   addContactNote.mockClear();
+  // Admin por defecto: comportamiento histórico del composer.
+  useIsRestrictedRoleMock.mockReturnValue(false);
   fetchMock = vi.fn(async () => ({
     ok: true,
     status: 200,
@@ -76,5 +81,27 @@ describe("Composer — estados contextuales (§8.6)", () => {
     expect(screen.getByText(/plantilla aprobada/)).toBeInTheDocument();
     // El comportamiento actual se conserva: el envío sigue permitido.
     expect(screen.getByPlaceholderText("Escribe tu respuesta…")).toBeEnabled();
+  });
+});
+
+describe("Composer — modo revisor (WO-2026-00181)", () => {
+  it("rol restringido: sin selector «Nota interna», pero responde con normalidad", () => {
+    useIsRestrictedRoleMock.mockReturnValue(true);
+    render(<Composer phone="+5210000000001" mode="HUMAN" windowOpen />);
+    expect(screen.queryByRole("button", { name: "Nota interna" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Responder" })).not.toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Escribe tu respuesta…")).toBeInTheDocument();
+  });
+
+  it("sesión aún cargando (undefined): tampoco enseña «Nota interna» (fail-closed en presentación)", () => {
+    useIsRestrictedRoleMock.mockReturnValue(undefined);
+    render(<Composer phone="+5210000000001" mode="HUMAN" windowOpen />);
+    expect(screen.queryByRole("button", { name: "Nota interna" })).not.toBeInTheDocument();
+  });
+
+  it("admin/staff: el selector Responder | Nota interna sigue igual que antes", () => {
+    render(<Composer phone="+5210000000001" mode="HUMAN" windowOpen />);
+    expect(screen.getByRole("button", { name: "Nota interna" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Responder" })).toBeInTheDocument();
   });
 });

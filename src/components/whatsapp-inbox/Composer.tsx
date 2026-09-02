@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Hand, Send, StickyNote } from "lucide-react";
 import { toast } from "sonner";
+import { useIsRestrictedRole } from "@/hooks/use-restricted-role";
 import { cn } from "@/lib/utils";
 import { Spinner } from "@/components/ui/spinner";
 import { addContactNote } from "@/lib/whatsapp-inbox/contacts-client";
@@ -28,9 +29,15 @@ export function Composer({ phone, mode, windowOpen, onSent, onNoteSaved, onModeC
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [takingControl, setTakingControl] = useState(false);
+  const isRestricted = useIsRestrictedRole();
+
+  // Presentación: la nota interna es CRM y el middleware la deniega a un rol
+  // restringido. Mostrar el selector sería enseñarle al revisor de Meta un
+  // botón que falla. Fail-closed mientras la sesión carga (`undefined`).
+  const canWriteNotes = isRestricted === false;
 
   const canWriteMessage = mode === "HUMAN";
-  const isNoteMode = composerMode === "note";
+  const isNoteMode = canWriteNotes && composerMode === "note";
 
   function switchMode(next: ComposerMode) {
     if (next === composerMode) return;
@@ -111,36 +118,38 @@ export function Composer({ phone, mode, windowOpen, onSent, onNoteSaved, onModeC
   return (
     <div className="border-t border-border p-3">
       {/* Selector horizontal Responder | Nota interna (§8.6) */}
-      <div className="mb-2 flex items-center gap-1 rounded-lg border border-border bg-secondary/40 p-1 sm:w-fit">
-        <button
-          type="button"
-          aria-pressed={!isNoteMode}
-          onClick={() => switchMode("message")}
-          className={cn(
-            "flex-1 rounded-md px-3 py-1 text-xs font-medium transition-colors sm:flex-none",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40",
-            !isNoteMode
-              ? "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          Responder
-        </button>
-        <button
-          type="button"
-          aria-pressed={isNoteMode}
-          onClick={() => switchMode("note")}
-          className={cn(
-            "flex-1 rounded-md px-3 py-1 text-xs font-medium transition-colors sm:flex-none",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40",
-            isNoteMode
-              ? "bg-violet-500/15 text-violet-700 dark:text-violet-300"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          Nota interna
-        </button>
-      </div>
+      {canWriteNotes && (
+        <div className="mb-2 flex items-center gap-1 rounded-lg border border-border bg-secondary/40 p-1 sm:w-fit">
+          <button
+            type="button"
+            aria-pressed={!isNoteMode}
+            onClick={() => switchMode("message")}
+            className={cn(
+              "flex-1 rounded-md px-3 py-1 text-xs font-medium transition-colors sm:flex-none",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40",
+              !isNoteMode
+                ? "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            Responder
+          </button>
+          <button
+            type="button"
+            aria-pressed={isNoteMode}
+            onClick={() => switchMode("note")}
+            className={cn(
+              "flex-1 rounded-md px-3 py-1 text-xs font-medium transition-colors sm:flex-none",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40",
+              isNoteMode
+                ? "bg-violet-500/15 text-violet-700 dark:text-violet-300"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            Nota interna
+          </button>
+        </div>
+      )}
 
       {/* Bot/pausa a cargo: en vez de un campo gris bloqueado, explica y ofrece el takeover. */}
       {!isNoteMode && !canWriteMessage ? (
