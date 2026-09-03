@@ -9,10 +9,16 @@ import { BlogSidebar } from "@/components/blog/blog-sidebar";
 
 export const revalidate = 3600; // ISR: regenerar máximo cada hora
 
+// WO-2026-00213: título/H1 genéricos ("Insights & Tecnología") no explicaban
+// a Google ni al usuario qué encontrarían — propuesta de Miguel reemplaza
+// marca por intención de búsqueda real (PyMEs, IA, software, automatización).
+const BLOG_INDEX_TITLE = 'Blog de tecnología para PyMEs | IA, software y automatización';
+const BLOG_INDEX_DESCRIPTION = 'Guías, comparativas, calculadoras y casos reales sobre automatización con IA, software a medida y desarrollo de aplicaciones en México.';
+
 export const metadata: Metadata = buildMetadata({
   path: '/blog',
-  title: 'Blog · Insights y Tecnología',
-  description: 'Exploramos el futuro del desarrollo de software, la inteligencia artificial y la modernización empresarial.',
+  title: BLOG_INDEX_TITLE,
+  description: BLOG_INDEX_DESCRIPTION,
 });
 
 /** Paridad Encino (WO-2026-00088): filtros por query `?categoria=` / `?etiqueta=`
@@ -84,8 +90,8 @@ export default async function BlogPage({ searchParams }: { searchParams: Promise
   return (
     <>
       <CollectionPageStructuredData
-        name="Blog · Insights y Tecnología"
-        description="Exploramos el futuro del desarrollo de software, la inteligencia artificial y la modernización empresarial."
+        name={BLOG_INDEX_TITLE}
+        description={BLOG_INDEX_DESCRIPTION}
         path="/blog"
       />
       <BreadcrumbStructuredData items={[
@@ -97,10 +103,10 @@ export default async function BlogPage({ searchParams }: { searchParams: Promise
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
           <header className="mb-12 md:mb-16">
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-white mb-4 tracking-tight">
-              Insights &amp; Tecnología
+              Tecnología práctica para empresas que quieren crecer
             </h1>
             <p className="text-lg md:text-xl text-zinc-400 max-w-3xl leading-relaxed">
-              Exploramos el futuro del desarrollo de software, la inteligencia artificial y la modernización empresarial.
+              {BLOG_INDEX_DESCRIPTION}
             </p>
           </header>
 
