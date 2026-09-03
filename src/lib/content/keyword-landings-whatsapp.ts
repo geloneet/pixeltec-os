@@ -32,7 +32,7 @@ export const KEYWORD_LANDINGS_WHATSAPP: KeywordLanding[] = [
     slug: 'automatiza-tu-negocio',
     keyword: 'automatiza tu negocio',
     h1: 'Automatiza tu negocio: por dónde empezar, área por área',
-    metaTitle: 'Automatiza tu negocio: guía por áreas | PixelTEC',
+    metaTitle: 'Automatiza tu negocio: guía por áreas',
     metaDescription:
       'Automatiza tu negocio sin romper lo que funciona: qué conviene automatizar en ventas, cobros, atención y operaciones, y en qué orden hacerlo.',
     intro:
@@ -158,7 +158,7 @@ export const KEYWORD_LANDINGS_WHATSAPP: KeywordLanding[] = [
     slug: 'automatiza-tu-negocio-puerto-vallarta',
     keyword: 'automatiza tu negocio',
     h1: 'Automatiza tu negocio en Puerto Vallarta',
-    metaTitle: 'Automatiza tu negocio en Puerto Vallarta | PixelTEC',
+    metaTitle: 'Automatiza tu negocio en Puerto Vallarta',
     metaDescription:
       'Automatiza tu negocio en Puerto Vallarta: reservaciones, atención al huésped, cobros y reportes para hotelería, restaurantes, inmobiliaria y salud.',
     intro:

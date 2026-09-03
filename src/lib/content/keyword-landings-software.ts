@@ -495,7 +495,7 @@ export const KEYWORD_LANDINGS_SOFTWARE: KeywordLanding[] = [
     slug: 'programador-de-software-puerto-vallarta',
     keyword: 'programador de software',
     h1: 'Programador de software en Puerto Vallarta',
-    metaTitle: 'Programador de software en Puerto Vallarta | PixelTEC',
+    metaTitle: 'Programador de software en Puerto Vallarta',
     metaDescription:
       'Buscar programador de software en Puerto Vallarta: qué ofrece el mercado local, el riesgo de depender de una sola persona y cómo asegurar la continuidad.',
     intro:
@@ -752,7 +752,7 @@ export const KEYWORD_LANDINGS_SOFTWARE: KeywordLanding[] = [
     slug: 'sistemas-a-medida-puerto-vallarta',
     keyword: 'sistemas a medida',
     h1: 'Sistemas a medida en Puerto Vallarta',
-    metaTitle: 'Sistemas a medida en Puerto Vallarta | PixelTEC',
+    metaTitle: 'Sistemas a medida en Puerto Vallarta',
     metaDescription:
       'Sistemas a medida en Puerto Vallarta: procesos de hotelería, restaurantes e inmobiliaria que ningún software de catálogo cubre, y cómo se resuelven.',
     intro:
