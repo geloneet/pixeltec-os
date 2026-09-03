@@ -107,9 +107,21 @@ no se escribe a mano: sale de la primera venta del cliente vinculado.
 | `newsletter_signup` | servidor | — | |
 
 Valores de `cta`: `diagnostico`, `contacto`, `whatsapp`, `internal_link`, `related`.
-Valores de `position`: texto libre corto (`article_footer`, `header`, `footer`,
-`landing_cta`…) — el catálogo cerrado está en `src/lib/analytics/events.ts` y el endpoint
-valida contra él.
+Valores de `position`: vocabulario cerrado (`header`, `footer`, `article_footer`,
+`article_body`, `landing_cta`, `landing_related`, `sidebar`) — el catálogo está en
+`src/lib/analytics/events.ts` y el endpoint valida contra él. Cerrado a propósito:
+`article_footer` y `articleFooter` contando por separado es un dato roto que nadie nota.
+
+### Estado real de cada evento en Fase 1
+
+| Evento | ¿Se emite hoy? |
+|---|---|
+| `view`, `scroll`, `cta_click` | **Sí** — `ContentTracker` en el blog y en las landings |
+| `diagnostic_start` | **No.** El wizard vive en `/diagnostico`, que no es una pieza de contenido: el endpoint sólo acepta paths del catálogo de contenido, así que el evento se descartaría. El emisor (`trackContentEvent`) queda listo; conectarlo exige decidir antes **qué significa** medir ahí, y eso es diseño de producto, no de infraestructura |
+| `diagnostic_complete`, `lead_created`, `newsletter_signup` | **No.** Son eventos de servidor y en Fase 1 serían redundantes: el paso "leads" del embudo se calcula desde la tabla `leads` (que ya guarda `first_content_path`), no desde `content_events`. Escribirlos ahora crearía una segunda cuenta de leads que se puede desviar de la primera |
+
+El catálogo los declara igualmente porque el esquema y la validación tienen que
+soportarlos el día que se conecten. Lo que NO se hizo fue fingir que ya funcionan.
 
 ### Por qué el marcado de CTAs es sólo `data-*`
 
