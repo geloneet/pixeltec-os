@@ -8,6 +8,7 @@ import { formatEditorialDate } from '@/lib/blog/format-date';
 import type { PublicBlogPost } from '@/lib/blog/public-post';
 import type { HeadingEntry } from '@/lib/blog/heading-utils';
 import { ViewBeacon } from '@/components/blog/view-beacon';
+import { BlogSidebar } from '@/components/blog/blog-sidebar';
 
 const MarkdownRenderer = dynamic(() => import('@/components/blog/markdown-renderer'));
 
@@ -22,14 +23,22 @@ interface RelatedCard {
   category: string;
 }
 
+interface SidebarData {
+  recentPosts: { slug: string; title: string }[];
+  categories: string[];
+  tags: string[];
+}
+
 export default function BlogPostClient({
   post,
   related,
   headings,
+  sidebar,
 }: {
   post: PublicBlogPost;
   related: RelatedCard[];
   headings: HeadingEntry[];
+  sidebar: SidebarData;
 }) {
   const coverImage = post.coverImage ?? DEFAULT_COVER;
   const coverAlt = post.coverAlt || post.title;
@@ -45,7 +54,7 @@ export default function BlogPostClient({
   return (
     <main className="min-h-screen bg-[#030303] text-white pt-32 sm:pt-40 pb-16 sm:pb-24">
       <ViewBeacon slug={post.slug} />
-      <div className="container mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+      <div className="container mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="mb-8 md:mb-10">
           <Link
             href="/blog"
@@ -56,6 +65,8 @@ export default function BlogPostClient({
           </Link>
         </div>
 
+        <div className="lg:grid lg:grid-cols-[1fr_280px] lg:items-start lg:gap-12">
+        <div className="min-w-0">
         <header className="relative mb-12 h-64 sm:h-80 md:h-96 w-full overflow-hidden rounded-2xl md:rounded-3xl shadow-[0_0_30px_rgba(0,240,255,0.05)]">
           <Image src={coverImage} alt={coverAlt} fill className="object-cover" priority />
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
@@ -251,6 +262,16 @@ export default function BlogPostClient({
             </section>
           )}
         </footer>
+        </div>
+
+        <div className="hidden lg:block">
+          <BlogSidebar
+            recentPosts={sidebar.recentPosts}
+            categories={sidebar.categories}
+            tags={sidebar.tags}
+          />
+        </div>
+        </div>
       </div>
     </main>
   );

@@ -86,8 +86,13 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
     notFound();
   }
 
-  const { getRelatedPosts } = await import('@/lib/blog/queries/posts');
+  const { getRelatedPosts, getBlogSidebarData } = await import('@/lib/blog/queries/posts');
   const related = await getRelatedPosts(post.slug, post.category).catch(() => []);
+  // WO-2026-00212: mismo sidebar del listado (Entradas recientes/Categorías/
+  // Etiquetas), también en la entrada individual — pedido explícito de
+  // Miguel. Excluye el post actual de "recientes" (no aplica en /blog, que
+  // no tiene un "post actual").
+  const sidebar = await getBlogSidebarData(post.slug).catch(() => ({ recentPosts: [], categories: [], tags: [] }));
   const headings = extractHeadings(post.body);
 
   const imageUrl = post.coverImage ? absoluteUrl(post.coverImage) : DEFAULT_POST_IMAGE;
@@ -129,6 +134,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
         post={publicPost}
         headings={headings}
         related={related.map((r) => ({ slug: r.slug, title: r.title, excerpt: r.excerpt, category: r.category }))}
+        sidebar={sidebar}
       />
     </>
   );
