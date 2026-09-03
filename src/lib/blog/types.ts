@@ -158,6 +158,11 @@ export interface BlogPostDoc {
      *  paridad Encino tab «Snippets»; jsonb aditivo — sin migración). Se emiten
      *  como JSON-LD extra en la página pública. Ausente ⇒ []. */
     schemaTypes?: string[];
+    /** Override de la función en el embudo (WO-2026-00214; jsonb aditivo — sin
+     *  migración). Ausente ⇒ se DERIVA de `searchIntent` en
+     *  `src/lib/seo-insights/classify.ts`. Solo se declara en el caso raro en
+     *  que la intención de búsqueda y la función real no coinciden. */
+    contentRole?: 'awareness' | 'consideration' | 'commercial';
   };
 
   // ── WO-2026-00088 (D-C Opción A, migración 0043) — paridad Encino ──────────
