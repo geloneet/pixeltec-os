@@ -38,20 +38,24 @@ Estados: existente · optimizar · consolidar · crear · redirigir · archivar.
 en `src/lib/content/keyword-landings*.ts`; los `page.tsx` los genera
 `scripts/gen-keyword-landing-pages.mjs` (no se editan a mano). Estado `creada`
 = registro + ruta + sitemap en la rama `feature/seo-landings-puerto-vallarta`;
-`crear` = pendiente de las partes 2 y 3 del WorkOrder.
+`crear` = pendiente de la parte 3 del WorkOrder (clúster C, apps).
+
+Clústeres A (software, 10 URL) y B (WhatsApp, 8 URL) entregados. El sitemap no
+enumera estas rutas a mano: `src/app/sitemap.ts` las deriva de
+`KEYWORD_LANDINGS`, así que agregar una entrada al registro la publica.
 
 | URL | Tipo | Intención | Keyword principal [Hipótesis] | Funnel | CTA | Estado |
 |---|---|---|---|---|---|---|
-| /empresas-de-desarrollo-de-software | landing keyword | investigación comercial | empresas de desarrollo de software | consideration | contacto | crear |
-| /empresas-de-desarrollo-de-software-puerto-vallarta | landing keyword local | investigación comercial local | empresas de desarrollo de software puerto vallarta | consideration | contacto | crear |
-| /programador-de-software | landing keyword | investigación comercial | programador de software | consideration | contacto | crear |
-| /programador-de-software-puerto-vallarta | landing keyword local | investigación comercial local | programador de software puerto vallarta | consideration | contacto | crear |
-| /sistemas-a-medida | landing keyword | informacional → comercial | sistemas a medida | awareness→consideration | diagnóstico | crear |
-| /sistemas-a-medida-puerto-vallarta | landing keyword local | informacional → comercial local | sistemas a medida puerto vallarta | awareness→consideration | diagnóstico | crear |
-| /software-a-medida-para-empresas | landing keyword | investigación comercial | software a medida para empresas | consideration | contacto | crear |
-| /software-a-medida-para-empresas-puerto-vallarta | landing keyword local | investigación comercial local | software a medida para empresas puerto vallarta | consideration | contacto | crear |
-| /sistema-personalizado-para-empresas | landing keyword | investigación comercial | sistema personalizado para empresas | consideration | contacto | crear |
-| /sistema-personalizado-para-empresas-puerto-vallarta | landing keyword local | investigación comercial local | sistema personalizado para empresas puerto vallarta | consideration | contacto | crear |
+| /empresas-de-desarrollo-de-software | landing keyword | investigación comercial | empresas de desarrollo de software | consideration | contacto | creada |
+| /empresas-de-desarrollo-de-software-puerto-vallarta | landing keyword local | investigación comercial local | empresas de desarrollo de software puerto vallarta | consideration | contacto | creada |
+| /programador-de-software | landing keyword | investigación comercial | programador de software | consideration | contacto | creada |
+| /programador-de-software-puerto-vallarta | landing keyword local | investigación comercial local | programador de software puerto vallarta | consideration | contacto | creada |
+| /sistemas-a-medida | landing keyword | informacional → comercial | sistemas a medida | awareness→consideration | diagnóstico | creada |
+| /sistemas-a-medida-puerto-vallarta | landing keyword local | informacional → comercial local | sistemas a medida puerto vallarta | awareness→consideration | diagnóstico | creada |
+| /software-a-medida-para-empresas | landing keyword | investigación comercial | software a medida para empresas | consideration | contacto | creada |
+| /software-a-medida-para-empresas-puerto-vallarta | landing keyword local | investigación comercial local | software a medida para empresas puerto vallarta | consideration | contacto | creada |
+| /sistema-personalizado-para-empresas | landing keyword | investigación comercial | sistema personalizado para empresas | consideration | contacto | creada |
+| /sistema-personalizado-para-empresas-puerto-vallarta | landing keyword local | investigación comercial local | sistema personalizado para empresas puerto vallarta | consideration | contacto | creada |
 | /automatiza-tu-negocio | landing keyword | informacional → comercial | automatiza tu negocio | awareness→consideration | diagnóstico | creada |
 | /automatiza-tu-negocio-puerto-vallarta | landing keyword local | informacional → comercial local | automatiza tu negocio puerto vallarta | awareness→consideration | diagnóstico | creada |
 | /automatizar-mensajes-de-whatsapp | landing keyword | informacional → transaccional | automatizar mensajes de whatsapp | consideration | contacto | creada |
@@ -71,6 +75,12 @@ en `src/lib/content/keyword-landings*.ts`; los `page.tsx` los genera
 
 ### Riesgo de canibalización dentro de los clústeres
 
+- Clúster A (software): `sistemas-a-medida`, `software-a-medida-para-empresas`
+  y `sistema-personalizado-para-empresas` comparten campo semántico. Se separan
+  por ángulo (a medida vs. SaaS · retorno, proceso y costo · los sistemas
+  concretos: inventario, cotizador, CRM y portal) y se enlazan entre sí.
+  `empresas-de-desarrollo-de-software` y `programador-de-software` se separan
+  por sujeto: la empresa proveedora frente al perfil que programa.
 - Clúster B (WhatsApp): `automatizar-mensajes-de-whatsapp`,
   `automatizar-whatsapp-business` y `automatizacion-de-mensajes-en-whatsapp`
   son casi sinónimas. Se separan por ángulo (mecánica y reglas de Meta · app
