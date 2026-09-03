@@ -30,3 +30,68 @@ Estados: existente · optimizar · consolidar · crear · redirigir · archivar.
   código).
 - `/about` vs `/equipo`: intenciones cercanas; mantener separadas SOLO si
   /equipo crece con bios reales de autor (requisito del blog E-E-A-T).
+
+## Landings por keyword (WO-2026-00189)
+
+26 URL nuevas: 13 keywords × (genérica + Puerto Vallarta). Plan y ángulos en
+`docs/seo/plan-posicionamiento-puerto-vallarta-2026-09.md` §2. Registro tipado
+en `src/lib/content/keyword-landings*.ts`; los `page.tsx` los genera
+`scripts/gen-keyword-landing-pages.mjs` (no se editan a mano). Estado `creada`
+= registro + ruta + sitemap en la rama `feature/seo-landings-puerto-vallarta`.
+
+Los tres clústeres están entregados: A (software, 10 URL), B (WhatsApp, 8 URL)
+y C (apps, 8 URL) — 26 de 26. El sitemap no enumera estas rutas a mano:
+`src/app/sitemap.ts` las deriva de `KEYWORD_LANDINGS`, así que agregar una
+entrada al registro la publica.
+
+| URL | Tipo | Intención | Keyword principal [Hipótesis] | Funnel | CTA | Estado |
+|---|---|---|---|---|---|---|
+| /empresas-de-desarrollo-de-software | landing keyword | investigación comercial | empresas de desarrollo de software | consideration | contacto | creada |
+| /empresas-de-desarrollo-de-software-puerto-vallarta | landing keyword local | investigación comercial local | empresas de desarrollo de software puerto vallarta | consideration | contacto | creada |
+| /programador-de-software | landing keyword | investigación comercial | programador de software | consideration | contacto | creada |
+| /programador-de-software-puerto-vallarta | landing keyword local | investigación comercial local | programador de software puerto vallarta | consideration | contacto | creada |
+| /sistemas-a-medida | landing keyword | informacional → comercial | sistemas a medida | awareness→consideration | diagnóstico | creada |
+| /sistemas-a-medida-puerto-vallarta | landing keyword local | informacional → comercial local | sistemas a medida puerto vallarta | awareness→consideration | diagnóstico | creada |
+| /software-a-medida-para-empresas | landing keyword | investigación comercial | software a medida para empresas | consideration | contacto | creada |
+| /software-a-medida-para-empresas-puerto-vallarta | landing keyword local | investigación comercial local | software a medida para empresas puerto vallarta | consideration | contacto | creada |
+| /sistema-personalizado-para-empresas | landing keyword | investigación comercial | sistema personalizado para empresas | consideration | contacto | creada |
+| /sistema-personalizado-para-empresas-puerto-vallarta | landing keyword local | investigación comercial local | sistema personalizado para empresas puerto vallarta | consideration | contacto | creada |
+| /automatiza-tu-negocio | landing keyword | informacional → comercial | automatiza tu negocio | awareness→consideration | diagnóstico | creada |
+| /automatiza-tu-negocio-puerto-vallarta | landing keyword local | informacional → comercial local | automatiza tu negocio puerto vallarta | awareness→consideration | diagnóstico | creada |
+| /automatizar-mensajes-de-whatsapp | landing keyword | informacional → transaccional | automatizar mensajes de whatsapp | consideration | contacto | creada |
+| /automatizar-mensajes-de-whatsapp-puerto-vallarta | landing keyword local | informacional → transaccional local | automatizar mensajes de whatsapp puerto vallarta | consideration | contacto | creada |
+| /automatizar-whatsapp-business | landing keyword | informacional comparativa | automatizar whatsapp business | consideration | contacto | creada |
+| /automatizar-whatsapp-business-puerto-vallarta | landing keyword local | informacional comparativa local | automatizar whatsapp business puerto vallarta | consideration | contacto | creada |
+| /automatizacion-de-mensajes-en-whatsapp | landing keyword | investigación comercial | automatizacion de mensajes en whatsapp | consideration→decision | contacto | creada |
+| /automatizacion-de-mensajes-en-whatsapp-puerto-vallarta | landing keyword local | investigación comercial local | automatizacion de mensajes en whatsapp puerto vallarta | consideration→decision | contacto | creada |
+| /desarrolladores-de-app | landing keyword | investigación comercial | desarrolladores de app | consideration | contacto | creada |
+| /desarrolladores-de-app-puerto-vallarta | landing keyword local | investigación comercial local | desarrolladores de app puerto vallarta | consideration | contacto | creada |
+| /desarrollo-de-app | landing keyword | informacional → comercial | desarrollo de app | awareness→consideration | contacto | creada |
+| /desarrollo-de-app-puerto-vallarta | landing keyword local | informacional → comercial local | desarrollo de app puerto vallarta | awareness→consideration | contacto | creada |
+| /desarrolladores-de-apps | landing keyword | investigación comercial | desarrolladores de apps | consideration | contacto | creada |
+| /desarrolladores-de-apps-puerto-vallarta | landing keyword local | investigación comercial local | desarrolladores de apps puerto vallarta | consideration | contacto | creada |
+| /desarrollo-de-aplicaciones-moviles | landing keyword | informacional → comercial | desarrollo de aplicaciones moviles | awareness→consideration | contacto | creada |
+| /desarrollo-de-aplicaciones-moviles-puerto-vallarta | landing keyword local | informacional → comercial local | desarrollo de aplicaciones moviles puerto vallarta | awareness→consideration | contacto | creada |
+
+### Riesgo de canibalización dentro de los clústeres
+
+- Clúster A (software): `sistemas-a-medida`, `software-a-medida-para-empresas`
+  y `sistema-personalizado-para-empresas` comparten campo semántico. Se separan
+  por ángulo (a medida vs. SaaS · retorno, proceso y costo · los sistemas
+  concretos: inventario, cotizador, CRM y portal) y se enlazan entre sí.
+  `empresas-de-desarrollo-de-software` y `programador-de-software` se separan
+  por sujeto: la empresa proveedora frente al perfil que programa.
+- Clúster B (WhatsApp): `automatizar-mensajes-de-whatsapp`,
+  `automatizar-whatsapp-business` y `automatizacion-de-mensajes-en-whatsapp`
+  son casi sinónimas. Se separan por ángulo (mecánica y reglas de Meta · app
+  vs. API · casos por industria e indicadores) y se enlazan entre sí. Si en GSC
+  dos de ellas compiten por la misma consulta, se consolida con 301 —decisión
+  de Miguel con datos, no antes.
+- Clúster C (apps): mismo riesgo entre `desarrolladores-de-app` y
+  `desarrolladores-de-apps`. Se separan por ángulo: `desarrolladores-de-app`
+  habla del EQUIPO (perfiles, roles y cómo evaluarlos) y `desarrolladores-de-apps`
+  del TIPO de app (web app, PWA o móvil, y cuándo cada una); `desarrollo-de-app`
+  cubre el PROCESO fase por fase y `desarrollo-de-aplicaciones-moviles` la
+  decisión técnica móvil (iOS/Android/PWA, tiendas y costo de mantener). Las
+  cuatro se enlazan entre sí y con el clúster A por el hub `ecosistemas-web`;
+  vigilar desde la primera lectura de GSC y consolidar con 301 solo con datos.

@@ -27,6 +27,8 @@ import { Footer } from '@/components/ui/footer-section';
 import { ShinyButton } from '@/components/ui/shiny-button';
 import { LOCAL_AUTOMATION_CITIES } from '@/lib/content/automatizacion-local';
 import { DESARROLLO_WEB_CITIES, CONSULTORIA_CITIES } from '@/lib/content/local-services';
+import { KEYWORD_LANDINGS_BY_HUB } from '@/lib/content/keyword-landings';
+import type { KeywordLandingHub } from '@/lib/content/keyword-landings';
 
 // Jerarquía de información: Home > Servicios > <Servicio> > <Ciudad>. Este
 // mapa alimenta tanto el bloque "presencia local" (enlaces hacia las páginas
@@ -36,6 +38,15 @@ const LOCAL_CITIES_BY_SERVICE: Record<string, { slug: string; city: string }[]> 
   'automatizacion': LOCAL_AUTOMATION_CITIES,
   'ecosistemas-web': DESARROLLO_WEB_CITIES,
   'consultoria': CONSULTORIA_CITIES,
+};
+
+// Landings por keyword (WO-2026-00189): el hub del servicio enlaza hacia
+// abajo a sus landings genéricas y de Puerto Vallarta. Solo `ecosistemas-web` y
+// `automatizacion` son hubs de keyword; `consultoria` no tiene clúster propio.
+const KEYWORD_HUB_BY_SERVICE: Record<string, KeywordLandingHub | undefined> = {
+  'ecosistemas-web': 'ecosistemas-web',
+  'automatizacion': 'automatizacion',
+  'consultoria': undefined,
 };
 
 const RELATED_SERVICES: Record<string, { slug: string; title: string }[]> = {
@@ -205,6 +216,9 @@ export default function ServiceDetailClient({ slug }: { slug: string }) {
     notFound();
   }
 
+  const keywordHub = KEYWORD_HUB_BY_SERVICE[service.slug];
+  const keywordLandings = keywordHub ? KEYWORD_LANDINGS_BY_HUB[keywordHub] : [];
+
   return (
     <>
     {/* El Service JSON-LD lo emite únicamente el RSC page.tsx (era doble y
@@ -295,6 +309,35 @@ export default function ServiceDetailClient({ slug }: { slug: string }) {
                   className="rounded-full border border-primary/25 dark:border-cyan-500/25 bg-primary/5 dark:bg-cyan-500/5 px-4 py-2 text-sm font-medium text-primary dark:text-cyan-400 hover:bg-primary/10 dark:hover:bg-cyan-500/10 transition-colors"
                 >
                   {city.city}
+                </Link>
+              ))}
+            </div>
+          </motion.aside>
+        )}
+
+        {keywordLandings.length > 0 && (
+          <motion.aside
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, amount: 0.2 }}
+            variants={sectionVariants}
+            className="mb-8 rounded-2xl border border-border bg-card p-6 sm:p-8"
+          >
+            <h2 className="text-lg sm:text-xl font-semibold text-foreground">
+              Guías y servicios relacionados
+            </h2>
+            <p className="mt-2 text-sm sm:text-base text-muted-foreground leading-relaxed">
+              Páginas con el detalle de cada tema, en su versión general y para Puerto Vallarta:
+            </p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              {keywordLandings.map((landing) => (
+                <Link
+                  key={landing.slug}
+                  href={`/${landing.slug}`}
+                  className="rounded-full border border-primary/25 dark:border-cyan-500/25 bg-primary/5 dark:bg-cyan-500/5 px-4 py-2 text-sm font-medium text-primary dark:text-cyan-400 hover:bg-primary/10 dark:hover:bg-cyan-500/10 transition-colors"
+                >
+                  {landing.keyword}
+                  {landing.city ? ` en ${landing.city.name}` : ''}
                 </Link>
               ))}
             </div>

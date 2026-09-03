@@ -6,6 +6,7 @@ import { getFlag } from "@/lib/settings/queries";
 import { SETTING_SITEMAP_ENABLED } from "@/lib/seo/keys";
 import { LOCAL_AUTOMATION_CITIES } from "@/lib/content/automatizacion-local";
 import { DESARROLLO_WEB_CITIES, CONSULTORIA_CITIES } from "@/lib/content/local-services";
+import { KEYWORD_LANDINGS } from "@/lib/content/keyword-landings";
 
 const BASE_URL = SITE.url;
 
@@ -74,7 +75,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.7,
   }));
 
+  // Landings por keyword (WO-2026-00189): misma prioridad y frecuencia que las
+  // de ciudad — son páginas del mismo nivel en la jerarquía, colgadas de un hub.
+  const keywordLandingRoutes: MetadataRoute.Sitemap = KEYWORD_LANDINGS.map((landing) => ({
+    url: `${BASE_URL}/${landing.slug}`,
+    lastModified: new Date('2026-09-02'),
+    changeFrequency: "monthly" as const,
+    priority: 0.7,
+  }));
+
   const blogRoutes = await getBlogRoutes();
 
-  return [...staticRoutes, ...serviceRoutes, ...localServiceRoutes, ...blogRoutes];
+  return [
+    ...staticRoutes,
+    ...serviceRoutes,
+    ...localServiceRoutes,
+    ...keywordLandingRoutes,
+    ...blogRoutes,
+  ];
 }
