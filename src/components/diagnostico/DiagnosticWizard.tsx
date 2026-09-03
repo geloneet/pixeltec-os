@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { ChevronLeft } from 'lucide-react';
 import type { DiagnosticResult } from '@/lib/diagnostic/logic';
 import { submitDiagnostic } from '@/app/actions';
+import { getTrackingSessionId } from '@/lib/analytics/session';
 import { DiagnosticStepper } from './DiagnosticStepper';
 import { StepWelcome } from './steps/StepWelcome';
 import { StepCompanyType } from './steps/StepCompanyType';
@@ -69,6 +70,8 @@ export function DiagnosticWizard({ variant = 'page', initialIndustry, onClose, h
         priority: answers.priority,
         consent: answers.consent ? 'on' : '',
         website: answers.website,
+        // WO-2026-00214: une el lead con su rastro de `content_events`.
+        sessionId: getTrackingSessionId() ?? undefined,
       });
       if (res.ok) {
         setResult(res.result);

@@ -3,6 +3,7 @@
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef } from 'react';
 import { PROTECTED_PATHS } from '@/lib/routes/admin-routes';
+import { getTrackingSessionId } from '@/lib/analytics/session';
 import {
   SCROLL_DEPTHS,
   type ClientEventName,
@@ -30,40 +31,11 @@ import {
  * Diseño: docs/superpowers/specs/2026-09-03-seo-contenido-design.md
  */
 
-const SESSION_KEY = 'pt_sid';
 const ENDPOINT = '/api/events';
 
 /** Mismo criterio de exclusión que el pixel de Meta. */
 function isTrackedPath(pathname: string): boolean {
   return !PROTECTED_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
-}
-
-/**
- * uuid v4 de sesión. `sessionStorage` y no `localStorage` a propósito: la
- * sesión es la unidad de análisis y no debe sobrevivir al cierre de la pestaña
- * — un identificador persistente empezaría a parecerse a un perfil de persona,
- * que es justo lo que este diseño evita.
- *
- * En modo privado sin storage devuelve un id efímero: se pierde el dedupe entre
- * recargas, pero contar de más una vez es mejor que perder la sesión entera.
- */
-function getSessionId(): string | null {
-  const fresh = (): string | null => {
-    try {
-      return crypto.randomUUID();
-    } catch {
-      return null;
-    }
-  };
-  try {
-    const stored = sessionStorage.getItem(SESSION_KEY);
-    if (stored) return stored;
-    const created = fresh();
-    if (created) sessionStorage.setItem(SESSION_KEY, created);
-    return created;
-  } catch {
-    return fresh();
-  }
 }
 
 /**
@@ -99,7 +71,7 @@ export function trackContentEvent(
   path: string,
   meta?: Record<string, unknown>
 ): void {
-  const sessionId = getSessionId();
+  const sessionId = getTrackingSessionId();
   if (!sessionId) return;
   send({ sessionId, path: path.split('?')[0].split('#')[0], event, meta });
 }
@@ -118,7 +90,7 @@ export function ContentTracker() {
     if (!isTrackedPath(pathname)) return;
 
     sentDepths.current = new Set();
-    const sessionId = getSessionId();
+    const sessionId = getTrackingSessionId();
     if (!sessionId) return;
 
     const path = pathname;

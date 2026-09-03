@@ -9,12 +9,37 @@
 import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { leads } from '@/lib/db/schema';
+import type { Attribution } from '@/lib/analytics/attribution';
 
 export type LeadSource = 'contact_form' | 'newsletter' | 'diagnostic';
 export type LeadStatus = 'new' | 'contacted' | 'qualified' | 'lost';
 export type EmailDeliveryStatus = 'pending' | 'sent' | 'failed';
 
-export interface CreateLeadInput {
+/**
+ * Atribución de contenido (WO-2026-00214, migración 0051). Todo opcional: un
+ * navegador sin cookies o sin `sessionStorage` sigue generando un lead válido
+ * — perder la atribución nunca puede costar un lead.
+ */
+export interface LeadAttributionInput {
+  /** uuid v4 de `sessionStorage`, enviado por el formulario como campo oculto. */
+  sessionId?: string | null;
+  /** Contenido de la cookie `pt_attr` ya parseado. Sin PII. */
+  attribution?: Attribution | Record<string, never> | null;
+  landingPath?: string | null;
+  firstContentPath?: string | null;
+}
+
+/** Normaliza la atribución a los valores que espera el insert. */
+function attributionValues(input: LeadAttributionInput) {
+  return {
+    sessionId: input.sessionId ?? null,
+    attribution: input.attribution ?? {},
+    landingPath: input.landingPath ?? null,
+    firstContentPath: input.firstContentPath ?? null,
+  };
+}
+
+export interface CreateLeadInput extends LeadAttributionInput {
   source: LeadSource;
   email: string;
   name?: string;
@@ -44,12 +69,13 @@ export async function createLead(input: CreateLeadInput): Promise<string> {
       ipHash: input.ipHash ?? null,
       status: 'new',
       emailDeliveryStatus: 'pending',
+      ...attributionValues(input),
     })
     .returning({ id: leads.id });
   return row.id;
 }
 
-export interface CreateDiagnosticLeadInput {
+export interface CreateDiagnosticLeadInput extends LeadAttributionInput {
   email: string;
   name: string;
   phone?: string;
@@ -89,6 +115,7 @@ export async function createDiagnosticLead(input: CreateDiagnosticLeadInput): Pr
       ipHash: input.ipHash ?? null,
       status: 'new',
       emailDeliveryStatus: 'pending',
+      ...attributionValues(input),
     })
     .returning({ id: leads.id });
   return row.id;

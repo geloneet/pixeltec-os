@@ -18,7 +18,15 @@ import { subscribeOrReactivate, normalizeEmail } from '@/lib/newsletter-repo';
 import { logSystemAlert } from '@/lib/system-alerts';
 import { recordSecurityEvent } from '@/lib/security/events';
 import { hashIp } from '@/lib/privacy';
-import { headers } from 'next/headers';
+import { headers, cookies } from 'next/headers';
+import {
+  ATTRIBUTION_COOKIE,
+  parseAttributionCookie,
+  toLeadFields,
+  type LeadAttributionFields,
+} from '@/lib/analytics/attribution';
+import { SESSION_FIELD_NAME } from '@/lib/analytics/session';
+import { SESSION_ID_RE } from '@/lib/analytics/events';
 import crypto from 'node:crypto';
 import { eq, and, isNull, gt } from 'drizzle-orm';
 import { db as pgDb } from '@/lib/db';
@@ -85,6 +93,34 @@ const HONEYPOT_SILENT_SUCCESS: ContactFormState = {
   message: '¡Gracias! Te enviamos una confirmación a tu correo. Te respondemos en menos de 24 h.',
   isSuccess: true,
 };
+
+/**
+ * Atribución de contenido del visitante (WO-2026-00214).
+ *
+ * Lee la cookie first-party `pt_attr` y valida el `session_id` que el
+ * formulario mandó como campo oculto. **Best-effort a propósito**: cualquier
+ * fallo devuelve atribución vacía y el lead se guarda igual. Perder de dónde
+ * vino un lead es molesto; perder el lead es inaceptable.
+ *
+ * El `session_id` se valida contra el formato de uuid v4 antes de persistirlo:
+ * es un campo que llega del cliente y no debe entrar sin comprobar.
+ */
+async function getAttributionContext(
+  rawSessionId: unknown
+): Promise<LeadAttributionFields & { sessionId: string | null }> {
+  let attribution: LeadAttributionFields = { attribution: {}, landingPath: null, firstContentPath: null };
+  try {
+    const store = await cookies();
+    attribution = toLeadFields(parseAttributionCookie(store.get(ATTRIBUTION_COOKIE)?.value ?? null));
+  } catch (err) {
+    console.warn('[attribution] no se pudo leer la cookie — se continúa sin atribución', err);
+  }
+
+  const candidate = typeof rawSessionId === 'string' ? rawSessionId.trim() : '';
+  const sessionId = SESSION_ID_RE.test(candidate) ? candidate : null;
+
+  return { ...attribution, sessionId };
+}
 
 async function getRequestContext(): Promise<{ ip: string; userAgent: string }> {
   const h = await headers();
@@ -164,6 +200,7 @@ export async function submitContactForm(
       message,
       userAgent,
       ipHash: hashIp(ip),
+      ...(await getAttributionContext(formData.get(SESSION_FIELD_NAME))),
     });
   } catch (err) {
     console.error('[contact] createLead failed:', err);
@@ -258,6 +295,9 @@ export type DiagnosticFormInput = {
   consent: string;
   /** Honeypot — debe llegar vacío. */
   website?: string;
+  /** uuid v4 de `sessionStorage` (WO-2026-00214). Opcional: sin él, el lead
+   *  se guarda sin poder unirse a su rastro de `content_events`. */
+  sessionId?: string;
 };
 
 export type SubmitDiagnosticState =
@@ -338,6 +378,7 @@ export async function submitDiagnostic(input: DiagnosticFormInput): Promise<Subm
       answers: { ...answers, result },
       userAgent,
       ipHash: hashIp(ip),
+      ...(await getAttributionContext(input.sessionId)),
     });
   } catch (err) {
     console.error('[diagnostic] createDiagnosticLead failed:', err);

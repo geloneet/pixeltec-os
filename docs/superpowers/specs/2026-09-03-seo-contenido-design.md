@@ -143,11 +143,29 @@ Reglas duras:
 
 ### Lado servidor
 
-`submitContactForm`, `submitDiagnostic` y `subscribeToNewsletterAction` leen la cookie
-`pt_attr` con `cookies()` y el `session_id` que el formulario manda como campo oculto, y
-persisten `attribution`, `landing_path`, `first_content_path` y `session_id` en el lead.
-La lectura es **best-effort**: una cookie corrupta o ausente no puede costar un lead — se
-guarda el lead sin atribución y ya.
+`submitContactForm` y `submitDiagnostic` leen la cookie `pt_attr` con `cookies()` y el
+`session_id` que el formulario manda como campo oculto (`<SessionIdField />`), y persisten
+`attribution`, `landing_path`, `first_content_path` y `session_id` en el lead. La lectura
+es **best-effort**: una cookie corrupta o ausente no puede costar un lead — se guarda el
+lead sin atribución y ya. El `session_id` se valida contra el formato uuid v4 antes de
+persistirse: llega del cliente y no entra sin comprobar.
+
+Superficies cubiertas: la página `/contact`, la sección de contacto de la home, el
+formulario de la landing de PixelBot y el wizard del diagnóstico.
+
+### El newsletter queda fuera — y por qué
+
+El plan pedía atribuir también el alta al newsletter. **No se puede sin cambiar el
+modelo**, y verificándolo en el código real: `subscribeToNewsletterAction` NO crea una
+fila en `leads` — escribe en `newsletter_subscribers`, que no tiene ninguna columna de
+atribución, y la migración 0051 no le añade ninguna (el plan aprobado sólo toca `leads`).
+El valor `newsletter` del enum `lead_source` existe, pero hoy nadie lo escribe.
+
+Hay dos salidas y ninguna es de Fase 1: crear un `lead` por cada alta al newsletter
+(cambio de comportamiento del funnel, con riesgo de duplicar contra el lead de contacto
+de la misma persona), o añadir columnas de atribución a `newsletter_subscribers` (otra
+migración). **Miguel decide** cuál, si es que alguna. Mientras tanto el newsletter sigue
+funcionando exactamente igual que hoy, sin atribución.
 
 ## "Función" de un contenido — `awareness | consideration | commercial`
 
