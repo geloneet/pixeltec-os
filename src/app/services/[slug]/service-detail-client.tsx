@@ -275,14 +275,14 @@ export default function ServiceDetailClient({ slug }: { slug: string }) {
                 ¿Buscas un agente de IA para WhatsApp?
               </h2>
               <p className="mt-2 text-sm sm:text-base text-muted-foreground leading-relaxed">
-                PixelBot es nuestro producto dedicado: atiende, califica y entrega conversaciones a tu equipo, implementado y operado por PixelTEC.
+                WhatsAgent es nuestro producto dedicado: atiende, califica y entrega conversaciones a tu equipo, implementado y operado por PixelTEC.
               </p>
             </div>
             <Link
               href="/pixelbot"
               className="mt-4 sm:mt-0 inline-flex flex-shrink-0 items-center font-semibold text-primary dark:text-cyan-400 hover:underline"
             >
-              Conocer PixelBot →
+              Conocer WhatsAgent →
             </Link>
           </motion.aside>
         )}

@@ -1,9 +1,14 @@
 import { HandHelping, ShieldCheck, SlidersHorizontal, Wrench } from 'lucide-react';
 import { ShinyButton } from '@/components/ui/shiny-button';
+import { TEAM_PHONE } from '@/lib/diagnostic/logic';
 import { HERO } from './pixelbot-content';
 import { PixelbotConversationDemo } from './pixelbot-conversation-demo';
 
 const TRUST_ICONS = [ShieldCheck, SlidersHorizontal, HandHelping, Wrench] as const;
+
+const DEMO_WHATSAPP_HREF = `https://api.whatsapp.com/send?phone=${TEAM_PHONE}&text=${encodeURIComponent(
+  HERO.demoMessage
+)}`;
 
 export function PixelbotHero() {
   return (
@@ -26,17 +31,29 @@ export function PixelbotHero() {
               {HERO.subcopy}
             </p>
             <div className="mt-8 flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4">
-              <ShinyButton href="#planes" className="w-full sm:w-auto">
-                {HERO.ctaPrimary}
+              <ShinyButton
+                href={DEMO_WHATSAPP_HREF}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full sm:w-auto"
+              >
+                {HERO.ctaDemo}
               </ShinyButton>
               <a
-                href="#como-funciona"
+                href="#planes"
                 className="group inline-flex items-center gap-2 text-sm font-semibold text-foreground/80 hover:text-primary dark:hover:text-cyan-400 transition-colors"
               >
-                {HERO.ctaSecondary}
-                <span aria-hidden="true" className="transition-transform group-hover:translate-y-0.5">↓</span>
+                {HERO.ctaPrimary}
+                <span aria-hidden="true" className="transition-transform group-hover:translate-x-0.5">→</span>
               </a>
             </div>
+            <a
+              href="#como-funciona"
+              className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-primary dark:hover:text-cyan-400 transition-colors"
+            >
+              {HERO.ctaSecondary}
+              <span aria-hidden="true" className="transition-transform group-hover:translate-y-0.5">↓</span>
+            </a>
             <ul className="mt-10 flex flex-wrap items-center justify-center lg:justify-start gap-x-6 gap-y-3">
               {HERO.trust.map((item, i) => {
                 const Icon = TRUST_ICONS[i] ?? ShieldCheck;

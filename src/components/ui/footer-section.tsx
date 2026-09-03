@@ -23,7 +23,7 @@ const footerLinks: FooterSection[] = [
 	{
 		label: 'Soluciones',
 		links: [
-			{ title: 'PixelBot · IA en WhatsApp', href: '/pixelbot' },
+			{ title: 'WhatsAgent · IA en WhatsApp', href: '/pixelbot' },
 			{ title: 'Automatización IA', href: '/services/automatizacion' },
 			{ title: 'Ecosistemas Web', href: '/services/ecosistemas-web' },
 			{ title: 'Consultoría Tech', href: '/services/consultoria' },
