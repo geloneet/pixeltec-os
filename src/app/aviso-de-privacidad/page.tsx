@@ -128,6 +128,12 @@ export default function AvisoDePrivacidadPage() {
                   <li><strong className="text-white/80">OVH SAS</strong> (Francia) — hospedaje e infraestructura del servidor</li>
                   <li><strong className="text-white/80">Google LLC / Firebase</strong> (Estados Unidos) — almacenamiento de datos y base de datos</li>
                   <li><strong className="text-white/80">Resend, Inc.</strong> (Estados Unidos) — envío de correos electrónicos transaccionales</li>
+                  {/* BORRADOR WO-2026-00214 — PENDIENTE DE REVISIÓN LEGAL.
+                      Meta ya recibe datos de navegación de este sitio (el Pixel
+                      lleva en producción desde antes de este WO) y no figuraba
+                      en esta lista. La omisión existe hoy; este WO la señala,
+                      no la introduce. */}
+                  <li><strong className="text-white/80">Meta Platforms, Inc.</strong> (Estados Unidos) — medición de audiencia y publicidad mediante el píxel de Meta (Facebook Pixel) instalado en las páginas públicas de este sitio. Recibe datos de navegación (páginas vistas, dirección IP y el identificador de cookie que Meta asigna a su navegador), no los datos que usted escribe en nuestros formularios.</li>
                 </ul>
             </section>
 
@@ -140,6 +146,31 @@ export default function AvisoDePrivacidadPage() {
             <section id="cookies" className="space-y-4 mt-12 scroll-mt-32">
               <h2 className="text-2xl font-bold text-white">6. Uso de Cookies y Tecnologías de Rastreo</h2>
               <p>Nuestro sitio web utiliza cookies y otras tecnologías de rastreo con el fin de mejorar la experiencia del usuario y analizar el tráfico del sitio. Utilizamos cookies técnicas, funcionales y analíticas. Usted puede gestionar sus preferencias de cookies a través de la configuración de su navegador.</p>
+              {/* BORRADOR WO-2026-00214 — PENDIENTE DE REVISIÓN LEGAL.
+                  Describe la cookie `pt_attr` y la medición first-party de
+                  `content_events`, ambas introducidas por este WO. */}
+              <p>En particular, utilizamos las siguientes tecnologías propias (no de terceros):</p>
+              <ul className="list-disc pl-5">
+                <li>
+                  <strong className="text-white/80">Cookie <code>pt_attr</code> (atribución).</strong> Cookie propia con
+                  una vigencia de 90 días. Guarda de qué página de nuestro sitio llegó usted la
+                  primera vez, el dominio del sitio que lo refirió (por ejemplo,{' '}
+                  <em>www.google.com</em>) y, si existen, los parámetros de campaña de la dirección
+                  (<em>utm_source</em>, <em>utm_medium</em>, <em>utm_campaign</em>). Su finalidad es
+                  saber qué contenido nuestro resulta útil. <strong className="text-white/80">No contiene datos
+                  personales</strong>: no guarda su nombre, correo, teléfono, dirección IP ni el
+                  contenido de los formularios que envía.
+                </li>
+                <li>
+                  <strong className="text-white/80">Medición propia de lectura.</strong> Registramos en nuestros
+                  propios servidores qué páginas de contenido se visitan, hasta qué punto se
+                  desplazan y qué botones de llamada a la acción se pulsan. Cada visita se agrupa
+                  bajo un identificador aleatorio que <strong className="text-white/80">se borra al cerrar la
+                  pestaña</strong> del navegador y que no permite identificarlo a usted. No se emplean
+                  cookies de terceros para esta medición y no se guarda su dirección IP: únicamente
+                  una versión cifrada e irreversible de ella, y solo para prevenir abusos.
+                </li>
+              </ul>
             </section>
             
             <section id="cambios" className="space-y-4 mt-12 scroll-mt-32">
