@@ -7,13 +7,11 @@ import { READ_DEPTH } from "@/lib/analytics/events";
 import { SITE_ID, WINDOW_DAYS } from "./config";
 import { buildComparisonWindows, delta, type ComparisonWindows, type Delta } from "./period";
 import { contentRole, landingRole, type ContentRole } from "./classify";
+import { getGscKpis, getGscByPath, type GscKpis, type GscPageWindowMetrics } from "./gsc-queries";
+import { buildFunnel, type FunnelStep } from "./funnel";
 
 /**
- * Lecturas del módulo SEO & Contenido (WO-2026-00214).
- *
- * Sin datos de Search Console todavía: esta capa sólo agrega `content_events` y
- * `leads`. Las columnas de GSC de la pantalla muestran un estado vacío explícito
- * — un cero ahí haría que un contenido sano pareciera muerto.
+ * Lecturas del módulo SEO & Contenido (WO-2026-00214 Fase 1, WO-2026-00219 Fase 2).
  *
  * Diseño: docs/superpowers/specs/2026-09-03-seo-contenido-design.md
  */
@@ -34,6 +32,14 @@ export interface ContentRow {
   current: ContentMetrics;
   previous: ContentMetrics;
   deltas: Record<keyof ContentMetrics, Delta>;
+  /** `null` sin snapshots de GSC para este path en ninguna ventana — no es lo mismo que 0 impresiones medidas. */
+  gsc: { current: GscPageWindowMetrics; previous: GscPageWindowMetrics } | null;
+}
+
+export interface TopFunnel {
+  path: string;
+  title: string;
+  steps: FunnelStep[];
 }
 
 export interface ContentOverview {
@@ -42,6 +48,10 @@ export interface ContentOverview {
   totals: { current: ContentMetrics; previous: ContentMetrics };
   /** `true` mientras no haya ningún snapshot de Search Console. */
   searchConsoleConnected: boolean;
+  /** KPIs de Search Console (impresiones/no-marca/clics/CTR/consultas nuevas). `null` sin datos. */
+  gscKpis: GscKpis | null;
+  /** Embudo completo del contenido con más impresiones de la ventana. `null` sin contenido con datos. */
+  topFunnel: TopFunnel | null;
 }
 
 const ZERO: ContentMetrics = { views: 0, reads: 0, ctaClicks: 0, leads: 0, qualified: 0 };
@@ -138,6 +148,12 @@ export async function getContentOverview(now: Date = new Date()): Promise<Conten
     hasSearchConsoleData(),
   ]);
 
+  // GSC solo se consulta si ya hay algo guardado: pedirle a Postgres que agrupe
+  // dos tablas vacías por nada es trabajo desperdiciado en cada carga.
+  const [gscKpis, gscByPath] = searchConsoleConnected
+    ? await Promise.all([getGscKpis(windows).catch(() => null), getGscByPath(windows).catch(() => new Map())])
+    : [null, new Map<string, { current: GscPageWindowMetrics; previous: GscPageWindowMetrics }>()];
+
   const catalog: Array<{ path: string; title: string; kind: "blog" | "landing"; role: ContentRole }> = [
     ...posts.map((post) => ({
       path: `/blog/${post.slug}`,
@@ -183,6 +199,7 @@ export async function getContentOverview(now: Date = new Date()): Promise<Conten
         leads: delta(current.leads, previous.leads),
         qualified: delta(current.qualified, previous.qualified),
       },
+      gsc: gscByPath.get(item.path) ?? null,
     };
   });
 
@@ -210,7 +227,37 @@ export async function getContentOverview(now: Date = new Date()): Promise<Conten
     },
   };
 
-  return { windows, rows, totals, searchConsoleConnected };
+  // Embudo destacado: el contenido con más impresiones de Google en la
+  // ventana (si hay GSC) o, sin eso, el de más visitas — siempre el que tiene
+  // más que enseñar, no el primero de la lista alfabética.
+  const funnelCandidate = [...rows].sort((a, b) => {
+    const gscDelta = (b.gsc?.current.impressions ?? 0) - (a.gsc?.current.impressions ?? 0);
+    return gscDelta !== 0 ? gscDelta : b.current.views - a.current.views;
+  })[0];
+  const topFunnel: TopFunnel | null =
+    funnelCandidate && (funnelCandidate.gsc !== null || funnelCandidate.current.views > 0)
+      ? {
+          path: funnelCandidate.path,
+          title: funnelCandidate.title,
+          steps: buildFunnel({
+            path: funnelCandidate.path,
+            // buildFunnel solo lee impressions/clicks de gscPage; ctr/position
+            // no se usan ahí pero el tipo los exige — 0 no se muestra en
+            // ningún lado cuando no aplica.
+            gscPage: funnelCandidate.gsc
+              ? { clicks: funnelCandidate.gsc.current.clicks, impressions: funnelCandidate.gsc.current.impressions, ctr: 0, position: 0 }
+              : null,
+            events: {
+              views: funnelCandidate.current.views,
+              reads: funnelCandidate.current.reads,
+              ctaClicks: funnelCandidate.current.ctaClicks,
+            },
+            leads: { total: funnelCandidate.current.leads, qualified: funnelCandidate.current.qualified },
+          }),
+        }
+      : null;
+
+  return { windows, rows, totals, searchConsoleConnected, gscKpis, topFunnel };
 }
 
 export const EMPTY_METRICS = ZERO;
