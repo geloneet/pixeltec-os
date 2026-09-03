@@ -72,7 +72,10 @@ interface AreaItemRef {
  */
 const AREA_ITEMS: Record<NavArea, AreaItemRef[]> = {
   hoy: [{ href: "/hoy" }],
-  crm: [{ href: "/clientes" }],
+  crm: [
+    { href: "/clientes", secondaryLabel: "Cuentas" },
+    { href: "/clientes/leads", secondaryLabel: "Leads" },
+  ],
   // PixelBot conserva su acceso actual (item "PixelBot" → /whatsapp) dentro
   // del área WhatsApp: excepción explícita de la orden (§3.3).
   whatsapp: [{ href: "/whatsapp" }],

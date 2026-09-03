@@ -16,6 +16,7 @@ import {
   Bell,
   Newspaper,
   LineChart,
+  Inbox,
   UserCog,
   type LucideIcon,
 } from "lucide-react";
@@ -72,6 +73,13 @@ export const PALETTE_NAV_ITEMS: PaletteNavItem[] = [
     label: "Cuentas",
     description: "Cuentas de clientes: información general, seguimiento, notas y actividad reciente",
     icon: Users,
+    module: "clientes",
+  },
+  {
+    href: "/clientes/leads",
+    label: "Leads",
+    description: "Demanda entrante: de qué contenido vino, en qué estado está y a qué cliente corresponde",
+    icon: Inbox,
     module: "clientes",
   },
   // ── WhatsApp (PixelBot vive dentro; excepción protegida) ────────────────────

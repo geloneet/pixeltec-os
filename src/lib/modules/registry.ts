@@ -84,8 +84,8 @@ const REGISTRY = [
     id: "clientes",
     label: "Clientes",
     state: "active",
-    routes: ["/clientes"],
-    note: "Solo información general, cuentas, requiere atención, notas y actividad reciente (orden §6). Las secciones ocultas del workspace viven en src/lib/modules/client-workspace.ts.",
+    routes: ["/clientes", "/clientes/leads"],
+    note: "Solo información general, cuentas, requiere atención, notas y actividad reciente (orden §6). Las secciones ocultas del workspace viven en src/lib/modules/client-workspace.ts. WO-2026-00214 añade /clientes/leads (bandeja de demanda entrante; la tabla `leads` no tenía superficie en el panel).",
   },
   {
     id: "whatsapp",
