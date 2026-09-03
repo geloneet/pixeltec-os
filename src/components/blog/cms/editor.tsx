@@ -135,6 +135,46 @@ export function BlogCmsEditor({ post, categories, revisions, isAdmin, startWithA
     dirtyRef.current = true;
   }, []);
 
+  // «Restaurar revisión» (WO-2026-00206): antes este componente se remontaba
+  // por completo vía `key={post.updatedAt}` en page.tsx para releer `post` en
+  // los `useState` iniciales — pero esa key también remontaba el editor ante
+  // CUALQUIER revalidación en segundo plano de la página (no solo al
+  // restaurar), reiniciando el wizard «Con IA» a mitad de uso y perdiendo lo
+  // escrito. Ahora, sin key, `restoreBlogCmsRevision` marca `restoringRef` y
+  // este efecto resincroniza el formulario desde el `post` fresco cuando
+  // `router.refresh()` lo trae — sin remontar nada más.
+  const restoringRef = useRef(false);
+  const syncFormFromPost = useCallback((p: BlogPostSerialized) => {
+    setStatus(p.status);
+    setPublishedAt(p.publishedAt);
+    setScheduledAt(p.scheduledAt);
+    setForm({
+      title: p.title,
+      slug: p.slug,
+      body: p.body,
+      metaDescription: p.seo.metaDescription || p.excerpt,
+      seoTitle: p.seo.metaTitle,
+      noindex: p.seo.noindex,
+      nofollow: p.seo.nofollow ?? false,
+      category: p.category,
+      newCategory: "",
+      tags: p.tags.join(", "),
+      faq: p.faq,
+      coverImage: p.coverImage,
+      coverImageAlt: p.seo.ogImageAlt,
+      mapsEmbed: p.mapsEmbed ?? "",
+      schemaTypes: p.seo.schemaTypes ?? [],
+    });
+    setSlugTouched(!isSystemSlug(p.slug) && p.slug !== generateSlug(p.title));
+    setAiParams(toAiArticleParams(p.aiParams));
+    dirtyRef.current = false;
+  }, []);
+  useEffect(() => {
+    if (!restoringRef.current) return;
+    restoringRef.current = false;
+    syncFormFromPost(post);
+  }, [post, syncFormFromPost]);
+
   // Título → slug mientras el usuario no haya tocado el slug (paridad Encino).
   function onTitleChange(title: string) {
     setForm((f) => ({ ...f, title, slug: slugTouched ? f.slug : generateSlug(title) }));
@@ -204,14 +244,11 @@ export function BlogCmsEditor({ post, categories, revisions, isAdmin, startWithA
     return () => window.removeEventListener("beforeunload", handler);
   }, []);
 
-  // Bug reportado por Miguel: el popup «crear con IA» reaparecía al
-  // guardar/publicar una entrada YA EXISTENTE. Causa raíz: `startWithAi` viene
-  // de `?ia=1` en la URL (puesto por «Nueva entrada con IA», new-post-button.tsx)
-  // y nunca se limpiaba; page.tsx remonta este editor con `key={post.updatedAt}`
-  // en cada guardado (para poder restaurar revisiones con estado limpio), así
-  // que cualquier guardado posterior con `?ia=1` todavía en la URL volvía a
-  // inicializar `aiOpen` en `true`. Fix: retirar el parámetro de la URL apenas
-  // se consume, antes de que el primer guardado pueda provocar el remontaje.
+  // Bug reportado por Miguel (WO-2026-00198): el popup «crear con IA»
+  // reaparecía al guardar/publicar una entrada YA EXISTENTE. Causa raíz #1:
+  // `startWithAi` viene de `?ia=1` en la URL (puesto por «Nueva entrada con
+  // IA», new-post-button.tsx) y nunca se limpiaba. Fix: retirar el parámetro
+  // de la URL apenas se consume.
   useEffect(() => {
     if (startWithAi) router.replace(`${ADMIN_BLOG_PATH}/${post.id}/editar`);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -318,7 +355,7 @@ export function BlogCmsEditor({ post, categories, revisions, isAdmin, startWithA
                       {i > 0 && (
                         <button type="button" className="text-cyan-400 hover:underline" disabled={pending} onClick={() => start(async () => {
                           const res = await restoreBlogCmsRevision(post.id, r.id);
-                          if (!res.ok) toast.error(res.error ?? "Error"); else { toast.success(`Versión ${r.version} restaurada`); router.refresh(); }
+                          if (!res.ok) toast.error(res.error ?? "Error"); else { toast.success(`Versión ${r.version} restaurada`); restoringRef.current = true; router.refresh(); }
                         })}>Restaurar</button>
                       )}
                     </li>
