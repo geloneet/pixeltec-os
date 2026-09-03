@@ -4,6 +4,7 @@ import { useActionState, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { submitContactForm } from '@/app/actions';
+import { SessionIdField } from '@/components/analytics/session-id-field';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -142,6 +143,8 @@ export default function ContactSection() {
               </p>
 
               <form ref={formRef} action={handleAction} className="mt-8 space-y-5">
+                {/* WO-2026-00214: une el lead con su rastro de contenido. */}
+                <SessionIdField />
                 {/* Honeypot — hidden from humans (incl. screen readers), tempting for naive bots. */}
                 <div
                   aria-hidden="true"

@@ -54,6 +54,7 @@ import type { LucideIcon } from 'lucide-react';
 import Header from '@/components/header';
 import { Footer } from '@/components/ui/footer-section';
 import { ShinyButton } from '@/components/ui/shiny-button';
+import { ContentTracker } from '@/components/analytics/content-tracker';
 import type { KeywordLanding, KeywordLandingIcon } from '@/lib/content/keyword-landings';
 import { KEYWORD_LANDING_HUBS, getRelatedLandings } from '@/lib/content/keyword-landings';
 
@@ -146,6 +147,9 @@ export default function KeywordLandingPage({ landing }: { landing: KeywordLandin
 
   return (
     <div className="min-h-screen bg-background text-foreground pt-32 sm:pt-40 pb-16 sm:pb-24">
+      {/* WO-2026-00214: mismo tracker que el blog — las landings de keyword
+          también son contenido medible del módulo SEO & Contenido. */}
+      <ContentTracker />
       <Header />
       <main className="container mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
         <motion.div initial="hidden" animate="visible" custom={0} variants={sectionVariants} className="mb-8 md:mb-10">
@@ -379,7 +383,13 @@ export default function KeywordLandingPage({ landing }: { landing: KeywordLandin
             Agendemos un diagnóstico gratuito para ver exactamente qué conviene hacer primero.
           </p>
           <div className="mt-8">
-            <ShinyButton href={landing.ctaHref} className="w-full sm:w-auto">
+            {/* Sólo atributos data-* (WO-2026-00214): cero cambio visual. */}
+            <ShinyButton
+              href={landing.ctaHref}
+              data-cta={landing.ctaHref === '/contact' ? 'contacto' : 'diagnostico'}
+              data-cta-pos="landing_cta"
+              className="w-full sm:w-auto"
+            >
               {CTA_LABEL[landing.ctaHref]}
             </ShinyButton>
           </div>
@@ -400,6 +410,8 @@ export default function KeywordLandingPage({ landing }: { landing: KeywordLandin
                 <Link
                   key={item.slug}
                   href={`/${item.slug}`}
+                  data-cta="related"
+                  data-cta-pos="landing_related"
                   className="rounded-full border border-primary/25 dark:border-cyan-500/25 bg-primary/5 dark:bg-cyan-500/5 px-4 py-2 text-sm font-medium text-primary dark:text-cyan-400 hover:bg-primary/10 dark:hover:bg-cyan-500/10 transition-colors"
                 >
                   {item.keyword}
@@ -408,6 +420,8 @@ export default function KeywordLandingPage({ landing }: { landing: KeywordLandin
               ))}
               <Link
                 href={hub.href}
+                data-cta="internal_link"
+                data-cta-pos="landing_related"
                 className="rounded-full border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:border-primary/40 dark:hover:border-cyan-500/40 transition-colors"
               >
                 {hub.label}

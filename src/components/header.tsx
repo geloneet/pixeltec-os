@@ -132,6 +132,8 @@ export default function Header() {
                 href="https://api.whatsapp.com/send?phone=523221378336&text=Hola,%20quiero%20informaci%C3%B3n."
                 target="_blank"
                 rel="noopener noreferrer"
+                data-cta="whatsapp"
+                data-cta-pos="header"
               >
                 <Phone className="h-5 w-5" />
                 WhatsApp
@@ -178,6 +180,8 @@ export default function Header() {
                             href="https://api.whatsapp.com/send?phone=523221378336&text=Hola,%20quiero%20informaci%C3%B3n."
                             target="_blank"
                             rel="noopener noreferrer"
+                            data-cta="whatsapp"
+                            data-cta-pos="header"
                             onClick={() => setIsMenuOpen(false)}
                             className="w-full text-sm uppercase tracking-widest"
                           >

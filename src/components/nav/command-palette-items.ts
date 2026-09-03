@@ -15,6 +15,8 @@ import {
   Settings2,
   Bell,
   Newspaper,
+  LineChart,
+  Inbox,
   UserCog,
   type LucideIcon,
 } from "lucide-react";
@@ -73,6 +75,13 @@ export const PALETTE_NAV_ITEMS: PaletteNavItem[] = [
     icon: Users,
     module: "clientes",
   },
+  {
+    href: "/clientes/leads",
+    label: "Leads",
+    description: "Demanda entrante: de qué contenido vino, en qué estado está y a qué cliente corresponde",
+    icon: Inbox,
+    module: "clientes",
+  },
   // ── WhatsApp (PixelBot vive dentro; excepción protegida) ────────────────────
   {
     href: "/whatsapp",
@@ -95,6 +104,13 @@ export const PALETTE_NAV_ITEMS: PaletteNavItem[] = [
     label: "Salud SEO",
     description: "Qué está publicado, qué está a medias y qué falta del SEO de pixeltec.mx",
     icon: Activity,
+    module: "seo",
+  },
+  {
+    href: "/seo/contenido",
+    label: "Contenido",
+    description: "Qué contenido trae gente, quién la retiene y qué acaba en lead",
+    icon: LineChart,
     module: "seo",
   },
   {

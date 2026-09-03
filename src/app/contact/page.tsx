@@ -17,6 +17,7 @@ import { submitContactForm } from '@/app/actions';
 import { SocialLinks } from '@/components/ui/social-links';
 import { ShinyButton } from '@/components/ui/shiny-button';
 import { ObfuscatedMailto } from '@/components/ui/obfuscated-mailto';
+import { SessionIdField } from '@/components/analytics/session-id-field';
 
 const contactInfo = [
   { icon: MapPin, title: 'Oficina', value: 'Puerto Vallarta, Jalisco', href: '#' },
@@ -141,6 +142,8 @@ export default function ContactPage() {
                 className="lg:col-span-3 bg-card/80 border border-border rounded-2xl p-8 md:p-12 backdrop-blur-lg shadow-sm dark:bg-[#0A0A0A]/80 dark:shadow-[0_0_40px_rgba(0,240,255,0.05)]"
             >
                 <form ref={formRef} action={formAction} className="space-y-6">
+                    {/* WO-2026-00214: une el lead con su rastro de contenido. */}
+                    <SessionIdField />
                     {/* Honeypot — hidden from humans (incl. screen readers), tempting for naive bots. */}
                     <div aria-hidden="true" style={{ position: 'absolute', left: '-9999px', width: 1, height: 1, overflow: 'hidden' }}>
                       <label htmlFor="website-hp">No completar este campo.</label>

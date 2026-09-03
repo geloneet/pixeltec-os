@@ -9,6 +9,7 @@ import { Poppins, Roboto, League_Spartan } from 'next/font/google';
 import { OrganizationStructuredData } from '@/components/seo/structured-data';
 import { PublishedStructuredData } from '@/components/seo/published-structured-data';
 import { MetaPixel } from '@/components/analytics/meta-pixel';
+import { AttributionCapture } from '@/components/analytics/attribution-capture';
 import { headers } from 'next/headers';
 
 const poppins = Poppins({
@@ -64,6 +65,10 @@ export default async function RootLayout({
           {/* JSON-LD publicado desde el módulo SEO (WO-2026-00095). */}
           <PublishedStructuredData />
           <MetaPixel nonce={nonce} />
+          {/* WO-2026-00214: cookie first-party `pt_attr` (90 d, SameSite=Lax).
+              Va en el layout raíz —y no solo en el blog— porque el primer
+              contacto puede haber sido cualquier página pública. */}
+          <AttributionCapture />
           <SessionProvider>
             {children}
             <Toaster />

@@ -189,6 +189,33 @@ describe("perfil predeploy — contrato de producción", () => {
   });
 });
 
+describe("canales opcionales (Unsplash, Google) — WO-2026-00214", () => {
+  test("ausentes NO rompen el predeploy: ausente = disabled = fail-closed", () => {
+    const env = prodSintetica();
+    delete (env as Record<string, string | undefined>).EGRESS_UNSPLASH_MODE;
+    delete (env as Record<string, string | undefined>).EGRESS_GOOGLE_MODE;
+    const result = validateEgressConfig(env, "predeploy");
+    expect(statuses(result, "EGRESS_GOOGLE_MODE")).toEqual([]);
+    expect(result.ok).toBe(true);
+  });
+
+  test("EGRESS_GOOGLE_MODE con un valor inventado sí es invalid", () => {
+    const result = validateEgressConfig({ ...prodSintetica(), EGRESS_GOOGLE_MODE: "readonly" }, "predeploy");
+    expect(statuses(result, "EGRESS_GOOGLE_MODE")).toEqual(["invalid"]);
+    expect(result.ok).toBe(false);
+  });
+
+  test("EGRESS_GOOGLE_MODE=live en dev sin el flag global queda bloqueado", () => {
+    const result = validateEgressConfig({ EGRESS_GOOGLE_MODE: "live" }, "dev");
+    expect(statuses(result, "EGRESS_GOOGLE_MODE")).toEqual(["present", "invalid"]);
+  });
+
+  test("el canal Google no exige allowlist: host fijo y una sola operación", () => {
+    const result = validateEgressConfig({ ...prodSintetica(), EGRESS_GOOGLE_MODE: "allowlist" }, "predeploy");
+    expect(result.findings.filter((f) => f.channel === "google" && f.status === "missing")).toEqual([]);
+  });
+});
+
 describe("la salida jamás lleva valores", () => {
   test("renderFindings no contiene el secreto ni entradas de allowlist", () => {
     const env = {

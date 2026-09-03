@@ -90,7 +90,8 @@ describe("taxonomía visible (ADR-0030 · ADR-0039 · WO-2026-00088/ADR-0054 pro
     const l2 = (area: (typeof NAV_AREA_ORDER)[number]) =>
       getSecondaryItems(area).map((i) => i.secondaryLabel);
     expect(l2("hoy")).toEqual(["Inicio"]);
-    expect(l2("crm")).toEqual(["Cuentas"]);
+    // WO-2026-00214: bandeja de leads dentro del área Clientes.
+    expect(l2("crm")).toEqual(["Cuentas", "Leads"]);
     // PixelBot conserva su acceso (item «PixelBot» → /whatsapp) dentro de WhatsApp: excepción explícita.
     expect(l2("whatsapp")).toEqual(["PixelBot"]);
     expect(l2("finanzas")).toEqual(["Cobros"]);
@@ -102,6 +103,8 @@ describe("taxonomía visible (ADR-0030 · ADR-0039 · WO-2026-00088/ADR-0054 pro
     expect(l2("usuarios")).toEqual(["Usuarios"]);
     expect(l2("seo")).toEqual([
       "Salud",
+      // WO-2026-00214: analítica y atribución de contenido.
+      "Contenido",
       "llms.txt",
       "robots.txt",
       "Negocio local",

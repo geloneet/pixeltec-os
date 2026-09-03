@@ -6,6 +6,7 @@ import { useFormStatus } from 'react-dom';
 import { LoaderCircle, MessageCircle, Send } from 'lucide-react';
 
 import { submitContactForm } from '@/app/actions';
+import { SessionIdField } from '@/components/analytics/session-id-field';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -103,6 +104,8 @@ export function PixelbotLeadForm() {
             </div>
 
             <form ref={formRef} action={handleAction} className="space-y-5" aria-describedby="pixelbot-form-status">
+              {/* WO-2026-00214: une el lead con su rastro de contenido. */}
+              <SessionIdField />
               {/* Honeypot — oculto para humanos (y lectores de pantalla), tentador para bots simples. */}
               <div aria-hidden="true" style={{ position: 'absolute', left: '-9999px', width: 1, height: 1, overflow: 'hidden' }}>
                 <label htmlFor="pixelbot-website-hp">No completar este campo.</label>
