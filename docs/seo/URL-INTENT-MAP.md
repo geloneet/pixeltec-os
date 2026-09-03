@@ -37,12 +37,12 @@ Estados: existente · optimizar · consolidar · crear · redirigir · archivar.
 `docs/seo/plan-posicionamiento-puerto-vallarta-2026-09.md` §2. Registro tipado
 en `src/lib/content/keyword-landings*.ts`; los `page.tsx` los genera
 `scripts/gen-keyword-landing-pages.mjs` (no se editan a mano). Estado `creada`
-= registro + ruta + sitemap en la rama `feature/seo-landings-puerto-vallarta`;
-`crear` = pendiente de la parte 3 del WorkOrder (clúster C, apps).
+= registro + ruta + sitemap en la rama `feature/seo-landings-puerto-vallarta`.
 
-Clústeres A (software, 10 URL) y B (WhatsApp, 8 URL) entregados. El sitemap no
-enumera estas rutas a mano: `src/app/sitemap.ts` las deriva de
-`KEYWORD_LANDINGS`, así que agregar una entrada al registro la publica.
+Los tres clústeres están entregados: A (software, 10 URL), B (WhatsApp, 8 URL)
+y C (apps, 8 URL) — 26 de 26. El sitemap no enumera estas rutas a mano:
+`src/app/sitemap.ts` las deriva de `KEYWORD_LANDINGS`, así que agregar una
+entrada al registro la publica.
 
 | URL | Tipo | Intención | Keyword principal [Hipótesis] | Funnel | CTA | Estado |
 |---|---|---|---|---|---|---|
@@ -64,14 +64,14 @@ enumera estas rutas a mano: `src/app/sitemap.ts` las deriva de
 | /automatizar-whatsapp-business-puerto-vallarta | landing keyword local | informacional comparativa local | automatizar whatsapp business puerto vallarta | consideration | contacto | creada |
 | /automatizacion-de-mensajes-en-whatsapp | landing keyword | investigación comercial | automatizacion de mensajes en whatsapp | consideration→decision | contacto | creada |
 | /automatizacion-de-mensajes-en-whatsapp-puerto-vallarta | landing keyword local | investigación comercial local | automatizacion de mensajes en whatsapp puerto vallarta | consideration→decision | contacto | creada |
-| /desarrolladores-de-app | landing keyword | investigación comercial | desarrolladores de app | consideration | contacto | crear |
-| /desarrolladores-de-app-puerto-vallarta | landing keyword local | investigación comercial local | desarrolladores de app puerto vallarta | consideration | contacto | crear |
-| /desarrollo-de-app | landing keyword | informacional → comercial | desarrollo de app | awareness→consideration | contacto | crear |
-| /desarrollo-de-app-puerto-vallarta | landing keyword local | informacional → comercial local | desarrollo de app puerto vallarta | awareness→consideration | contacto | crear |
-| /desarrolladores-de-apps | landing keyword | investigación comercial | desarrolladores de apps | consideration | contacto | crear |
-| /desarrolladores-de-apps-puerto-vallarta | landing keyword local | investigación comercial local | desarrolladores de apps puerto vallarta | consideration | contacto | crear |
-| /desarrollo-de-aplicaciones-moviles | landing keyword | informacional → comercial | desarrollo de aplicaciones moviles | awareness→consideration | contacto | crear |
-| /desarrollo-de-aplicaciones-moviles-puerto-vallarta | landing keyword local | informacional → comercial local | desarrollo de aplicaciones moviles puerto vallarta | awareness→consideration | contacto | crear |
+| /desarrolladores-de-app | landing keyword | investigación comercial | desarrolladores de app | consideration | contacto | creada |
+| /desarrolladores-de-app-puerto-vallarta | landing keyword local | investigación comercial local | desarrolladores de app puerto vallarta | consideration | contacto | creada |
+| /desarrollo-de-app | landing keyword | informacional → comercial | desarrollo de app | awareness→consideration | contacto | creada |
+| /desarrollo-de-app-puerto-vallarta | landing keyword local | informacional → comercial local | desarrollo de app puerto vallarta | awareness→consideration | contacto | creada |
+| /desarrolladores-de-apps | landing keyword | investigación comercial | desarrolladores de apps | consideration | contacto | creada |
+| /desarrolladores-de-apps-puerto-vallarta | landing keyword local | investigación comercial local | desarrolladores de apps puerto vallarta | consideration | contacto | creada |
+| /desarrollo-de-aplicaciones-moviles | landing keyword | informacional → comercial | desarrollo de aplicaciones moviles | awareness→consideration | contacto | creada |
+| /desarrollo-de-aplicaciones-moviles-puerto-vallarta | landing keyword local | informacional → comercial local | desarrollo de aplicaciones moviles puerto vallarta | awareness→consideration | contacto | creada |
 
 ### Riesgo de canibalización dentro de los clústeres
 
@@ -88,4 +88,10 @@ enumera estas rutas a mano: `src/app/sitemap.ts` las deriva de
   dos de ellas compiten por la misma consulta, se consolida con 301 —decisión
   de Miguel con datos, no antes.
 - Clúster C (apps): mismo riesgo entre `desarrolladores-de-app` y
-  `desarrolladores-de-apps`; vigilar desde la primera lectura de GSC.
+  `desarrolladores-de-apps`. Se separan por ángulo: `desarrolladores-de-app`
+  habla del EQUIPO (perfiles, roles y cómo evaluarlos) y `desarrolladores-de-apps`
+  del TIPO de app (web app, PWA o móvil, y cuándo cada una); `desarrollo-de-app`
+  cubre el PROCESO fase por fase y `desarrollo-de-aplicaciones-moviles` la
+  decisión técnica móvil (iOS/Android/PWA, tiendas y costo de mantener). Las
+  cuatro se enlazan entre sí y con el clúster A por el hub `ecosistemas-web`;
+  vigilar desde la primera lectura de GSC y consolidar con 301 solo con datos.
