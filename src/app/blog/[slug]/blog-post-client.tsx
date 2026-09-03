@@ -204,8 +204,12 @@ export default function BlogPostClient({
               Diagnosticamos tu operación y te decimos, sin humo, qué automatizar primero y qué retorno esperar.
             </p>
             <div className="mt-5 flex flex-wrap gap-3">
+              {/* WO-2026-00214: sólo atributos data-* para el tracker de
+                  contenido. Cero cambio visual, cero clases nuevas. */}
               <Link
                 href="/diagnostico"
+                data-cta="diagnostico"
+                data-cta-pos="article_footer"
                 className="inline-flex items-center rounded-lg bg-cyan-500 px-5 py-2.5 font-semibold text-black transition-colors hover:bg-cyan-400"
               >
                 Hacer el diagnóstico
@@ -213,6 +217,8 @@ export default function BlogPostClient({
               </Link>
               <Link
                 href="/contact"
+                data-cta="contacto"
+                data-cta-pos="article_footer"
                 className="inline-flex items-center rounded-lg border border-white/20 px-5 py-2.5 font-semibold text-white transition-colors hover:bg-white/10"
               >
                 Hablar con el equipo
@@ -230,6 +236,8 @@ export default function BlogPostClient({
                   <li key={`${l.targetUrl}|${l.anchor}`}>
                     <Link
                       href={l.targetUrl}
+                      data-cta="internal_link"
+                      data-cta-pos="article_body"
                       className="group inline-flex items-center gap-2 font-medium text-zinc-300 transition-colors hover:text-brand-blue"
                     >
                       <ArrowRight className="h-4 w-4 text-cyan-500 transition-transform group-hover:translate-x-1" aria-hidden />
@@ -251,6 +259,8 @@ export default function BlogPostClient({
                   <Link
                     key={r.slug}
                     href={`/blog/${r.slug}`}
+                    data-cta="related"
+                    data-cta-pos="article_footer"
                     className="group rounded-xl border border-white/10 bg-white/[0.03] p-5 transition-colors hover:border-cyan-500/40"
                   >
                     <span className="text-xs font-bold uppercase tracking-wide text-brand-blue">{r.category}</span>

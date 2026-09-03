@@ -13,6 +13,15 @@ interface ShinyButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement>
   /** Solo para destinos externos; conserva el comportamiento de apertura del consumidor. */
   target?: string
   rel?: string
+  /**
+   * WO-2026-00214 — marca el botón como CTA medible por el tracker de
+   * contenido. Van explícitos y no vía `{...props}` porque las dos ramas con
+   * `href` renderizan `<a>`/`<Link>` y NO derraman props: sin esto, un
+   * `data-cta` puesto por el consumidor se perdería en silencio, que es la
+   * peor forma de fallo posible para instrumentación.
+   */
+  "data-cta"?: string
+  "data-cta-pos"?: string
 }
 
 const SHINY_CLASSES =
@@ -20,7 +29,16 @@ const SHINY_CLASSES =
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-cyan-400 " +
   "disabled:opacity-60 disabled:cursor-not-allowed disabled:pointer-events-none"
 
-export function ShinyButton({ children, className = "", href, target, rel, ...props }: ShinyButtonProps) {
+export function ShinyButton({
+  children,
+  className = "",
+  href,
+  target,
+  rel,
+  "data-cta": dataCta,
+  "data-cta-pos": dataCtaPos,
+  ...props
+}: ShinyButtonProps) {
   const isExternal = Boolean(href && /^https?:\/\//.test(href));
 
   return (
@@ -136,6 +154,8 @@ export function ShinyButton({ children, className = "", href, target, rel, ...pr
             href={href}
             target={target}
             rel={rel}
+            data-cta={dataCta}
+            data-cta-pos={dataCtaPos}
             onClick={props.onClick as unknown as React.MouseEventHandler<HTMLAnchorElement>}
             className={cn(SHINY_CLASSES, className)}
           >
@@ -144,6 +164,8 @@ export function ShinyButton({ children, className = "", href, target, rel, ...pr
         ) : (
           <Link
             href={href}
+            data-cta={dataCta}
+            data-cta-pos={dataCtaPos}
             onClick={props.onClick as unknown as React.MouseEventHandler<HTMLAnchorElement>}
             className={cn(SHINY_CLASSES, className)}
           >
@@ -151,7 +173,7 @@ export function ShinyButton({ children, className = "", href, target, rel, ...pr
           </Link>
         )
       ) : (
-        <button className={cn(SHINY_CLASSES, className)} {...props}>
+        <button className={cn(SHINY_CLASSES, className)} data-cta={dataCta} data-cta-pos={dataCtaPos} {...props}>
           <span className="flex items-center justify-center gap-2">{children}</span>
         </button>
       )}

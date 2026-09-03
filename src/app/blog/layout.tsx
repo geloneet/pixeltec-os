@@ -1,5 +1,6 @@
 import Header from '@/components/header';
 import { Footer } from '@/components/ui/footer-section';
+import { ContentTracker } from '@/components/analytics/content-tracker';
 
 // Sin export de metadata a propósito: un `title` string plano aquí reseteaba
 // el template `%s | PixelTEC` del root layout para todo el subárbol — los
@@ -12,6 +13,10 @@ import { Footer } from '@/components/ui/footer-section';
 export default function BlogLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
+      {/* WO-2026-00214: mide lectura y clics de CTA en el contenido público.
+          Vive aquí y no en el layout raíz porque sólo el blog y las landings
+          de keyword son "contenido" para el módulo SEO & Contenido. */}
+      <ContentTracker />
       <Header />
       {children}
       <Footer />

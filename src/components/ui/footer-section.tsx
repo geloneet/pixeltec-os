@@ -12,6 +12,8 @@ interface FooterLink {
 	title: string;
 	href: string;
 	icon?: React.ComponentType<{ className?: string }>;
+	/** WO-2026-00214: marca el enlace como CTA medible. Sólo atributos data-*. */
+	cta?: string;
 }
 
 interface FooterSection {
@@ -50,7 +52,7 @@ const footerLinks: FooterSection[] = [
 		links: [
 			{ title: 'Facebook', href: 'https://www.facebook.com/profile.php?id=61556300117500', icon: FacebookIcon },
 			{ title: 'Instagram', href: 'https://instagram.com/pixeltecmx', icon: InstagramIcon },
-			{ title: 'WhatsApp', href: 'https://api.whatsapp.com/send?phone=523221378336&text=Hola,%20quiero%20informaci%C3%B3n.', icon: Phone },
+			{ title: 'WhatsApp', href: 'https://api.whatsapp.com/send?phone=523221378336&text=Hola,%20quiero%20informaci%C3%B3n.', icon: Phone, cta: 'whatsapp' },
 		],
 	},
 ];
@@ -89,6 +91,8 @@ export function Footer() {
 										<li key={link.title}>
 											<Link
 												href={link.href}
+												data-cta={link.cta}
+												data-cta-pos={link.cta ? 'footer' : undefined}
 												className="hover:text-brand-blue inline-flex items-center transition-colors duration-300"
 											>
 												{link.icon && <link.icon className="me-2 size-4" />}
