@@ -1,4 +1,4 @@
-import { desc, asc, eq, sql } from "drizzle-orm";
+import { desc, and, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { gscPageDaily, gscQueryDaily, seoSyncRuns } from "@/lib/db/schema";
 import { querySearchAnalytics, GSC_ROW_LIMIT, type GscRow } from "@/lib/google/gsc-egress";
@@ -54,8 +54,13 @@ export interface SyncPlan {
 }
 
 export interface PlanInput {
-  /** Día más antiguo ya guardado para el sitio, o `null` si la tabla está vacía. */
-  earliestStored: string | null;
+  /**
+   * Día más reciente ya cubierto por una corrida EXITOSA (`status: "ok"` en
+   * `seo_sync_runs`, no filas en `gsc_page_daily` — WO-2026-00218), o `null`
+   * si nunca se ha corrido ninguna. Es un CURSOR que solo avanza hacia
+   * adelante: cada corrida retoma el día siguiente a este, nunca hacia atrás.
+   */
+  latestBackfilled: string | null;
   today: Date;
   maxDaysPerRun?: number;
 }
@@ -81,6 +86,18 @@ function monthsBefore(date: Date, months: number): Date {
  * Qué días hay que pedir. Función PURA — el estado de la tabla y la fecha se
  * inyectan, así que el plan se puede testear entero sin base de datos y sin
  * congelar el reloj.
+ *
+ * WO-2026-00218 — rediseño: el progreso es un CURSOR que solo avanza hacia
+ * adelante (`latestBackfilled` es el último día ya cubierto por una corrida
+ * exitosa; la siguiente retoma el día después). El diseño anterior medía
+ * progreso con la fecha MÁS ANTIGUA guardada y "rellenaba hacia atrás" —
+ * incoherente con que la primerísima corrida (tabla vacía) arranca en el
+ * extremo más viejo, no en el más reciente: una vez esa ventana se completaba,
+ * la fecha más antigua quedaba fija en `backfillStart` para siempre y el
+ * siguiente cálculo interpretaba "ya no hay hueco hacia atrás" como "backfill
+ * terminado", saltando directo a `incremental` y perdiéndose ~14 de los 16
+ * meses de historia (reproducido con una simulación secuencial real antes de
+ * este fix). Un cursor que avanza hacia adelante no tiene esa ambigüedad.
  */
 export function planSyncWindow(input: PlanInput): SyncPlan {
   const cap = input.maxDaysPerRun ?? MAX_DAYS_PER_RUN;
@@ -91,10 +108,15 @@ export function planSyncWindow(input: PlanInput): SyncPlan {
 
   const empty: SyncPlan = { mode: "up_to_date", days: [], start: null, end: null, hasMore: false };
 
-  // Tabla vacía: todo el histórico, por tandas.
-  if (input.earliestStored === null) {
-    const all = enumerateDays(backfillStart, lagEnd);
-    if (all.length === 0) return empty;
+  const nextStart =
+    input.latestBackfilled === null
+      ? backfillStart
+      : toDateKey(addDays(new Date(`${input.latestBackfilled}T00:00:00Z`), 1));
+
+  // El cursor no ha alcanzado todavía el último día con datos completos:
+  // sigue avanzando hacia adelante, `cap` días a la vez.
+  if (nextStart <= lagEnd) {
+    const all = enumerateDays(nextStart, lagEnd);
     const days = all.slice(0, cap);
     return {
       mode: "backfill",
@@ -105,25 +127,7 @@ export function planSyncWindow(input: PlanInput): SyncPlan {
     };
   }
 
-  // Historia incompleta hacia atrás: se sigue rellenando antes de refrescar.
-  if (input.earliestStored > backfillStart) {
-    const gapEnd = toDateKey(addDays(new Date(`${input.earliestStored}T00:00:00Z`), -1));
-    const pending = enumerateDays(backfillStart, gapEnd);
-    if (pending.length > 0) {
-      // Los más recientes primero: si el backfill nunca llega a terminar, al
-      // menos lo que sí se trajo es lo más útil para las ventanas de 28 días.
-      const days = pending.slice(-cap);
-      return {
-        mode: "backfill",
-        days,
-        start: days[0],
-        end: days[days.length - 1],
-        hasMore: pending.length > days.length,
-      };
-    }
-  }
-
-  // Historia completa: se refrescan los últimos días (reescritura de Google).
+  // Backfill completo: se refrescan los últimos días (reescritura de Google).
   const refreshStart = toDateKey(addDays(new Date(`${lagEnd}T00:00:00Z`), -(GSC_REFRESH_DAYS - 1)));
   const days = enumerateDays(refreshStart, lagEnd);
   if (days.length === 0) return empty;
@@ -179,14 +183,20 @@ export interface SyncResult {
  * fallos: sin bitácora, un backfill que muere a la mitad es invisible.
  */
 export async function runGscSync(now: Date = new Date()): Promise<SyncResult> {
-  const [earliest] = await db
-    .select({ date: gscPageDaily.date })
-    .from(gscPageDaily)
-    .where(eq(gscPageDaily.siteId, SITE_ID))
-    .orderBy(asc(gscPageDaily.date))
+  // El progreso es un CURSOR hacia adelante que se mide por lo YA INTENTADO
+  // (`seo_sync_runs`, status='ok'), no por lo escrito en `gsc_page_daily`: una
+  // ventana sin una sola impresión real es un resultado válido, no "todavía no
+  // se corrió" (WO-2026-00218 — reproducido en producción: 10 corridas
+  // seguidas devolvían la misma ventana sin avanzar porque una ventana de 0
+  // filas nunca dejaba rastro en la tabla de datos).
+  const [latestRun] = await db
+    .select({ end: seoSyncRuns.windowEnd })
+    .from(seoSyncRuns)
+    .where(and(eq(seoSyncRuns.siteId, SITE_ID), eq(seoSyncRuns.source, "gsc"), eq(seoSyncRuns.status, "ok")))
+    .orderBy(desc(seoSyncRuns.windowEnd))
     .limit(1);
 
-  const plan = planSyncWindow({ earliestStored: earliest?.date ?? null, today: now });
+  const plan = planSyncWindow({ latestBackfilled: latestRun?.end ?? null, today: now });
 
   if (plan.mode === "up_to_date" || plan.days.length === 0) {
     return { mode: "up_to_date", start: null, end: null, days: 0, rows: 0, hasMore: false };
