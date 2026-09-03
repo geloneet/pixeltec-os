@@ -43,7 +43,7 @@ export function PixelbotConversationDemo() {
         };
 
   return (
-    <div aria-label="Demostración de una conversación atendida por PixelBot, con datos de ejemplo" className="relative w-full max-w-xl mx-auto lg:mx-0">
+    <div aria-label="Demostración de una conversación atendida por WhatsAgent, con datos de ejemplo" className="relative w-full max-w-xl mx-auto lg:mx-0">
       {/* Hilo de conversación */}
       <div className="rounded-2xl border border-border bg-card/90 dark:bg-[#0A0A0A]/90 backdrop-blur-sm p-4 sm:p-5 shadow-sm dark:shadow-[0_0_50px_rgba(33,150,243,0.07)]">
         <div className="flex items-center justify-between border-b border-border pb-3 mb-4">
@@ -78,7 +78,7 @@ export function PixelbotConversationDemo() {
                 >
                   {bubble.from === 'bot' && (
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-primary dark:text-cyan-400 mb-0.5">
-                      PixelBot
+                      WhatsAgent
                     </p>
                   )}
                   <p className="text-sm text-foreground/90 leading-relaxed">{bubble.text}</p>

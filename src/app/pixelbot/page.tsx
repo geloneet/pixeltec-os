@@ -31,7 +31,7 @@ export default function PixelbotPage() {
       <BreadcrumbStructuredData
         items={[
           { name: 'Inicio', url: 'https://pixeltec.mx' },
-          { name: 'PixelBot', url: `https://pixeltec.mx${PIXELBOT_PATH}` },
+          { name: 'WhatsAgent', url: `https://pixeltec.mx${PIXELBOT_PATH}` },
         ]}
       />
       <StandaloneServiceStructuredData

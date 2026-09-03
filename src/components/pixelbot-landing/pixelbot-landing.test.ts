@@ -35,7 +35,7 @@ describe('SEO de /pixelbot', () => {
       ogImage: SEO_META.ogImage,
     });
     expect(meta.alternates?.canonical).toBe('https://pixeltec.mx/pixelbot');
-    expect(meta.title).toBe('PixelBot | Bot de WhatsApp con IA desde $1,490/mes');
+    expect(meta.title).toBe('WhatsAgent | Agente de IA para WhatsApp desde $490/mes');
     expect(meta.description).toContain('PixelTEC');
     const og = meta.openGraph as { images?: Array<{ url: string }> } | undefined;
     expect(og?.images?.[0]?.url).toBe('/og/pixelbot.jpg');
@@ -92,13 +92,17 @@ describe('claims de la landing', () => {
     expect(content).not.toMatch(/\d+\s*%/);
   });
 
-  it('aparecen exactamente los 4 precios autorizados y ningún otro monto con $', () => {
+  it('aparecen exactamente los 2 precios autorizados, los 2 planes restantes sin monto (Cotizar) y ningún otro monto con $', () => {
     const content = readFileSync(CONTENT_FILE, 'utf8');
-    const AUTHORIZED_LITERALS = ['$1,490', '$2,990', '$5,990', 'Desde $8,490'];
+    const AUTHORIZED_LITERALS = ['$490', '$999'];
     for (const literal of AUTHORIZED_LITERALS) {
       expect(content, `falta el precio autorizado "${literal}"`).toContain(literal);
     }
-    const AUTHORIZED_AMOUNTS = new Set(['$1,490', '$2,990', '$5,990', '$8,490']);
+    const negocio = PACKAGES.find((pkg) => pkg.id === 'negocio');
+    const aMedida = PACKAGES.find((pkg) => pkg.id === 'a-medida');
+    expect(negocio?.price).toBe('Cotizar');
+    expect(aMedida?.price).toBe('Cotizar');
+    const AUTHORIZED_AMOUNTS = new Set(['$490', '$999']);
     const matches = content.match(/\$\s*[\d,]+/g) ?? [];
     expect(matches.length).toBeGreaterThan(0);
     for (const match of matches) {
@@ -120,7 +124,7 @@ describe('claims de la landing', () => {
     }
   });
 
-  it('PixelBot Negocio no promete "cualquier CRM, ERP o agenda" de forma incondicional', () => {
+  it('WhatsAgent Negocio no promete "cualquier CRM, ERP o agenda" de forma incondicional', () => {
     const negocio = PACKAGES.find((pkg) => pkg.id === 'negocio');
     expect(negocio).toBeDefined();
     const negocioText = JSON.stringify(negocio);
@@ -269,14 +273,14 @@ describe('buildPixelbotMessage', () => {
   });
 
   it('serializa plan y nombre deseado del bot cuando existen', () => {
-    expect(buildPixelbotMessage('Hola.', undefined, 'PixelBot Crecimiento', 'Dentista Bot')).toBe(
-      'Interés: PixelBot\nPlan de interés: PixelBot Crecimiento\nNombre deseado del bot: Dentista Bot\n\nHola.'
+    expect(buildPixelbotMessage('Hola.', undefined, 'WhatsAgent Crecimiento', 'Dentista Bot')).toBe(
+      'Interés: PixelBot\nPlan de interés: WhatsAgent Crecimiento\nNombre deseado del bot: Dentista Bot\n\nHola.'
     );
   });
 
   it('combina volumen, plan y nombre del bot en el orden estable', () => {
-    expect(buildPixelbotMessage('Hola.', 'No lo sé aún', 'PixelBot Esencial', 'Mr. Smile Bot')).toBe(
-      'Interés: PixelBot\nVolumen aproximado: No lo sé aún\nPlan de interés: PixelBot Esencial\nNombre deseado del bot: Mr. Smile Bot\n\nHola.'
+    expect(buildPixelbotMessage('Hola.', 'No lo sé aún', 'WhatsAgent Esencial', 'Mr. Smile Bot')).toBe(
+      'Interés: PixelBot\nVolumen aproximado: No lo sé aún\nPlan de interés: WhatsAgent Esencial\nNombre deseado del bot: Mr. Smile Bot\n\nHola.'
     );
   });
 

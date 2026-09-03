@@ -35,19 +35,21 @@ export type PixelbotPackage = {
 export const PIXELBOT_PATH = '/pixelbot';
 
 export const HERO = {
-  eyebrow: 'PixelBot · IA para WhatsApp con identidad de tu marca',
-  h1: 'Automatiza WhatsApp con un bot que atiende, califica y habla con el nombre de tu negocio.',
+  eyebrow: 'WhatsAgent · IA para WhatsApp con identidad de tu marca',
+  h1: 'Multiplica tus ventas en WhatsApp con un Agente de IA 24/7.',
   subcopy:
-    'Configura su nombre, tono, reglas y conocimiento. PixelBot conserva contexto, entrega la conversación a tu equipo cuando hace falta y puede crecer desde una activación estándar hasta integraciones a medida.',
+    'Configura su nombre, tono, reglas y conocimiento. WhatsAgent conserva contexto, entrega la conversación a tu equipo cuando hace falta y puede crecer desde una activación estándar hasta integraciones a medida.',
+  ctaDemo: '🤖 Probar Demo en Vivo',
+  demoMessage: 'Hola, quiero probar la demo en vivo de WhatsAgent.',
   ctaPrimary: 'Ver planes',
   ctaSecondary: 'Ver cómo funciona',
-  trust: ['API oficial de WhatsApp', 'Nombre e identidad configurables', 'Handoff humano', 'Planes desde $1,490/mes'],
+  trust: ['API oficial de WhatsApp', 'Nombre e identidad configurables', 'Handoff humano', 'Planes desde $490/mes'],
 } as const;
 
 export const BRAND_IDENTITY: BrandIdentityContent = {
-  title: 'Tu bot no tiene que llamarse PixelBot.',
+  title: 'Tu bot no tiene que llamarse WhatsAgent.',
   body:
-    'PixelBot es la tecnología de PixelTEC; tus clientes pueden conocer al asistente con el nombre que represente a tu negocio. Configura su nombre, identidad, tono y forma de presentarse —como "Mr. Smile Bot", "Dentista Bot" o "Asistente Fluvial"— y pruébalo antes de publicarlo.',
+    'WhatsAgent es la tecnología de PixelTEC; tus clientes pueden conocer al asistente con el nombre que represente a tu negocio. Configura su nombre, identidad, tono y forma de presentarse —como "Mr. Smile Bot", "Dentista Bot" o "Asistente Fluvial"— y pruébalo antes de publicarlo.',
   examplesLabel: 'Ejemplos ilustrativos de identidad conversacional personalizada (no son clientes reales):',
   examples: ['Dentista Bot', 'Mr. Smile Bot', 'Asistente Fluvial', 'Clínica Nova Bot'],
   metaCaveat:
@@ -67,7 +69,7 @@ export const PAIN = {
 } as const;
 
 export const WORKFLOW = {
-  title: 'Así trabaja PixelBot dentro de tu operación',
+  title: 'Así trabaja WhatsAgent dentro de tu operación',
   steps: [
     { title: 'Tu cliente escribe', detail: 'Por el mismo WhatsApp de tu negocio, a cualquier hora.' },
     { title: 'Identifica qué necesita', detail: 'Detecta la intención: información, cotización, soporte.' },
@@ -115,7 +117,7 @@ export const CAPABILITIES = {
 } as const;
 
 export const CONSOLE_SHOWCASE = {
-  title: 'PixelBot no es una caja negra',
+  title: 'WhatsAgent no es una caja negra',
   intro: 'Su consola te deja ver y controlar cada conversación: qué respondió, qué datos capturó y quién tiene el control.',
   note: 'Recreación ilustrativa de la consola con datos ficticios.',
   tabs: [
@@ -151,9 +153,9 @@ export const CONSOLE_SHOWCASE = {
 } as const;
 
 export const COMPARISON = {
-  title: '¿Dónde queda PixelBot frente a lo que ya conoces?',
-  caption: 'Comparativa de capacidades entre WhatsApp Business básico, un bot genérico y PixelBot',
-  columns: ['Capacidad', 'WhatsApp Business básico', 'Bot genérico', 'PixelBot'],
+  title: '¿Dónde queda WhatsAgent frente a lo que ya conoces?',
+  caption: 'Comparativa de capacidades entre WhatsApp Business básico, un bot genérico y WhatsAgent',
+  columns: ['Capacidad', 'WhatsApp Business básico', 'Bot genérico', 'WhatsAgent'],
   rows: [
     ['Respuestas frecuentes', 'Respuestas rápidas manuales', 'Sí, con flujos fijos', 'Sí, con información aprobada'],
     ['Lenguaje natural', 'No', 'Variable', 'Configurado a tu negocio'],
@@ -180,7 +182,7 @@ export const USE_CASES = {
 } as const;
 
 export const FIT = {
-  title: '¿Es PixelBot para tu empresa?',
+  title: '¿Es WhatsAgent para tu empresa?',
   yesTitle: 'Es para ti si…',
   yes: [
     'Recibes un flujo constante de mensajes por WhatsApp.',
@@ -200,7 +202,7 @@ export const FIT = {
 
 export const IMPLEMENTATION = {
   title: 'Cómo se implementa',
-  intro: 'PixelBot no se “activa”: se diseña alrededor de tu operación. El proceso es acompañado de principio a fin.',
+  intro: 'WhatsAgent no se “activa”: se diseña alrededor de tu operación. El proceso es acompañado de principio a fin.',
   steps: [
     { title: 'Diagnóstico operativo', detail: 'Entendemos tu flujo real de mensajes, tu proceso comercial y qué debe lograr el bot.' },
     { title: 'Diseño conversacional', detail: 'Definimos personalidad, reglas, temas, preguntas de calificación y rutas de escalamiento.' },
@@ -246,8 +248,8 @@ export const PRICING_INTRO = {
 export const PACKAGES: PixelbotPackage[] = [
   {
     id: 'esencial',
-    name: 'PixelBot Esencial',
-    price: '$1,490 MXN/mes + IVA',
+    name: 'WhatsAgent Esencial',
+    price: '$490 MXN/mes + IVA',
     forWhom:
       'Para pequeños negocios que quieren responder preguntas frecuentes, calificar contactos y entregar la conversación a una persona.',
     includes: [
@@ -278,12 +280,12 @@ export const PACKAGES: PixelbotPackage[] = [
   },
   {
     id: 'crecimiento',
-    name: 'PixelBot Crecimiento',
-    price: '$2,990 MXN/mes + IVA',
+    name: 'WhatsAgent Crecimiento',
+    price: '$999 MXN/mes + IVA',
     badge: 'Más elegido',
     forWhom:
       'Para empresas que reciben un flujo constante de prospectos y necesitan una calificación más completa.',
-    includesIntro: 'Todo lo de PixelBot Esencial, más:',
+    includesIntro: 'Todo lo de WhatsAgent Esencial, más:',
     includes: [
       'Hasta 1,000 contactos activos al mes',
       'Hasta 3 objetivos conversacionales',
@@ -300,10 +302,10 @@ export const PACKAGES: PixelbotPackage[] = [
   },
   {
     id: 'negocio',
-    name: 'PixelBot Negocio',
-    price: '$5,990 MXN/mes + IVA',
+    name: 'WhatsAgent Negocio',
+    price: 'Cotizar',
     forWhom: 'Para equipos que ya usan WhatsApp como parte de su operación comercial o de atención.',
-    includesIntro: 'Todo lo de PixelBot Crecimiento, más:',
+    includesIntro: 'Todo lo de WhatsAgent Crecimiento, más:',
     includes: [
       'Hasta 3,000 contactos activos al mes',
       'Hasta 5 objetivos conversacionales',
@@ -320,8 +322,8 @@ export const PACKAGES: PixelbotPackage[] = [
   {
     // Línea interna: "PixelBot Managed" — no se muestra en la landing pública.
     id: 'a-medida',
-    name: 'PixelBot A Medida',
-    price: 'Desde $8,490 MXN/mes + IVA',
+    name: 'WhatsAgent A Medida',
+    price: 'Cotizar',
     forWhom: 'Para operaciones que requieren procesos complejos, integraciones profundas o capacidad dedicada.',
     includesIntro: 'Puede incluir, según diagnóstico:',
     includes: [
@@ -343,7 +345,7 @@ export const PACKAGES: PixelbotPackage[] = [
 export const PRICING = {
   title: 'Activación estándar vs. a la medida',
   body:
-    'La activación estándar de los planes Esencial, Crecimiento y Negocio se distribuye dentro de tu mensualidad: no pagas un proyecto aparte para empezar. PixelBot A Medida se cotiza según diagnóstico cuando tu operación requiere procesos, integraciones o capacidad dedicada fuera de los planes estándar. Consulta los planes y precios completos arriba.',
+    'La activación estándar de los planes Esencial y Crecimiento se distribuye dentro de tu mensualidad: no pagas un proyecto aparte para empezar. Negocio y A Medida se cotizan según diagnóstico cuando tu operación requiere procesos, integraciones o capacidad dedicada fuera de los planes estándar. Consulta los planes y precios completos arriba.',
 } as const;
 
 export const COMPLIANCE = {
@@ -353,7 +355,7 @@ export const COMPLIANCE = {
     'Los mensajes iniciados por el negocio requieren consentimiento del contacto.',
     'Fuera de la ventana de servicio de 24 horas se usan plantillas aprobadas por Meta.',
     'Meta cobra por conversación según su categoría, país y modelo vigente; PixelTEC te explica estos costos antes del lanzamiento.',
-    'PixelBot no está diseñado para spam ni para bases compradas.',
+    'WhatsAgent no está diseñado para spam ni para bases compradas.',
   ],
 } as const;
 
@@ -361,7 +363,7 @@ export const FAQ = {
   title: 'Preguntas frecuentes',
   items: [
     {
-      q: '¿PixelBot usa la API oficial de WhatsApp?',
+      q: '¿WhatsAgent usa la API oficial de WhatsApp?',
       a: 'Sí. La conexión de producción usa la plataforma oficial de WhatsApp (Meta), con webhooks verificados. No usamos lectores de QR ni conectores no oficiales.',
     },
     {
@@ -386,15 +388,15 @@ export const FAQ = {
     },
     {
       q: '¿Puede enviar promociones?',
-      a: 'Los mensajes que inicia el negocio requieren consentimiento del contacto y, fuera de la ventana de servicio de 24 horas, plantillas aprobadas por Meta. PixelBot no está diseñado para spam ni para bases compradas.',
+      a: 'Los mensajes que inicia el negocio requieren consentimiento del contacto y, fuera de la ventana de servicio de 24 horas, plantillas aprobadas por Meta. WhatsAgent no está diseñado para spam ni para bases compradas.',
     },
     {
       q: '¿Cómo se cobra?',
-      a: 'Con un plan mensual fijo (Esencial, Crecimiento o Negocio) según tu volumen y necesidades, o con PixelBot A Medida cuando tu operación requiere procesos, integraciones o capacidad dedicada fuera de los planes estándar. Los cargos de Meta y el consumo de proveedores de IA se explican por separado antes del lanzamiento.',
+      a: 'Con un plan mensual fijo (Esencial o Crecimiento) según tu volumen y necesidades, o con cotización a la medida (Negocio o A Medida) cuando tu operación requiere procesos, integraciones o capacidad dedicada fuera de los planes estándar. Los cargos de Meta y el consumo de proveedores de IA se explican por separado antes del lanzamiento.',
     },
     {
       q: '¿Cuánto tarda la implementación?',
-      a: 'La activación estándar de los planes Esencial, Crecimiento y Negocio sigue un proceso acompañado y ágil una vez definida tu configuración. PixelBot A Medida depende del alcance: el diagnóstico incluye un plan con etapas y tiempos realistas para tu caso.',
+      a: 'La activación estándar de los planes Esencial y Crecimiento sigue un proceso acompañado y ágil una vez definida tu configuración. Negocio y A Medida dependen del alcance: el diagnóstico incluye un plan con etapas y tiempos realistas para tu caso.',
     },
     {
       q: '¿Puedo elegir el nombre y la identidad de mi bot?',
@@ -402,7 +404,7 @@ export const FAQ = {
     },
     {
       q: '¿Qué incluye la activación estándar?',
-      a: 'La activación estándar de los planes Esencial, Crecimiento y Negocio se distribuye dentro de tu mensualidad: configuración de personalidad, reglas, temas, preguntas de calificación, conexión oficial con WhatsApp y pruebas en el simulador. No pagas un proyecto aparte para empezar.',
+      a: 'La activación estándar de los planes Esencial y Crecimiento se distribuye dentro de tu mensualidad: configuración de personalidad, reglas, temas, preguntas de calificación, conexión oficial con WhatsApp y pruebas en el simulador. No pagas un proyecto aparte para empezar.',
     },
     {
       q: '¿Los cargos de Meta están incluidos en el precio del plan?',
@@ -417,7 +419,7 @@ export const FAQ = {
       a: 'Acceso administrativo a Meta Business, la decisión sobre tu número, información real de servicios, horarios y políticas, responsables del handoff, los límites de lo que el bot puede prometer y los accesos a los sistemas que se vayan a integrar.',
     },
     {
-      q: '¿PixelBot reemplaza a mi equipo?',
+      q: '¿WhatsAgent reemplaza a mi equipo?',
       a: 'No. Atiende y califica para que tu equipo dedique su tiempo a las conversaciones que requieren criterio humano. El control siempre es de tu equipo.',
     },
     {
@@ -429,10 +431,10 @@ export const FAQ = {
 
 export const FINAL_CTA = {
   title: 'Diseñemos el WhatsApp que tu operación necesita.',
-  body: 'Cuéntanos qué quieres automatizar y te respondemos con un diagnóstico claro: qué puede hacer PixelBot por tu operación, qué necesita y cómo se implementa.',
+  body: 'Cuéntanos qué quieres automatizar y te respondemos con un diagnóstico claro: qué puede hacer WhatsAgent por tu operación, qué necesita y cómo se implementa.',
   submitLabel: 'Solicitar diagnóstico',
   whatsappFallbackLabel: '¿Prefieres escribirnos directo por WhatsApp?',
-  whatsappMessage: 'Hola, quiero evaluar PixelBot para mi empresa.',
+  whatsappMessage: 'Hola, quiero evaluar WhatsAgent para mi empresa.',
   volumeOptions: [
     'Menos de 20 mensajes al día',
     'Entre 20 y 100 mensajes al día',
@@ -466,11 +468,11 @@ export function buildPixelbotMessage(
 }
 
 export const SEO_META = {
-  title: 'PixelBot | Bot de WhatsApp con IA desde $1,490/mes',
+  title: 'WhatsAgent | Agente de IA para WhatsApp desde $490/mes',
   description:
-    'Bot de WhatsApp con IA que atiende, califica y transfiere conversaciones a tu equipo, con nombre e identidad personalizados para tu negocio. Planes desde $1,490 MXN/mes. Implementado por PixelTEC en México.',
+    'Agente de IA para WhatsApp que atiende, califica y transfiere conversaciones a tu equipo, con nombre e identidad personalizados para tu negocio. Planes desde $490 MXN/mes. Implementado por PixelTEC en México.',
   ogImage: '/og/pixelbot.jpg',
-  serviceName: 'PixelBot — Agente de IA para WhatsApp',
+  serviceName: 'WhatsAgent — Agente de IA para WhatsApp',
   serviceDescription:
     'Agente de IA para WhatsApp que atiende, califica y transfiere conversaciones a tu equipo, con memoria por contacto, reglas configurables y handoff humano. Implementado y operado por PixelTEC.',
 } as const;

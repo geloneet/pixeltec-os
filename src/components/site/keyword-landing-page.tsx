@@ -211,7 +211,7 @@ export default function KeywordLandingPage({ landing }: { landing: KeywordLandin
             {sectionIndex === 0 && landing.hub === 'automatizacion' && (
               <aside className="mt-8 rounded-2xl border border-primary/25 dark:border-cyan-500/25 bg-primary/5 dark:bg-cyan-500/5 p-6 sm:p-8 sm:flex sm:items-center sm:justify-between sm:gap-6">
                 <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
-                  <span className="font-semibold text-foreground">PixelBot</span> es nuestro producto para
+                  <span className="font-semibold text-foreground">WhatsAgent</span> es nuestro producto para
                   operar todo esto en WhatsApp: atiende, califica y entrega la conversación a tu equipo,
                   implementado y operado por PixelTEC.
                 </p>
@@ -219,7 +219,7 @@ export default function KeywordLandingPage({ landing }: { landing: KeywordLandin
                   href="/pixelbot"
                   className="mt-4 sm:mt-0 inline-flex flex-shrink-0 items-center font-semibold text-primary dark:text-cyan-400 hover:underline"
                 >
-                  Conocer PixelBot →
+                  Conocer WhatsAgent →
                 </Link>
               </aside>
             )}
