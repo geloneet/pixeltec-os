@@ -34,6 +34,8 @@ import {
   numeric,
   pgEnum,
   pgTable,
+  primaryKey,
+  real,
   text,
   timestamp,
   uniqueIndex,
@@ -1634,12 +1636,147 @@ export const leads = pgTable(
     // envío inicial del formulario.
     wantsContact: boolean("wants_contact").notNull().default(false),
     wantsContactAt: timestamp("wants_contact_at", { withTimezone: true }),
+    // ── SEO & Contenido (WO-2026-00214, migración 0051) ──────────────────────
+    // Atribución de contenido. `revenue` NO se duplica aquí: el dinero ya tiene
+    // dueño (`sales`, ADR-0057) y copiarlo crearía dos verdades que se
+    // desincronizan en el primer pago parcial — el ingreso atribuible a un
+    // contenido se deriva por `clientId → sales`. Por lo mismo `convertedAt`
+    // sale de la primera venta del cliente vinculado, no se escribe a mano.
+    /** uuid v4 de sessionStorage; une el lead con su rastro en content_events. */
+    sessionId: text("session_id"),
+    /** {first:{path,ref_host,utm_*,ts}, last:{…}, first_content_path} — sin PII. */
+    attribution: jsonb("attribution").notNull().default({}),
+    /** Primera página del sitio vista en la sesión. */
+    landingPath: text("landing_path"),
+    /** Primer /blog/* o landing de keyword visto en la sesión. */
+    firstContentPath: text("first_content_path"),
+    serviceInterest: text("service_interest"),
+    /** Lo escribe la UI de leads al pasar el estado a 'qualified'. */
+    qualifiedAt: timestamp("qualified_at", { withTimezone: true }),
+    /** DERIVADO de la primera venta del cliente vinculado — nunca manual. */
+    convertedAt: timestamp("converted_at", { withTimezone: true }),
+    clientId: uuid("client_id").references(() => clients.id, { onDelete: "set null" }),
   },
   (t) => [
     index("leads_email_idx").on(t.email),
     index("leads_status_idx").on(t.status),
     uniqueIndex("leads_firestore_id_idx").on(t.firestoreId),
+    index("leads_session_idx").on(t.sessionId),
+    index("leads_client_idx").on(t.clientId),
+    index("leads_first_content_path_idx").on(t.firstContentPath),
   ]
+);
+
+// ════════════════════════════════════════════════════════════════════════
+// SEO & Contenido (WO-2026-00214, migración 0051)
+// Diseño: docs/superpowers/specs/2026-09-03-seo-contenido-design.md
+// ════════════════════════════════════════════════════════════════════════
+
+/**
+ * Comportamiento first-party del sitio público. SIN PII: nunca la IP cruda
+ * (solo `ipHash`, el mismo `hashIp()` salado de `leads`/`rate_limit`), nunca
+ * query strings, nunca contenido de formularios. `sessionId` es un uuid v4
+ * generado en el cliente y guardado en `sessionStorage` — muere al cerrar la
+ * pestaña y no identifica a una persona.
+ *
+ * El dedupe de hitos NO vive aquí sino en un índice único PARCIAL de la
+ * migración 0051 (`content_events_milestone_idx`, sobre
+ * `(session_id, path, event, coalesce(meta->>'depth',''))` para los eventos
+ * de cliente): que un scroll al 75 % no cuente cinco veces lo garantiza
+ * Postgres, no la promesa del navegador. Drizzle no expresa índices parciales
+ * sobre expresiones en el builder, así que el índice se declara solo en el
+ * `.sql` — declararlo aquí a medias (sin el `WHERE`) sería peor que no
+ * declararlo: `drizzle-kit` intentaría "corregir" el índice real.
+ */
+export const contentEvents = pgTable(
+  "content_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    siteId: text("site_id").notNull().default("pixeltec.mx"),
+    sessionId: text("session_id").notNull(),
+    /** `/blog/<slug>` o `/<slug-de-landing>`. Sin query string, nunca. */
+    path: text("path").notNull(),
+    postId: uuid("post_id").references(() => blogPosts.id, { onDelete: "set null" }),
+    /** Catálogo cerrado en src/lib/analytics/events.ts. */
+    event: text("event").notNull(),
+    meta: jsonb("meta").notNull().default({}),
+    ipHash: text("ip_hash"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("content_events_path_created_at_idx").on(t.path, t.createdAt),
+    index("content_events_event_created_at_idx").on(t.event, t.createdAt),
+    index("content_events_session_idx").on(t.sessionId),
+  ]
+);
+
+/**
+ * Snapshot DIARIO de Search Console por página. Snapshot y no agregado:
+ * Search Console reescribe los últimos días, así que se guarda el día crudo y
+ * el cron re-trae los últimos 5 y hace upsert sin perder historia.
+ * `ctr`/`position` van como `real` porque es lo que devuelve la API.
+ */
+export const gscPageDaily = pgTable(
+  "gsc_page_daily",
+  {
+    siteId: text("site_id").notNull(),
+    date: date("date").notNull(),
+    page: text("page").notNull(),
+    clicks: integer("clicks").notNull().default(0),
+    impressions: integer("impressions").notNull().default(0),
+    ctr: real("ctr").notNull().default(0),
+    position: real("position").notNull().default(0),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ name: "gsc_page_daily_pk", columns: [t.siteId, t.date, t.page] }),
+    index("gsc_page_daily_page_date_idx").on(t.page, t.date),
+  ]
+);
+
+/** Igual que `gscPageDaily` pero desglosado por consulta de búsqueda. */
+export const gscQueryDaily = pgTable(
+  "gsc_query_daily",
+  {
+    siteId: text("site_id").notNull(),
+    date: date("date").notNull(),
+    page: text("page").notNull(),
+    query: text("query").notNull(),
+    clicks: integer("clicks").notNull().default(0),
+    impressions: integer("impressions").notNull().default(0),
+    ctr: real("ctr").notNull().default(0),
+    position: real("position").notNull().default(0),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ name: "gsc_query_daily_pk", columns: [t.siteId, t.date, t.page, t.query] }),
+    index("gsc_query_daily_page_date_idx").on(t.page, t.date),
+  ]
+);
+
+/**
+ * Bitácora de cada corrida del cron de sincronización. Sin esto, un backfill
+ * de 16 meses que falla a la mitad es invisible. `error` guarda un código
+ * estable (`gsc_http_403`, `gsc_not_configured`), nunca el cuerpo crudo de la
+ * respuesta del proveedor.
+ */
+export const seoSyncRuns = pgTable(
+  "seo_sync_runs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    siteId: text("site_id").notNull(),
+    /** `gsc_page` | `gsc_query`. */
+    source: text("source").notNull(),
+    windowStart: date("window_start"),
+    windowEnd: date("window_end"),
+    /** `running` | `ok` | `error`. */
+    status: text("status").notNull().default("running"),
+    rows: integer("rows").notNull().default(0),
+    error: text("error"),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+  },
+  (t) => [index("seo_sync_runs_site_started_idx").on(t.siteId, t.startedAt)]
 );
 
 export const newsletterSubscribers = pgTable(
@@ -1947,6 +2084,15 @@ export type NewBlogPost = typeof blogPosts.$inferInsert;
 
 export type Lead = typeof leads.$inferSelect;
 export type NewLead = typeof leads.$inferInsert;
+
+export type ContentEvent = typeof contentEvents.$inferSelect;
+export type NewContentEvent = typeof contentEvents.$inferInsert;
+export type GscPageDaily = typeof gscPageDaily.$inferSelect;
+export type NewGscPageDaily = typeof gscPageDaily.$inferInsert;
+export type GscQueryDaily = typeof gscQueryDaily.$inferSelect;
+export type NewGscQueryDaily = typeof gscQueryDaily.$inferInsert;
+export type SeoSyncRun = typeof seoSyncRuns.$inferSelect;
+export type NewSeoSyncRun = typeof seoSyncRuns.$inferInsert;
 
 export type SmilemoreQaResponse = typeof smilemoreQaResponses.$inferSelect;
 export type NewSmilemoreQaResponse = typeof smilemoreQaResponses.$inferInsert;
