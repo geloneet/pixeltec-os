@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 import { buildMetadata } from "@/lib/seo";
 import { CollectionPageStructuredData, BreadcrumbStructuredData } from "@/components/seo/structured-data";
 import { SITE } from "@/lib/site-config";
+import { BlogSidebar } from "@/components/blog/blog-sidebar";
 
 export const revalidate = 3600; // ISR: regenerar máximo cada hora
 
@@ -25,11 +26,12 @@ interface PublishedIndex {
   cards: BlogCardData[];
   categories: string[];
   tags: string[];
+  recentPosts: { slug: string; title: string }[];
 }
 
 async function getPublishedCards(filters: PublicFilters): Promise<PublishedIndex> {
   try {
-    const { getPublishedPosts } = await import("@/lib/blog/queries/posts");
+    const { getPublishedPosts, getBlogSidebarData } = await import("@/lib/blog/queries/posts");
     // Barrido de programados (paridad Encino): un post `scheduled` vencido se
     // publica en la siguiente regeneración ISR de esta página.
     const { publishDueScheduledPosts } = await import("@/lib/blog-cms/queries");
@@ -58,10 +60,14 @@ async function getPublishedCards(filters: PublicFilters): Promise<PublishedIndex
       authorInitials: p.author.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase(),
       role: "PixelTEC Team",
     }));
-    return { cards, categories, tags };
+    // WO-2026-00212: sidebar (Entradas recientes/Categorías/Etiquetas) —
+    // recentPosts SIEMPRE sobre lo publicado sin filtrar (paridad Encino: la
+    // barra no cambia cuando el listado se filtra por categoría/etiqueta).
+    const { recentPosts } = await getBlogSidebarData();
+    return { cards, categories, tags, recentPosts };
   } catch (error) {
     console.error('[blog/list] getPublishedCards failed:', error);
-    return { cards: [], categories: [], tags: [] };
+    return { cards: [], categories: [], tags: [], recentPosts: [] };
   }
 }
 
@@ -72,7 +78,7 @@ function one(v: string | string[] | undefined): string {
 export default async function BlogPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const sp = await searchParams;
   const filters: PublicFilters = { categoria: one(sp.categoria), etiqueta: one(sp.etiqueta) };
-  const { cards: posts, categories, tags } = await getPublishedCards(filters);
+  const { cards: posts, categories, tags, recentPosts } = await getPublishedCards(filters);
   const activeFilter = filters.categoria || filters.etiqueta;
 
   return (
@@ -118,10 +124,21 @@ export default async function BlogPage({ searchParams }: { searchParams: Promise
             </nav>
           )}
 
-          <section aria-labelledby="blog-posts-heading">
-            <h2 id="blog-posts-heading" className="sr-only">Blog Posts</h2>
-            <BlogGrid posts={posts} />
-          </section>
+          <div className="lg:grid lg:grid-cols-[1fr_280px] lg:items-start lg:gap-12">
+            <section aria-labelledby="blog-posts-heading">
+              <h2 id="blog-posts-heading" className="sr-only">Blog Posts</h2>
+              <BlogGrid posts={posts} />
+            </section>
+            <div className="hidden lg:block">
+              <BlogSidebar
+                recentPosts={recentPosts}
+                categories={categories}
+                tags={tags}
+                activeCategory={filters.categoria || null}
+                activeTag={filters.etiqueta || null}
+              />
+            </div>
+          </div>
         </div>
       </main>
     </>

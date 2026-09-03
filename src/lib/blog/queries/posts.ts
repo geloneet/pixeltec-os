@@ -139,6 +139,24 @@ export async function getRelatedPosts(slug: string, category: string, limit = 3)
   return rows.map(serializePost);
 }
 
+/** Datos del sidebar público del blog (WO-2026-00212, paridad Encino
+ *  `blog-sidebar.tsx`): entradas recientes + categorías/etiquetas únicas de
+ *  TODO lo publicado (no solo lo filtrado) — igual que `/blog` ya calcula
+ *  para sus pills de filtro. Reutiliza `getPublishedPosts()`: sin query
+ *  adicional, mismo criterio de "publicado" en las tres vistas. */
+export async function getBlogSidebarData(
+  excludeSlug?: string,
+  recentLimit = 5,
+): Promise<{ recentPosts: { slug: string; title: string }[]; categories: string[]; tags: string[] }> {
+  const all = await getPublishedPosts();
+  const pool = excludeSlug ? all.filter((p) => p.slug !== excludeSlug) : all;
+  return {
+    recentPosts: pool.slice(0, recentLimit).map((p) => ({ slug: p.slug, title: p.title })),
+    categories: Array.from(new Set(all.map((p) => p.category).filter(Boolean))).sort(),
+    tags: Array.from(new Set(all.flatMap((p) => p.tags).filter(Boolean))).slice(0, 20),
+  };
+}
+
 /** Vistas por post para el Blog Admin: `{postId: views}`. Fail-safe a mapa
  *  vacío (p. ej. contenedor nuevo contra DB sin la migración 0027 aplicada):
  *  el admin funciona igual, solo sin la cifra. */
