@@ -1,7 +1,7 @@
 /**
  * Validador del contrato de configuración de egress E0 (E0g-1).
  *
- * Valida NOMBRES y semántica de las 27 variables de política + el requisito
+ * Valida NOMBRES y semántica de las 28 variables de política + el requisito
  * del secreto CRON_SECRET, sin imprimir jamás un valor: la salida solo lleva
  * canal, variable y estado (present | missing | invalid | forbidden). No toca
  * el VPS, no modifica `.env`, no reinicia nada — es lectura pura del entorno
@@ -12,7 +12,7 @@
  *                natural de desarrollo. Solo se reportan valores inválidos y
  *                configuraciones que el guard bloquearía por incoherentes
  *                (live sin flag fuera de producción, allowlist vacía).
- *   - predeploy: contrato de producción — los 8 modos explícitos, allowlists
+ *   - predeploy: contrato de producción — los 8 modos explícitos (Unsplash y Google son opcionales), allowlists
  *                exigidas por el modo elegido, flags *_OUTSIDE_PRODUCTION
  *                ausentes, EGRESS_DEFAULT_MODE ausente (producción no usa el
  *                atajo global) y CRON_SECRET presente (secreto, no política).
@@ -69,6 +69,10 @@ const CHANNELS: Array<{ channel: string; mode: string; allowlists: string[]; opt
   // y el predeploy NO lo exige — se activa cuando producción declare
   // EGRESS_UNSPLASH_MODE=live + UNSPLASH_ACCESS_KEY.
   { channel: "unsplash", mode: "EGRESS_UNSPLASH_MODE", allowlists: [], optional: true },
+  // Google Search Console (WO-2026-00214). También OPCIONAL: hasta que
+  // producción declare EGRESS_GOOGLE_MODE=live + GOOGLE_SERVICE_ACCOUNT_JSON,
+  // ausente = disabled es el estado CORRECTO, no una omisión.
+  { channel: "google", mode: "EGRESS_GOOGLE_MODE", allowlists: [], optional: true },
 ];
 
 /** Solo "true" activa (mismo parseo que flagIsTrue del guard). */

@@ -17,7 +17,7 @@
  * política directamente: la interpretación vive solo aquí.
  */
 
-export type EgressChannel = "email" | "whatsapp" | "vps" | "r2" | "meta" | "ai" | "internal" | "unsplash";
+export type EgressChannel = "email" | "whatsapp" | "vps" | "r2" | "meta" | "ai" | "internal" | "unsplash" | "google";
 
 export type EgressOperation =
   | "send"
@@ -50,6 +50,13 @@ export type EgressOperation =
   // lectura de un catálogo público; aún así pasa por la política (canal
   // opcional del contrato, fail-closed sin EGRESS_UNSPLASH_MODE=live).
   | "search_photos";
+// Google (Search Console, WO-2026-00214) reutiliza `read`: lo único que hace es
+// consultar métricas de NUESTRA propia propiedad. No escribe nada en Google, no
+// publica y no lee credenciales de terceros — no hay una segunda operación que
+// distinguir, y crear una serviría solo para dar la impresión de que sí.
+
+/** Destino fijo del canal Google. El host no es dinámico: no hay superficie SSRF. */
+export const GOOGLE_SEARCH_CONSOLE_HOST = "searchconsole.googleapis.com";
 
 export type EgressRequest = {
   channel: EgressChannel;
@@ -115,6 +122,7 @@ const MODE_ENV: Record<EgressChannel, string> = {
   ai: "EGRESS_AI_MODE",
   internal: "EGRESS_INTERNAL_MODE",
   unsplash: "EGRESS_UNSPLASH_MODE",
+  google: "EGRESS_GOOGLE_MODE",
 };
 
 /**
