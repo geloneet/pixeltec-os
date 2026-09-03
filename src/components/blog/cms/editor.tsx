@@ -30,6 +30,7 @@ import { extractMapsEmbedUrl } from "@/lib/blog-cms/maps-embed";
 import { selectableBlogSchemaTypes } from "@/lib/blog-cms/schema-types";
 import { AI_ARTICLE_TONES, toAiArticleParams, type AiArticleTone } from "@/lib/blog-cms/ai-params";
 import { isSystemSlug } from "@/lib/blog-cms/transitions";
+import { parseUnsplashImageUrl } from "@/lib/blog-cms/unsplash-url";
 import type { BlogCmsIntent } from "@/lib/blog-cms/schemas";
 import {
   discardEmptyBlogCmsDraft,
@@ -39,6 +40,7 @@ import {
 import { ADMIN_BLOG_PATH } from "@/lib/blog-cms/paths";
 import { generateBlogCmsArticle, generateBlogCmsFaq } from "@/lib/blog-cms/ai";
 import { StatusPill } from "./status-pill";
+import { UnsplashPicker } from "./unsplash-picker";
 import { formatEditorialDate } from "@/lib/blog/format-date";
 
 const RichMarkdownEditor = dynamic(() => import("@/components/blog/rich-markdown-editor"), { ssr: false });
@@ -122,6 +124,7 @@ export function BlogCmsEditor({ post, categories, revisions, isAdmin, startWithA
   const [aiRegen, setAiRegen] = useState(false);
   const [faqAiOpen, setFaqAiOpen] = useState(false);
   const [aiParams, setAiParams] = useState(toAiArticleParams(post.aiParams));
+  const [coverUrlInput, setCoverUrlInput] = useState("");
   const dirtyRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const formRef = useRef(form);
@@ -199,6 +202,19 @@ export function BlogCmsEditor({ post, categories, revisions, isAdmin, startWithA
     const handler = (e: BeforeUnloadEvent) => { if (dirtyRef.current) { e.preventDefault(); } };
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
+  }, []);
+
+  // Bug reportado por Miguel: el popup «crear con IA» reaparecía al
+  // guardar/publicar una entrada YA EXISTENTE. Causa raíz: `startWithAi` viene
+  // de `?ia=1` en la URL (puesto por «Nueva entrada con IA», new-post-button.tsx)
+  // y nunca se limpiaba; page.tsx remonta este editor con `key={post.updatedAt}`
+  // en cada guardado (para poder restaurar revisiones con estado limpio), así
+  // que cualquier guardado posterior con `?ia=1` todavía en la URL volvía a
+  // inicializar `aiOpen` en `true`. Fix: retirar el parámetro de la URL apenas
+  // se consume, antes de que el primer guardado pueda provocar el remontaje.
+  useEffect(() => {
+    if (startWithAi) router.replace(`${ADMIN_BLOG_PATH}/${post.id}/editar`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const explicit = (intent: BlogCmsIntent, when?: string) => start(async () => { await doSave(intent, when); });
@@ -329,6 +345,26 @@ export function BlogCmsEditor({ post, categories, revisions, isAdmin, startWithA
                   <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => void handleCover(e.target.files?.[0])} />
                 </label>
               )}
+              <div className="mt-3 flex items-center gap-2">
+                <Input
+                  value={coverUrlInput}
+                  onChange={(e) => setCoverUrlInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handlePasteCoverUrl(); } }}
+                  placeholder="Pegar URL de imagen de Unsplash…"
+                  aria-label="URL de imagen de Unsplash"
+                  className="h-8 text-xs"
+                />
+                <Button type="button" variant="outline" size="sm" onClick={handlePasteCoverUrl} disabled={!coverUrlInput.trim()}>Usar</Button>
+              </div>
+              <div className="mt-2">
+                <UnsplashPicker
+                  onSelect={(photo, query) => {
+                    set("coverImage", photo.regularUrl);
+                    if (!form.coverImageAlt.trim()) set("coverImageAlt", photo.altDescription || query);
+                    toast.success(`Portada seleccionada — foto de ${photo.authorName} en Unsplash`);
+                  }}
+                />
+              </div>
               <Field label="Texto alternativo (Alt Text)"><Input value={form.coverImageAlt} maxLength={200} onChange={(e) => set("coverImageAlt", e.target.value)} /></Field>
             </Card>
             <Card title="Categoría">
@@ -480,6 +516,14 @@ export function BlogCmsEditor({ post, categories, revisions, isAdmin, startWithA
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "No se pudo subir la portada");
     }
+  }
+
+  function handlePasteCoverUrl() {
+    const result = parseUnsplashImageUrl(coverUrlInput);
+    if (!result.ok) { toast.error(result.error); return; }
+    set("coverImage", result.url);
+    setCoverUrlInput("");
+    toast.success("Portada actualizada desde la URL");
   }
 }
 
