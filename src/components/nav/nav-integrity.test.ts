@@ -102,6 +102,8 @@ describe("taxonomía visible (ADR-0030 · ADR-0039 · WO-2026-00088/ADR-0054 pro
     expect(l2("usuarios")).toEqual(["Usuarios"]);
     expect(l2("seo")).toEqual([
       "Salud",
+      // WO-2026-00214: analítica y atribución de contenido.
+      "Contenido",
       "llms.txt",
       "robots.txt",
       "Negocio local",

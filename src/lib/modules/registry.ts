@@ -112,8 +112,8 @@ const REGISTRY = [
     id: "seo",
     label: "SEO",
     state: "active",
-    routes: ["/seo", "/seo/salud", "/seo/llms", "/seo/robots", "/seo/local-business", "/seo/structured-data", "/seo/schema", "/seo/redes", "/seo/sitemap"],
-    note: "Módulo SEO portado de Muebles Encino (WO-2026-00095, orden de Miguel 2026-08-26). Administra ÚNICAMENTE pixeltec.mx. Los ajustes viven en `app_settings` (migración 0044).",
+    routes: ["/seo", "/seo/salud", "/seo/contenido", "/seo/llms", "/seo/robots", "/seo/local-business", "/seo/structured-data", "/seo/schema", "/seo/redes", "/seo/sitemap"],
+    note: "Módulo SEO portado de Muebles Encino (WO-2026-00095, orden de Miguel 2026-08-26). Administra ÚNICAMENTE pixeltec.mx. Los ajustes viven en `app_settings` (migración 0044). WO-2026-00214 añade /seo/contenido (analítica y atribución de contenido, migración 0051).",
   },
   {
     id: "usuarios",

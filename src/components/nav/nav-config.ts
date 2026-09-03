@@ -80,6 +80,7 @@ const AREA_ITEMS: Record<NavArea, AreaItemRef[]> = {
   blog: [{ href: "/blog-cms" }],
   seo: [
     { href: "/seo/salud", secondaryLabel: "Salud" },
+    { href: "/seo/contenido", secondaryLabel: "Contenido" },
     { href: "/seo/llms" },
     { href: "/seo/robots" },
     { href: "/seo/local-business", secondaryLabel: "Negocio local" },
