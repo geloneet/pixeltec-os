@@ -35,6 +35,22 @@ export async function getProposals(_uid: string, clientId?: string): Promise<Pro
   return rows.map((r) => serializeProposal(r.doc, r.clientFsId ?? r.doc.clientId, uid));
 }
 
+/**
+ * Brief ya vinculado a esta cotización, si existe (WO-2026-00222). El botón
+ * "Crear brief" en /cotizaciones lo usa para no ofrecer crear un segundo
+ * brief para la misma cotización — `proposals.quote_id` es único.
+ */
+export async function getProposalByQuoteId(quoteId: string): Promise<Proposal | null> {
+  const { uid, ownerId } = await requireOwner();
+  const [row] = await db
+    .select({ doc: proposals, clientFsId: clients.firestoreId })
+    .from(proposals)
+    .innerJoin(clients, eq(proposals.clientId, clients.id))
+    .where(and(eq(proposals.ownerId, ownerId), eq(proposals.quoteId, quoteId)))
+    .limit(1);
+  return row ? serializeProposal(row.doc, row.clientFsId ?? row.doc.clientId, uid) : null;
+}
+
 export async function createProposal(
   _uid: string,
   clientId: string,
@@ -51,6 +67,7 @@ export async function createProposal(
       ownerId,
       clientId: clientPgId,
       clientName,
+      quoteId: data.quoteId ?? null,
       title: data.title,
       scope: data.scope,
       solution: data.solution ?? null,

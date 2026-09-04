@@ -17,6 +17,12 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 vi.mock("@/lib/quotes/actions", () => ({
   saveQuote: vi.fn(async () => ({ ok: true, data: { id: "q1" } })),
 }));
+// WO-2026-00222: mismo motivo — createProposal/getProposalByQuoteId también
+// son server actions que arrastran next-auth.
+vi.mock("@/lib/documents/proposals", () => ({
+  createProposal: vi.fn(async () => "p1"),
+  getProposalByQuoteId: vi.fn(async () => null),
+}));
 
 import { QuoteForm } from "./quote-form";
 import { DEFAULT_EXCLUSIONS } from "@/lib/quotes/terms";
