@@ -19,9 +19,23 @@ import { anthropicCreate } from '@/lib/ai/anthropic-egress';
 import { getModel } from '@/lib/blog/ai/client';
 import { toPublicFailure } from '@/lib/errors/public-failure';
 import type { ActionResult } from '@/lib/blog/schemas';
+import { parseModelJson } from '@/lib/ai/model-json';
 import { getSetting, setSetting } from '@/lib/settings/queries';
 import { getSeoTool, isSeoToolKey, validateToolContent, SEO_SITE, type SeoTool } from './tools';
-import { SETTING_PAGE_SCHEMA, parsePageSchemaMap, serializePageSchemaMap, type PageSchemaMap } from './page-schema';
+import {
+  SETTING_PAGE_SCHEMA,
+  SITE_PAGES,
+  parsePageSchemaMap,
+  serializePageSchemaMap,
+  normalizeSchemaPath,
+  type PageSchemaMap,
+} from './page-schema';
+import {
+  SUGGEST_SYSTEM,
+  buildSuggestPrompt,
+  normalizeSuggestions,
+  type PageSuggestion,
+} from './page-schema-suggest';
 import { SETTING_SOCIAL_LINKS, serializeSocialLinks, type SocialLink } from './social';
 import { SETTING_SITEMAP_ENABLED } from './keys';
 
@@ -151,6 +165,58 @@ export async function savePageSchema(path: string, types: string[]): Promise<Act
     return { ok: true };
   } catch (err) {
     return fail(err, 'page_schema_failed', 'No se pudo guardar el schema de la página.');
+  }
+}
+
+const SuggestPathsSchema = z.array(z.string().max(80)).min(1).max(SITE_PAGES.length);
+
+/**
+ * «Sugerir con IA» del Schema por página: propone tipos schema.org para las
+ * rutas pedidas. NO guarda nada — igual que `generateSeoTool`, la IA propone y
+ * Miguel decide qué acepta y cuándo pulsa Guardar.
+ */
+export async function suggestPageSchema(
+  paths: string[],
+): Promise<ActionResult<{ suggestions: PageSuggestion[] }>> {
+  try {
+    const actor = await adminId();
+    if (!actor) return { ok: false, error: 'Necesitas rol administrador.' };
+
+    const requested = SuggestPathsSchema.parse(paths).map(normalizeSchemaPath);
+    const pages = SITE_PAGES.filter((p) => requested.includes(p.path));
+    if (pages.length === 0) return { ok: false, error: 'Ninguna de esas páginas está en el catálogo del sitio.' };
+
+    const current: PageSchemaMap = parsePageSchemaMap(await getSetting(SETTING_PAGE_SCHEMA));
+
+    const message = await anthropicCreate({
+      operation: 'generate_text',
+      model: getModel(),
+      buildParams: () => ({
+        max_tokens: 2000,
+        system: SUGGEST_SYSTEM,
+        messages: [{ role: 'user' as const, content: buildSuggestPrompt(pages, current) }],
+      }),
+    });
+
+    const text = message.content
+      .filter((b) => b.type === 'text')
+      .map((b) => (b as { type: 'text'; text: string }).text)
+      .join('');
+
+    if (!text.trim()) return { ok: false, error: 'La IA no devolvió contenido.' };
+
+    // `parseModelJson`, nunca `JSON.parse`: el SyntaxError de V8 incrusta un
+    // fragmento de la respuesta del modelo en el mensaje y acabaría en los logs.
+    const raw = parseModelJson<unknown>(text);
+    const suggestions = normalizeSuggestions(
+      raw,
+      pages.map((p) => p.path),
+      current,
+    );
+
+    return { ok: true, data: { suggestions } };
+  } catch (err) {
+    return fail(err, 'suggest_page_schema_failed', 'No se pudo sugerir con IA.');
   }
 }
 

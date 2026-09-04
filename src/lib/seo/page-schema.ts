@@ -18,6 +18,13 @@ export interface SitePage {
   /** Ruta pública, sin slash final (como las sirve PixelTEC OS). */
   path: string;
   label: string;
+  /**
+   * De qué trata la página, en una frase. Copiada de la `description` real de
+   * su metadata (`buildMetadata` en su `page.tsx` o `layout.tsx`) — no es texto
+   * decorativo: es lo único que la IA lee para proponer tipos de schema, así
+   * que tiene que describir la página de verdad.
+   */
+  description: string;
 }
 
 /**
@@ -26,18 +33,79 @@ export interface SitePage {
  * por entrada (pestaña «Snippets» del editor), así que aquí va solo el índice.
  */
 export const SITE_PAGES: SitePage[] = [
-  { path: '/', label: 'Inicio' },
-  { path: '/services', label: 'Servicios' },
-  { path: '/pixelbot', label: 'PixelBot' },
-  { path: '/blog', label: 'Blog (índice)' },
-  { path: '/industrias', label: 'Industrias' },
-  { path: '/diagnostico', label: 'Diagnóstico' },
-  { path: '/about', label: 'Nosotros' },
-  { path: '/equipo', label: 'Equipo' },
-  { path: '/contact', label: 'Contacto' },
-  { path: '/metodologia', label: 'Metodología' },
-  { path: '/guias-transformacion', label: 'Guías de transformación' },
+  {
+    path: '/',
+    label: 'Inicio',
+    description:
+      'Portada de PixelTEC: transformamos procesos complejos en ecosistemas web y automatizaciones escalables para empresas que buscan rentabilidad y control absoluto.',
+  },
+  {
+    path: '/services',
+    label: 'Servicios',
+    description:
+      'Catálogo de los tres servicios de la agencia: ecosistemas web avanzados, automatización de procesos y consultoría tecnológica, cada uno con su propia subpágina.',
+  },
+  {
+    path: '/pixelbot',
+    label: 'PixelBot',
+    description:
+      'Landing de WhatsAgent, el agente de IA para WhatsApp que atiende, califica y transfiere conversaciones al equipo del cliente. Producto con planes y precios desde $490 MXN/mes.',
+  },
+  {
+    path: '/blog',
+    label: 'Blog (índice)',
+    description:
+      'Índice del blog: listado de guías, comparativas, calculadoras y casos reales sobre automatización con IA, software a medida y desarrollo de aplicaciones en México.',
+  },
+  {
+    path: '/industrias',
+    label: 'Industrias',
+    description:
+      'Listado de los sectores que atiende PixelTEC (logística, clínicas, retail, hotelería, SaaS) con los problemas concretos que resuelve en cada vertical.',
+  },
+  {
+    path: '/diagnostico',
+    label: 'Diagnóstico',
+    description:
+      'Cuestionario interactivo: el visitante responde unas preguntas y recibe una recomendación personalizada con su nivel de madurez digital y los servicios sugeridos.',
+  },
+  {
+    path: '/about',
+    label: 'Nosotros',
+    description:
+      'Página institucional sobre quiénes somos: el equipo de PixelTEC, su metodología y los tres pilares de trabajo (desarrollo, automatización e IA, consultoría).',
+  },
+  {
+    path: '/equipo',
+    label: 'Equipo',
+    description:
+      'Perfiles de las personas que forman PixelTEC, con su rol, herramientas y enlaces profesionales.',
+  },
+  {
+    path: '/contact',
+    label: 'Contacto',
+    description:
+      'Formulario de contacto y datos de la oficina de Puerto Vallarta (teléfono, WhatsApp, correo) para agendar un diagnóstico con el equipo.',
+  },
+  {
+    path: '/metodologia',
+    label: 'Metodología',
+    description:
+      'Explicación del proceso de trabajo en cuatro fases: diagnóstico y arquitectura, desarrollo ágil, despliegue e integración, y evolución continua.',
+  },
+  {
+    path: '/guias-transformacion',
+    label: 'Guías de transformación',
+    description:
+      'Centro de recursos descargables: playbooks, arquitecturas y estrategias para escalar el ecosistema digital de una empresa.',
+  },
 ];
+
+/** Busca una página del catálogo por su ruta (ya normalizada o no). */
+export function getSitePage(path: string): SitePage | undefined {
+  const norm = normalizeSchemaPath(path);
+  return SITE_PAGES.find((p) => p.path === norm);
+}
 
 /** Normaliza una ruta a la forma canónica del mapa (sin slash final, salvo «/»). */
 export function normalizeSchemaPath(pathname: string): string {

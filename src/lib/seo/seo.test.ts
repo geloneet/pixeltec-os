@@ -2,11 +2,19 @@ import { describe, it, expect } from 'vitest';
 import { SEO_TOOLS, getSeoTool, isSeoToolKey, validateToolContent, allSeoSettingKeys } from './tools';
 import {
   SITE_PAGES,
+  getSitePage,
   normalizeSchemaPath,
   parsePageSchemaMap,
   serializePageSchemaMap,
   schemaNodesForPath,
 } from './page-schema';
+import {
+  MAX_REASON_LENGTH,
+  SUGGEST_SYSTEM,
+  buildSuggestPrompt,
+  normalizeSuggestions,
+  suggestableSchemaTypes,
+} from './page-schema-suggest';
 import {
   DEFAULT_SOCIAL_LINKS,
   isValidSocialHref,
@@ -71,6 +79,109 @@ describe('schema por página', () => {
   it('el catálogo de páginas no tiene rutas duplicadas', () => {
     const paths = SITE_PAGES.map((p) => p.path);
     expect(new Set(paths).size).toBe(paths.length);
+  });
+
+  it('toda página del catálogo describe de qué trata (la IA solo lee eso)', () => {
+    for (const page of SITE_PAGES) {
+      expect(page.description.trim(), `«${page.path}» sin descripción`).not.toBe('');
+      expect(page.description.trim().length, `«${page.path}» con descripción demasiado corta`).toBeGreaterThan(30);
+    }
+  });
+
+  it('getSitePage encuentra la página normalizando la ruta', () => {
+    expect(getSitePage('/contact/')?.label).toBe('Contacto');
+    expect(getSitePage('/')?.label).toBe('Inicio');
+    expect(getSitePage('/ruta-inventada')).toBeUndefined();
+  });
+});
+
+/** WO-2026-00220 — «Sugerir con IA» del schema por página. */
+describe('sugerencia de schema con IA', () => {
+  const pages = SITE_PAGES.slice(0, 3);
+
+  it('el catálogo ofrecido a la IA excluye los tipos que ya emite todo el sitio', () => {
+    const values = suggestableSchemaTypes().map((t) => t.value);
+    expect(values).not.toContain('Organization');
+    expect(values).toContain('WebPage');
+  });
+
+  it('el prompt incluye todas las rutas pedidas y el catálogo permitido', () => {
+    const prompt = buildSuggestPrompt(pages, { '/': ['WebPage'] });
+    for (const page of pages) {
+      expect(prompt).toContain(page.path);
+      expect(prompt).toContain(page.label);
+      expect(prompt).toContain(page.description);
+    }
+    expect(prompt).toContain('WebPage');
+    expect(prompt).toContain(SITE_PAGES[0].path);
+    // Los tipos ya asignados viajan para que no los repita.
+    expect(prompt).toContain('Tipos ya asignados: WebPage');
+  });
+
+  it('el system prompt prohíbe los tipos que ya emite el sitio y exige solo JSON', () => {
+    expect(SUGGEST_SYSTEM).toContain('Organization');
+    expect(SUGGEST_SYSTEM).toContain('"suggestions"');
+  });
+
+  it('descarta tipos inventados y rutas que no se pidieron', () => {
+    const out = normalizeSuggestions(
+      {
+        suggestions: [
+          { path: '/contact', types: [{ type: 'NoExisteEsteTipo', reason: 'x' }, { type: 'LocalBusiness', reason: 'Aparece en el mapa' }] },
+          { path: '/ruta-que-nadie-pidio', types: [{ type: 'WebPage', reason: 'x' }] },
+        ],
+      },
+      ['/contact'],
+      {},
+    );
+    expect(out).toEqual([
+      { path: '/contact', types: [{ type: 'LocalBusiness', reason: 'Aparece en el mapa' }] },
+    ]);
+  });
+
+  it('quita los tipos que la página ya tiene asignados', () => {
+    const out = normalizeSuggestions(
+      { suggestions: [{ path: '/contact', types: [{ type: 'LocalBusiness', reason: 'a' }, { type: 'WebPage', reason: 'b' }] }] },
+      ['/contact'],
+      { '/contact': ['LocalBusiness'] },
+    );
+    expect(out[0].types).toEqual([{ type: 'WebPage', reason: 'b' }]);
+  });
+
+  it('recorta a 3 tipos por página, deduplica y limita el motivo', () => {
+    const out = normalizeSuggestions(
+      {
+        suggestions: [
+          {
+            path: '/services',
+            types: [
+              { type: 'WebPage', reason: 'a'.repeat(400) },
+              { type: 'WebPage', reason: 'duplicado' },
+              { type: 'Service', reason: 'b' },
+              { type: 'ItemList', reason: 'c' },
+              { type: 'QAPage', reason: 'd' },
+            ],
+          },
+        ],
+      },
+      ['/services'],
+      {},
+    );
+    expect(out[0].types.map((t) => t.type)).toEqual(['WebPage', 'Service', 'ItemList']);
+    expect(out[0].types[0].reason.length).toBe(MAX_REASON_LENGTH);
+  });
+
+  it('devuelve una entrada vacía por cada ruta pedida sin sugerencias', () => {
+    expect(normalizeSuggestions({ suggestions: [] }, ['/about', '/equipo'], {})).toEqual([
+      { path: '/about', types: [] },
+      { path: '/equipo', types: [] },
+    ]);
+  });
+
+  it('ante una respuesta con forma inesperada devuelve listas vacías, no lanza', () => {
+    for (const raw of [null, 'texto', { otraCosa: 1 }, { suggestions: 'no-es-lista' }]) {
+      expect(normalizeSuggestions(raw, ['/about'], {})).toEqual([{ path: '/about', types: [] }]);
+    }
   });
 
   it('emite un nodo mínimo por tipo de la ruta pedida', () => {

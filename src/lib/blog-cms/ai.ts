@@ -11,6 +11,7 @@ import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { blogPosts } from '@/lib/db/schema';
 import { anthropicCreate } from '@/lib/ai/anthropic-egress';
+import { parseModelJson } from '@/lib/ai/model-json';
 import { getModel } from '@/lib/blog/ai/client';
 import { requireUserSession } from '@/lib/auth/session';
 import { getPublishedPosts } from '@/lib/blog/queries/posts';
@@ -57,7 +58,11 @@ async function askJson(system: string, user: string, maxTokens: number): Promise
     .filter((b) => b.type === 'text')
     .map((b) => (b as { type: 'text'; text: string }).text)
     .join('');
-  return JSON.parse(stripJsonFence(text));
+  // WO-2026-00220: `parseModelJson`, no `JSON.parse` crudo. El SyntaxError de
+  // V8 incrusta un fragmento de la respuesta del modelo en su mensaje, así que
+  // un `console.error(err)` aguas arriba acababa escribiendo en los logs texto
+  // generado sobre el cliente. `parseModelJson` falla con un código fijo.
+  return parseModelJson<unknown>(stripJsonFence(text));
 }
 
 const ARTICLE_SYSTEM = `Eres redactor senior del blog de PixelTEC (agencia mexicana de software, Puerto Vallarta). Escribes en español de México para PyMEs sin formación técnica: claro, útil, sin relleno ni promesas. Respondes ÚNICAMENTE con un objeto JSON válido, sin comentarios ni bloques de código, con exactamente estas claves: "title" (string), "metaDescription" (string ≤ 160 caracteres), "tags" (array de 1 a 6 strings cortos), "body" (string en Markdown: empieza en "##", usa H2/H3, párrafos cortos, listas cuando aporten; jamás un "# " nivel 1; sin HTML).`;

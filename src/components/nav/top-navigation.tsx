@@ -17,6 +17,7 @@ import {
   NAV_AREA_LABELS,
   getAreaHref,
   getActiveArea,
+  countOpenTasks,
 } from "./nav-config";
 
 function OnlineDot() {
@@ -38,15 +39,7 @@ export function TopNavigation() {
   const { userProfile } = useUserProfile();
   const visibleAreas = getVisibleNavAreas(userProfile?.role);
 
-  const openTasksCount = clients
-    .flatMap((c) => c.projects)
-    .flatMap((p) => p.tasks)
-    .filter(
-      (t) =>
-        t.status === "pendiente" ||
-        t.status === "en_progreso" ||
-        t.status === "en_revision"
-    ).length;
+  const openTasksCount = countOpenTasks(clients);
 
   return (
     <header className="relative flex h-20 w-full flex-shrink-0 items-center justify-between border-b border-border bg-background/80 px-4 backdrop-blur-lg sm:px-6 lg:px-8">

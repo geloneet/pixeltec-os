@@ -9,7 +9,7 @@ export default async function SeoSchemaPage() {
     <div className={SEO_WIDTH}>
       <SeoPageHeader
         title="Schema por página"
-        description="Tipos de datos estructurados asignados a cada página del sitio. Las entradas del blog tienen su propio selector en la pestaña «Snippets» del editor."
+        description="Tipos de datos estructurados asignados a cada página del sitio. Si no sabes cuál toca, usa «Sugerir con IA»: propone tipos con su motivo y tú decides cuáles aceptas antes de guardar. Las entradas del blog tienen su propio selector en la pestaña «Snippets» del editor."
       />
       <div className="mt-8">
         <PageSchemaEditor pages={SITE_PAGES} initial={map} />
