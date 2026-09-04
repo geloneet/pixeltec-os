@@ -8,7 +8,6 @@
  * fallback al feed sintético para clientes sin eventos.
  */
 import { useState, useMemo, useEffect } from "react";
-import Link from "next/link";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -51,7 +50,6 @@ import {
   Phone,
   MessageCircle,
   Sparkles,
-  ChevronDown,
   CheckCircle2,
   Circle,
   CalendarClock,
@@ -363,30 +361,20 @@ export function ClientDetail({
         </div>
 
         <div className="flex flex-shrink-0 items-center gap-2">
-          {/* Acción principal única: crear proyecto (dos variantes) */}
+          {/* Acción principal única: crear proyecto.
+              WO-2026-00220: era un dropdown de dos opciones, pero «Crear desde
+              cero» apuntaba a /proyectos/definicion/nueva — ruta borrada en un
+              WO anterior, o sea un 404 real. Al quedar una sola opción viva, el
+              dropdown sobraba: botón directo al modal que ya existía. */}
           {SHOW_PROYECTOS && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="flex items-center gap-1 rounded-lg border border-cyan-500/20 bg-cyan-500/10 px-3 py-1.5 text-xs font-medium text-cyan-300 transition-all hover:bg-cyan-500/20 focus-visible:outline-none">
-                <Sparkles className="h-3 w-3" aria-hidden />
-                Crear proyecto
-                <ChevronDown className="h-3 w-3" aria-hidden />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56 border-border bg-popover/95 backdrop-blur-xl">
-              <DropdownMenuItem asChild className="cursor-pointer text-sm">
-                <Link href={`/proyectos/definicion/nueva?client=${encodeURIComponent(client.id)}&name=${encodeURIComponent(client.name)}`}>
-                  Crear desde cero
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                className="cursor-pointer text-sm"
-                onSelect={() => setModal({ type: "addProject", data: { clientId: client.id } })}
-              >
-                Registrar proyecto existente
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <button
+            type="button"
+            onClick={() => setModal({ type: "addProject", data: { clientId: client.id } })}
+            className="flex items-center gap-1 rounded-lg border border-cyan-500/20 bg-cyan-500/10 px-3 py-1.5 text-xs font-medium text-cyan-300 transition-all hover:bg-cyan-500/20 focus-visible:outline-none"
+          >
+            <Sparkles className="h-3 w-3" aria-hidden />
+            Crear proyecto
+          </button>
           )}
 
           <DropdownMenu>
@@ -479,12 +467,13 @@ export function ClientDetail({
               </button>
             )}
             {onboarding.cta.action === "crear-proyecto" && (
-              <Link
-                href={`/proyectos/definicion/nueva?client=${encodeURIComponent(client.id)}&name=${encodeURIComponent(client.name)}`}
-                className="inline-block rounded-lg bg-cyan-500 px-4 py-2 text-xs font-semibold text-black transition-colors hover:bg-cyan-400"
+              <button
+                type="button"
+                onClick={() => setModal({ type: "addProject", data: { clientId: client.id } })}
+                className="rounded-lg bg-cyan-500 px-4 py-2 text-xs font-semibold text-black transition-colors hover:bg-cyan-400"
               >
                 {onboarding.cta.label}
-              </Link>
+              </button>
             )}
             {onboarding.cta.action === "abrir-proyecto" && onboarding.projectId && (
               <button

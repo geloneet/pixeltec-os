@@ -11,7 +11,10 @@ import { isNavItemVisible } from "@/components/nav/nav-config";
  * del registro central de módulos (WO-2026-00088) — un destino oculto
  * desaparece de aquí sin editar este archivo.
  */
-const QUICK_LINK_HREFS = ["/hoy", "/clientes", "/accesos"] as const;
+// WO-2026-00220: `/accesos` se borró y ni siquiera está en PALETTE_NAV_ITEMS,
+// así que el 404 ofrecía dos accesos rápidos en vez de tres. Sustituido por
+// /cotizaciones, que sí existe.
+const QUICK_LINK_HREFS = ["/hoy", "/clientes", "/cotizaciones"] as const;
 
 export const QUICK_LINKS = QUICK_LINK_HREFS.map((href) =>
   PALETTE_NAV_ITEMS.find((item) => item.href === href)

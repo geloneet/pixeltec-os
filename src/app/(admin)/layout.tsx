@@ -167,11 +167,10 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       <CmdKProvider>
         <CRMProvider>
           <CRMShellProvider>
-            <Shell
-              isFullBleedRoute={
-                !!pathname?.includes("/sesion") || !!pathname?.startsWith("/whatsapp")
-              }
-            >
+            {/* WO-2026-00220: aquí también se comparaba contra `/sesion`, una
+                ruta que ya no existe en `src/app` (murió con el pipeline de
+                definición de proyectos). Único full-bleed vivo: WhatsApp. */}
+            <Shell isFullBleedRoute={!!pathname?.startsWith("/whatsapp")}>
               {children}
             </Shell>
             <CommandPalette />
