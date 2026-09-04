@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -15,6 +16,7 @@ import {
   Plus,
   type LucideIcon,
   Search,
+  ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SITE } from "@/lib/site-config";
@@ -27,6 +29,7 @@ import {
   getAreaHref,
   getSecondaryItems,
   resolveActiveHref,
+  countOpenTasks,
   type NavArea,
 } from "./nav-config";
 import { PALETTE_NAV_ITEMS } from "./command-palette-items";
@@ -68,20 +71,31 @@ export function AppSidebar({
   const { setOpen } = useCmdK();
   const { clients } = useCRM();
 
-  const openTasksCount = clients
-    .flatMap((c) => c.projects)
-    .flatMap((p) => p.tasks)
-    .filter(
-      (t) =>
-        t.status === "pendiente" ||
-        t.status === "en_progreso" ||
-        t.status === "en_revision"
-    ).length;
+  const openTasksCount = countOpenTasks(clients);
 
   const activeHref = resolveActiveHref(PALETTE_NAV_ITEMS, pathname);
   // WO-2026-00051: el reviewer no ve áreas (solo presentación; el middleware manda).
   const { userProfile } = useUserProfile();
   const visibleAreas = getVisibleNavAreas(userProfile?.role);
+
+  /**
+   * Qué área tiene el submenú desplegado (Miguel, 2026-09-03). Antes el
+   * submenú se abría solo por estar en el área, y no había forma de cerrarlo
+   * sin salirse. Reglas:
+   *  - entrar al área por su página principal (clic en el pill) ⇒ colapsado;
+   *  - llegar directo a una página profunda (⌘K, enlace, recarga) ⇒ expandido,
+   *    porque si no el menú no explicaría dónde estás;
+   *  - navegar DENTRO de la misma área ⇒ se respeta lo que el usuario dejó;
+   *  - cambiar de área ⇒ se reevalúa (y el área anterior se cierra sola).
+   */
+  const [expandedArea, setExpandedArea] = useState<NavArea | null>(null);
+  useEffect(() => {
+    setExpandedArea((prev) => {
+      if (!activeArea) return null;
+      if (prev === activeArea) return prev;
+      return activeHref === getAreaHref(activeArea) ? null : activeArea;
+    });
+  }, [activeArea, activeHref]);
 
   return (
     <aside
@@ -116,16 +130,19 @@ export function AppSidebar({
           const active = area === activeArea;
           const secondaryItems = getSecondaryItems(area);
           const hasChildren = secondaryItems.length > 1;
+          const expanded = expandedArea === area;
+          const submenuId = `sidebar-submenu-${area}`;
 
           return (
             <div key={area} className="flex flex-col">
-              <Link
-                href={getAreaHref(area)}
-                className={cn(
-                  "relative flex items-center gap-3 rounded-2xl py-2.5 pl-2.5 pr-3 text-[15px] transition-colors",
-                  active ? "font-semibold text-background" : "font-medium text-muted-foreground hover:text-foreground"
-                )}
-              >
+              {/* El Link NAVEGA y nunca alterna el submenú; el chevron hermano
+                  (solo en el área activa con hijos) es lo único que lo abre y
+                  lo cierra. Separarlos es el pedido de Miguel: entrar a SEO no
+                  debe desplegar todo el menú. */}
+              <div className="relative flex items-center">
+                {/* La píldora activa envuelve fila + chevron (antes vivía dentro
+                    del Link): si no, el chevron quedaría fuera del fondo oscuro
+                    y su icono sería invisible. */}
                 {active && (
                   <motion.span
                     layoutId="admin-sidebar-active-pill"
@@ -133,30 +150,55 @@ export function AppSidebar({
                     transition={{ type: "spring", stiffness: 500, damping: 35 }}
                   />
                 )}
-                <span
+                <Link
+                  href={getAreaHref(area)}
                   className={cn(
-                    "relative z-10 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl transition-colors",
-                    active ? "bg-background/15" : "bg-secondary/60"
+                    "relative flex min-w-0 flex-1 items-center gap-3 rounded-2xl py-2.5 pl-2.5 pr-3 text-[15px] transition-colors",
+                    active ? "font-semibold text-background" : "font-medium text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  <Icon className="h-[18px] w-[18px]" strokeWidth={1.75} />
-                </span>
-                <span className="relative z-10 flex-1 truncate">{NAV_AREA_LABELS[area]}</span>
-                {area === "proyectos" && openTasksCount > 0 && (
                   <span
                     className={cn(
-                      "relative z-10 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-semibold",
-                      active ? "bg-background/20 text-background" : "bg-cyan-500/20 text-cyan-300"
+                      "relative z-10 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl transition-colors",
+                      active ? "bg-background/15" : "bg-secondary/60"
                     )}
                   >
-                    {openTasksCount}
+                    <Icon className="h-[18px] w-[18px]" strokeWidth={1.75} />
                   </span>
+                  <span className="relative z-10 flex-1 truncate">{NAV_AREA_LABELS[area]}</span>
+                  {area === "proyectos" && openTasksCount > 0 && (
+                    <span
+                      className={cn(
+                        "relative z-10 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-semibold",
+                        active ? "bg-background/20 text-background" : "bg-cyan-500/20 text-cyan-300"
+                      )}
+                    >
+                      {openTasksCount}
+                    </span>
+                  )}
+                </Link>
+
+                {active && hasChildren && (
+                  <button
+                    type="button"
+                    onClick={() => setExpandedArea((prev) => (prev === area ? null : area))}
+                    aria-expanded={expanded}
+                    aria-controls={submenuId}
+                    aria-label={`${expanded ? "Ocultar" : "Mostrar"} submenú de ${NAV_AREA_LABELS[area]}`}
+                    className="relative z-10 mr-1.5 inline-flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-background/70 transition-colors hover:bg-background/20 hover:text-background"
+                  >
+                    <ChevronRight
+                      className={cn("h-4 w-4 transition-transform duration-200", expanded && "rotate-90")}
+                      strokeWidth={2}
+                    />
+                  </button>
                 )}
-              </Link>
+              </div>
 
               <AnimatePresence initial={false}>
-                {active && hasChildren && (
+                {expanded && hasChildren && (
                   <motion.div
+                    id={submenuId}
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: "auto", opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}

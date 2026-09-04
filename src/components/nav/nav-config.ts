@@ -1,6 +1,7 @@
 import { PALETTE_NAV_ITEMS, type PaletteNavItem } from "./command-palette-items";
 import { isRestrictedRole, REVIEWER_PAGE_ROOT } from "@/lib/routes/reviewer-access";
 import { isModuleVisible } from "@/lib/modules/registry";
+import type { CRMClient, CRMTask } from "@/types/crm";
 
 /**
  * Taxonomía operativa de la navegación (ADR-0030, ADR-0039). Las áreas L1
@@ -196,6 +197,26 @@ export function getVisibleNavAreas(role: string | undefined): NavArea[] {
   const areas = NAV_AREA_ORDER.filter(isAreaVisible);
   if (role === undefined) return areas;
   return isRestrictedRole(role) ? [] : areas;
+}
+
+/**
+ * Estados de tarea que cuentan como «abierta» para el badge del área Trabajo.
+ * Vivía duplicado literal en `app-sidebar.tsx` y `top-navigation.tsx`: los dos
+ * renderizan el MISMO número (desktop y mobile), así que dos copias solo podían
+ * divergir.
+ */
+const OPEN_TASK_STATUSES: ReadonlySet<CRMTask["status"]> = new Set([
+  "pendiente",
+  "en_progreso",
+  "en_revision",
+]);
+
+/** Tareas abiertas en todos los proyectos de todos los clientes. */
+export function countOpenTasks(clients: CRMClient[]): number {
+  return clients
+    .flatMap((c) => c.projects)
+    .flatMap((p) => p.tasks)
+    .filter((t) => OPEN_TASK_STATUSES.has(t.status)).length;
 }
 
 export function getVisibleNavItems(role: string | undefined): PaletteNavItem[] {
