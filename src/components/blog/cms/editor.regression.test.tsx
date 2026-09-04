@@ -137,7 +137,7 @@ describe("el wizard «Con IA» sobrevive a un refresco de props que no cambia id
   it("el brief escrito y el wizard abierto no se pierden si BlogCmsEditor recibe un `post` nuevo (misma entrada) sin remontarse", async () => {
     const post = fullPost();
     const { rerender } = render(
-      <BlogCmsEditor post={post} categories={[]} revisions={[]} isAdmin startWithAi />
+      <BlogCmsEditor post={post} categories={[]} revisions={[]} isAdmin startWithAi viewCount={0} />
     );
 
     const brief = await screen.findByPlaceholderText("¿De qué trata el artículo? Puntos clave, contexto, objetivo…");
@@ -152,7 +152,7 @@ describe("el wizard «Con IA» sobrevive a un refresco de props que no cambia id
     // ese remonte forzado, el estado local del componente sencillamente
     // sobrevive — que es justo la garantía que rompía el bug.
     const revalidatedPost = fullPost();
-    rerender(<BlogCmsEditor post={revalidatedPost} categories={[]} revisions={[]} isAdmin startWithAi />);
+    rerender(<BlogCmsEditor post={revalidatedPost} categories={[]} revisions={[]} isAdmin startWithAi viewCount={0} />);
 
     expect(screen.getByPlaceholderText("¿De qué trata el artículo? Puntos clave, contexto, objetivo…")).toBeTruthy();
     expect((screen.getByPlaceholderText("¿De qué trata el artículo? Puntos clave, contexto, objetivo…") as HTMLTextAreaElement).value).toBe(
@@ -163,12 +163,12 @@ describe("el wizard «Con IA» sobrevive a un refresco de props que no cambia id
   it("startWithAi=false (entrada YA existente, WO-2026-00198) — el wizard no se abre solo, y sigue cerrado tras un refresco de props", async () => {
     const post = fullPost({ status: "published", title: "Entrada publicada" });
     const { rerender } = render(
-      <BlogCmsEditor post={post} categories={[]} revisions={[]} isAdmin startWithAi={false} />
+      <BlogCmsEditor post={post} categories={[]} revisions={[]} isAdmin startWithAi={false} viewCount={0} />
     );
 
     await waitFor(() => expect(screen.queryByText(/Generar con IA/)).toBeNull());
 
-    rerender(<BlogCmsEditor post={fullPost({ status: "published", title: "Entrada publicada" })} categories={[]} revisions={[]} isAdmin startWithAi={false} />);
+    rerender(<BlogCmsEditor post={fullPost({ status: "published", title: "Entrada publicada" })} categories={[]} revisions={[]} isAdmin startWithAi={false} viewCount={0} />);
 
     expect(screen.queryByText(/Generar con IA/)).toBeNull();
   });
@@ -180,7 +180,7 @@ describe("«Restaurar revisión» sigue reflejando el contenido restaurado sin r
 
     const post = fullPost();
     const { rerender } = render(
-      <BlogCmsEditor post={post} categories={[]} revisions={REVISIONS} isAdmin startWithAi={false} />
+      <BlogCmsEditor post={post} categories={[]} revisions={REVISIONS} isAdmin startWithAi={false} viewCount={0} />
     );
 
     const titleInput = screen.getByPlaceholderText("Título de la entrada") as HTMLInputElement;
@@ -195,7 +195,7 @@ describe("«Restaurar revisión» sigue reflejando el contenido restaurado sin r
     // un `post` fresco con el contenido restaurado. Aquí se simula ese
     // refresco de props (mismo componente, sin remontar).
     const restoredPost = fullPost({ title: "Título viejo", body: "Cuerpo viejo restaurado" });
-    rerender(<BlogCmsEditor post={restoredPost} categories={[]} revisions={REVISIONS} isAdmin startWithAi={false} />);
+    rerender(<BlogCmsEditor post={restoredPost} categories={[]} revisions={REVISIONS} isAdmin startWithAi={false} viewCount={0} />);
 
     await waitFor(() => expect((screen.getByPlaceholderText("Título de la entrada") as HTMLInputElement).value).toBe("Título viejo"));
   });

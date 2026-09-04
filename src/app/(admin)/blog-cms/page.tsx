@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { Suspense } from "react";
-import { Bot, FolderTree, ImageIcon } from "lucide-react";
+import { Bot, Eye, FolderTree, ImageIcon } from "lucide-react";
 import { requireUserSession } from "@/lib/auth/session";
 import { redirect } from "next/navigation";
 import { formatEditorialDate } from "@/lib/blog/format-date";
@@ -59,7 +59,7 @@ export default async function BlogCmsPage({ searchParams }: { searchParams: Sear
   const q = one(sp.q).slice(0, 100);
   const page = Math.max(1, Number.parseInt(one(sp.page) || "1", 10) || 1);
 
-  const [{ posts, total }, counts, categories, months] = await Promise.all([
+  const [{ posts, total, viewCounts }, counts, categories, months] = await Promise.all([
     listBlogCmsPosts({ status: tab.status, category: categoria || undefined, month: /^\d{4}-\d{2}$/.test(fecha) ? fecha : undefined, search: q || undefined, page }),
     countBlogCmsPostsByStatus(),
     listBlogCategoryNames(),
@@ -115,12 +115,13 @@ export default async function BlogCmsPage({ searchParams }: { searchParams: Sear
               <th className="px-3 py-2">Entrada</th>
               <th className="px-3 py-2">Categoría</th>
               <th className="px-3 py-2">Estado</th>
+              <th className="px-3 py-2 text-right">Vistas</th>
               <th className="px-3 py-2 text-right">Acciones</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {posts.length === 0 && (
-              <tr><td colSpan={5} className="px-3 py-10 text-center text-muted-foreground">No hay entradas con estos filtros.</td></tr>
+              <tr><td colSpan={6} className="px-3 py-10 text-center text-muted-foreground">No hay entradas con estos filtros.</td></tr>
             )}
             {posts.map((p) => (
               <tr key={p.id} className="hover:bg-secondary/30">
@@ -140,6 +141,11 @@ export default async function BlogCmsPage({ searchParams }: { searchParams: Sear
                 </td>
                 <td className="px-3 py-2 text-muted-foreground">{p.category || "—"}</td>
                 <td className="px-3 py-2"><StatusPill status={p.status} /></td>
+                <td className="px-3 py-2 text-right text-muted-foreground">
+                  <span className="inline-flex items-center gap-1" title={`${(viewCounts[p.id] ?? 0).toLocaleString("es-MX")} vistas`}>
+                    <Eye className="h-3.5 w-3.5" /> {(viewCounts[p.id] ?? 0).toLocaleString("es-MX")}
+                  </span>
+                </td>
                 <td className="px-3 py-2"><div className="flex justify-end"><PostRowActions id={p.id} slug={p.slug} status={p.status} title={p.title} /></div></td>
               </tr>
             ))}

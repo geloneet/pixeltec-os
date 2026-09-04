@@ -4,7 +4,7 @@
 import { and, count, desc, eq, ilike, inArray, isNull, lte, or, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { blogCategories, blogPosts, postRedirects } from '@/lib/db/schema';
-import { serializePost } from '@/lib/blog/queries/posts';
+import { getViewCounts, serializePost } from '@/lib/blog/queries/posts';
 import type { BlogPostSerialized } from '@/lib/blog/types';
 
 export type BlogCmsStatusTab = 'all' | 'published' | 'scheduled' | 'draft' | 'archived';
@@ -49,10 +49,12 @@ function whereFor(filter: AdminPostsFilter) {
   return conds.length ? and(...conds) : undefined;
 }
 
-export async function listBlogCmsPosts(filter: AdminPostsFilter): Promise<{ posts: BlogPostSerialized[]; total: number }> {
+export async function listBlogCmsPosts(
+  filter: AdminPostsFilter,
+): Promise<{ posts: BlogPostSerialized[]; total: number; viewCounts: Record<string, number> }> {
   const page = Math.max(1, filter.page ?? 1);
   const where = whereFor(filter);
-  const [rows, [{ total }]] = await Promise.all([
+  const [rows, [{ total }], viewsByRealId] = await Promise.all([
     db
       .select()
       .from(blogPosts)
@@ -61,8 +63,14 @@ export async function listBlogCmsPosts(filter: AdminPostsFilter): Promise<{ post
       .limit(PAGE_SIZE)
       .offset((page - 1) * PAGE_SIZE),
     db.select({ total: count() }).from(blogPosts).where(where),
+    getViewCounts(),
   ]);
-  return { posts: rows.map(serializePost), total: Number(total) };
+  // `blog_post_view_counts` se indexa por el uuid real de `blog_posts.id`, no
+  // por el `firestoreId` legacy que `serializePost` expone como `.id` público
+  // (WO-2026-00221) — traducimos aquí para que la UI solo necesite
+  // `viewCounts[post.id]`.
+  const viewCounts = Object.fromEntries(rows.map((r) => [r.firestoreId ?? r.id, viewsByRealId[r.id] ?? 0]));
+  return { posts: rows.map(serializePost), total: Number(total), viewCounts };
 }
 
 export async function countBlogCmsPostsByStatus(): Promise<Record<string, number>> {

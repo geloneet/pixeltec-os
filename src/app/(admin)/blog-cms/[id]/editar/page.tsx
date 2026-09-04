@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { requireUserSession } from "@/lib/auth/session";
-import { getPostById } from "@/lib/blog/queries/posts";
+import { getPostById, getViewCounts } from "@/lib/blog/queries/posts";
 import { listVersions } from "@/lib/blog/versions";
 import { listBlogCategoryNames } from "@/lib/blog-cms/queries";
 import { ADMIN_BLOG_PATH } from "@/lib/blog-cms/paths";
@@ -28,10 +28,15 @@ export default async function BlogCmsEditPage({ params, searchParams }: { params
 
   const post = await getPostById(id);
   if (!post) notFound();
-  const [categories, versions] = await Promise.all([
+  const [categories, versions, viewCounts] = await Promise.all([
     listBlogCategoryNames(),
     listVersions(post.id).catch(() => []),
+    getViewCounts(),
   ]);
+  // `blog_post_view_counts` se indexa por el uuid real de `blog_posts.id`; el
+  // regex de arriba ya garantiza que `id` (el param de ruta) tiene esa forma,
+  // así que se usa directo (WO-2026-00221).
+  const viewCount = viewCounts[id] ?? 0;
 
   return (
     <BlogCmsEditor
@@ -40,6 +45,7 @@ export default async function BlogCmsEditPage({ params, searchParams }: { params
       revisions={versions.slice(0, 10)}
       isAdmin={session.role === "admin"}
       startWithAi={sp.ia === "1"}
+      viewCount={viewCount}
     />
   );
 }
