@@ -16,7 +16,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Bot, CalendarClock, ExternalLink, History, Plus, Sparkles, Trash2 } from "lucide-react";
+import { ArrowLeft, Bot, CalendarClock, ExternalLink, Eye, History, Plus, Sparkles, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -80,6 +80,8 @@ interface EditorProps {
   revisions: BlogPostVersionMeta[];
   isAdmin: boolean;
   startWithAi: boolean;
+  /** Vistas acumuladas del post (blog_post_view_counts, WO-2026-00221). Métrica orientativa, ver comentario en el schema. */
+  viewCount: number;
 }
 
 async function uploadImage(postId: string, file: File, endpoint: "/api/blog/cover" | "/api/blog/image"): Promise<string> {
@@ -92,7 +94,7 @@ async function uploadImage(postId: string, file: File, endpoint: "/api/blog/cove
   return json.url;
 }
 
-export function BlogCmsEditor({ post, categories, revisions, isAdmin, startWithAi }: EditorProps) {
+export function BlogCmsEditor({ post, categories, revisions, isAdmin, startWithAi, viewCount }: EditorProps) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("publicar");
   const [status, setStatus] = useState<string>(post.status);
@@ -268,6 +270,9 @@ export function BlogCmsEditor({ post, categories, revisions, isAdmin, startWithA
         </Link>
         <div className="flex items-center gap-3 text-xs text-muted-foreground" aria-live="polite">
           <StatusPill status={status} />
+          <span className="inline-flex items-center gap-1" title={`${viewCount.toLocaleString("es-MX")} vistas`}>
+            <Eye className="h-3.5 w-3.5" /> {viewCount.toLocaleString("es-MX")}
+          </span>
           {saveState === "saving" && <span>Guardando…</span>}
           {saveState === "saved" && savedAt && <span>✓ Guardado a las {savedAt}</span>}
           {saveState === "error" && <span className="text-red-400">Error al guardar</span>}
