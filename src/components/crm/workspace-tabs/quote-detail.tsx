@@ -6,7 +6,7 @@
  * Es donde vive el flujo comercial: enviar, dar seguimiento, aceptar, rechazar
  * y crear el cobro. Todo lo que se muestra sale de la fuente única de cálculo.
  */
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import {
   ArrowLeft,
   FileDown,
@@ -17,6 +17,7 @@ import {
   XCircle,
   CalendarClock,
   Eye,
+  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -37,6 +38,7 @@ import {
 } from "@/lib/quotes/terms";
 import { buildWhatsAppLink } from "@/lib/quotes/share";
 import { acceptQuote, markQuoteShared, rejectQuote, sendQuoteByEmail, snoozeFollowUp } from "@/lib/quotes/actions";
+import { getProposalByQuoteId } from "@/lib/documents/proposals";
 import { StatusBadge, type QuoteView } from "./quote-shared";
 import { QuoteDocument } from "./quote-document";
 import { AcceptDialog, SalePanel } from "./sale-panel";
@@ -78,6 +80,14 @@ export function QuoteDetail({
   const [acceptOpen, setAcceptOpen] = useState(false);
   const [reason, setReason] = useState<RejectionReason>("precio");
   const [comment, setComment] = useState("");
+  // WO-2026-00222: si el botón "Crear brief con IA" del editor ya vinculó un
+  // proposal a esta cotización, se ofrece su PDF junto al de la cotización.
+  const [proposalId, setProposalId] = useState<string | null>(null);
+  useEffect(() => {
+    getProposalByQuoteId(quote.id)
+      .then((p) => setProposalId(p?.id ?? null))
+      .catch(() => undefined);
+  }, [quote.id]);
 
   const now = new Date();
   const status = displayStatus(quote, now);
@@ -160,6 +170,20 @@ export function QuoteDetail({
           <FileDown className="mr-1.5 h-3.5 w-3.5" />
           PDF
         </a>
+        {proposalId ? (
+          <a
+            href={`/api/documents/proposal-pdf?proposalId=${proposalId}`}
+            onClick={(e) => {
+              e.currentTarget.href = `/api/documents/proposal-pdf?proposalId=${proposalId}&t=${Date.now()}`;
+            }}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex h-8 items-center rounded-md border border-input px-3 text-xs font-medium transition-colors hover:bg-accent"
+          >
+            <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+            Propuesta (PDF)
+          </a>
+        ) : null}
         <Button type="button" variant="outline" size="sm" onClick={() => setPreviewOpen(true)}>
           <Eye className="mr-1.5 h-3.5 w-3.5" />
           Vista previa

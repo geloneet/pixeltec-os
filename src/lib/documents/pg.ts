@@ -309,6 +309,7 @@ export function serializeProposal(row: ProposalRow, clientPublicId: string, uid:
     uid,
     clientId: clientPublicId,
     clientName: row.clientName,
+    quoteId: row.quoteId ?? undefined,
     reference: row.reference ?? undefined,
     title: row.title,
     scope: row.scope,

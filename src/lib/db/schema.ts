@@ -925,6 +925,12 @@ export const proposals = pgTable(
       .notNull()
       .references(() => clients.id, { onDelete: "cascade" }),
     clientName: text("client_name").notNull(),
+    // WO-2026-00222: liga el brief a la cotización que lo originó (botón
+    // "Crear brief con IA" en /cotizaciones). Nullable: la mayoría de
+    // proposals se siguen creando manueles desde la pestaña Propuesta, sin
+    // pasar por una cotización. Único (con NULLs libres, comportamiento
+    // estándar de Postgres) para que una cotización tenga a lo más un brief.
+    quoteId: uuid("quote_id").references(() => quotes.id, { onDelete: "set null" }),
     reference: text("reference"),
     title: text("title").notNull(),
     scope: text("scope").notNull(),
@@ -955,6 +961,7 @@ export const proposals = pgTable(
     uniqueIndex("proposals_public_token_idx").on(t.publicToken),
     uniqueIndex("proposals_reference_idx").on(t.reference),
     uniqueIndex("proposals_firestore_id_idx").on(t.firestoreId),
+    uniqueIndex("proposals_quote_id_idx").on(t.quoteId),
   ]
 );
 
