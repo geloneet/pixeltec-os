@@ -25,7 +25,7 @@ const navLinks = [
 const AnimatedHamburger = ({ isOpen, onClick, className }: { isOpen: boolean; onClick: () => void, className?: string }) => (
     <button 
       onClick={onClick}
-      className={cn("relative block flex-shrink-0 cursor-pointer w-[50px] h-[40px] z-[60] rounded-md focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-cyan-400 lg:hidden", className)}
+      className={cn("relative block flex-shrink-0 cursor-pointer w-[50px] h-[40px] z-[60] rounded-md focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-focus lg:hidden", className)}
       aria-label="Abrir menú"
     >
       <span
@@ -121,7 +121,7 @@ export default function Header() {
                 key={link.href}
                 href={link.href}
                 onClick={(e) => handleNavClick(e, link.href)}
-                className="text-base font-bold tracking-wide text-muted-foreground transition-colors hover:text-primary"
+                className="text-base font-bold tracking-wide text-muted-foreground transition-colors hover:text-brand"
                 >
                 <AnimatedTextLink>{link.label}</AnimatedTextLink>
                 </a>

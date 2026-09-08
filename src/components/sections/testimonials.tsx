@@ -43,7 +43,7 @@ export default function TestimonialsSection() {
         title={
           <>
             Empresas que ya{' '}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-500 to-blue-500">
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand to-cyan-700 dark:from-cyan-500 dark:to-blue-500">
               escalaron
             </span>{' '}
             con nosotros

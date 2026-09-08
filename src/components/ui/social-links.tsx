@@ -75,7 +75,7 @@ export function SocialLinks({ className }: SocialLinksProps) {
                     'hover:scale-105 hover:bg-accent hover:text-foreground hover:shadow-sm',
                     'dark:hover:border-cyan-400/30 dark:hover:bg-zinc-900 dark:hover:text-cyan-400',
                     'dark:hover:shadow-[0_0_20px_rgba(34,211,238,0.15)]',
-                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background'
+                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background'
                   )}
                 >
                   {link.icon}

@@ -144,7 +144,7 @@ export function TestimonialsWithMarquee({
           onMouseLeave={() => setInteracting(false)}
           onFocus={() => setInteracting(true)}
           onBlur={() => setInteracting(false)}
-          className="relative mt-8 w-full overflow-hidden rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400"
+          className="relative mt-8 w-full overflow-hidden rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
           style={{ maskImage: 'linear-gradient(to right, transparent, black 10%, black 90%, transparent)' }}
         >
           <div className="marquee-track p-2" data-paused={paused}>

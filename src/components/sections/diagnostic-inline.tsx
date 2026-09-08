@@ -32,17 +32,17 @@ export default function DiagnosticInlineSection() {
   return (
     <section id="diagnostico" className="bg-transparent py-16 md:py-24">
       <div className="container mx-auto max-w-6xl px-4 md:px-6">
-        <div className="overflow-hidden rounded-3xl bg-card/40 p-6 backdrop-blur-sm md:p-10">
+        <div className="overflow-hidden rounded-3xl border border-border bg-card/40 p-6 shadow-[0_18px_60px_-30px_rgba(33,150,243,0.25)] backdrop-blur-sm md:p-10 dark:border-transparent dark:shadow-none">
           <div className="grid gap-10 lg:grid-cols-2 lg:gap-14">
             {/* ── Columna de contenido y wizard ─────────────────────────── */}
             <div className="flex flex-col">
-              <span className="text-xs font-semibold uppercase tracking-[0.25em] text-primary dark:text-cyan-400">
+              <span className="text-xs font-semibold uppercase tracking-[0.25em] text-brand">
                 Diagnóstico inteligente
               </span>
 
               <h2 className="mt-4 text-3xl font-bold leading-tight tracking-tight text-foreground md:text-4xl">
                 Cuéntanos qué está{' '}
-                <span className="bg-gradient-to-r from-cyan-500 to-blue-500 bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-brand to-cyan-700 dark:from-cyan-500 dark:to-blue-500 bg-clip-text text-transparent">
                   frenando
                 </span>{' '}
                 tu operación
