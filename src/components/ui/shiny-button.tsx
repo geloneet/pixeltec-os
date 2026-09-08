@@ -136,6 +136,35 @@ export function ShinyButton({
           letter-spacing: 0.05em;
         }
 
+        /* Variante WhatsApp (pedida por Miguel 2026-09-08): mismo mecanismo
+           de pill + shine rotante, recoloreado a la gama de verdes oficiales
+           de WhatsApp en vez del negro/azul por defecto. #075E54 (verde
+           oscuro de marca) mantiene el mismo contraste de texto blanco que
+           el pill negro original (~7.7:1, AA/AAA); #25D366 (verde brillante
+           de marca) reemplaza el azul en el shine/glow y en los estados de
+           interacción — el resto del componente (otros CTAs del sitio)
+           sigue negro/azul sin cambios. */
+        .shiny-cta.whatsapp-cta {
+          --shiny-cta-bg: #075e54;
+          --shiny-cta-highlight: #25d366;
+        }
+
+        .shiny-cta.whatsapp-cta:hover::after {
+          background: rgb(37 211 102 / 0.14);
+        }
+
+        .shiny-cta.whatsapp-cta:hover {
+          color: #25d366 !important;
+        }
+
+        .shiny-cta.whatsapp-cta:focus-visible {
+          outline-color: #25d366 !important;
+        }
+
+        :global(.dark) .shiny-cta.whatsapp-cta:hover {
+          box-shadow: 0 0 20px rgba(37, 211, 102, 0.25) !important;
+        }
+
         /* Reducción de movimiento acotada: detiene SOLO el shine rotante
            infinito. El hover, el focus, el active y las transiciones de
            estado siguen dando feedback. */

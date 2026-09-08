@@ -134,6 +134,7 @@ export default function Header() {
                 rel="noopener noreferrer"
                 data-cta="whatsapp"
                 data-cta-pos="header"
+                className="whatsapp-cta"
               >
                 <Phone className="h-5 w-5" />
                 WhatsApp
@@ -183,7 +184,7 @@ export default function Header() {
                             data-cta="whatsapp"
                             data-cta-pos="header"
                             onClick={() => setIsMenuOpen(false)}
-                            className="w-full text-sm uppercase tracking-widest"
+                            className="w-full text-sm uppercase tracking-widest whatsapp-cta"
                           >
                             <Phone className="h-5 w-5" />
                             WhatsApp
