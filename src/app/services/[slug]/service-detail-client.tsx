@@ -315,60 +315,6 @@ export default function ServiceDetailClient({ slug }: { slug: string }) {
           </motion.aside>
         )}
 
-        {keywordLandings.length > 0 && (
-          <motion.aside
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, amount: 0.2 }}
-            variants={sectionVariants}
-            className="mb-8 rounded-2xl border border-border bg-card p-6 sm:p-8"
-          >
-            <h2 className="text-lg sm:text-xl font-semibold text-foreground">
-              Guías y servicios relacionados
-            </h2>
-            <p className="mt-2 text-sm sm:text-base text-muted-foreground leading-relaxed">
-              Páginas con el detalle de cada tema, en su versión general y para Puerto Vallarta:
-            </p>
-            <div className="mt-4 flex flex-wrap gap-3">
-              {keywordLandings.map((landing) => (
-                <Link
-                  key={landing.slug}
-                  href={`/${landing.slug}`}
-                  className="rounded-full border border-primary/25 dark:border-cyan-500/25 bg-primary/5 dark:bg-cyan-500/5 px-4 py-2 text-sm font-medium text-primary dark:text-cyan-400 hover:bg-primary/10 dark:hover:bg-cyan-500/10 transition-colors"
-                >
-                  {landing.keyword}
-                  {landing.city ? ` en ${landing.city.name}` : ''}
-                </Link>
-              ))}
-            </div>
-          </motion.aside>
-        )}
-
-        {RELATED_SERVICES[service.slug] && (
-          <motion.aside
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, amount: 0.4 }}
-            variants={sectionVariants}
-            className="mb-16 rounded-2xl border border-border bg-card p-6 sm:p-8"
-          >
-            <h2 className="text-lg sm:text-xl font-semibold text-foreground">
-              Servicios relacionados
-            </h2>
-            <div className="mt-4 flex flex-wrap gap-3">
-              {RELATED_SERVICES[service.slug].map((related) => (
-                <Link
-                  key={related.slug}
-                  href={`/services/${related.slug}`}
-                  className="rounded-full border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:border-primary/40 dark:hover:border-cyan-500/40 transition-colors"
-                >
-                  {related.title}
-                </Link>
-              ))}
-            </div>
-          </motion.aside>
-        )}
-
         <motion.section
           initial="hidden"
           whileInView="visible"
@@ -437,6 +383,65 @@ export default function ServiceDetailClient({ slug }: { slug: string }) {
                 ))}
             </div>
         </motion.section>
+
+        {/* Guías y servicios relacionados — movido después de «Nuestro Proceso»
+            (pedido de Miguel 2026-09-08): mismo orden que ya usa el template
+            de las 26 landings SEO (keyword-landing-page.tsx: Proceso → Relacionado). */}
+        {keywordLandings.length > 0 && (
+          <motion.aside
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, amount: 0.2 }}
+            variants={sectionVariants}
+            className="mb-8 rounded-2xl border border-border bg-card p-6 sm:p-8"
+          >
+            <h2 className="text-lg sm:text-xl font-semibold text-foreground">
+              Guías y servicios relacionados
+            </h2>
+            <p className="mt-2 text-sm sm:text-base text-muted-foreground leading-relaxed">
+              Páginas con el detalle de cada tema, en su versión general y para Puerto Vallarta:
+            </p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              {keywordLandings.map((landing) => (
+                <Link
+                  key={landing.slug}
+                  href={`/${landing.slug}`}
+                  className="rounded-full border border-primary/25 dark:border-cyan-500/25 bg-primary/5 dark:bg-cyan-500/5 px-4 py-2 text-sm font-medium text-primary dark:text-cyan-400 hover:bg-primary/10 dark:hover:bg-cyan-500/10 transition-colors"
+                >
+                  {landing.keyword}
+                  {landing.city ? ` en ${landing.city.name}` : ''}
+                </Link>
+              ))}
+            </div>
+          </motion.aside>
+        )}
+
+        {/* Servicios relacionados — movido junto con «Guías y servicios
+            relacionados» después de «Nuestro Proceso» (Miguel 2026-09-08). */}
+        {RELATED_SERVICES[service.slug] && (
+          <motion.aside
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, amount: 0.4 }}
+            variants={sectionVariants}
+            className="mb-16 rounded-2xl border border-border bg-card p-6 sm:p-8"
+          >
+            <h2 className="text-lg sm:text-xl font-semibold text-foreground">
+              Servicios relacionados
+            </h2>
+            <div className="mt-4 flex flex-wrap gap-3">
+              {RELATED_SERVICES[service.slug].map((related) => (
+                <Link
+                  key={related.slug}
+                  href={`/services/${related.slug}`}
+                  className="rounded-full border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:border-primary/40 dark:hover:border-cyan-500/40 transition-colors"
+                >
+                  {related.title}
+                </Link>
+              ))}
+            </div>
+          </motion.aside>
+        )}
 
         <motion.section
           initial="hidden"
