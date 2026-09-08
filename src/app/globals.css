@@ -18,11 +18,16 @@
     --muted-foreground: 220 9% 38%; /* AA sobre background */
     --accent: 40 15% 92%;
     --accent-foreground: 224 40% 10%;
-    --destructive: 0 84.2% 60.2%;
+    --destructive: 0 72% 42%; /* #B71D1D — AA como texto de error sobre claro */
     --destructive-foreground: 0 0% 98%;
     --border: 40 12% 87%;
     --input: 40 12% 87%;
-    --ring: 207 90% 54%; /* #2196F3 */
+    --ring: 211 80% 40%; /* #1463B8 — 3:1 de foco sobre claro */
+    --brand: 211 80% 40%; /* #1463B8 — texto/iconos de marca (AA 6.0:1) */
+    --focus: 211 80% 40%; /* anillo de foco de marca */
+    --glow: 207 90% 54%; /* #2196F3 — sombras/glows, nunca texto */
+    --wave-a: #2196F3;
+    --wave-b: #1463B8;
     --overlay: 0 0% 0%; /* scrim de modales — mismo valor en ambos temas a propósito */
     --radius: 0.5rem;
     --chart-1: 12 76% 61%;
@@ -60,6 +65,11 @@
     --border: 0 0% 12%;
     --input: 0 0% 12%;
     --ring: 207 90% 54%; /* #2196F3 */
+    --brand: 187 92% 69%; /* #22D3EE — lo que hoy pinta dark:text-cyan-400 */
+    --focus: 187 92% 69%;
+    --glow: 183 100% 50%; /* #00F0FF */
+    --wave-a: #00F0FF;
+    --wave-b: #3b82f6;
     --overlay: 0 0% 0%;
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;

@@ -28,6 +28,9 @@ export default {
       },
       colors: {
         'brand-blue': '#2196F3',
+        brand: 'hsl(var(--brand))',
+        focus: 'hsl(var(--focus))',
+        glow: 'hsl(var(--glow))',
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
         ring: 'hsl(var(--ring))',
