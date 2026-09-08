@@ -104,12 +104,12 @@ export function DiagnosticWizard({ variant = 'page', initialIndustry, onClose, h
           : 'w-full max-w-2xl mx-auto'
       }
     >
-      <div className="rounded-2xl border border-white/5 bg-[#0A0A0A] p-6 sm:p-8">
+      <div className="rounded-2xl border border-border bg-card shadow-[0_12px_40px_-16px_rgba(33,150,243,0.18)] p-6 sm:p-8 dark:border-white/5 dark:bg-[#0A0A0A] dark:shadow-none">
         {showBack && (
           <button
             type="button"
             onClick={back}
-            className="inline-flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-300 transition-colors mb-4"
+            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors mb-4"
           >
             <ChevronLeft className="h-3.5 w-3.5" /> Volver
           </button>
@@ -138,7 +138,7 @@ export function DiagnosticWizard({ variant = 'page', initialIndustry, onClose, h
               <button
                 type="button"
                 onClick={onClose}
-                className="mt-6 w-full text-center text-sm text-zinc-500 hover:text-zinc-300 transition-colors"
+                className="mt-6 w-full text-center text-sm text-muted-foreground hover:text-foreground dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors"
               >
                 Cerrar
               </button>

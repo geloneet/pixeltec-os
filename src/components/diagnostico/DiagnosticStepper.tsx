@@ -20,16 +20,16 @@ export function DiagnosticStepper({ currentStep }: { currentStep: number }) {
               className={cn(
                 'flex h-7 w-7 items-center justify-center rounded-full border text-[11px] font-bold transition-colors',
                 done
-                  ? 'border-cyan-500 bg-cyan-500 text-white'
+                  ? 'border-primary bg-primary text-white dark:border-cyan-500 dark:bg-cyan-500'
                   : active
-                    ? 'border-cyan-500 bg-transparent text-cyan-400'
-                    : 'border-zinc-700 text-zinc-600'
+                    ? 'border-brand bg-transparent text-brand dark:border-cyan-500 dark:text-cyan-400'
+                    : 'border-border text-muted-foreground dark:border-zinc-700 dark:text-zinc-600'
               )}
             >
               {done ? <Check className="h-3.5 w-3.5" /> : i + 1}
             </div>
             {i < STEPS.length - 1 && (
-              <div className={cn('h-px w-6 sm:w-10 transition-colors', done ? 'bg-cyan-500' : 'bg-zinc-800')} />
+              <div className={cn('h-px w-6 sm:w-10 transition-colors', done ? 'bg-primary dark:bg-cyan-500' : 'bg-border dark:bg-zinc-800')} />
             )}
           </div>
         );

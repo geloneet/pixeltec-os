@@ -10,7 +10,8 @@ import { buildWhatsappLink } from '@/lib/diagnostic/logic';
 import type { WizardAnswers } from '../types';
 
 const inputCls =
-  'h-12 w-full rounded-lg border border-white/10 bg-black/50 pl-11 text-sm text-white placeholder:text-zinc-500 transition-colors duration-200 hover:bg-black/60 focus-visible:outline-none focus-visible:border-cyan-500/60 focus-visible:bg-black/60';
+  'h-12 w-full rounded-lg border border-border bg-background pl-11 text-sm text-foreground placeholder:text-muted-foreground transition-colors duration-200 hover:bg-secondary/60 focus-visible:outline-none focus-visible:border-primary/60 focus-visible:bg-secondary/60 ' +
+  'dark:border-white/10 dark:bg-black/50 dark:text-white dark:placeholder:text-zinc-500 dark:hover:bg-black/60 dark:focus-visible:border-cyan-500/60 dark:focus-visible:bg-black/60';
 
 interface Props {
   answers: WizardAnswers;
@@ -25,8 +26,8 @@ export function StepContact({ answers, update, onSubmit, submitting, errorMessag
 
   return (
     <div>
-      <h2 className="text-xl md:text-2xl font-bold text-white mb-1">Un último paso</h2>
-      <p className="text-zinc-500 text-sm mb-6">Para preparar tu diagnóstico personalizado.</p>
+      <h2 className="text-xl md:text-2xl font-bold text-foreground dark:text-white mb-1">Un último paso</h2>
+      <p className="text-muted-foreground dark:text-zinc-500 text-sm mb-6">Para preparar tu diagnóstico personalizado.</p>
 
       <form
         onSubmit={(e) => {
@@ -50,7 +51,7 @@ export function StepContact({ answers, update, onSubmit, submitting, errorMessag
 
         <div className="group relative">
           <Label htmlFor="diag-name" className="sr-only">Nombre</Label>
-          <User className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500 transition-colors group-focus-within:text-cyan-400" />
+          <User className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-brand dark:text-zinc-500 dark:group-focus-within:text-cyan-400" />
           <input
             id="diag-name"
             value={answers.name}
@@ -62,7 +63,7 @@ export function StepContact({ answers, update, onSubmit, submitting, errorMessag
         </div>
         <div className="group relative">
           <Label htmlFor="diag-email" className="sr-only">Email</Label>
-          <Mail className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500 transition-colors group-focus-within:text-cyan-400" />
+          <Mail className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-brand dark:text-zinc-500 dark:group-focus-within:text-cyan-400" />
           <input
             id="diag-email"
             type="email"
@@ -76,7 +77,7 @@ export function StepContact({ answers, update, onSubmit, submitting, errorMessag
         <div className="grid grid-cols-2 gap-3">
           <div className="group relative">
             <Label htmlFor="diag-phone" className="sr-only">WhatsApp</Label>
-            <Phone className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500 transition-colors group-focus-within:text-cyan-400" />
+            <Phone className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-brand dark:text-zinc-500 dark:group-focus-within:text-cyan-400" />
             <input
               id="diag-phone"
               value={answers.phone}
@@ -87,7 +88,7 @@ export function StepContact({ answers, update, onSubmit, submitting, errorMessag
           </div>
           <div className="group relative">
             <Label htmlFor="diag-empresa" className="sr-only">Empresa</Label>
-            <Building2 className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500 transition-colors group-focus-within:text-cyan-400" />
+            <Building2 className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-brand dark:text-zinc-500 dark:group-focus-within:text-cyan-400" />
             <input
               id="diag-empresa"
               value={answers.empresa}
@@ -109,14 +110,16 @@ export function StepContact({ answers, update, onSubmit, submitting, errorMessag
           <span
             className={cn(
               'mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors',
-              answers.consent ? 'border-cyan-400 bg-cyan-500/80' : 'border-zinc-600'
+              answers.consent
+                ? 'border-primary bg-primary dark:border-cyan-400 dark:bg-cyan-500/80'
+                : 'border-border dark:border-zinc-600'
             )}
           >
             {answers.consent && <Check className="h-3 w-3 text-white" />}
           </span>
-          <span className="text-xs font-normal text-zinc-400 leading-relaxed">
+          <span className="text-xs font-normal text-muted-foreground dark:text-zinc-400 leading-relaxed">
             Acepto el{' '}
-            <Link href="/aviso-de-privacidad" target="_blank" className="text-cyan-400 hover:underline">
+            <Link href="/aviso-de-privacidad" target="_blank" className="text-brand dark:text-cyan-400 hover:underline">
               Aviso de Privacidad
             </Link>{' '}
             de PixelTEC.
@@ -126,7 +129,7 @@ export function StepContact({ answers, update, onSubmit, submitting, errorMessag
         {errorMessage && (
           <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 space-y-2">
             <p className="text-sm text-destructive">{errorMessage}</p>
-            <p className="text-xs text-zinc-400">
+            <p className="text-xs text-muted-foreground dark:text-zinc-400">
               Puedes intentar de nuevo o escribirnos directo:
             </p>
             <a
@@ -136,7 +139,7 @@ export function StepContact({ answers, update, onSubmit, submitting, errorMessag
               )}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-400 hover:text-emerald-300"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300"
             >
               <MessageCircle className="h-3.5 w-3.5" /> Contactar por WhatsApp
             </a>

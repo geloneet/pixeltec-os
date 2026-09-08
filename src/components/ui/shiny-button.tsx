@@ -25,8 +25,8 @@ interface ShinyButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement>
 }
 
 const SHINY_CLASSES =
-  "shiny-cta tracking-wide transition-all duration-300 ease-out shadow-md hover:shadow-lg dark:shadow-none hover:text-blue-300 dark:hover:shadow-[0_0_20px_rgba(33,150,243,0.2)] active:scale-95 active:shadow-none " +
-  "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-cyan-400 " +
+  "shiny-cta tracking-wide transition-all duration-300 ease-out shadow-md hover:shadow-lg dark:shadow-none dark:hover:text-blue-300 hover:shadow-[0_8px_24px_-8px_rgba(33,150,243,0.45)] dark:hover:shadow-[0_0_20px_rgba(33,150,243,0.2)] active:scale-95 active:shadow-none " +
+  "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-focus " +
   "disabled:opacity-60 disabled:cursor-not-allowed disabled:pointer-events-none"
 
 export function ShinyButton({
@@ -59,6 +59,10 @@ export function ShinyButton({
           --shiny-cta-bg: #000000;
           --shiny-cta-fg: #ffffff;
           --shiny-cta-highlight: #2196F3;
+          /* Tono medio del shine cónico. En claro un blanco puro sobre el pill
+             negro leía como un destello lechoso sin marca; se sustituye por el
+             azul profundo. En oscuro sigue siendo blanco (idéntico a hoy). */
+          --shiny-cta-shine-mid: #1463B8;
           --duration: 3s;
 
           display: inline-flex;
@@ -84,6 +88,7 @@ export function ShinyButton({
         :global(.dark) .shiny-cta {
           /* Dark: como hoy, sin borde propio (el glow hace ese trabajo). */
           border-color: transparent;
+          --shiny-cta-shine-mid: #ffffff;
         }
 
         /* Rotating gradient layer — uses transform:rotate() which is GPU-composited */
@@ -100,18 +105,15 @@ export function ShinyButton({
             from 0deg,
             transparent 0%,
             var(--shiny-cta-highlight) 5%,
-            white 10%,
+            var(--shiny-cta-shine-mid) 10%,
             var(--shiny-cta-highlight) 15%,
             transparent 20%
           );
           animation: shiny-rotate var(--duration) linear infinite;
           z-index: -2;
-          /* El shine rotante fuerte queda solo para dark (ver .dark abajo);
-             en light se reemplaza por shadow-md + borde definido. */
-          opacity: 0;
-        }
-
-        :global(.dark) .shiny-cta::before {
+          /* El shine rotante corre en AMBOS temas: en claro con un tono medio
+             azul profundo en vez del blanco, para conservar el detalle más
+             identitario del botón sin que se vea lavado. */
           opacity: 1;
         }
 
@@ -126,7 +128,14 @@ export function ShinyButton({
           transition: background 0.3s ease;
         }
 
+        /* Hover del relleno. En claro el velo translúcido de dark dejaba el
+           pill casi transparente con texto blanco encima (1.8:1): se sustituye
+           por un azul profundo sólido (blanco sobre él = 5.75:1). */
         .shiny-cta:hover::after {
+          background: #1565c0;
+        }
+
+        :global(.dark) .shiny-cta:hover::after {
           background: rgb(33 150 243 / 0.08);
         }
 
@@ -147,17 +156,31 @@ export function ShinyButton({
         .shiny-cta.whatsapp-cta {
           --shiny-cta-bg: #075e54;
           --shiny-cta-highlight: #25d366;
+          --shiny-cta-shine-mid: #128c7e;
         }
 
+        :global(.dark) .shiny-cta.whatsapp-cta {
+          --shiny-cta-shine-mid: #ffffff;
+        }
+
+        /* Claro: verde WhatsApp medio sólido (blanco encima = 4.14:1). */
         .shiny-cta.whatsapp-cta:hover::after {
+          background: #128c7e;
+        }
+
+        :global(.dark) .shiny-cta.whatsapp-cta:hover::after {
           background: rgb(37 211 102 / 0.14);
         }
 
-        .shiny-cta.whatsapp-cta:hover {
+        :global(.dark) .shiny-cta.whatsapp-cta:hover {
           color: #25d366 !important;
         }
 
         .shiny-cta.whatsapp-cta:focus-visible {
+          outline-color: #128c7e !important;
+        }
+
+        :global(.dark) .shiny-cta.whatsapp-cta:focus-visible {
           outline-color: #25d366 !important;
         }
 
