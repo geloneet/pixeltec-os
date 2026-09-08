@@ -66,9 +66,9 @@ export default function LocalAutomationPage({ city }: { city: LocalCity }) {
           animate="visible"
           custom={1}
           variants={sectionVariants}
-          className="mb-16 rounded-2xl border border-border bg-card p-8 md:p-12 shadow-sm dark:shadow-[0_0_40px_rgba(0,240,255,0.05)]"
+          className="mb-16 rounded-2xl border border-border bg-card p-8 md:p-12 shadow-[0_12px_40px_-16px_rgba(33,150,243,0.18)] dark:shadow-[0_0_40px_rgba(0,240,255,0.05)]"
         >
-          <p className="mb-3 text-sm font-semibold uppercase tracking-wide text-primary dark:text-cyan-400">
+          <p className="mb-3 text-sm font-semibold uppercase tracking-wide text-brand">
             {city.city}, {city.region}
           </p>
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-foreground">
@@ -102,7 +102,7 @@ export default function LocalAutomationPage({ city }: { city: LocalCity }) {
                 href={source.href}
                 target="_blank"
                 rel="noopener"
-                className="inline-flex items-center font-medium text-primary dark:text-cyan-400 hover:underline"
+                className="inline-flex items-center font-medium text-brand hover:underline"
               >
                 Fuente: {source.label} →
               </a>
@@ -129,7 +129,7 @@ export default function LocalAutomationPage({ city }: { city: LocalCity }) {
                   key={index}
                   className="flex gap-6 rounded-xl border border-border/60 bg-card p-6 transition-all duration-300 hover:border-primary/20 dark:hover:border-cyan-500/20 hover:-translate-y-1"
                 >
-                  <div className="mt-1 text-primary dark:text-cyan-400 flex-shrink-0">
+                  <div className="mt-1 text-brand flex-shrink-0">
                     <Icon className="h-7 w-7 md:h-8 md:w-8" />
                   </div>
                   <div>
@@ -193,7 +193,7 @@ export default function LocalAutomationPage({ city }: { city: LocalCity }) {
           whileInView="visible"
           viewport={{ once: true, amount: 0.5 }}
           variants={sectionVariants}
-          className="mt-12 mb-8 md:mb-16 rounded-2xl bg-gradient-to-tr from-primary/5 via-card to-card border border-border py-12 md:py-16 px-6 text-center shadow-sm dark:from-cyan-950/50 dark:via-[#0A0A0A] dark:to-[#0A0A0A] dark:shadow-[0_0_40px_rgba(0,240,255,0.05)]"
+          className="mt-12 mb-8 md:mb-16 rounded-2xl bg-gradient-to-tr from-primary/5 via-card to-card border border-border py-12 md:py-16 px-6 text-center shadow-[0_12px_40px_-16px_rgba(33,150,243,0.18)] dark:from-cyan-950/50 dark:via-[#0A0A0A] dark:to-[#0A0A0A] dark:shadow-[0_0_40px_rgba(0,240,255,0.05)]"
         >
           <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
             ¿Listo para automatizar en {city.city}?
@@ -219,14 +219,14 @@ export default function LocalAutomationPage({ city }: { city: LocalCity }) {
               También automatizamos procesos en{' '}
               {neighbors.map((n, i) => (
                 <span key={n.slug}>
-                  <Link href={`/${n.slug}`} className="font-medium text-primary dark:text-cyan-400 hover:underline">
+                  <Link href={`/${n.slug}`} className="font-medium text-brand hover:underline">
                     {n.city}
                   </Link>
                   {i < neighbors.length - 1 ? ' y ' : ''}
                 </span>
               ))}
               . Conoce el servicio completo en{' '}
-              <Link href="/services/automatizacion" className="font-medium text-primary dark:text-cyan-400 hover:underline">
+              <Link href="/services/automatizacion" className="font-medium text-brand hover:underline">
                 Automatización de Procesos con IA
               </Link>
               .

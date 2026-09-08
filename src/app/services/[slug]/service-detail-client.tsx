@@ -67,7 +67,7 @@ const RELATED_SERVICES: Record<string, { slug: string; title: string }[]> = {
 const servicesData = [
     {
         slug: 'ecosistemas-web',
-        icon: <Globe className="h-10 w-10 md:h-12 md:w-12 text-primary dark:text-cyan-400" />,
+        icon: <Globe className="h-10 w-10 md:h-12 md:w-12 text-brand" />,
         title: 'Ecosistemas Web Avanzados',
         description: 'Creación de aplicaciones web robustas, CRMs personalizados y sitios corporativos ultra rápidos. Construimos con tecnologías de vanguardia como Next.js, React y Firebase, diseñando arquitecturas escalables preparadas para el futuro de tu negocio.',
         features: [
@@ -110,7 +110,7 @@ const servicesData = [
     },
     {
         slug: 'automatizacion',
-        icon: <Bot className="h-10 w-10 md:h-12 md:w-12 text-primary dark:text-cyan-400" />,
+        icon: <Bot className="h-10 w-10 md:h-12 md:w-12 text-brand" />,
         title: 'Automatización de Procesos con IA',
         description: 'Desarrollamos scripts en Python, herramientas de validación de datos y bots de Telegram o WhatsApp interactivos para optimizar la operación diaria, reducir tareas manuales y permitir que tu equipo se enfoque en el crecimiento.',
         features: [
@@ -153,7 +153,7 @@ const servicesData = [
     },
     {
         slug: 'consultoria',
-        icon: <Briefcase className="h-10 w-10 md:h-12 md:w-12 text-primary dark:text-cyan-400" />,
+        icon: <Briefcase className="h-10 w-10 md:h-12 md:w-12 text-brand" />,
         title: 'Consultoría Tecnológica Estratégica',
         description: 'Realizamos una auditoría y digitalización de tu negocio. Desde la transición de procesos administrativos (como la gestión de flotillas o clínicas) hasta el rediseño UI/UX de tus sistemas actuales para mejorar la eficiencia y la experiencia de usuario.',
         features: [
@@ -247,7 +247,7 @@ export default function ServiceDetailClient({ slug }: { slug: string }) {
           animate="visible"
           custom={1}
           variants={sectionVariants}
-          className="mb-16 rounded-2xl border border-border bg-card p-8 md:p-12 shadow-sm dark:shadow-[0_0_40px_rgba(0,240,255,0.05)]"
+          className="mb-16 rounded-2xl border border-border bg-card p-8 md:p-12 shadow-[0_12px_40px_-16px_rgba(33,150,243,0.18)] dark:shadow-[0_0_40px_rgba(0,240,255,0.05)]"
         >
           <div className="flex flex-col sm:flex-row items-center text-center sm:text-left gap-6 md:gap-8">
             <div className="mb-4 sm:mb-0">{service.icon}</div>
@@ -280,7 +280,7 @@ export default function ServiceDetailClient({ slug }: { slug: string }) {
             </div>
             <Link
               href="/pixelbot"
-              className="mt-4 sm:mt-0 inline-flex flex-shrink-0 items-center font-semibold text-primary dark:text-cyan-400 hover:underline"
+              className="mt-4 sm:mt-0 inline-flex flex-shrink-0 items-center font-semibold text-brand hover:underline"
             >
               Conocer WhatsAgent →
             </Link>
@@ -306,7 +306,7 @@ export default function ServiceDetailClient({ slug }: { slug: string }) {
                 <Link
                   key={city.slug}
                   href={`/${city.slug}`}
-                  className="rounded-full border border-primary/25 dark:border-cyan-500/25 bg-primary/5 dark:bg-cyan-500/5 px-4 py-2 text-sm font-medium text-primary dark:text-cyan-400 hover:bg-primary/10 dark:hover:bg-cyan-500/10 transition-colors"
+                  className="rounded-full border border-primary/25 dark:border-cyan-500/25 bg-primary/5 dark:bg-cyan-500/5 px-4 py-2 text-sm font-medium text-brand hover:bg-primary/10 dark:hover:bg-cyan-500/10 transition-colors"
                 >
                   {city.city}
                 </Link>
@@ -332,7 +332,7 @@ export default function ServiceDetailClient({ slug }: { slug: string }) {
                 key={index}
                 className="flex items-start gap-4 rounded-lg border border-border bg-card p-5"
               >
-                <CheckCircle className="mt-1 h-5 w-5 flex-shrink-0 text-primary dark:text-cyan-400" />
+                <CheckCircle className="mt-1 h-5 w-5 flex-shrink-0 text-brand" />
                 <p className="text-foreground/80">{feature}</p>
               </div>
             ))}
@@ -352,7 +352,7 @@ export default function ServiceDetailClient({ slug }: { slug: string }) {
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:gap-8">
                 {service.useCases.map((useCase, index) => (
                     <div key={index} className="flex gap-6 rounded-xl border border-border/60 bg-card p-6 transition-all duration-300 hover:border-primary/20 dark:hover:border-cyan-500/20 hover:-translate-y-1">
-                        <div className="mt-1 text-primary dark:text-cyan-400 flex-shrink-0">{useCase.icon}</div>
+                        <div className="mt-1 text-brand flex-shrink-0">{useCase.icon}</div>
                         <div>
                             <h3 className="font-bold text-foreground text-lg">{useCase.title}</h3>
                             <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{useCase.description}</p>
@@ -406,7 +406,7 @@ export default function ServiceDetailClient({ slug }: { slug: string }) {
                 <Link
                   key={landing.slug}
                   href={`/${landing.slug}`}
-                  className="rounded-full border border-primary/25 dark:border-cyan-500/25 bg-primary/5 dark:bg-cyan-500/5 px-4 py-2 text-sm font-medium text-primary dark:text-cyan-400 hover:bg-primary/10 dark:hover:bg-cyan-500/10 transition-colors"
+                  className="rounded-full border border-primary/25 dark:border-cyan-500/25 bg-primary/5 dark:bg-cyan-500/5 px-4 py-2 text-sm font-medium text-brand hover:bg-primary/10 dark:hover:bg-cyan-500/10 transition-colors"
                 >
                   {landing.keyword}
                   {landing.city ? ` en ${landing.city.name}` : ''}
@@ -448,7 +448,7 @@ export default function ServiceDetailClient({ slug }: { slug: string }) {
           whileInView="visible"
           viewport={{ once: true, amount: 0.5 }}
           variants={sectionVariants}
-          className="mt-12 mb-8 md:mb-16 rounded-2xl bg-gradient-to-tr from-primary/5 via-card to-card border border-border py-12 md:py-16 px-6 text-center shadow-sm dark:from-cyan-950/50 dark:via-[#0A0A0A] dark:to-[#0A0A0A] dark:shadow-[0_0_40px_rgba(0,240,255,0.05)]"
+          className="mt-12 mb-8 md:mb-16 rounded-2xl bg-gradient-to-tr from-primary/5 via-card to-card border border-border py-12 md:py-16 px-6 text-center shadow-[0_12px_40px_-16px_rgba(33,150,243,0.18)] dark:from-cyan-950/50 dark:via-[#0A0A0A] dark:to-[#0A0A0A] dark:shadow-[0_0_40px_rgba(0,240,255,0.05)]"
         >
           <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
             ¿Listo para escalar tu operación?

@@ -34,19 +34,19 @@ const cardVariants = {
 const services = [
     {
         slug: 'ecosistemas-web',
-        icon: <Globe className="h-8 w-8 text-brand-blue" />,
+        icon: <Globe className="h-8 w-8 text-brand" />,
         title: 'Ecosistemas Web Avanzados',
         description: 'Creación de aplicaciones web robustas, CRMs personalizados y sitios corporativos ultra rápidos utilizando Next.js, React y Firebase.',
     },
     {
         slug: 'automatizacion',
-        icon: <Bot className="h-8 w-8 text-brand-blue" />,
+        icon: <Bot className="h-8 w-8 text-brand" />,
         title: 'Automatización de Procesos',
         description: 'Desarrollo de scripts en Python, herramientas de validación de datos y bots de Telegram interactivos para optimizar la operación diaria y reducir tareas manuales.',
     },
     {
         slug: 'consultoria',
-        icon: <Briefcase className="h-8 w-8 text-brand-blue" />,
+        icon: <Briefcase className="h-8 w-8 text-brand" />,
         title: 'Consultoría Tecnológica',
         description: 'Auditoría y digitalización de negocios. Desde la transición de procesos administrativos (como la gestión de flotillas o clínicas) hasta el rediseño UI/UX de tus sistemas actuales.',
     },
@@ -67,7 +67,7 @@ export default function ServicesPage() {
           <div className="absolute inset-0 z-0 dark:bg-black/50 dark:shadow-[0_0_80px_rgba(0,240,255,0.1)]" />
           <div className="container relative z-10 mx-auto px-4 sm:px-6 lg:px-8">
             <h1 className="text-4xl font-extrabold tracking-tight text-foreground sm:text-6xl md:text-7xl">
-              Soluciones de <span className="text-brand-blue">Alto Impacto</span>
+              Soluciones de <span className="text-brand">Alto Impacto</span>
             </h1>
             <p className="mx-auto mt-6 max-w-3xl text-lg text-muted-foreground md:text-xl leading-relaxed">
               Desarrollamos tecnología a la medida para modernizar la logística, operación y presencia digital de tu empresa.
@@ -125,7 +125,7 @@ export default function ServicesPage() {
           variants={sectionVariants}
         >
           <div className="container mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-            <div className="rounded-2xl bg-gradient-to-tr from-primary/5 via-card to-card border border-border py-12 md:py-16 px-6 text-center shadow-sm dark:from-cyan-950/50 dark:via-[#0A0A0A] dark:to-[#0A0A0A] dark:shadow-[0_0_40px_rgba(0,240,255,0.05)]">
+            <div className="rounded-2xl bg-gradient-to-tr from-primary/5 via-card to-card border border-border py-12 md:py-16 px-6 text-center shadow-[0_12px_40px_-16px_rgba(33,150,243,0.18)] dark:from-cyan-950/50 dark:via-[#0A0A0A] dark:to-[#0A0A0A] dark:shadow-[0_0_40px_rgba(0,240,255,0.05)]">
                 <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
                 ¿Tienes un desafío operativo?
                 </h2>
@@ -149,7 +149,7 @@ export default function ServicesPage() {
 const ServiceCard = ({ icon, title, description }: { icon: React.ReactNode, title: string, description: string }) => {
   return (
     <div className="relative h-full rounded-2xl border border-border bg-card p-8 backdrop-blur-md transition-all duration-300 group-hover:border-primary/40 group-hover:bg-primary/5 dark:group-hover:border-cyan-500/50 dark:group-hover:bg-cyan-950/20 group-hover:-translate-y-2 overflow-hidden">
-      <div className="mb-4 text-brand-blue transition-colors duration-300 group-hover:text-primary dark:group-hover:text-cyan-300">{icon}</div>
+      <div className="mb-4 text-brand transition-colors duration-300 group-hover:text-primary dark:group-hover:text-cyan-300">{icon}</div>
       <h3 className="text-xl font-bold text-foreground">{title}</h3>
       <p className="mt-2 text-muted-foreground leading-relaxed">{description}</p>
     </div>

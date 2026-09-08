@@ -30,7 +30,7 @@ export default function IndustriesStrip() {
         <ul className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-4 md:gap-x-8">
           {SECTORS.map(({ icon: Icon, label }) => (
             <li key={label} className="flex items-center gap-2.5">
-              <Icon className="h-4 w-4 shrink-0 text-primary dark:text-cyan-400" aria-hidden="true" />
+              <Icon className="h-4 w-4 shrink-0 text-brand" aria-hidden="true" />
               <span className="text-sm text-muted-foreground md:text-base">{label}</span>
             </li>
           ))}
@@ -39,7 +39,7 @@ export default function IndustriesStrip() {
         <p className="mt-8 text-center">
           <Link
             href="/industrias"
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-primary underline-offset-4 transition-colors hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-cyan-400 dark:text-cyan-400"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-brand underline-offset-4 transition-colors hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-focus"
           >
             Ver cómo trabajamos en cada industria
             <ArrowRight className="h-4 w-4" aria-hidden="true" />
