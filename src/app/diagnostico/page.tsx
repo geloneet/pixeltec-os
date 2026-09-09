@@ -20,16 +20,16 @@ export default async function DiagnosticoPage({
   return (
     <>
       <Header />
-      <main className="min-h-screen bg-[#030303] text-white pt-32 sm:pt-40 pb-16 sm:pb-24">
+      <main className="min-h-screen bg-background dark:bg-[#030303] text-foreground dark:text-white pt-32 sm:pt-40 pb-16 sm:pb-24">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-3xl">
           <header className="mb-10 md:mb-12 text-center">
-            <h1 className="text-3xl md:text-4xl lg:text-5xl font-extrabold text-white mb-4 tracking-tight">
+            <h1 className="text-3xl md:text-4xl lg:text-5xl font-extrabold text-foreground dark:text-white mb-4 tracking-tight">
               Diagnóstico{" "}
               <span className="bg-gradient-to-r from-blue-400 to-cyan-400 text-transparent bg-clip-text">
                 Inteligente
               </span>
             </h1>
-            <p className="text-zinc-400 text-base md:text-lg leading-relaxed max-w-xl mx-auto">
+            <p className="text-muted-foreground dark:text-zinc-400 text-base md:text-lg leading-relaxed max-w-xl mx-auto">
               Responde unas preguntas y recibe una recomendación personalizada para tu empresa.
             </p>
           </header>

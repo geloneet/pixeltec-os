@@ -14,28 +14,28 @@ const processSteps = [
     title: 'Diagnóstico y Arquitectura',
     description:
       'Auditamos tus procesos actuales. Definimos la arquitectura técnica (bases de datos, APIs) y trazamos la ruta más eficiente para tu negocio.',
-    icon: <Search className="h-6 w-6 text-cyan-400" />,
+    icon: <Search className="h-6 w-6 text-brand" />,
   },
   {
     phase: '02',
     title: 'Desarrollo Ágil y Automatización',
     description:
       'Escribimos código limpio y escalable. Desde interfaces ultra rápidas con Next.js hasta scripts de Python para automatizar tareas repetitivas.',
-    icon: <Code className="h-6 w-6 text-cyan-400" />,
+    icon: <Code className="h-6 w-6 text-brand" />,
   },
   {
     phase: '03',
     title: 'Despliegue e Integración',
     description:
       'Implementamos las soluciones en la nube (Cloud/Firebase) asegurando cero caídas. Conectamos tus nuevas herramientas con los sistemas que ya usas.',
-    icon: <Rocket className="h-6 w-6 text-cyan-400" />,
+    icon: <Rocket className="h-6 w-6 text-brand" />,
   },
   {
     phase: '04',
     title: 'Evolución Continua',
     description:
       'La tecnología no se detiene. Monitoreamos el rendimiento, optimizamos procesos e integramos nuevas capas de Inteligencia Artificial según crezcas.',
-    icon: <RefreshCw className="h-6 w-6 text-cyan-400" />,
+    icon: <RefreshCw className="h-6 w-6 text-brand" />,
   },
 ];
 
@@ -53,7 +53,7 @@ const cardVariants = {
 
 export default function MetodologiaPage() {
   return (
-    <div className="bg-[#030303] text-white">
+    <div className="bg-background dark:bg-[#030303] text-foreground dark:text-white">
       <Header />
       <main className="overflow-hidden">
         <motion.section
@@ -65,14 +65,14 @@ export default function MetodologiaPage() {
           <h1 className="text-4xl sm:text-5xl md:text-7xl font-extrabold tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white to-zinc-400">
             Nuestra Metodología
           </h1>
-          <p className="mx-auto mt-6 max-w-3xl text-lg text-white/60 md:text-xl leading-relaxed">
+          <p className="mx-auto mt-6 max-w-3xl text-lg text-muted-foreground dark:text-white/60 md:text-xl leading-relaxed">
             Un proceso de ingeniería estructurado para transformar operaciones manuales en ecosistemas digitales escalables.
           </p>
         </motion.section>
 
         <section className="container mx-auto px-4 sm:px-6 lg:px-8 pb-16 sm:pb-24 md:pb-32">
           <div className="relative max-w-3xl mx-auto">
-            <div className="absolute top-0 bottom-0 left-6 w-px -translate-x-1/2 bg-white/10" />
+            <div className="absolute top-0 bottom-0 left-6 w-px -translate-x-1/2 bg-secondary dark:bg-white/10" />
 
             {processSteps.map((step) => (
               <motion.div
@@ -84,19 +84,19 @@ export default function MetodologiaPage() {
                 variants={cardVariants}
               >
                 <div className="absolute top-0 left-6 -translate-x-1/2 z-10">
-                  <div className="w-12 h-12 rounded-full bg-[#0A0A0A] border-2 border-cyan-500/50 flex items-center justify-center">
-                    <div className="w-8 h-8 rounded-full bg-cyan-950/50 flex items-center justify-center shadow-[0_0_15px_rgba(0,240,255,0.2)]">
+                  <div className="w-12 h-12 rounded-full bg-card dark:bg-[#0A0A0A] border-2 border-primary/50 dark:border-cyan-500/50 flex items-center justify-center">
+                    <div className="w-8 h-8 rounded-full bg-primary/5 dark:bg-cyan-950/50 flex items-center justify-center shadow-[0_0_15px_rgba(0,240,255,0.2)]">
                       {step.icon}
                     </div>
                   </div>
                 </div>
 
-                <div className="bg-white/5 border border-white/5 p-6 md:p-8 rounded-xl md:rounded-2xl hover:border-cyan-500/30 transition-colors duration-300 backdrop-blur-md">
-                  <p className="text-sm font-bold tracking-[0.2em] text-cyan-400 mb-2">
+                <div className="bg-secondary/60 dark:bg-white/5 border border-border dark:border-white/5 p-6 md:p-8 rounded-xl md:rounded-2xl hover:border-primary/30 dark:hover:border-cyan-500/30 transition-colors duration-300 backdrop-blur-md">
+                  <p className="text-sm font-bold tracking-[0.2em] text-brand mb-2">
                     FASE {step.phase}
                   </p>
-                  <h3 className="text-xl md:text-2xl font-bold text-white mb-3">{step.title}</h3>
-                  <p className="text-zinc-400 leading-relaxed">{step.description}</p>
+                  <h3 className="text-xl md:text-2xl font-bold text-foreground dark:text-white mb-3">{step.title}</h3>
+                  <p className="text-muted-foreground dark:text-zinc-400 leading-relaxed">{step.description}</p>
                 </div>
               </motion.div>
             ))}

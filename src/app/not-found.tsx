@@ -11,7 +11,7 @@ export default function NotFound() {
   return (
     <>
       <Header />
-      <main className="min-h-screen bg-neutral-950 text-white flex flex-col items-center justify-center px-4 text-center pt-24 pb-16">
+      <main className="min-h-screen bg-background dark:bg-neutral-950 text-foreground dark:text-white flex flex-col items-center justify-center px-4 text-center pt-24 pb-16">
         <div
           aria-hidden
           className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_top,rgba(59,130,246,0.06),transparent_50%)]"
@@ -28,10 +28,10 @@ export default function NotFound() {
           404
         </p>
 
-        <h1 className="mt-4 text-xl md:text-2xl font-semibold text-zinc-100 max-w-lg">
+        <h1 className="mt-4 text-xl md:text-2xl font-semibold text-foreground dark:text-zinc-100 max-w-lg">
           Esta página no existe
         </h1>
-        <p className="mt-3 text-sm text-zinc-500 max-w-sm">
+        <p className="mt-3 text-sm text-muted-foreground dark:text-zinc-500 max-w-sm">
           La URL que buscas no existe o fue movida. Usa los accesos directos
           para retomar el camino.
         </p>
@@ -39,25 +39,25 @@ export default function NotFound() {
         <div className="mt-10 flex flex-wrap gap-3 items-center justify-center">
           <Link
             href="/"
-            className="inline-flex items-center rounded-full h-12 px-7 border border-zinc-600 bg-zinc-900 text-zinc-100 text-sm font-semibold transition-all duration-200 hover:bg-zinc-800 hover:border-zinc-500 hover:-translate-y-0.5"
+            className="inline-flex items-center rounded-full h-12 px-7 border border-border dark:border-zinc-600 bg-muted dark:bg-zinc-900 text-foreground dark:text-zinc-100 text-sm font-semibold transition-all duration-200 hover:bg-accent dark:hover:bg-zinc-800 hover:border-primary/40 dark:hover:border-zinc-500 hover:-translate-y-0.5"
           >
             Volver al inicio
           </Link>
           <Link
             href="/services"
-            className="rounded-full h-12 px-7 border border-white/10 bg-white/5 text-zinc-300 text-sm font-semibold transition-all duration-200 hover:bg-white/10 hover:text-white hover:-translate-y-0.5 flex items-center"
+            className="rounded-full h-12 px-7 border border-border dark:border-white/10 bg-secondary/60 dark:bg-white/5 text-foreground/85 dark:text-zinc-300 text-sm font-semibold transition-all duration-200 hover:bg-secondary dark:hover:bg-white/10 hover:text-foreground dark:hover:text-white hover:-translate-y-0.5 flex items-center"
           >
             Servicios
           </Link>
           <Link
             href="/industrias"
-            className="rounded-full h-12 px-7 border border-white/10 bg-white/5 text-zinc-300 text-sm font-semibold transition-all duration-200 hover:bg-white/10 hover:text-white hover:-translate-y-0.5 flex items-center"
+            className="rounded-full h-12 px-7 border border-border dark:border-white/10 bg-secondary/60 dark:bg-white/5 text-foreground/85 dark:text-zinc-300 text-sm font-semibold transition-all duration-200 hover:bg-secondary dark:hover:bg-white/10 hover:text-foreground dark:hover:text-white hover:-translate-y-0.5 flex items-center"
           >
             Industrias
           </Link>
           <Link
             href="/blog"
-            className="rounded-full h-12 px-7 border border-white/10 bg-white/5 text-zinc-300 text-sm font-semibold transition-all duration-200 hover:bg-white/10 hover:text-white hover:-translate-y-0.5 flex items-center"
+            className="rounded-full h-12 px-7 border border-border dark:border-white/10 bg-secondary/60 dark:bg-white/5 text-foreground/85 dark:text-zinc-300 text-sm font-semibold transition-all duration-200 hover:bg-secondary dark:hover:bg-white/10 hover:text-foreground dark:hover:text-white hover:-translate-y-0.5 flex items-center"
           >
             Blog
           </Link>

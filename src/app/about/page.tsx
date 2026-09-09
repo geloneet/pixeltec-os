@@ -26,7 +26,7 @@ const getImageUrl = (id: string) => {
 
 export default function AboutPage() {
   return (
-    <div className="bg-[#030303] text-white">
+    <div className="bg-background dark:bg-[#030303] text-foreground dark:text-white">
       <Header />
       <main className="flex-1">
         {/* 1. Hero Section */}
@@ -37,14 +37,14 @@ export default function AboutPage() {
           variants={sectionVariants}
         >
           <div className="absolute inset-0 z-0 opacity-20">
-            <div className="absolute -top-1/4 -left-1/4 h-1/2 w-1/2 rounded-full bg-cyan-500/50 blur-[150px]" />
-            <div className="absolute -bottom-1/4 -right-1/4 h-1/2 w-1/2 rounded-full bg-blue-500/40 blur-[150px]" />
+            <div className="absolute -top-1/4 -left-1/4 h-1/2 w-1/2 rounded-full bg-primary/20 dark:bg-cyan-500/50 blur-[150px]" />
+            <div className="absolute -bottom-1/4 -right-1/4 h-1/2 w-1/2 rounded-full bg-blue-500/15 dark:bg-blue-500/40 blur-[150px]" />
           </div>
           <div className="container relative z-10 mx-auto px-4 sm:px-6 lg:px-8">
             <h1 className="text-4xl font-extrabold tracking-tight sm:text-6xl md:text-7xl">
-              Arquitectos de la <span className="text-brand-blue">Innovación Tecnológica.</span>
+              Arquitectos de la <span className="text-brand">Innovación Tecnológica.</span>
             </h1>
-            <p className="mx-auto mt-6 max-w-3xl text-lg text-white/60 md:text-xl leading-relaxed">
+            <p className="mx-auto mt-6 max-w-3xl text-lg text-muted-foreground dark:text-white/60 md:text-xl leading-relaxed">
               Combinamos consultoría empresarial con desarrollo de software de alto nivel para escalar tu ecosistema digital.
             </p>
           </div>
@@ -60,7 +60,7 @@ export default function AboutPage() {
         >
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-1 items-center gap-12 md:grid-cols-3 lg:gap-20">
-              <div className="relative h-[400px] w-full rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-md md:h-[500px] md:col-span-1">
+              <div className="relative h-[400px] w-full rounded-2xl border border-border dark:border-white/10 bg-secondary/60 dark:bg-white/5 p-4 backdrop-blur-md md:h-[500px] md:col-span-1">
                 <Image
                   src={getImageUrl('miguel-robles-portrait')}
                   alt="Miguel Robles, líder de PixelTEC"
@@ -70,13 +70,13 @@ export default function AboutPage() {
                 />
               </div>
               <div className="text-center md:text-left md:col-span-2">
-                <h2 className="text-3xl font-bold tracking-tight text-white/90 sm:text-4xl">
-                  Un Aliado <span className="text-brand-blue">Estratégico</span>, no solo un Proveedor.
+                <h2 className="text-3xl font-bold tracking-tight text-foreground dark:text-white/90 sm:text-4xl">
+                  Un Aliado <span className="text-brand">Estratégico</span>, no solo un Proveedor.
                 </h2>
-                <p className="mt-6 text-lg leading-relaxed text-white/60">
-                  PixelTEC, liderada por <span className="font-semibold text-white">Miguel Robles</span>, nació para cerrar la brecha entre la estrategia de negocio y la ejecución tecnológica. Entendemos que el código es una herramienta poderosa, pero su verdadero valor se desbloquea cuando se alinea con objetivos comerciales claros.
+                <p className="mt-6 text-lg leading-relaxed text-muted-foreground dark:text-white/60">
+                  PixelTEC, liderada por <span className="font-semibold text-foreground dark:text-white">Miguel Robles</span>, nació para cerrar la brecha entre la estrategia de negocio y la ejecución tecnológica. Entendemos que el código es una herramienta poderosa, pero su verdadero valor se desbloquea cuando se alinea con objetivos comerciales claros.
                 </p>
-                <p className="mt-4 text-lg leading-relaxed text-white/60">
+                <p className="mt-4 text-lg leading-relaxed text-muted-foreground dark:text-white/60">
                   Somos un equipo híbrido de consultores y desarrolladores que no solo construye software, sino que diseña ecosistemas digitales que impulsan el crecimiento y la eficiencia.
                 </p>
               </div>
@@ -94,29 +94,29 @@ export default function AboutPage() {
         >
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="mx-auto max-w-2xl text-center">
-                <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">Nuestros Pilares</h2>
-                <p className="mt-4 text-lg leading-relaxed text-white/60">
+                <h2 className="text-3xl font-bold tracking-tight text-foreground dark:text-white sm:text-4xl">Nuestros Pilares</h2>
+                <p className="mt-4 text-lg leading-relaxed text-muted-foreground dark:text-white/60">
                     Así es como convertimos tus desafíos en ventajas competitivas.
                 </p>
             </div>
             <div className="mt-12 md:mt-16 grid grid-cols-1 gap-6 md:gap-8 md:grid-cols-3">
               <Link href="/services/ecosistemas-web" className="block h-full group">
                 <PillarCard
-                  icon={<Code className="h-8 w-8 text-brand-blue" />}
+                  icon={<Code className="h-8 w-8 text-brand" />}
                   title="Desarrollo a la Medida"
                   description="Creamos aplicaciones web y móviles robustas y escalables con tecnologías de vanguardia como Next.js y React. Arquitecturas pensadas para el futuro."
                 />
               </Link>
               <Link href="/services/automatizacion" className="block h-full group">
                 <PillarCard
-                  icon={<Cpu className="h-8 w-8 text-brand-blue" />}
+                  icon={<Cpu className="h-8 w-8 text-brand" />}
                   title="Automatización e IA"
                   description="Desde scripts en Python que optimizan tareas repetitivas hasta la integración de bots inteligentes, automatizamos tus procesos para que te enfoques en crecer."
                 />
               </Link>
               <Link href="/services/consultoria" className="block h-full group">
                 <PillarCard
-                  icon={<Briefcase className="h-8 w-8 text-brand-blue" />}
+                  icon={<Briefcase className="h-8 w-8 text-brand" />}
                   title="Consultoría Empresarial"
                   description="Analizamos tus operaciones y datos para identificar oportunidades de modernización. Te guiamos en cada paso de tu transformación digital."
                 />
@@ -134,11 +134,11 @@ export default function AboutPage() {
           variants={sectionVariants}
         >
           <div className="container mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-            <div className="rounded-2xl bg-gradient-to-tr from-cyan-950/50 via-[#0A0A0A] to-[#0A0A0A] border border-white/10 py-12 md:py-16 px-6 text-center shadow-[0_0_40px_rgba(0,240,255,0.05)]">
-                <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
+            <div className="rounded-2xl bg-gradient-to-tr from-primary/5 via-card to-card border border-border py-12 md:py-16 px-6 text-center shadow-[0_12px_40px_-16px_rgba(33,150,243,0.18)] dark:from-cyan-950/50 dark:via-[#0A0A0A] dark:to-[#0A0A0A] dark:border-white/10 dark:shadow-[0_0_40px_rgba(0,240,255,0.05)]">
+                <h2 className="text-3xl font-bold tracking-tight text-foreground dark:text-white sm:text-4xl">
                 ¿Listo para construir el futuro?
                 </h2>
-                <p className="mx-auto mt-4 max-w-xl text-lg leading-relaxed text-white/60">
+                <p className="mx-auto mt-4 max-w-xl text-lg leading-relaxed text-muted-foreground dark:text-white/60">
                 Hablemos de cómo la tecnología puede transformar tu negocio.
                 </p>
                 <div className="mt-8">
@@ -157,10 +157,10 @@ export default function AboutPage() {
 
 const PillarCard = ({ icon, title, description }: { icon: React.ReactNode, title: string, description: string }) => {
   return (
-    <div className="relative h-full rounded-2xl border border-white/10 bg-[#0A0A0A] p-8 overflow-hidden transition-all duration-300 group-hover:border-brand-blue/50 group-hover:bg-blue-950/20 group-hover:-translate-y-1">
+    <div className="relative h-full rounded-2xl border border-border dark:border-white/10 bg-card dark:bg-[#0A0A0A] p-8 overflow-hidden transition-all duration-300 group-hover:border-primary/50 group-hover:bg-primary/5 group-hover:shadow-[0_12px_32px_-16px_rgba(33,150,243,0.35)] dark:group-hover:border-brand-blue/50 dark:group-hover:bg-blue-950/20 dark:group-hover:shadow-none group-hover:-translate-y-1">
       <div className="mb-4">{icon}</div>
-      <h3 className="text-xl font-bold text-white">{title}</h3>
-      <p className="mt-2 text-white/60">{description}</p>
+      <h3 className="text-xl font-bold text-foreground dark:text-white">{title}</h3>
+      <p className="mt-2 text-muted-foreground dark:text-white/60">{description}</p>
     </div>
   );
 };
