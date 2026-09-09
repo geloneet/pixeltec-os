@@ -202,6 +202,15 @@ export function QuoteForm({
   // cotización nueva sin id todavía puede tener un brief generado.
   const [briefStatus, setBriefStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [briefDraft, setBriefDraft] = useState<BriefDraft | null>(null);
+  // WO-2026-00254: vista previa del brief + chat de instrucciones para
+  // editarlo (agregar/quitar cosas) antes de convencerse y guardar. `chatLog`
+  // es solo lo que se muestra en pantalla — cada turno de /brief-refine manda
+  // el brief ACTUAL completo, no el historial (decisión con Miguel: el brief
+  // ya refleja todos los turnos anteriores, no hace falta repetirlos).
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [chatLog, setChatLog] = useState<string[]>([]);
+  const [chatInstruction, setChatInstruction] = useState("");
+  const [refining, setRefining] = useState(false);
   const [missingFields, setMissingFields] = useState<BriefFieldKey[]>([]);
   const [missingDraft, setMissingDraft] = useState<Record<BriefFieldKey, string>>({
     scopeIncluded: "",
@@ -291,12 +300,57 @@ export function QuoteForm({
         }
         setBriefDraft({ solution: data.solution, deliverables: data.deliverables, benefits: data.benefits });
         setBriefStatus("ready");
+        setChatLog([]);
+        setPreviewOpen(true);
         toast.success("Brief generado con Gemini.");
       } catch {
         setBriefStatus("error");
         toast.error("No se pudo generar el brief.");
       }
     });
+
+  /** Chat de instrucciones sobre el brief ya generado: manda el brief actual
+   *  completo + la instrucción nueva, Gemini regresa el brief completo
+   *  actualizado (no un fragmento) — se reemplaza entero en pantalla. */
+  const sendChatInstruction = () => {
+    const instruction = chatInstruction.trim();
+    if (!instruction || !briefDraft) return;
+    setChatInstruction("");
+    setChatLog((log) => [...log, instruction]);
+    start(async () => {
+      setRefining(true);
+      try {
+        const res = await fetch("/api/documents/brief-refine", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ clientName, problem, currentBrief: briefDraft, instruction }),
+        });
+        const data = (await res.json()) as BriefDraft & { error?: string };
+        if (!res.ok || data.error) {
+          toast.error(data.error ?? "No se pudo actualizar el brief.");
+          return;
+        }
+        setBriefDraft({ solution: data.solution, deliverables: data.deliverables, benefits: data.benefits });
+      } catch {
+        toast.error("No se pudo actualizar el brief.");
+      } finally {
+        setRefining(false);
+      }
+    });
+  };
+
+  /** "Guardar brief": el brief ya vive en `briefDraft` desde que se generó —
+   *  solo cierra la vista previa. `submit()` lo usa tal cual al guardar la
+   *  cotización, igual que antes de esta vista previa existir. */
+  const confirmBriefPreview = () => setPreviewOpen(false);
+
+  /** "Descartar": vuelve a `idle` — como si nunca se hubiera generado. */
+  const discardBrief = () => {
+    setBriefDraft(null);
+    setBriefStatus("idle");
+    setChatLog([]);
+    setPreviewOpen(false);
+  };
 
   /** Botón "Crear brief con IA": si falta algo, pide primero el pop-up. */
   const handleCreateBrief = () => {
@@ -485,8 +539,13 @@ export function QuoteForm({
                 <Sparkles className="mr-1.5 h-3.5 w-3.5" />
                 {briefStatus === "loading" ? "Generando…" : "Crear brief con IA (Gemini)"}
               </Button>
-              {briefStatus === "ready" ? (
-                <span className="text-xs text-muted-foreground">✓ Brief generado — se crea al guardar.</span>
+              {briefStatus === "ready" && briefDraft ? (
+                <>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setPreviewOpen(true)}>
+                    Ver brief
+                  </Button>
+                  <span className="text-xs text-muted-foreground">✓ se crea al guardar.</span>
+                </>
               ) : null}
             </div>
           )}
@@ -892,6 +951,127 @@ export function QuoteForm({
               disabled={missingFields.some((k) => !missingDraft[k].trim())}
             >
               Continuar y generar brief
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* WO-2026-00254: vista previa del brief — mismas secciones que el PDF
+          de propuesta, para que Miguel pueda verlo y pedir cambios por chat
+          ANTES de guardar la cotización, sin tener que abrir el PDF. */}
+      <Dialog open={previewOpen} onOpenChange={(open) => { if (!open) setPreviewOpen(false); }}>
+        <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Brief generado</DialogTitle>
+            <DialogDescription>
+              Así se verá en el PDF de propuesta. Pídele cambios a la IA abajo, o guárdalo tal cual.
+            </DialogDescription>
+          </DialogHeader>
+
+          {briefDraft ? (
+            <div className="space-y-5 text-sm">
+              <section>
+                <p className="text-xs font-semibold uppercase tracking-wide text-brand">El proyecto</p>
+                <p className="mt-1 font-semibold text-foreground">La oportunidad</p>
+                <p className="mt-1 whitespace-pre-wrap text-foreground/80">{problem}</p>
+              </section>
+
+              <section>
+                <p className="text-xs font-semibold uppercase tracking-wide text-brand">La solución</p>
+                <p className="mt-1 font-semibold text-foreground">Qué vamos a construir</p>
+                <p className="mt-1 whitespace-pre-wrap text-foreground/80">{briefDraft.solution}</p>
+              </section>
+
+              <section>
+                <p className="text-xs font-semibold uppercase tracking-wide text-brand">Lo que incluye, en concreto</p>
+                <p className="mt-1 font-semibold text-foreground">Especificaciones del proyecto</p>
+                <ul className="mt-1 list-disc space-y-1 pl-5 text-foreground/80">
+                  {briefDraft.deliverables
+                    .split("\n")
+                    .map((line) => line.replace(/^-\s*/, "").trim())
+                    .filter(Boolean)
+                    .map((line, i) => (
+                      <li key={i}>{line}</li>
+                    ))}
+                </ul>
+              </section>
+
+              {(() => {
+                const investRows = items.filter((it) => it.description.trim() && lineTotalCents(it) > 0);
+                if (investRows.length === 0) return null;
+                return (
+                  <section>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-brand">La inversión</p>
+                    <p className="mt-1 font-semibold text-foreground">Inversión del proyecto</p>
+                    <div className="mt-2 divide-y divide-border rounded-lg border border-border">
+                      {investRows.map((it, i) => (
+                        <div key={i} className="flex items-center justify-between gap-3 px-3 py-2">
+                          <span className="text-foreground/80">
+                            {it.quantity > 1 ? `${it.description} × ${it.quantity}` : it.description}
+                          </span>
+                          <span className="whitespace-nowrap font-medium text-foreground">
+                            {formatAmount(lineTotalCents(it), currency)}
+                            {it.recurrence && it.recurrence !== "unica" ? ` / ${it.recurrence}` : ""}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                );
+              })()}
+
+              <section>
+                <p className="text-xs font-semibold uppercase tracking-wide text-brand">Por qué PixelTEC</p>
+                <p className="mt-1 font-semibold text-foreground">Beneficios</p>
+                <p className="mt-1 whitespace-pre-wrap text-foreground/80">{briefDraft.benefits}</p>
+              </section>
+
+              {/* Chat de instrucciones — WO-2026-00254 */}
+              <section className="space-y-2 border-t border-border/70 pt-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Pídele cambios a la IA
+                </p>
+                {chatLog.length > 0 ? (
+                  <ul className="space-y-1.5">
+                    {chatLog.map((msg, i) => (
+                      <li key={i} className="rounded-lg bg-secondary/60 px-3 py-1.5 text-foreground/80">
+                        {msg}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Ej. &quot;quita el tercer entregable&quot;, &quot;agrega que incluye capacitación&quot;, &quot;hazlo más corto&quot;.
+                  </p>
+                )}
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={chatInstruction}
+                    onChange={(e) => setChatInstruction(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        sendChatInstruction();
+                      }
+                    }}
+                    placeholder="Agrega o quita algo del brief…"
+                    aria-label="Instrucción para la IA"
+                    disabled={refining}
+                  />
+                  <Button type="button" size="sm" onClick={sendChatInstruction} disabled={refining || !chatInstruction.trim()}>
+                    {refining ? "Actualizando…" : "Enviar"}
+                  </Button>
+                </div>
+              </section>
+            </div>
+          ) : null}
+
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={discardBrief}>
+              Descartar
+            </Button>
+            <Button type="button" onClick={confirmBriefPreview} disabled={refining}>
+              Guardar brief
             </Button>
           </DialogFooter>
         </DialogContent>
