@@ -267,17 +267,23 @@ describe("microajustes de cierre", () => {
  * (Miguel, 2026-08-26): una cotización nueva se «crea» aunque por dentro nazca
  * en BORRADOR; una ya creada se «guarda».
  */
+/**
+ * WO-2026-00255: Miguel pidió de vuelta el botón separado "Guardar
+ * borrador" — su propia nota de 2026-08-26 (fundirlo en un solo botón)
+ * queda revertida solo para el caso de una cotización NUEVA.
+ */
 describe("CTA principal", () => {
-  it("una cotización nueva se CREA", () => {
+  it("una cotización nueva ofrece CREAR y GUARDAR BORRADOR por separado", () => {
     renderForm();
     expect(screen.getByRole("button", { name: "Crear cotización" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Guardar borrador" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Guardar borrador" })).toBeInTheDocument();
   });
 
-  it("una cotización existente se GUARDA", () => {
+  it("una cotización existente sigue con un solo botón: se GUARDA", () => {
     renderForm(baseQuote);
     expect(screen.getByRole("button", { name: "Guardar cambios" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Crear cotización" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Guardar borrador" })).toBeNull();
   });
 });
 

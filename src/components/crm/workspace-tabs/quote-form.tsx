@@ -381,7 +381,11 @@ export function QuoteForm({
     generateBrief(nextScope, nextDelivery);
   };
 
-  const submit = () =>
+  /** `markReady`: "Crear cotización" avanza borrador->lista; "Guardar
+   *  borrador" (WO-2026-00255, pedido explícito de Miguel — reintroduce el
+   *  botón separado que su propia nota de 2026-08-26 había fundido en uno
+   *  solo) se queda en borrador. */
+  const submit = (markReady: boolean) =>
     start(async () => {
       const res = await saveQuote({
         id: quote?.id,
@@ -398,6 +402,7 @@ export function QuoteForm({
         exclusions,
         estimatedDelivery,
         paymentTerms: { type: paymentType, custom: paymentCustom },
+        markReady,
       });
       if (!res.ok || !res.data) {
         toast.error(res.error ?? "No se pudo guardar.");
@@ -423,31 +428,34 @@ export function QuoteForm({
             timeline: estimatedDelivery || undefined,
             status: "borrador",
           });
-          toast.success(quote ? "Cambios guardados." : "Cotización y brief creados.");
+          toast.success(quote ? "Cambios guardados." : markReady ? "Cotización creada, con brief." : "Borrador y brief guardados.");
         } catch {
           // La cotización SÍ se guardó — el brief es un extra, no se bloquea
           // el flujo principal por su fallo.
           toast.error("La cotización se guardó, pero el brief no se pudo vincular.");
         }
       } else {
-        toast.success(quote ? "Cambios guardados." : "Borrador guardado.");
+        toast.success(quote ? "Cambios guardados." : markReady ? "Cotización creada." : "Borrador guardado.");
       }
       onSaved(quoteId);
     });
 
   /**
-   * El botón describe lo que hace el USUARIO, no el estado técnico. Al crear,
-   * la acción es «crear la cotización» aunque por dentro nazca en BORRADOR:
-   * «Guardar borrador» sugería un proceso a medias con la cotización ya lista,
-   * y dejaba al usuario preguntándose qué falta. El envío es una acción aparte
-   * y explícita, desde el detalle.
+   * WO-2026-00255 — Miguel pidió de vuelta el botón separado "Guardar
+   * borrador" que su propia nota de 2026-08-26 (más abajo) había fundido en
+   * uno solo. Al crear (sin `quote` todavía) hay DOS botones —
+   * "Guardar borrador" (se queda en borrador) y "Crear cotización" (avanza a
+   * lista); al editar una cotización ya existente sigue habiendo un solo
+   * "Guardar cambios", como antes — ese caso no cambió.
    */
-  const saveLabel = saving ? "Guardando…" : quote ? "Guardar cambios" : "Crear cotización";
+  const saveLabel = saving ? "Guardando…" : "Guardar cambios";
 
   return (
     // Sin mega-card (§1): la superficie es el fondo de la página. Dos columnas
     // en desktop, una sola apilada en móvil con el resumen al final (§13).
-    <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-start lg:gap-12">
+    // p-6: mismo padding que las pestañas hermanas respecto a la barra de
+    // tabs — antes faltaba aquí y se veía apretado (Miguel, 2026-09-08).
+    <div className="grid grid-cols-1 gap-10 p-6 lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-start lg:gap-12">
       {/* ── Editor ─────────────────────────────────────────────────────── */}
       <div className="min-w-0 space-y-7">
         {/* Encabezado contextual: con varias cotizaciones abiertas, saber cuál
@@ -895,9 +903,31 @@ export function QuoteForm({
           ) : null}
 
           <div className="space-y-2 border-t border-border/70 pt-4">
-            <Button type="button" className="w-full" onClick={submit} disabled={saving || issues.length > 0}>
-              {saveLabel}
-            </Button>
+            {quote ? (
+              <Button type="button" className="w-full" onClick={() => submit(true)} disabled={saving || issues.length > 0}>
+                {saveLabel}
+              </Button>
+            ) : (
+              <>
+                <Button
+                  type="button"
+                  className="w-full"
+                  onClick={() => submit(true)}
+                  disabled={saving || issues.length > 0}
+                >
+                  {saving ? "Guardando…" : "Crear cotización"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => submit(false)}
+                  disabled={saving || issues.length > 0}
+                >
+                  {saving ? "Guardando…" : "Guardar borrador"}
+                </Button>
+              </>
+            )}
             <Button type="button" variant="ghost" className="w-full text-muted-foreground" onClick={onCancel}>
               Cancelar
             </Button>
