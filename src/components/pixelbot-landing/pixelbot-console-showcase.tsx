@@ -18,7 +18,7 @@ function Panel({ children }: { children: React.ReactNode }) {
       {...(reduceMotion
         ? {}
         : { initial: { opacity: 0, y: 8 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.35, ease: 'easeOut' } })}
-      className="mx-auto w-full max-w-md rounded-2xl border border-border bg-card/90 dark:bg-[#0A0A0A]/90 p-4 sm:p-5 shadow-sm dark:shadow-[0_0_50px_rgba(33,150,243,0.07)]"
+      className="mx-auto w-full max-w-md rounded-2xl border border-border bg-card/90 dark:bg-[#0A0A0A]/90 p-4 sm:p-5 shadow-[0_12px_40px_-16px_rgba(33,150,243,0.18)] dark:shadow-[0_0_50px_rgba(33,150,243,0.07)]"
     >
       {children}
     </motion.div>
@@ -34,7 +34,7 @@ function BandejaMock() {
         <li className="rounded-xl border border-border bg-muted/40 dark:bg-white/5 px-4 py-3">
           <div className="flex items-center justify-between gap-3">
             <p className="text-sm text-foreground/90 truncate">¿Me pueden cotizar el sitio web?</p>
-            <span className={`${chip} border border-primary/30 bg-primary/10 text-primary dark:border-cyan-500/30 dark:bg-cyan-500/10 dark:text-cyan-400`}>
+            <span className={`${chip} border border-primary/30 bg-primary/10 text-brand dark:border-cyan-500/30 dark:bg-cyan-500/10`}>
               <Bot className="h-3 w-3" aria-hidden="true" /> Bot
             </span>
           </div>
@@ -95,7 +95,7 @@ function EntrenamientoMock() {
         <li className="rounded-xl border border-border px-4 py-3">
           <div className="flex items-center justify-between gap-3">
             <p className="text-sm font-medium text-foreground">¿Cuánto cuesta una página web?</p>
-            <span aria-hidden="true" className="relative h-4 w-8 rounded-full bg-cyan-500/80">
+            <span aria-hidden="true" className="relative h-4 w-8 rounded-full bg-primary dark:bg-cyan-500/80">
               <span className="absolute right-0.5 top-0.5 h-3 w-3 rounded-full bg-white" />
             </span>
           </div>
@@ -122,7 +122,7 @@ function PruebasMock() {
         Escribe como si fueras un cliente…
       </div>
       <div className="mt-2.5 flex items-center justify-between gap-3">
-        <span className={`${chip} border border-primary/30 bg-primary/10 text-primary dark:border-cyan-500/30 dark:bg-cyan-500/10 dark:text-cyan-400`}>
+        <span className={`${chip} border border-primary/30 bg-primary/10 text-brand dark:border-cyan-500/30 dark:bg-cyan-500/10`}>
           <Play className="h-3 w-3" aria-hidden="true" /> Probar mensaje
         </span>
         <p className="text-[11px] text-muted-foreground">No envía nada a WhatsApp</p>
@@ -161,7 +161,7 @@ export function PixelbotConsoleShowcase() {
                 <TabsTrigger
                   key={tab.id}
                   value={tab.id}
-                  className="px-4 py-2 text-sm data-[state=active]:text-primary dark:data-[state=active]:text-cyan-400"
+                  className="px-4 py-2 text-sm data-[state=active]:text-brand"
                 >
                   {tab.label}
                 </TabsTrigger>

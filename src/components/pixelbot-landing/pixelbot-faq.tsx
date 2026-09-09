@@ -18,7 +18,7 @@ export function PixelbotFaq() {
         <Accordion type="single" collapsible className="mt-10">
           {FAQ.items.map((item, index) => (
             <AccordionItem key={item.q} value={`faq-${index}`} className="border-border">
-              <AccordionTrigger className="text-left text-base font-semibold text-foreground hover:text-primary dark:hover:text-cyan-400 hover:no-underline">
+              <AccordionTrigger className="text-left text-base font-semibold text-foreground hover:text-brand hover:no-underline">
                 {item.q}
               </AccordionTrigger>
               <AccordionContent className="text-sm sm:text-[15px] text-muted-foreground leading-relaxed">

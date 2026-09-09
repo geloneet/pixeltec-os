@@ -21,7 +21,7 @@ export function PixelbotClientBranding() {
           {BRAND_IDENTITY.examples.map((example) => (
             <li
               key={example}
-              className="inline-flex items-center rounded-full border border-primary/25 bg-primary/10 px-3.5 py-1.5 text-sm font-medium text-primary dark:border-cyan-500/25 dark:bg-cyan-500/10 dark:text-cyan-400"
+              className="inline-flex items-center rounded-full border border-primary/25 bg-primary/10 px-3.5 py-1.5 text-sm font-medium text-brand dark:border-cyan-500/25 dark:bg-cyan-500/10"
             >
               {example}
             </li>

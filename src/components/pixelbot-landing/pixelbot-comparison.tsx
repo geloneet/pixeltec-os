@@ -22,7 +22,7 @@ export function PixelbotComparison() {
                       scope="col"
                       className={
                         i === 3
-                          ? 'px-4 py-3.5 text-left font-semibold text-primary dark:text-cyan-400 bg-primary/5 dark:bg-cyan-500/5'
+                          ? 'px-4 py-3.5 text-left font-semibold text-brand bg-primary/5 dark:bg-cyan-500/5'
                           : 'px-4 py-3.5 text-left font-semibold text-foreground'
                       }
                     >
@@ -85,7 +85,7 @@ export function PixelbotComparison() {
               <ul className="mt-4 space-y-3">
                 {FIT.yes.map((item) => (
                   <li key={item} className="flex items-start gap-3">
-                    <CheckCircle2 className="mt-0.5 h-5 w-5 flex-shrink-0 text-primary dark:text-cyan-400" aria-hidden="true" />
+                    <CheckCircle2 className="mt-0.5 h-5 w-5 flex-shrink-0 text-brand" aria-hidden="true" />
                     <p className="text-sm sm:text-[15px] text-foreground/85 leading-relaxed">{item}</p>
                   </li>
                 ))}

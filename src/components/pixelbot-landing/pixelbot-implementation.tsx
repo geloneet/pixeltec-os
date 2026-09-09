@@ -31,7 +31,7 @@ export function PixelbotImplementation() {
         <div className="mt-12 grid gap-6 md:grid-cols-2">
           <div className="rounded-2xl border border-border bg-card p-6 sm:p-8">
             <h3 className="flex items-center gap-2 text-lg font-semibold text-foreground">
-              <Check className="h-5 w-5 text-primary dark:text-cyan-400" aria-hidden="true" />
+              <Check className="h-5 w-5 text-brand" aria-hidden="true" />
               {IMPLEMENTATION.includesTitle}
             </h3>
             <ul className="mt-4 grid gap-2.5">
@@ -45,7 +45,7 @@ export function PixelbotImplementation() {
           </div>
           <div className="rounded-2xl border border-border bg-card p-6 sm:p-8">
             <h3 className="flex items-center gap-2 text-lg font-semibold text-foreground">
-              <ClipboardList className="h-5 w-5 text-primary dark:text-cyan-400" aria-hidden="true" />
+              <ClipboardList className="h-5 w-5 text-brand" aria-hidden="true" />
               {IMPLEMENTATION.needsTitle}
             </h3>
             <ul className="mt-4 grid gap-2.5">
@@ -70,7 +70,7 @@ export function PixelbotImplementation() {
         {/* Compliance WhatsApp */}
         <div className="mt-6 rounded-2xl border border-border bg-card/60 p-6 sm:p-8">
           <h3 className="flex items-center gap-2 text-base sm:text-lg font-semibold text-foreground">
-            <Info className="h-5 w-5 text-primary dark:text-cyan-400" aria-hidden="true" />
+            <Info className="h-5 w-5 text-brand" aria-hidden="true" />
             {COMPLIANCE.title}
           </h3>
           <ul className="mt-4 grid gap-2.5 sm:grid-cols-2">

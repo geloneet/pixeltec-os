@@ -82,7 +82,7 @@ export function PixelbotLeadForm() {
   return (
     <section id="diagnostico" className="py-14 sm:py-20 scroll-mt-28">
       <div className="container mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-        <div className="rounded-3xl border border-border bg-gradient-to-tr from-primary/5 via-card to-card dark:from-cyan-950/40 dark:via-[#0A0A0A] dark:to-[#0A0A0A] p-6 sm:p-10 lg:p-14 shadow-sm dark:shadow-[0_0_50px_rgba(33,150,243,0.06)]">
+        <div className="rounded-3xl border border-border bg-gradient-to-tr from-primary/5 via-card to-card dark:from-cyan-950/40 dark:via-[#0A0A0A] dark:to-[#0A0A0A] p-6 sm:p-10 lg:p-14 shadow-[0_18px_60px_-30px_rgba(33,150,243,0.25)] dark:shadow-[0_0_50px_rgba(33,150,243,0.06)]">
           <div className="grid gap-10 lg:grid-cols-2 lg:gap-14">
             <div className="text-center lg:text-left">
               <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-foreground [text-wrap:balance]">
@@ -95,7 +95,7 @@ export function PixelbotLeadForm() {
                   href={WHATSAPP_HREF}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="mt-2 inline-flex items-center gap-2 text-sm font-semibold text-primary dark:text-cyan-400 hover:underline"
+                  className="mt-2 inline-flex items-center gap-2 text-sm font-semibold text-brand hover:underline"
                 >
                   <MessageCircle className="h-4 w-4" aria-hidden="true" />
                   Escríbenos por WhatsApp
@@ -196,7 +196,7 @@ export function PixelbotLeadForm() {
                   id="pixelbot-consent"
                   checked={consent}
                   onCheckedChange={(checked) => setConsent(Boolean(checked))}
-                  className="mt-0.5 border-border data-[state=checked]:bg-cyan-500 data-[state=checked]:border-cyan-500"
+                  className="mt-0.5 border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary dark:data-[state=checked]:bg-cyan-500 dark:data-[state=checked]:border-cyan-500"
                 />
                 <Label htmlFor="pixelbot-consent" className="cursor-pointer text-sm leading-relaxed text-muted-foreground">
                   He leído y acepto el{' '}
@@ -204,7 +204,7 @@ export function PixelbotLeadForm() {
                     href="/aviso-de-privacidad"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-primary dark:text-cyan-400 hover:underline"
+                    className="text-brand hover:underline"
                   >
                     Aviso de Privacidad
                   </Link>
