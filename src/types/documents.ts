@@ -23,6 +23,7 @@ export interface Proposal {
   uid: string;
   clientId: string;
   clientName: string;
+  quoteId?: string;           // WO-2026-00222 — set when this brief originated from a quote
   reference?: string;         // PT-YYYY-XXXXXX — generated on create
   title: string;
   scope: string;              // what the client needs (user fills this)

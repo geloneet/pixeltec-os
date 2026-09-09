@@ -18,11 +18,12 @@
  * hueco, por eso el offset es pequeño y no la altura del header.
  */
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { ChevronDown, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, Plus, Sparkles, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import {
   FREQUENCY_KEYS,
@@ -52,7 +53,22 @@ import {
   type PaymentType,
 } from "@/lib/quotes/terms";
 import { saveQuote } from "@/lib/quotes/actions";
+import { createProposal, getProposalByQuoteId } from "@/lib/documents/proposals";
 import { FormSection, Field, emptyRow, fromQuote, toQuoteItems, type DraftItem, type QuoteView } from "./quote-shared";
+
+/** Contenido generado por Gemini para el brief (WO-2026-00222). */
+interface BriefDraft {
+  solution: string;
+  deliverables: string;
+  benefits: string;
+}
+
+/** Campos que el pop-up pide cuando faltan, en el orden en que se piden. */
+const BRIEF_FIELD_LABELS = {
+  scopeIncluded: "Alcance incluido",
+  estimatedDelivery: "Tiempo estimado",
+} as const;
+type BriefFieldKey = keyof typeof BRIEF_FIELD_LABELS;
 
 /** `YYYY-MM-DD` para el input date. */
 function toDateInput(value: Date | string | null): string {
@@ -147,6 +163,28 @@ export function QuoteForm({
   const [exclusionsOpen, setExclusionsOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(Boolean(quote?.notes?.trim()));
 
+  // ── Brief con IA (WO-2026-00222) ────────────────────────────────────────
+  // El brief SOLO genera texto aquí (llamada a Gemini); el `proposal` real se
+  // crea recién al guardar la cotización (`submit`, más abajo) — así una
+  // cotización nueva sin id todavía puede tener un brief generado.
+  const [briefStatus, setBriefStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [briefDraft, setBriefDraft] = useState<BriefDraft | null>(null);
+  const [missingFields, setMissingFields] = useState<BriefFieldKey[]>([]);
+  const [missingDraft, setMissingDraft] = useState<Record<BriefFieldKey, string>>({
+    scopeIncluded: "",
+    estimatedDelivery: "",
+  });
+  // Si esta cotización YA existe y ya tiene un brief vinculado, no se ofrece
+  // crear uno segundo (proposals.quote_id es único) — se muestra como listo.
+  const [existingProposalId, setExistingProposalId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!quote?.id) return;
+    getProposalByQuoteId(quote.id)
+      .then((p) => setExistingProposalId(p?.id ?? null))
+      .catch(() => undefined);
+  }, [quote?.id]);
+
   const [saving, start] = useTransition();
   // Qué fila de precio está enfocada: enfocada se edita en crudo, fuera de
   // foco se lee como dinero. `parseMoneyToCents` ya acepta «$25,000.00».
@@ -185,6 +223,77 @@ export function QuoteForm({
       return index === updated.length - 1 && last.description.trim() !== "" ? [...updated, emptyRow()] : updated;
     });
 
+  /** Campos del brief que están vacíos ahora mismo, en orden de pedido. */
+  const computeMissingFields = (): BriefFieldKey[] => {
+    const missing: BriefFieldKey[] = [];
+    if (!scopeIncluded.trim()) missing.push("scopeIncluded");
+    if (!estimatedDelivery.trim()) missing.push("estimatedDelivery");
+    return missing;
+  };
+
+  /** Única llamada real a /api/documents/brief-generate — recibe los valores
+   *  frescos de alcance/tiempo en vez de leerlos del estado, que en el
+   *  camino del pop-up todavía no se ha terminado de aplicar en este tick. */
+  const generateBrief = (scopeIncludedValue: string, estimatedDeliveryValue: string) =>
+    start(async () => {
+      setBriefStatus("loading");
+      try {
+        const res = await fetch("/api/documents/brief-generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            clientName,
+            problem,
+            solution,
+            scopeIncluded: scopeIncludedValue,
+            timeline: estimatedDeliveryValue,
+            budget: totals.totalCents > 0 ? `${formatAmount(totals.totalCents, currency)} ${currency}` : undefined,
+          }),
+        });
+        const data = (await res.json()) as BriefDraft & { error?: string };
+        if (!res.ok || data.error) {
+          setBriefStatus("error");
+          toast.error(data.error ?? "No se pudo generar el brief.");
+          return;
+        }
+        setBriefDraft({ solution: data.solution, deliverables: data.deliverables, benefits: data.benefits });
+        setBriefStatus("ready");
+        toast.success("Brief generado con Gemini.");
+      } catch {
+        setBriefStatus("error");
+        toast.error("No se pudo generar el brief.");
+      }
+    });
+
+  /** Botón "Crear brief con IA": si falta algo, pide primero el pop-up. */
+  const handleCreateBrief = () => {
+    if (!problem.trim() || !solution.trim()) {
+      toast.error("Escribe primero el problema a resolver y la solución propuesta.");
+      return;
+    }
+    if (items.length === 0) {
+      toast.error("Agrega al menos un concepto antes de crear el brief.");
+      return;
+    }
+    const missing = computeMissingFields();
+    if (missing.length > 0) {
+      setMissingFields(missing);
+      setMissingDraft({ scopeIncluded, estimatedDelivery });
+      return;
+    }
+    generateBrief(scopeIncluded, estimatedDelivery);
+  };
+
+  /** Confirmar el pop-up de datos faltantes: aplica los valores y genera. */
+  const confirmMissingFieldsAndGenerate = () => {
+    const nextScope = missingFields.includes("scopeIncluded") ? missingDraft.scopeIncluded : scopeIncluded;
+    const nextDelivery = missingFields.includes("estimatedDelivery") ? missingDraft.estimatedDelivery : estimatedDelivery;
+    setScopeIncluded(nextScope);
+    setEstimatedDelivery(nextDelivery);
+    setMissingFields([]);
+    generateBrief(nextScope, nextDelivery);
+  };
+
   const submit = () =>
     start(async () => {
       const res = await saveQuote({
@@ -203,12 +312,36 @@ export function QuoteForm({
         estimatedDelivery,
         paymentTerms: { type: paymentType, custom: paymentCustom },
       });
-      if (res.ok && res.data) {
-        toast.success(quote ? "Cambios guardados." : "Borrador guardado.");
-        onSaved(res.data.id);
-      } else {
+      if (!res.ok || !res.data) {
         toast.error(res.error ?? "No se pudo guardar.");
+        return;
       }
+      const quoteId = res.data.id;
+      // Brief ya generado y todavía sin proposal vinculado ⇒ se crea aquí, con
+      // la cotización ya guardada (necesita un quoteId real).
+      if (briefDraft && !existingProposalId) {
+        try {
+          await createProposal("", clientId, clientName, {
+            quoteId,
+            title,
+            scope: problem,
+            solution: briefDraft.solution,
+            deliverables: briefDraft.deliverables,
+            benefits: briefDraft.benefits,
+            budget: totals.totalCents > 0 ? `${formatAmount(totals.totalCents, currency)} ${currency}` : undefined,
+            timeline: estimatedDelivery || undefined,
+            status: "borrador",
+          });
+          toast.success(quote ? "Cambios guardados." : "Cotización y brief creados.");
+        } catch {
+          // La cotización SÍ se guardó — el brief es un extra, no se bloquea
+          // el flujo principal por su fallo.
+          toast.error("La cotización se guardó, pero el brief no se pudo vincular.");
+        }
+      } else {
+        toast.success(quote ? "Cambios guardados." : "Borrador guardado.");
+      }
+      onSaved(quoteId);
     });
 
   /**
@@ -294,6 +427,29 @@ export function QuoteForm({
               placeholder="Una plataforma web que centralice clientes, agenda y seguimiento."
             />
           </Field>
+
+          {/* WO-2026-00222: el brief solo genera texto aquí (Gemini); el PDF
+              real (proposal-pdf, el mismo que ya usa la pestaña Propuesta) se
+              ofrece al crear la cotización, junto con el PDF de la cotización. */}
+          {existingProposalId ? (
+            <p className="text-xs text-muted-foreground">✓ Esta cotización ya tiene un brief vinculado.</p>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleCreateBrief}
+                disabled={briefStatus === "loading"}
+              >
+                <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+                {briefStatus === "loading" ? "Generando…" : "Crear brief con IA (Gemini)"}
+              </Button>
+              {briefStatus === "ready" ? (
+                <span className="text-xs text-muted-foreground">✓ Brief generado — se crea al guardar.</span>
+              ) : null}
+            </div>
+          )}
         </FormSection>
 
         <FormSection title="Conceptos">
@@ -652,6 +808,54 @@ export function QuoteForm({
           </div>
         </div>
       </aside>
+
+      {/* WO-2026-00222: pop-up de datos faltantes para el brief. Solo aparece
+          con lo que de verdad esté vacío — nunca pide de más. */}
+      <Dialog open={missingFields.length > 0} onOpenChange={(open) => { if (!open) setMissingFields([]); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Faltan datos para el brief</DialogTitle>
+            <DialogDescription>
+              El PDF de propuesta necesita esto para verse completo. Se guarda también en la cotización.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {missingFields.includes("scopeIncluded") ? (
+              <Field label={BRIEF_FIELD_LABELS.scopeIncluded}>
+                <Textarea
+                  value={missingDraft.scopeIncluded}
+                  onChange={(e) => setMissingDraft((d) => ({ ...d, scopeIncluded: e.target.value }))}
+                  rows={4}
+                  aria-label={BRIEF_FIELD_LABELS.scopeIncluded}
+                  placeholder="Landing page&#10;Panel administrativo&#10;Agenda&#10;Capacitación inicial"
+                />
+              </Field>
+            ) : null}
+            {missingFields.includes("estimatedDelivery") ? (
+              <Field label={BRIEF_FIELD_LABELS.estimatedDelivery}>
+                <Input
+                  value={missingDraft.estimatedDelivery}
+                  onChange={(e) => setMissingDraft((d) => ({ ...d, estimatedDelivery: e.target.value }))}
+                  aria-label={BRIEF_FIELD_LABELS.estimatedDelivery}
+                  placeholder="4-6 semanas"
+                />
+              </Field>
+            ) : null}
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={() => setMissingFields([])}>
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              onClick={confirmMissingFieldsAndGenerate}
+              disabled={missingFields.some((k) => !missingDraft[k].trim())}
+            >
+              Continuar y generar brief
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

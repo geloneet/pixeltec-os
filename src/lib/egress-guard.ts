@@ -441,7 +441,7 @@ export function assertMetaEgressAllowed(input: {
  * el par exacto `proveedor:modelo` en `EGRESS_AI_TARGET_ALLOWLIST`. Esta unión
  * solo fija el vocabulario para que un typo (`"openia"`) no llegue a runtime.
  */
-export type AiProvider = "anthropic" | "openai" | "ideogram" | "fal";
+export type AiProvider = "anthropic" | "openai" | "ideogram" | "fal" | "google";
 
 /** Operaciones semánticas del canal IA (subconjunto de `EgressOperation`). */
 export type AiOperation = "analyze" | "generate_text" | "generate_image";
