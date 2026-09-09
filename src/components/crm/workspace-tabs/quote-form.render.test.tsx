@@ -24,9 +24,10 @@ vi.mock("@/lib/documents/proposals", () => ({
   getProposalByQuoteId: vi.fn(async () => null),
 }));
 
-import { QuoteForm } from "./quote-form";
+import { QuoteForm, billingItemDraftsFromQuoteItems } from "./quote-form";
 import { DEFAULT_EXCLUSIONS } from "@/lib/quotes/terms";
 import type { QuoteView } from "./quote-shared";
+import type { QuoteItem } from "@/lib/quotes/money";
 
 afterEach(cleanup);
 
@@ -277,5 +278,59 @@ describe("CTA principal", () => {
     renderForm(baseQuote);
     expect(screen.getByRole("button", { name: "Guardar cambios" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Crear cotización" })).toBeNull();
+  });
+});
+
+/**
+ * WO-2026-00253: la tabla "Inversión del proyecto" del brief con IA sale de
+ * los Conceptos de la cotización — antes se perdía por completo (solo viajaba
+ * un `budget` de texto libre que el renderer del PDF no usa para esa sección).
+ */
+describe("billingItemDraftsFromQuoteItems", () => {
+  it("convierte un concepto simple a un renglón de inversión en pesos (no centavos)", () => {
+    const items: QuoteItem[] = [
+      { description: "Desarrollo del sistema", quantity: 1, unitPriceCents: 2_500_000, recurrence: "unica" },
+    ];
+    expect(billingItemDraftsFromQuoteItems(items)).toEqual([
+      { concept: "Desarrollo del sistema", amount: 25000, frequency: "unico", dueDate: expect.any(String) },
+    ]);
+  });
+
+  it("multiplica cantidad × precio unitario y lo refleja en el concepto", () => {
+    const items: QuoteItem[] = [
+      { description: "Licencia mensual", quantity: 3, unitPriceCents: 100_000, recurrence: "mensual" },
+    ];
+    const [draft] = billingItemDraftsFromQuoteItems(items);
+    expect(draft.concept).toBe("Licencia mensual × 3");
+    expect(draft.amount).toBe(3000);
+    expect(draft.frequency).toBe("mensual");
+  });
+
+  it("mapea unica/mensual/anual a los mismos nombres que usa el proposal", () => {
+    const items: QuoteItem[] = [
+      { description: "A", quantity: 1, unitPriceCents: 100, recurrence: "unica" },
+      { description: "B", quantity: 1, unitPriceCents: 100, recurrence: "mensual" },
+      { description: "C", quantity: 1, unitPriceCents: 100, recurrence: "anual" },
+    ];
+    expect(billingItemDraftsFromQuoteItems(items).map((d) => d.frequency)).toEqual([
+      "unico",
+      "mensual",
+      "anual",
+    ]);
+  });
+
+  it("omite conceptos sin descripción o en $0 — mismo criterio que cleanPriceLines", () => {
+    const items: QuoteItem[] = [
+      { description: "", quantity: 1, unitPriceCents: 10_000, recurrence: "unica" },
+      { description: "Gratis", quantity: 1, unitPriceCents: 0, recurrence: "unica" },
+      { description: "Real", quantity: 1, unitPriceCents: 10_000, recurrence: "unica" },
+    ];
+    const drafts = billingItemDraftsFromQuoteItems(items);
+    expect(drafts).toHaveLength(1);
+    expect(drafts[0].concept).toBe("Real");
+  });
+
+  it("cotización sin conceptos usables -> lista vacía, sin sección de inversión en el PDF", () => {
+    expect(billingItemDraftsFromQuoteItems([])).toEqual([]);
   });
 });
