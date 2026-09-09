@@ -46,7 +46,7 @@ const components: Components = {
     return (
       <h2
         id={slugifyHeading(textOf(children))}
-        className="not-prose mb-4 mt-10 scroll-mt-28 border-b border-white/10 pb-2 text-2xl font-bold text-white md:text-3xl"
+        className="not-prose mb-4 mt-10 scroll-mt-28 border-b border-border dark:border-white/10 pb-2 text-2xl font-bold text-foreground dark:text-white md:text-3xl"
       >
         {children}
       </h2>
@@ -58,7 +58,7 @@ const components: Components = {
     return (
       <h2
         id={slugifyHeading(textOf(children))}
-        className="not-prose mb-4 mt-10 scroll-mt-28 border-b border-white/10 pb-2 text-2xl font-bold text-white md:text-3xl"
+        className="not-prose mb-4 mt-10 scroll-mt-28 border-b border-border dark:border-white/10 pb-2 text-2xl font-bold text-foreground dark:text-white md:text-3xl"
       >
         {children}
       </h2>
@@ -68,7 +68,7 @@ const components: Components = {
     return (
       <h3
         id={slugifyHeading(textOf(children))}
-        className="not-prose mb-3 mt-8 scroll-mt-28 text-xl font-semibold text-white md:text-2xl"
+        className="not-prose mb-3 mt-8 scroll-mt-28 text-xl font-semibold text-foreground dark:text-white md:text-2xl"
       >
         {children}
       </h3>
@@ -76,7 +76,7 @@ const components: Components = {
   },
   h4({ children }) {
     return (
-      <h4 className="not-prose mb-2 mt-6 text-lg font-semibold text-zinc-200">
+      <h4 className="not-prose mb-2 mt-6 text-lg font-semibold text-foreground/85 dark:text-zinc-200">
         {children}
       </h4>
     );
@@ -85,7 +85,7 @@ const components: Components = {
     return (
       <a
         href={href}
-        className="text-blue-400 underline underline-offset-4 transition-colors hover:text-blue-300"
+        className="text-brand dark:text-blue-400 underline underline-offset-4 transition-colors hover:text-brand/80 dark:hover:text-blue-300"
         target={href?.startsWith('http') ? '_blank' : undefined}
         rel={href?.startsWith('http') ? 'noopener noreferrer' : undefined}
       >
@@ -95,7 +95,7 @@ const components: Components = {
   },
   blockquote({ children }) {
     return (
-      <blockquote className="not-prose my-6 rounded-r-lg border-l-4 border-blue-500/40 bg-white/5 py-3 pl-4 italic text-zinc-400">
+      <blockquote className="not-prose my-6 rounded-r-lg border-l-4 border-primary/40 dark:border-blue-500/40 bg-secondary/60 dark:bg-white/5 py-3 pl-4 italic text-muted-foreground dark:text-zinc-400">
         {children}
       </blockquote>
     );
@@ -104,7 +104,7 @@ const components: Components = {
     // Block code has a language class (e.g. "language-js"); inline code does not.
     if (!className) {
       return (
-        <code className="rounded bg-white/10 px-1.5 py-0.5 font-mono text-sm text-blue-300">
+        <code className="rounded bg-secondary dark:bg-white/10 px-1.5 py-0.5 font-mono text-sm text-brand dark:text-blue-300">
           {children}
         </code>
       );
@@ -127,32 +127,32 @@ const components: Components = {
       }
     }
     return (
-      <pre className="not-prose my-6 overflow-x-auto rounded-lg border border-white/10 bg-zinc-950/80 p-4 text-sm">
+      <pre className="not-prose my-6 overflow-x-auto rounded-lg border border-zinc-800 bg-zinc-950/95 p-4 text-sm dark:border-white/10 dark:bg-zinc-950/80">
         {children}
       </pre>
     );
   },
   table({ children }) {
     return (
-      <div className="not-prose my-6 overflow-x-auto rounded-lg border border-white/10">
+      <div className="not-prose my-6 overflow-x-auto rounded-lg border border-border dark:border-white/10">
         <table className="w-full border-collapse">{children}</table>
       </div>
     );
   },
   th({ children }) {
     return (
-      <th className="border-b border-white/10 bg-white/5 px-4 py-2 text-left font-semibold text-zinc-300">
+      <th className="border-b border-border dark:border-white/10 bg-secondary/60 dark:bg-white/5 px-4 py-2 text-left font-semibold text-foreground/85 dark:text-zinc-300">
         {children}
       </th>
     );
   },
   td({ children }) {
     return (
-      <td className="border-b border-white/5 px-4 py-2 text-zinc-400">{children}</td>
+      <td className="border-b border-border dark:border-white/5 px-4 py-2 text-muted-foreground dark:text-zinc-400">{children}</td>
     );
   },
   hr() {
-    return <hr className="not-prose my-10 border-white/10" />;
+    return <hr className="not-prose my-10 border-border dark:border-white/10" />;
   },
   ul({ children }) {
     return (
@@ -167,7 +167,7 @@ const components: Components = {
     );
   },
   li({ children }) {
-    return <li className="text-zinc-300">{children}</li>;
+    return <li className="text-foreground/85 dark:text-zinc-300">{children}</li>;
   },
 };
 

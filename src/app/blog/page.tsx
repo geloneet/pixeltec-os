@@ -99,13 +99,13 @@ export default async function BlogPage({ searchParams }: { searchParams: Promise
         { name: 'Blog', url: `${SITE.url}/blog` },
       ]} />
       {/* Header/Footer los monta blog/layout.tsx (compartidos con el detalle) */}
-      <main className="min-h-screen bg-[#030303] text-white pt-32 sm:pt-40 pb-16 sm:pb-24">
+      <main className="min-h-screen bg-background dark:bg-[#030303] text-foreground dark:text-white pt-32 sm:pt-40 pb-16 sm:pb-24">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
           <header className="mb-12 md:mb-16">
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-white mb-4 tracking-tight">
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-foreground dark:text-white mb-4 tracking-tight">
               Tecnología práctica para empresas que quieren crecer
             </h1>
-            <p className="text-lg md:text-xl text-zinc-400 max-w-3xl leading-relaxed">
+            <p className="text-lg md:text-xl text-muted-foreground dark:text-zinc-400 max-w-3xl leading-relaxed">
               {BLOG_INDEX_DESCRIPTION}
             </p>
           </header>
@@ -113,17 +113,17 @@ export default async function BlogPage({ searchParams }: { searchParams: Promise
           {(categories.length > 0 || tags.length > 0) && (
             <nav aria-label="Filtrar artículos" className="mb-10 flex flex-wrap items-center gap-2 text-sm">
               {activeFilter && (
-                <Link href="/blog" className="rounded-full border border-white/20 px-3 py-1 text-zinc-300 hover:text-white">
+                <Link href="/blog" className="rounded-full border border-border dark:border-white/20 px-3 py-1 text-foreground/85 dark:text-zinc-300 hover:text-foreground dark:hover:text-white">
                   ✕ {filters.categoria ? `Categoría: ${filters.categoria}` : `Etiqueta: ${filters.etiqueta}`}
                 </Link>
               )}
               {categories.map((c) => (
-                <Link key={`c-${c}`} href={`/blog?categoria=${encodeURIComponent(c)}`} className={`rounded-full px-3 py-1 ${filters.categoria === c ? "bg-brand-blue text-black" : "bg-blue-950/30 text-brand-blue hover:bg-blue-950/60"}`}>
+                <Link key={`c-${c}`} href={`/blog?categoria=${encodeURIComponent(c)}`} className={`rounded-full px-3 py-1 ${filters.categoria === c ? "bg-primary text-white dark:text-black" : "bg-primary/10 dark:bg-blue-950/30 text-brand hover:bg-primary/20 dark:hover:bg-blue-950/60"}`}>
                   {c}
                 </Link>
               ))}
               {tags.map((t) => (
-                <Link key={`t-${t}`} href={`/blog?etiqueta=${encodeURIComponent(t)}`} className={`rounded-full px-3 py-1 ${filters.etiqueta === t ? "bg-white text-black" : "border border-white/10 text-zinc-400 hover:text-white"}`}>
+                <Link key={`t-${t}`} href={`/blog?etiqueta=${encodeURIComponent(t)}`} className={`rounded-full px-3 py-1 ${filters.etiqueta === t ? "bg-foreground text-background" : "border border-border dark:border-white/10 text-muted-foreground dark:text-zinc-400 hover:text-foreground dark:hover:text-white"}`}>
                   #{t}
                 </Link>
               ))}

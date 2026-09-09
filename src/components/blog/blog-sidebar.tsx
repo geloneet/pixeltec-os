@@ -25,10 +25,10 @@ export function BlogSidebar({
   if (recentPosts.length === 0 && categories.length === 0 && tags.length === 0) return null;
 
   return (
-    <aside className="space-y-8 rounded-xl border border-white/10 bg-white/[0.03] p-6">
+    <aside className="space-y-8 rounded-xl border border-border dark:border-white/10 bg-card dark:bg-white/[0.03] p-6">
       {recentPosts.length > 0 && (
         <section>
-          <h2 className="text-xs font-bold tracking-[0.2em] text-zinc-400 uppercase">
+          <h2 className="text-xs font-bold tracking-[0.2em] text-muted-foreground dark:text-zinc-400 uppercase">
             Entradas recientes
           </h2>
           <ul className="mt-3 space-y-2.5">
@@ -36,7 +36,7 @@ export function BlogSidebar({
               <li key={post.slug}>
                 <Link
                   href={`/blog/${post.slug}`}
-                  className="text-sm text-zinc-300 transition-colors hover:text-brand-blue"
+                  className="text-sm text-foreground/85 dark:text-zinc-300 transition-colors hover:text-brand"
                 >
                   {post.title}
                 </Link>
@@ -48,7 +48,7 @@ export function BlogSidebar({
 
       {categories.length > 0 && (
         <section>
-          <h2 className="text-xs font-bold tracking-[0.2em] text-zinc-400 uppercase">
+          <h2 className="text-xs font-bold tracking-[0.2em] text-muted-foreground dark:text-zinc-400 uppercase">
             Categorías
           </h2>
           <ul className="mt-3 space-y-1.5 text-sm">
@@ -60,8 +60,8 @@ export function BlogSidebar({
                     href={`/blog?categoria=${encodeURIComponent(cat)}`}
                     className={
                       active
-                        ? "font-semibold text-brand-blue"
-                        : "text-zinc-400 transition-colors hover:text-white"
+                        ? "font-semibold text-brand"
+                        : "text-muted-foreground dark:text-zinc-400 transition-colors hover:text-foreground dark:hover:text-white"
                     }
                   >
                     {cat}
@@ -75,7 +75,7 @@ export function BlogSidebar({
 
       {tags.length > 0 && (
         <section>
-          <h2 className="text-xs font-bold tracking-[0.2em] text-zinc-400 uppercase">
+          <h2 className="text-xs font-bold tracking-[0.2em] text-muted-foreground dark:text-zinc-400 uppercase">
             Etiquetas
           </h2>
           <div className="mt-3 flex flex-wrap gap-2">
@@ -88,7 +88,7 @@ export function BlogSidebar({
                   className={
                     active
                       ? "rounded-full bg-white text-black px-2.5 py-1 text-xs font-semibold"
-                      : "rounded-full border border-white/10 px-2.5 py-1 text-xs text-zinc-400 transition-colors hover:border-brand-blue/50 hover:text-white"
+                      : "rounded-full border border-border dark:border-white/10 px-2.5 py-1 text-xs text-muted-foreground dark:text-zinc-400 transition-colors hover:border-primary/50 hover:text-foreground dark:hover:text-white"
                   }
                 >
                   #{tag}
