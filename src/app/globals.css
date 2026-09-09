@@ -192,3 +192,16 @@
   font-size: 0.875rem !important;
   opacity: 1 !important;
 }
+
+/* ThemeToggle (despliegue circular, Miguel 2026-09-08): la API de View
+   Transitions aplica por defecto un crossfade a ::view-transition-old/new
+   root en cuanto se llama startViewTransition. Se anula aquí porque
+   theme-toggle.tsx anima su propio clip-path circular en new(root) — con el
+   crossfade activo se verían ambas animaciones a la vez (doble exposición).
+   old(root) queda estático y opaco: es lo que se ve fuera del círculo
+   mientras crece. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
