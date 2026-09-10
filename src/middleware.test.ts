@@ -254,3 +254,34 @@ describe("middleware — regresión admin y staff (WO-2026-00051): igual que hoy
     expect(res.status).toBe(200);
   });
 });
+
+/**
+ * PRV-02 (WO-2026-00268) — el panel fuera del índice de verdad.
+ *
+ * Antes esto se confiaba a `Disallow:` en robots.txt, que (a) publicaba el
+ * inventario completo del backoffice en un archivo que cualquiera lee y
+ * (b) impide RASTREAR, no INDEXAR: una URL descubierta por un enlace externo
+ * podía acabar en el índice igual. La garantía es ahora esta cabecera.
+ */
+describe("middleware — X-Robots-Tag en rutas privadas (PRV-02)", () => {
+  const PRIVADAS = ["/hoy", "/seo", "/seo/schema", "/blog-cms", "/login", "/portal", "/reset-password", "/invitacion/abc"];
+  const PUBLICAS = ["/", "/blog", "/blog/un-articulo", "/services/consultoria", "/pixelbot", "/contact"];
+
+  it.each(PRIVADAS)("%s responde con noindex, nofollow", async (path) => {
+    // Con sesión de admin, para medir la respuesta de la página y no la
+    // redirección al login (que también la lleva, ver el caso de abajo).
+    const res = await run(path, { user: { id: "a", role: "admin" } });
+    expect(res.headers.get("X-Robots-Tag")).toBe("noindex, nofollow");
+  });
+
+  it.each(PUBLICAS)("%s NO lleva la cabecera", async (path) => {
+    const res = await run(path, null);
+    expect(res.headers.get("X-Robots-Tag")).toBeNull();
+  });
+
+  it("la redirección al login de una ruta protegida también la lleva", async () => {
+    const res = await run("/hoy", null);
+    expect(res.status).toBe(307);
+    expect(res.headers.get("X-Robots-Tag")).toBe("noindex, nofollow");
+  });
+});

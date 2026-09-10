@@ -23,9 +23,9 @@ import {
   visibleSocialLinks,
 } from './social';
 import { buildHealthChecks, summarizeHealth, type SeoSnapshot } from './health';
-import { reconcileRobots } from './robots';
+import { BASE_DISALLOW, derivedRobots, reconcileRobots } from './robots';
 import { mergePublishedGraph } from './structured-graph';
-import { PROTECTED_PATHS } from '@/lib/routes/admin-routes';
+import { PROTECTED_PATHS, isNoindexPath } from '@/lib/routes/admin-routes';
 
 /** WO-2026-00095 — módulo SEO portado de Muebles Encino, solo pixeltec.mx. */
 
@@ -232,25 +232,82 @@ describe('redes sociales', () => {
 });
 
 describe('robots.txt publicado', () => {
-  it('añade las rutas privadas que el archivo publicado no traiga', () => {
+  it('añade las reglas base que el archivo publicado no traiga', () => {
     const out = reconcileRobots('User-agent: *\nAllow: /');
-    for (const p of PROTECTED_PATHS) expect(out).toContain(`Disallow: ${p}`);
+    for (const p of BASE_DISALLOW) expect(out).toContain(`Disallow: ${p}`);
     expect(out).toContain('Sitemap: https://pixeltec.mx/sitemap.xml');
   });
 
   it('no duplica lo que el archivo ya declara', () => {
-    const withOne = `User-agent: *\nDisallow: ${PROTECTED_PATHS[0]}\nSitemap: https://pixeltec.mx/sitemap.xml`;
+    const withOne = `User-agent: *\nDisallow: ${BASE_DISALLOW[0]}\nSitemap: https://pixeltec.mx/sitemap.xml`;
     const out = reconcileRobots(withOne);
-    expect(out.match(new RegExp(`Disallow: ${PROTECTED_PATHS[0]}\\b`, 'g'))).toHaveLength(1);
+    expect(out.match(new RegExp(`Disallow: ${BASE_DISALLOW[0]}`, 'g'))).toHaveLength(1);
     expect(out.match(/Sitemap:/g)).toHaveLength(1);
   });
 
-  it('un archivo publicado NO puede dejar el panel abierto al rastreo', () => {
-    // El caso que motiva la diferencia con Encino: una IA genera un robots.txt
-    // permisivo y alguien lo guarda sin mirar.
+  /**
+   * PRV-02 (WO-2026-00268) — CAMBIO DE POLÍTICA DELIBERADO.
+   *
+   * Este test dice justo lo contrario de lo que exigía antes ("un archivo
+   * publicado NO puede dejar el panel abierto al rastreo", que verificaba
+   * `Disallow: /blog-cms` y `Disallow: /seo`). Enumerar el panel en un archivo
+   * público entregaba el mapa del backoffice, y `Disallow` sólo impide
+   * rastrear, no indexar. La garantía se movió a `X-Robots-Tag: noindex,
+   * nofollow` en el middleware (ver `NOINDEX_PATHS` y src/middleware.test.ts).
+   */
+  it('NO publica el inventario de rutas privadas', () => {
     const out = reconcileRobots('User-agent: *\nAllow: /');
-    expect(out).toContain('Disallow: /blog-cms');
-    expect(out).toContain('Disallow: /seo');
+    for (const p of PROTECTED_PATHS) expect(out).not.toContain(`Disallow: ${p}`);
+    expect(out).not.toContain('Disallow: /login');
+  });
+
+  it('inserta las reglas DENTRO del primer grupo, nunca tras el Sitemap', () => {
+    // Una directiva suelta después de `Sitemap:` no pertenece a ningún grupo
+    // y los rastreadores la ignoran: la protección existía sólo en el texto.
+    const out = reconcileRobots('User-agent: *\nAllow: /\n\nSitemap: https://pixeltec.mx/sitemap.xml');
+    const lines = out.split('\n');
+    const grupo = lines.findIndex((l) => l.startsWith('User-agent:'));
+    const regla = lines.findIndex((l) => l.trim() === 'Disallow: /api/');
+    const sitemap = lines.findIndex((l) => l.startsWith('Sitemap:'));
+    expect(grupo).toBeGreaterThanOrEqual(0);
+    expect(regla).toBeGreaterThan(grupo);
+    expect(regla).toBeLessThan(sitemap);
+  });
+
+  it('abre un grupo si el archivo publicado no declara ninguno', () => {
+    const out = reconcileRobots('# solo un comentario');
+    const lines = out.split('\n');
+    const grupo = lines.findIndex((l) => l.startsWith('User-agent:'));
+    expect(grupo).toBeGreaterThanOrEqual(0);
+    expect(lines.findIndex((l) => l.trim() === 'Disallow: /api/')).toBeGreaterThan(grupo);
+  });
+
+  it('el derivado por defecto trae las reglas base y el sitemap', () => {
+    const out = derivedRobots();
+    expect(out).toContain('User-agent: *');
+    expect(out).toContain('Disallow: /api/');
+    expect(out).toContain('Sitemap: https://pixeltec.mx/sitemap.xml');
+  });
+});
+
+/** PRV-02 — la lista de rutas que el middleware marca `noindex`. */
+describe('rutas fuera del índice', () => {
+  it('cubre todo el panel, el acceso, el portal y las invitaciones', () => {
+    for (const p of PROTECTED_PATHS) expect(isNoindexPath(p)).toBe(true);
+    for (const p of ['/login', '/portal', '/reset-password', '/invitacion']) {
+      expect(isNoindexPath(p)).toBe(true);
+    }
+  });
+
+  it('cubre los subpaths pero no las rutas públicas que empiezan igual', () => {
+    expect(isNoindexPath('/seo/schema')).toBe(true);
+    expect(isNoindexPath('/invitacion/abc123')).toBe(true);
+    expect(isNoindexPath('/')).toBe(false);
+    expect(isNoindexPath('/blog')).toBe(false);
+    // /blog-cms es privada; /blog, que la contiene como prefijo, no.
+    expect(isNoindexPath('/blog-cms')).toBe(true);
+    expect(isNoindexPath('/blog/un-articulo')).toBe(false);
+    expect(isNoindexPath('/portalito')).toBe(false);
   });
 });
 

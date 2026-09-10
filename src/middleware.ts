@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth/config';
-import { PROTECTED_PATHS } from '@/lib/routes/admin-routes';
+import { PROTECTED_PATHS, isNoindexPath } from '@/lib/routes/admin-routes';
 import { decideRestrictedAccess, isRestrictedRole } from '@/lib/routes/reviewer-access';
 import { cspForPath } from '@/lib/security/csp';
 
@@ -22,6 +22,18 @@ function withSecurityHeaders(res: NextResponse, nonce: string, pathname: string)
   res.headers.set('Content-Security-Policy', cspForPath(nonce, pathname));
   res.headers.set('Reporting-Endpoints', 'csp-endpoint="/api/csp-report"');
   res.headers.set('x-nonce', nonce);
+
+  // PRV-02 (WO-2026-00268): la única instrucción que de verdad mantiene el
+  // panel fuera del índice. El `Disallow` de robots.txt que se usaba antes
+  // impedía RASTREAR, no INDEXAR: una URL descubierta por un enlace externo
+  // podía indexarse igual, y de paso el archivo publicaba el inventario
+  // completo del backoffice. La cabecera se pone aquí y no en `next.config.ts`
+  // porque el middleware ya conoce la ruta resuelta y comparte la lista con la
+  // protección de sesión — una sola fuente, sin listas paralelas que se
+  // desincronicen. Aplica también a respuestas 302 al login y 403.
+  if (isNoindexPath(pathname)) {
+    res.headers.set('X-Robots-Tag', 'noindex, nofollow');
+  }
   return res;
 }
 
