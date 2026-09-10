@@ -2,6 +2,8 @@ import { getSettings } from '@/lib/settings/queries';
 import { SEO_TOOLS } from '@/lib/seo/tools';
 import { PageSchemaJsonLd } from './page-schema-jsonld';
 import { SETTING_PAGE_SCHEMA, parsePageSchemaMap, type PageSchemaMap } from '@/lib/seo/page-schema';
+import { mergePublishedGraph } from '@/lib/seo/structured-graph';
+import { CODE_EMITTED_IDS } from './structured-data';
 
 /**
  * JSON-LD publicado desde el módulo SEO (WO-2026-00095): «Negocio local»,
@@ -27,14 +29,14 @@ export async function PublishedStructuredData() {
       .filter((t) => stored[t.enabledKey] === '1')
       .map((t) => (stored[t.settingKey] ?? '').trim())
       .filter(Boolean)
-      .filter((raw) => {
-        try {
-          JSON.parse(raw);
-          return true;
-        } catch {
-          return false;
-        }
-      });
+      // SEO-03 (WO-2026-00268): el prompt de «Datos estructurados» pide
+      // Organization y WebSite, que el código YA emite desde site-config con
+      // más campos. Sin este filtro la página salía con dos nodos del mismo
+      // `@id` y datos distintos, y Google elegía uno arbitrariamente. Lo que
+      // el código no emite (LocalBusiness, etc.) pasa intacto.
+      // `mergePublishedGraph` valida el JSON de paso: devuelve null si está roto.
+      .map((raw) => mergePublishedGraph(CODE_EMITTED_IDS, raw))
+      .filter((raw): raw is string => raw !== null);
   } catch (error) {
     console.error('[seo] structured data unavailable:', error);
     return null;

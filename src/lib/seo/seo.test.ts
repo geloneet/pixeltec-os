@@ -24,6 +24,7 @@ import {
 } from './social';
 import { buildHealthChecks, summarizeHealth, type SeoSnapshot } from './health';
 import { reconcileRobots } from './robots';
+import { mergePublishedGraph } from './structured-graph';
 import { PROTECTED_PATHS } from '@/lib/routes/admin-routes';
 
 /** WO-2026-00095 — módulo SEO portado de Muebles Encino, solo pixeltec.mx. */
@@ -250,6 +251,49 @@ describe('robots.txt publicado', () => {
     const out = reconcileRobots('User-agent: *\nAllow: /');
     expect(out).toContain('Disallow: /blog-cms');
     expect(out).toContain('Disallow: /seo');
+  });
+});
+
+/** SEO-03 (WO-2026-00268) — el bloque publicado no puede duplicar lo del código. */
+describe('grafo JSON-LD publicado', () => {
+  const IDS = ['https://pixeltec.mx/#organization', 'https://pixeltec.mx/#website'];
+
+  it('descarta del @graph los nodos que el código ya emite y deja el resto', () => {
+    const raw = JSON.stringify({
+      '@context': 'https://schema.org',
+      '@graph': [
+        { '@type': 'Organization', '@id': 'https://pixeltec.mx/#organization', name: 'PIXELTEC' },
+        { '@type': 'WebSite', url: 'https://pixeltec.mx' },
+        { '@type': 'LocalBusiness', name: 'PixelTEC', telephone: '+52-322-137-8336' },
+      ],
+    });
+    const out = JSON.parse(mergePublishedGraph(IDS, raw)!);
+    expect(out['@graph']).toEqual([
+      { '@type': 'LocalBusiness', name: 'PixelTEC', telephone: '+52-322-137-8336' },
+    ]);
+    expect(out['@context']).toBe('https://schema.org');
+  });
+
+  it('devuelve null si no queda ningún nodo propio', () => {
+    const raw = JSON.stringify({ '@graph': [{ '@type': 'Organization' }, { '@type': 'WebSite' }] });
+    expect(mergePublishedGraph(IDS, raw)).toBeNull();
+  });
+
+  it('acepta un nodo suelto y un array en la raíz', () => {
+    expect(mergePublishedGraph(IDS, '{"@type":"LocalBusiness","name":"x"}')).toBe('{"@type":"LocalBusiness","name":"x"}');
+    expect(mergePublishedGraph(IDS, '{"@type":"Organization","name":"x"}')).toBeNull();
+    expect(mergePublishedGraph(IDS, '[{"@type":"Organization"},{"@type":"FAQPage"}]')).toBe('[{"@type":"FAQPage"}]');
+  });
+
+  it('descarta por @id aunque el @type venga distinto o como lista', () => {
+    expect(mergePublishedGraph(IDS, '{"@id":"https://pixeltec.mx/#website","@type":"WebPage"}')).toBeNull();
+    expect(mergePublishedGraph(IDS, '{"@type":["LocalBusiness","Organization"]}')).toBeNull();
+  });
+
+  it('ante JSON roto o formas inesperadas devuelve null, no lanza', () => {
+    for (const raw of ['{roto', '', 'null', '"texto"', '42']) {
+      expect(mergePublishedGraph(IDS, raw)).toBeNull();
+    }
   });
 });
 
