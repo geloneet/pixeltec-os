@@ -3,8 +3,10 @@ import Link from "next/link";
 import Header from "@/components/header";
 import { Footer } from "@/components/ui/footer-section";
 
+// El template `%s | PixelTEC` del layout raíz ya añade la marca: repetirla
+// aquí producía «Página no encontrada · PixelTEC | PixelTEC» (BUG-04).
 export const metadata: Metadata = {
-  title: "Página no encontrada · PixelTEC",
+  title: "Página no encontrada",
 };
 
 export default function NotFound() {
