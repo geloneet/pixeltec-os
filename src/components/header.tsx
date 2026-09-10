@@ -22,11 +22,19 @@ const navLinks = [
     { label: 'Contacto', href: '/contact' },
 ];
 
+// A11Y-02 (WO-2026-00268): el mismo componente pinta el botón que abre el menú
+// y el que lo cierra, y ambos anunciaban «Abrir menú». Sin `aria-expanded` ni
+// `aria-controls`, un lector de pantalla no sabía si el panel estaba abierto ni
+// qué controlaba el botón; y sin `type`, dentro de un formulario habría enviado
+// el formulario en vez de abrir el menú.
 const AnimatedHamburger = ({ isOpen, onClick, className }: { isOpen: boolean; onClick: () => void, className?: string }) => (
-    <button 
+    <button
+      type="button"
       onClick={onClick}
       className={cn("relative block flex-shrink-0 cursor-pointer w-[50px] h-[40px] z-[60] rounded-md focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-focus lg:hidden", className)}
-      aria-label="Abrir menú"
+      aria-label={isOpen ? 'Cerrar menú' : 'Abrir menú'}
+      aria-expanded={isOpen}
+      aria-controls="mobile-menu"
     >
       <span
         className={cn(
@@ -147,8 +155,9 @@ export default function Header() {
                 <ThemeToggle />
                 <AnimatedHamburger isOpen={isMenuOpen} onClick={() => setIsMenuOpen(true)} />
                 <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
-                    <SheetContent 
-                      side="right" 
+                    <SheetContent
+                      id="mobile-menu"
+                      side="right"
                       className="bg-background/90 backdrop-blur-xl bottom-auto top-4 h-[calc(100dvh-2rem)] w-[90%] max-w-sm rounded-l-3xl border-l border-t border-b border-border shadow-2xl dark:shadow-black/50 p-0 right-0 rounded-r-none border-r-0"
                     >
                     <SheetTitle className="sr-only">Menú de navegación</SheetTitle>
