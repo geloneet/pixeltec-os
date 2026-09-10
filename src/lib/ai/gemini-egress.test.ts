@@ -9,7 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
  * bloquea, y que el cuerpo de error nunca llegue al `AiProviderError`.
  */
 
-const MODEL = "gemini-2.0-flash-lite";
+const MODEL = "gemini-3.5-flash-lite";
 
 function setAllowlistEnv(models: string[]) {
   process.env.EGRESS_AI_MODE = "allowlist";

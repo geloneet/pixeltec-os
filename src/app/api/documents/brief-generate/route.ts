@@ -27,7 +27,13 @@ interface GeneratedBrief {
   benefits: string;
 }
 
-const MODEL = "gemini-2.0-flash-lite";
+// gemini-2.0-flash-lite fue retirado por Google (confirmado con la API real:
+// 404 "This model ... is no longer available") entre el cierre original de
+// WO-2026-00222 (2026-09-04) y su merge (2026-09-08) — nunca llegó a
+// producción con el modelo viejo. gemini-3.5-flash-lite es el reemplazo que
+// el propio error de Google recomienda; confirmado con una llamada real
+// (200, respuesta real) antes de fijarlo aquí.
+const MODEL = "gemini-3.5-flash-lite";
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   try {

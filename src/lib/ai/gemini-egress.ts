@@ -1,7 +1,8 @@
 /**
  * Única puerta permitida para hacer inferencia contra Google Gemini
  * (WO-2026-00222 — brief de propuesta desde Cotizaciones, modelo barato
- * `gemini-2.0-flash-lite`).
+ * `gemini-3.5-flash-lite` — `gemini-2.0-flash-lite` original fue retirado
+ * por Google, ver WO-2026-00253).
  *
  * Mismo contrato que `./anthropic-egress`: no se expone cliente, solo una
  * operación protegida. No se usa el SDK oficial de Google (no estaba

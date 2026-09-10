@@ -36,7 +36,9 @@ import {
   parseMoneyToCents,
   validateQuote,
   type FrequencyKey,
+  type QuoteItem,
 } from "@/lib/quotes/money";
+import type { BillingItemDraft, BillingFrequency } from "@/types/documents";
 import {
   CURRENCIES,
   DEFAULT_EXCLUSIONS,
@@ -61,6 +63,37 @@ interface BriefDraft {
   solution: string;
   deliverables: string;
   benefits: string;
+}
+
+/** `Recurrence` de la cotización → `BillingFrequency` del proposal — mismo
+ *  vocabulario de pago, dos nombres históricos distintos (WO-2026-00253). */
+const RECURRENCE_TO_BILLING_FREQUENCY: Record<string, BillingFrequency> = {
+  unica: "unico",
+  mensual: "mensual",
+  anual: "anual",
+};
+
+/** `YYYY-MM-DD` de hoy — mismo formato que usa el resto de `BillingItemDraft`. */
+function todayIso(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+/** Traduce los Conceptos de la cotización a la tabla de "Inversión del
+ *  proyecto" del brief (WO-2026-00253): mismo concepto, mismo precio — el
+ *  vendedor no vuelve a capturar nada. Filas sin descripción o en $0 se
+ *  omiten (mismo criterio que `cleanPriceLines` en PropuestaTab).
+ *  `BillingItemDraft.amount` no lleva moneda propia (asume MXN, igual que el
+ *  resto del sistema de Propuestas) — mismo supuesto que ya hacía el `budget`
+ *  de texto libre que esto reemplaza. */
+export function billingItemDraftsFromQuoteItems(quoteItems: QuoteItem[]): BillingItemDraft[] {
+  return quoteItems
+    .filter((item) => item.description.trim() && lineTotalCents(item) > 0)
+    .map((item) => ({
+      concept: item.quantity > 1 ? `${item.description} × ${item.quantity}` : item.description,
+      amount: lineTotalCents(item) / 100,
+      frequency: RECURRENCE_TO_BILLING_FREQUENCY[item.recurrence ?? "unica"] ?? "unico",
+      dueDate: todayIso(),
+    }));
 }
 
 /** Campos que el pop-up pide cuando faltan, en el orden en que se piden. */
@@ -329,6 +362,10 @@ export function QuoteForm({
             deliverables: briefDraft.deliverables,
             benefits: briefDraft.benefits,
             budget: totals.totalCents > 0 ? `${formatAmount(totals.totalCents, currency)} ${currency}` : undefined,
+            // WO-2026-00253: la tabla "Inversión del proyecto" del PDF sale de
+            // aquí — antes se omitía por completo (solo viajaba `budget`, un
+            // texto libre que el renderer no usa para esa sección).
+            billingItemDrafts: billingItemDraftsFromQuoteItems(items),
             timeline: estimatedDelivery || undefined,
             status: "borrador",
           });
@@ -362,7 +399,10 @@ export function QuoteForm({
         {/* Encabezado contextual: con varias cotizaciones abiertas, saber cuál
             es esta y de quién no debería costar un clic. */}
         <p className="text-xs text-muted-foreground">
-          <span className="text-foreground/80">{quote ? quote.folio : "Nueva cotización"}</span>
+          {/* WO-2026-00253: antes mostraba "Nueva cotización" fijo aunque ya
+              se hubiera escrito un título — el folio real solo existe tras
+              guardar, pero mientras tanto sí hay algo mejor que mostrar. */}
+          <span className="text-foreground/80">{quote ? quote.folio : title.trim() || "Nueva cotización"}</span>
           {clientName ? <> · {clientName}</> : null}
         </p>
 
