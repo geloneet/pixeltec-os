@@ -12,18 +12,25 @@ import { MetaPixel } from '@/components/analytics/meta-pixel';
 import { AttributionCapture } from '@/components/analytics/attribution-capture';
 import { headers } from 'next/headers';
 
+// REN-05 (WO-2026-00268): el peso 900 no lo usaba nadie salvo un enlace del
+// menú móvil (ahora `font-extrabold`); descargarlo en cada visita era peso
+// muerto en la ruta crítica.
 const poppins = Poppins({
   subsets: ['latin'],
-  weight: ['400', '500', '600', '700', '800', '900'],
+  weight: ['400', '500', '600', '700', '800'],
   variable: '--font-poppins',
   display: 'swap',
 });
 
+// REN-05: `font-roboto` sólo aparece en pantallas del CRM/admin (stat-card,
+// cobros, PortalTab). Sin `preload` el navegador no reserva ancho de banda por
+// ella en las páginas públicas; se descarga sólo donde de verdad se usa.
 const roboto = Roboto({
   subsets: ['latin'],
   weight: ['400', '500', '700'],
   variable: '--font-roboto',
   display: 'swap',
+  preload: false,
 });
 
 const leagueSpartan = League_Spartan({
@@ -40,7 +47,8 @@ export const metadata: Metadata = {
     template: `%s | ${SITE.name}`,
   },
   description: SITE.description,
-  keywords: ['desarrollo web México', 'automatización de procesos', 'CRM personalizado', 'consultoría tecnológica Puerto Vallarta', 'ecosistemas digitales', 'software a medida'],
+  // SEO-07 (WO-2026-00268): `keywords` está deprecado desde 2009 para Google y
+  // Bing; no aporta ranking y sí señala keyword stuffing. Retirado a propósito.
   authors: [{ name: SITE.name }],
   // Los iconos salen de la convención de archivos de Next (src/app/icon.png y
   // src/app/apple-icon.png — el apple es 180×180 OPACO; el ptlogox.png
