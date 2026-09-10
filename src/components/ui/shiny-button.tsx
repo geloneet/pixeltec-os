@@ -24,6 +24,14 @@ interface ShinyButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement>
   "data-cta-pos"?: string
 }
 
+// WO-2026-00275: los estilos de `.shiny-cta` (pill, shine cónico, variante
+// whatsapp-cta, entrada y reduced-motion) viven en src/app/globals.css.
+// Estaban aquí en un <style jsx global>; en el App Router styled-jsx no se
+// sirve en el HTML inicial (no hay StyleRegistry), así que el CTA pintaba
+// como texto plano y el pill "aparecía de golpe" al hidratar. En el CSS del
+// build las reglas existen antes de la primera pintura y la entrada
+// (materialización + ignición del shine) corre como CSS animation, fuera del
+// hilo principal y sin esperar a React.
 const SHINY_CLASSES =
   "shiny-cta tracking-wide transition-all duration-300 ease-out shadow-md hover:shadow-lg dark:shadow-none dark:hover:text-blue-300 hover:shadow-[0_8px_24px_-8px_rgba(33,150,243,0.45)] dark:hover:shadow-[0_0_20px_rgba(33,150,243,0.2)] active:scale-95 active:shadow-none " +
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-focus " +
@@ -41,194 +49,37 @@ export function ShinyButton({
 }: ShinyButtonProps) {
   const isExternal = Boolean(href && /^https?:\/\//.test(href));
 
+  if (href) {
+    // Externo: <a> nativo conservando target/rel del consumidor.
+    // Interno: <Link> de Next. En ambos casos se evita <a><button>.
+    return isExternal ? (
+      <a
+        href={href}
+        target={target}
+        rel={rel}
+        data-cta={dataCta}
+        data-cta-pos={dataCtaPos}
+        onClick={props.onClick as unknown as React.MouseEventHandler<HTMLAnchorElement>}
+        className={cn(SHINY_CLASSES, className)}
+      >
+        <span className="flex items-center justify-center gap-2">{children}</span>
+      </a>
+    ) : (
+      <Link
+        href={href}
+        data-cta={dataCta}
+        data-cta-pos={dataCtaPos}
+        onClick={props.onClick as unknown as React.MouseEventHandler<HTMLAnchorElement>}
+        className={cn(SHINY_CLASSES, className)}
+      >
+        <span className="flex items-center justify-center gap-2">{children}</span>
+      </Link>
+    )
+  }
+
   return (
-    <>
-      {/* global: styled-jsx solo aplica sus clases con ámbito a elementos DOM
-          directos; la variante <Link> renderiza su propio <a> y se quedaba sin
-          estilos. Los selectores .shiny-cta son suficientemente específicos. */}
-      <style jsx global>{`
-        /* Composited rotation via transform instead of @property --gradient-angle */
-        @keyframes shiny-rotate {
-          to { transform: rotate(360deg); }
-        }
-
-        .shiny-cta {
-          /* Identidad de marca intencional: pill negro/blanco en AMBOS temas
-             (no se invierte con background/foreground para no perder el CTA
-             de alto contraste que WhatsApp necesita). */
-          --shiny-cta-bg: #000000;
-          --shiny-cta-fg: #ffffff;
-          --shiny-cta-highlight: #2196F3;
-          /* Tono medio del shine cónico. En claro un blanco puro sobre el pill
-             negro leía como un destello lechoso sin marca; se sustituye por el
-             azul profundo. En oscuro sigue siendo blanco (idéntico a hoy). */
-          --shiny-cta-shine-mid: #1463B8;
-          --duration: 3s;
-
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          position: relative;
-          overflow: hidden;
-          isolation: isolate;
-          cursor: pointer;
-          outline-offset: 4px;
-          padding: 1rem 2rem;
-          font-size: 1rem;
-          line-height: 1.2;
-          font-weight: 700;
-          /* Light: borde definido (oscuro suave) para que el pill negro no
-             se vea "flotando" sin contorno sobre el fondo claro. */
-          border: 1px solid hsl(var(--foreground) / 0.12);
-          border-radius: 360px;
-          color: var(--shiny-cta-fg);
-          background: transparent;
-        }
-
-        :global(.dark) .shiny-cta {
-          /* Dark: como hoy, sin borde propio (el glow hace ese trabajo). */
-          border-color: transparent;
-          --shiny-cta-shine-mid: #ffffff;
-        }
-
-        /* Rotating gradient layer — uses transform:rotate() which is GPU-composited */
-        .shiny-cta::before {
-          content: '';
-          position: absolute;
-          width: 400px;
-          height: 400px;
-          top: 50%;
-          left: 50%;
-          margin-top: -200px;
-          margin-left: -200px;
-          background: conic-gradient(
-            from 0deg,
-            transparent 0%,
-            var(--shiny-cta-highlight) 5%,
-            var(--shiny-cta-shine-mid) 10%,
-            var(--shiny-cta-highlight) 15%,
-            transparent 20%
-          );
-          animation: shiny-rotate var(--duration) linear infinite;
-          z-index: -2;
-          /* El shine rotante corre en AMBOS temas: en claro con un tono medio
-             azul profundo en vez del blanco, para conservar el detalle más
-             identitario del botón sin que se vea lavado. */
-          opacity: 1;
-        }
-
-        /* Solid fill layer — creates the 1px "border" gap */
-        .shiny-cta::after {
-          content: '';
-          position: absolute;
-          inset: 1px;
-          background: var(--shiny-cta-bg);
-          border-radius: 360px;
-          z-index: -1;
-          transition: background 0.3s ease;
-        }
-
-        /* Hover del relleno. En claro el velo translúcido de dark dejaba el
-           pill casi transparente con texto blanco encima (1.8:1): se sustituye
-           por un azul profundo sólido (blanco sobre él = 5.75:1). */
-        .shiny-cta:hover::after {
-          background: #1565c0;
-        }
-
-        :global(.dark) .shiny-cta:hover::after {
-          background: rgb(33 150 243 / 0.08);
-        }
-
-        .shiny-cta > span {
-          position: relative;
-          z-index: 1;
-          letter-spacing: 0.05em;
-        }
-
-        /* Variante WhatsApp (pedida por Miguel 2026-09-08): mismo mecanismo
-           de pill + shine rotante, recoloreado a la gama de verdes oficiales
-           de WhatsApp en vez del negro/azul por defecto. #075E54 (verde
-           oscuro de marca) mantiene el mismo contraste de texto blanco que
-           el pill negro original (~7.7:1, AA/AAA); #25D366 (verde brillante
-           de marca) reemplaza el azul en el shine/glow y en los estados de
-           interacción — el resto del componente (otros CTAs del sitio)
-           sigue negro/azul sin cambios. */
-        .shiny-cta.whatsapp-cta {
-          --shiny-cta-bg: #075e54;
-          --shiny-cta-highlight: #25d366;
-          --shiny-cta-shine-mid: #128c7e;
-        }
-
-        :global(.dark) .shiny-cta.whatsapp-cta {
-          --shiny-cta-shine-mid: #ffffff;
-        }
-
-        /* Claro: verde WhatsApp medio sólido (blanco encima = 4.14:1). */
-        .shiny-cta.whatsapp-cta:hover::after {
-          background: #128c7e;
-        }
-
-        :global(.dark) .shiny-cta.whatsapp-cta:hover::after {
-          background: rgb(37 211 102 / 0.14);
-        }
-
-        :global(.dark) .shiny-cta.whatsapp-cta:hover {
-          color: #25d366 !important;
-        }
-
-        .shiny-cta.whatsapp-cta:focus-visible {
-          outline-color: #128c7e !important;
-        }
-
-        :global(.dark) .shiny-cta.whatsapp-cta:focus-visible {
-          outline-color: #25d366 !important;
-        }
-
-        :global(.dark) .shiny-cta.whatsapp-cta:hover {
-          box-shadow: 0 0 20px rgba(37, 211, 102, 0.25) !important;
-        }
-
-        /* Reducción de movimiento acotada: detiene SOLO el shine rotante
-           infinito. El hover, el focus, el active y las transiciones de
-           estado siguen dando feedback. */
-        @media (prefers-reduced-motion: reduce) {
-          .shiny-cta::before {
-            animation: none;
-          }
-        }
-      `}</style>
-
-      {href ? (
-        // Externo: <a> nativo conservando target/rel del consumidor.
-        // Interno: <Link> de Next. En ambos casos se evita <a><button>.
-        isExternal ? (
-          <a
-            href={href}
-            target={target}
-            rel={rel}
-            data-cta={dataCta}
-            data-cta-pos={dataCtaPos}
-            onClick={props.onClick as unknown as React.MouseEventHandler<HTMLAnchorElement>}
-            className={cn(SHINY_CLASSES, className)}
-          >
-            <span className="flex items-center justify-center gap-2">{children}</span>
-          </a>
-        ) : (
-          <Link
-            href={href}
-            data-cta={dataCta}
-            data-cta-pos={dataCtaPos}
-            onClick={props.onClick as unknown as React.MouseEventHandler<HTMLAnchorElement>}
-            className={cn(SHINY_CLASSES, className)}
-          >
-            <span className="flex items-center justify-center gap-2">{children}</span>
-          </Link>
-        )
-      ) : (
-        <button className={cn(SHINY_CLASSES, className)} data-cta={dataCta} data-cta-pos={dataCtaPos} {...props}>
-          <span className="flex items-center justify-center gap-2">{children}</span>
-        </button>
-      )}
-    </>
+    <button className={cn(SHINY_CLASSES, className)} data-cta={dataCta} data-cta-pos={dataCtaPos} {...props}>
+      <span className="flex items-center justify-center gap-2">{children}</span>
+    </button>
   )
 }
