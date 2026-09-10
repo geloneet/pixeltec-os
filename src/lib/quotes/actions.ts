@@ -102,6 +102,12 @@ const SaveQuoteSchema = z.object({
   exclusions: z.string().max(4000),
   estimatedDelivery: z.string().max(200),
   paymentTerms: z.object({ type: z.enum(PAYMENT_TYPES), custom: z.string().max(2000) }),
+  // WO-2026-00255 (revierte la decisión de Miguel del 2026-08-26 de fundir
+  // «Guardar borrador»/«Crear cotización» en un solo botón — pedido explícito
+  // de Miguel: quiere el botón separado de vuelta). `true` = "Crear
+  // cotización" (avanza de borrador a lista); ausente/false = "Guardar
+  // borrador" (se queda en borrador). Nunca retrocede un estado ya avanzado.
+  markReady: z.boolean().optional(),
 });
 export type SaveQuoteInput = z.infer<typeof SaveQuoteSchema>;
 
@@ -160,6 +166,9 @@ export async function saveQuote(input: SaveQuoteInput): Promise<ActionResult<{ i
           exclusions: data.exclusions.trim(),
           estimatedDelivery: data.estimatedDelivery.trim(),
           paymentTerms: data.paymentTerms,
+          // Solo avanza (borrador -> lista) con "Crear cotización"; nunca
+          // retrocede un estado ya más avanzado (lista/enviada/aceptada/...).
+          ...(data.markReady && existing.status === 'borrador' ? { status: 'lista' as const } : {}),
           updatedAt: new Date(),
         })
         .where(eq(quotes.id, data.id));
@@ -185,7 +194,7 @@ export async function saveQuote(input: SaveQuoteInput): Promise<ActionResult<{ i
       exclusions: data.exclusions.trim() || DEFAULT_EXCLUSIONS,
       estimatedDelivery: data.estimatedDelivery.trim(),
       paymentTerms: data.paymentTerms,
-      status: 'borrador',
+      status: data.markReady ? 'lista' : 'borrador',
       publicToken: randomBytes(24).toString('base64url'),
       createdBy: session.userId,
     });

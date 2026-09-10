@@ -123,7 +123,9 @@ export function QuoteDetail({
     });
 
   return (
-    <div className="space-y-6">
+    // p-6: mismo padding que las pestañas hermanas respecto a la barra de
+    // tabs — antes faltaba aquí y se veía apretado (Miguel, 2026-09-08).
+    <div className="space-y-6 p-6">
       <Button type="button" variant="ghost" size="sm" onClick={onBack} className="-ml-2">
         <ArrowLeft className="mr-1.5 h-4 w-4" />
         Cotizaciones

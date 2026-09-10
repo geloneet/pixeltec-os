@@ -77,7 +77,10 @@ export function CotizacionesTab({
   }
 
   return (
-    <div className="space-y-5">
+    // p-6: mismo padding que las pestañas hermanas Resumen (px-4 py-6) y
+    // Finanzas (p-6) respecto a la barra de tabs — antes faltaba aquí y se
+    // veía apretado (Miguel, 2026-09-08).
+    <div className="space-y-5 p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold text-foreground">Cotizaciones</h2>
