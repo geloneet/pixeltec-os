@@ -9,8 +9,8 @@ import { PlaceHolderImages } from "@/lib/placeholder-images";
 
 export const metadata: Metadata = buildMetadata({
   path: '/equipo',
-  title: 'Equipo · El equipo detrás de PIXELTEC',
-  description: 'Conoce al equipo de tecnólogos con experiencia resolviendo problemas reales de negocio detrás de PIXELTEC.',
+  title: 'Equipo · Quién está detrás de PixelTEC',
+  description: 'Quién está detrás de PixelTEC: un arquitecto líder al frente de cada proyecto y una red de especialistas que se integra según lo que haga falta.',
 });
 
 const miguelPhoto =
@@ -26,13 +26,14 @@ export default function EquipoPage() {
           {/* Hero */}
           <header className="mb-16 md:mb-20 text-center max-w-3xl mx-auto">
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-foreground dark:text-white mb-6 tracking-tight">
-              El equipo detrás de{" "}
+              Quién está detrás de{" "}
               <span className="bg-gradient-to-r from-blue-400 to-cyan-400 text-transparent bg-clip-text">
-                PIXELTEC
+                PixelTEC
               </span>
             </h1>
             <p className="text-lg md:text-xl text-muted-foreground dark:text-zinc-400 leading-relaxed">
-              Tecnólogos con experiencia resolviendo problemas reales de negocio.
+              Un arquitecto líder al frente de cada proyecto y una red de especialistas que se
+              integra según lo que ese proyecto necesita.
             </p>
           </header>
 
@@ -45,7 +46,7 @@ export default function EquipoPage() {
               <div className="relative w-32 h-32 md:w-40 md:h-40 rounded-2xl overflow-hidden border border-border dark:border-white/10 flex-shrink-0">
                 <Image
                   src={miguelPhoto}
-                  alt="Miguel Robles Sánchez — Founder PIXELTEC"
+                  alt="Miguel Robles Sánchez — Founder PixelTEC"
                   fill
                   className="object-cover object-top"
                   data-ai-hint="man portrait professional"
@@ -94,7 +95,7 @@ export default function EquipoPage() {
                 <h2 className="text-lg font-bold text-foreground dark:text-white">Red de colaboradores</h2>
               </div>
               <p className="text-muted-foreground dark:text-zinc-400 text-sm leading-relaxed">
-                PIXELTEC opera con una red extendida de especialistas en diseño, QA,
+                PixelTEC opera con una red extendida de especialistas en diseño, QA,
                 infraestructura y branding que se integran por proyecto según las necesidades
                 técnicas. Esto nos permite escalar capacidad sin sacrificar calidad ni
                 comprometer los plazos.

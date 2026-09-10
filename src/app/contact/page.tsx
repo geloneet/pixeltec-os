@@ -109,7 +109,7 @@ export default function ContactPage() {
                 Iniciemos la <span className="text-brand">Transformación</span>
             </h1>
             <p className="mx-auto mt-6 max-w-3xl text-lg text-muted-foreground md:text-xl leading-relaxed">
-                Cuéntanos sobre tu desafío operativo o proyecto tecnológico. Nuestro equipo en Puerto Vallarta está listo para diseñar tu próxima solución escalable.
+                Cuéntanos sobre tu desafío operativo o proyecto tecnológico. Desde Puerto Vallarta diseñamos tu próxima solución escalable.
             </p>
         </motion.div>
 

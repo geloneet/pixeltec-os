@@ -80,7 +80,7 @@ export default function AboutPage() {
                   PixelTEC, liderada por <span className="font-semibold text-foreground dark:text-white">Miguel Robles</span>, nació para cerrar la brecha entre la estrategia de negocio y la ejecución tecnológica. Entendemos que el código es una herramienta poderosa, pero su verdadero valor se desbloquea cuando se alinea con objetivos comerciales claros.
                 </p>
                 <p className="mt-4 text-lg leading-relaxed text-muted-foreground dark:text-white/60">
-                  Somos un equipo híbrido de consultores y desarrolladores que no solo construye software, sino que diseña ecosistemas digitales que impulsan el crecimiento y la eficiencia.
+                  Cada proyecto lo dirige un arquitecto líder y se apoya en una red de especialistas —diseño, QA, infraestructura, branding— que se integra según lo que ese proyecto exige. No solo construimos software: diseñamos ecosistemas digitales que impulsan el crecimiento y la eficiencia.
                 </p>
               </div>
             </div>
