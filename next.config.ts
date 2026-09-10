@@ -3,6 +3,8 @@ import path from 'path';
 
 const nextConfig: NextConfig = {
   output: 'standalone',
+  // PRV-03 (WO-2026-00268): no anunciar el framework en `X-Powered-By`.
+  poweredByHeader: false,
   turbopack: {
     root: path.resolve(__dirname),
   },
@@ -69,6 +71,28 @@ const nextConfig: NextConfig = {
           { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
         ],
       }] : []),
+      {
+        // REN-05 (WO-2026-00268): los estáticos de `public/` no llevan hash en
+        // el nombre, así que no pueden ser `immutable`; un día de caché con una
+        // semana de `stale-while-revalidate` les quita el revalidado en cada
+        // visita sin dejarlos pegados si se reemplaza el archivo.
+        source: '/:asset(og-image.png|ptlogox.png|fotodeperfil.jpg)',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=86400, stale-while-revalidate=604800' },
+        ],
+      },
+      {
+        source: '/images/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=86400, stale-while-revalidate=604800' },
+        ],
+      },
+      {
+        source: '/og/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=86400, stale-while-revalidate=604800' },
+        ],
+      },
       {
         source: '/(.*)',
         headers: [
