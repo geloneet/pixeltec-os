@@ -123,10 +123,14 @@ function AnimatedContainer({ className, delay = 0.1, children }: ViewAnimationPr
 		return <div className={className}>{children}</div>;
 	}
 
+	// REN-01 (WO-2026-00268): antes el footer entero salía del servidor con
+	// `opacity: 0` y `filter: blur(4px)`. El blur, además, fuerza una capa de
+	// composición para todo el subárbol en cada scroll. Sólo se anima
+	// `translateY`: legible sin JS, sin CLS y sin repintados caros.
 	return (
 		<motion.div
-			initial={{ filter: 'blur(4px)', translateY: -8, opacity: 0 }}
-			whileInView={{ filter: 'blur(0px)', translateY: 0, opacity: 1 }}
+			initial={{ translateY: -8 }}
+			whileInView={{ translateY: 0 }}
 			viewport={{ once: true }}
 			transition={{ delay, duration: 0.8 }}
 			className={className}

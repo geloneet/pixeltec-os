@@ -79,8 +79,8 @@ export default function ContactPage() {
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-16 sm:pt-40 sm:pb-24">
         {/* Header */}
         <motion.div 
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ y: -20 }}
+            animate={{ y: 0 }}
             transition={{ duration: 0.8, ease: 'easeOut' }}
             className="text-center mb-12 md:mb-16"
         >
@@ -97,8 +97,8 @@ export default function ContactPage() {
             
             {/* Left Column */}
             <motion.div 
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
+                initial={{ x: -20 }}
+                animate={{ x: 0 }}
                 transition={{ duration: 0.8, ease: 'easeOut', delay: 0.2 }}
                 className="lg:col-span-2 flex flex-col justify-between"
             >
@@ -136,8 +136,8 @@ export default function ContactPage() {
 
             {/* Right Column */}
             <motion.div 
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
+                initial={{ x: 20 }}
+                animate={{ x: 0 }}
                 transition={{ duration: 0.8, ease: 'easeOut', delay: 0.4 }}
                 className="lg:col-span-3 bg-card/80 border border-border rounded-2xl p-8 md:p-12 backdrop-blur-lg shadow-[0_18px_60px_-30px_rgba(33,150,243,0.25)] dark:bg-[#0A0A0A]/80 dark:shadow-[0_0_40px_rgba(0,240,255,0.05)]"
             >

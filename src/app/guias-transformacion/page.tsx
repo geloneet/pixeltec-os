@@ -50,8 +50,8 @@ export default function GuiasTransformacionPage() {
             {guidesData.map((guide, index) => (
               <motion.div
                 key={guide.id}
-                initial={{ opacity: 0, y: 40 }}
-                animate={{ opacity: 1, y: 0 }}
+                initial={{ y: 40 }}
+                animate={{ y: 0 }}
                 transition={{ duration: 0.5, delay: index * 0.2 }}
                 className="group relative bg-card dark:bg-[#0A0A0A] border border-border dark:border-white/5 rounded-2xl md:rounded-3xl p-8 flex flex-col justify-between aspect-[3/4] overflow-hidden hover:border-primary/50 dark:hover:border-cyan-500/50 hover:shadow-[0_12px_36px_-12px_rgba(33,150,243,0.35)] dark:hover:shadow-[0_0_40px_rgba(0,240,255,0.15)] hover:-translate-y-2 md:hover:-translate-y-3 transition-all duration-500"
               >

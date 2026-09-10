@@ -8,10 +8,13 @@ import { TechStackMarquee } from '@/components/ui/tech-stack-marquee';
 import Link from 'next/link';
 
 // Animation for main sections
+// REN-01 (WO-2026-00268): el scroll-reveal anima SOLO transform. Con
+// `opacity: 0` en el estado inicial, todo este contenido salía invisible del
+// servidor y no aparecía nunca si framer-motion no hidrataba (JS lento o
+// bloqueado); los rastreadores que no ejecutan JS veían la página en blanco.
 const sectionVariants = {
-  hidden: { opacity: 0, y: 50 },
+  hidden: { y: 50 },
   visible: { 
-    opacity: 1, 
     y: 0,
     transition: { duration: 0.8, ease: 'easeOut' }
   },
@@ -19,9 +22,8 @@ const sectionVariants = {
 
 // Animation for staggered grid items
 const cardVariants = {
-    hidden: { opacity: 0, y: 20 },
+    hidden: { y: 20 },
     visible: (i: number) => ({
-        opacity: 1,
         y: 0,
         transition: {
             delay: i * 0.15,

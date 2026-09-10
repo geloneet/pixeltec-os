@@ -196,10 +196,13 @@ const servicesData = [
     },
 ];
 
+// REN-01 (WO-2026-00268): el scroll-reveal anima SOLO transform. Con
+// `opacity: 0` en el estado inicial, todo este contenido salía invisible del
+// servidor y no aparecía nunca si framer-motion no hidrataba (JS lento o
+// bloqueado); los rastreadores que no ejecutan JS veían la página en blanco.
 const sectionVariants = {
-  hidden: { opacity: 0, y: 20 },
+  hidden: { y: 20 },
   visible: (i: number = 0) => ({
-    opacity: 1,
     y: 0,
     transition: {
       delay: i * 0.2,
