@@ -36,7 +36,7 @@ export function PixelbotWorkflow() {
               <li key={step.title} className="relative ps-8 sm:ps-10 pb-10 last:pb-0">
                 <span
                   aria-hidden="true"
-                  className="absolute -start-[13px] top-0.5 flex h-6 w-6 items-center justify-center rounded-full border-2 border-primary/60 bg-background text-[11px] font-bold text-primary dark:border-cyan-500/60 dark:text-cyan-400"
+                  className="absolute -start-[13px] top-0.5 flex h-6 w-6 items-center justify-center rounded-full border-2 border-primary/60 bg-background text-[11px] font-bold text-brand dark:border-cyan-500/60"
                 >
                   {index + 1}
                 </span>

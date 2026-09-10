@@ -28,7 +28,7 @@ export function PixelbotPricing() {
               key={pkg.id}
               className={
                 pkg.badge
-                  ? 'relative flex flex-col rounded-2xl border-2 border-primary dark:border-cyan-500 bg-card p-6 shadow-sm dark:shadow-[0_0_40px_rgba(34,211,238,0.08)]'
+                  ? 'relative flex flex-col rounded-2xl border-2 border-primary dark:border-cyan-500 bg-card p-6 shadow-[0_12px_40px_-16px_rgba(33,150,243,0.18)] dark:shadow-[0_0_40px_rgba(34,211,238,0.08)]'
                   : 'relative flex flex-col rounded-2xl border border-border bg-card p-6'
               }
             >
@@ -53,7 +53,7 @@ export function PixelbotPricing() {
                 {pkg.includes.map((item) => (
                   <li key={item} className="flex items-start gap-2 text-sm text-foreground/80">
                     <CheckCircle2
-                      className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary dark:text-cyan-400"
+                      className="mt-0.5 h-4 w-4 flex-shrink-0 text-brand"
                       aria-hidden="true"
                     />
                     <span>{item}</span>

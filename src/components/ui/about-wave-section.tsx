@@ -17,7 +17,7 @@ export function AboutWaveSection() {
         <div className="md:col-span-7 text-center md:text-left">
           <h2 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-semibold text-foreground leading-[1.1] tracking-tight">
             Arquitectos de tu transformación con <br className="hidden md:block" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-500 to-blue-500">
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand to-cyan-700 dark:from-cyan-500 dark:to-blue-500">
               PIXELTEC
             </span>
           </h2>

@@ -31,9 +31,12 @@ export function ThemeProvider({ children, nonce }: { children: React.ReactNode; 
     <NextThemesProvider
       attribute="class"
       defaultTheme="dark"
-      forcedTheme="dark"
       enableSystem={false}
       disableTransitionOnChange
+      // Clave nueva a propósito: la anterior ("theme") puede tener guardado un
+      // `light` de julio de 2026, cuando el toggle existió unos días. Estrenar
+      // storageKey garantiza que todo el mundo arranca en oscuro.
+      storageKey="pt-theme"
       nonce={nonce}
     >
       <ThemeColorSync />

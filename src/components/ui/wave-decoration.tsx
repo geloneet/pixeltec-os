@@ -49,14 +49,14 @@ export function WaveDecoration() {
         ))}
         <defs>
           <linearGradient id="paint0_linear_intense" x1="0" y1="250" x2="1440" y2="250" gradientUnits="userSpaceOnUse">
-            <stop stopColor="#00F0FF" stopOpacity="0" />
-            <stop offset="0.5" stopColor="#00F0FF" stopOpacity="0.7" />
-            <stop offset="1" stopColor="#00F0FF" stopOpacity="0" />
+            <stop stopColor="var(--wave-a)" stopOpacity="0" />
+            <stop offset="0.5" stopColor="var(--wave-a)" stopOpacity="0.7" />
+            <stop offset="1" stopColor="var(--wave-a)" stopOpacity="0" />
           </linearGradient>
           <linearGradient id="paint1_linear_intense" x1="0" y1="250" x2="1440" y2="250" gradientUnits="userSpaceOnUse">
-            <stop stopColor="#3b82f6" stopOpacity="0" />
-            <stop offset="0.5" stopColor="#00F0FF" stopOpacity="1" />
-            <stop offset="1" stopColor="#3b82f6" stopOpacity="0" />
+            <stop stopColor="var(--wave-b)" stopOpacity="0" />
+            <stop offset="0.5" stopColor="var(--wave-a)" stopOpacity="1" />
+            <stop offset="1" stopColor="var(--wave-b)" stopOpacity="0" />
           </linearGradient>
         </defs>
       </svg>

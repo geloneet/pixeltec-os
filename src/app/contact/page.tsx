@@ -85,7 +85,7 @@ export default function ContactPage() {
             className="text-center mb-12 md:mb-16"
         >
             <h1 className="text-4xl font-extrabold tracking-tight text-foreground sm:text-5xl md:text-6xl lg:text-7xl">
-                Iniciemos la <span className="text-brand-blue">Transformación</span>
+                Iniciemos la <span className="text-brand">Transformación</span>
             </h1>
             <p className="mx-auto mt-6 max-w-3xl text-lg text-muted-foreground md:text-xl leading-relaxed">
                 Cuéntanos sobre tu desafío operativo o proyecto tecnológico. Nuestro equipo en Puerto Vallarta está listo para diseñar tu próxima solución escalable.
@@ -107,7 +107,7 @@ export default function ContactPage() {
                         email="contacto@pixeltec.mx"
                         className="block bg-card border border-border p-6 rounded-2xl backdrop-blur-md hover:border-brand-blue/30 transition-colors duration-300 flex items-center gap-6"
                     >
-                        <Mail className="h-8 w-8 text-brand-blue" />
+                        <Mail className="h-8 w-8 text-brand" />
                         <div>
                             <h3 className="font-semibold text-foreground">Email</h3>
                             <p className="text-muted-foreground">contacto@pixeltec.mx</p>
@@ -121,7 +121,7 @@ export default function ContactPage() {
                             target={item.href.startsWith('http') ? '_blank' : undefined}
                             rel={item.href.startsWith('http') ? 'noopener noreferrer' : undefined}
                         >
-                            <item.icon className="h-8 w-8 text-brand-blue" />
+                            <item.icon className="h-8 w-8 text-brand" />
                             <div>
                                 <h3 className="font-semibold text-foreground">{item.title}</h3>
                                 <p className="text-muted-foreground">{item.value}</p>
@@ -139,7 +139,7 @@ export default function ContactPage() {
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.8, ease: 'easeOut', delay: 0.4 }}
-                className="lg:col-span-3 bg-card/80 border border-border rounded-2xl p-8 md:p-12 backdrop-blur-lg shadow-sm dark:bg-[#0A0A0A]/80 dark:shadow-[0_0_40px_rgba(0,240,255,0.05)]"
+                className="lg:col-span-3 bg-card/80 border border-border rounded-2xl p-8 md:p-12 backdrop-blur-lg shadow-[0_18px_60px_-30px_rgba(33,150,243,0.25)] dark:bg-[#0A0A0A]/80 dark:shadow-[0_0_40px_rgba(0,240,255,0.05)]"
             >
                 <form ref={formRef} action={formAction} className="space-y-6">
                     {/* WO-2026-00214: une el lead con su rastro de contenido. */}
@@ -182,7 +182,7 @@ export default function ContactPage() {
                           id="contact-consent"
                           checked={consent}
                           onCheckedChange={(checked) => setConsent(Boolean(checked))}
-                          className="mt-0.5 border-border data-[state=checked]:bg-cyan-500 data-[state=checked]:border-cyan-500"
+                          className="mt-0.5 border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary dark:data-[state=checked]:bg-cyan-500 dark:data-[state=checked]:border-cyan-500"
                         />
                         <Label htmlFor="contact-consent" className="text-sm text-muted-foreground leading-relaxed cursor-pointer">
                           He leído y acepto el{' '}
@@ -190,7 +190,7 @@ export default function ContactPage() {
                             href="/aviso-de-privacidad"
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-primary dark:text-cyan-400 hover:underline"
+                            className="text-brand hover:underline"
                           >
                             Aviso de Privacidad
                           </Link>

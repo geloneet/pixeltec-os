@@ -17,19 +17,19 @@ export function StepWelcome({
   return (
     <div className="flex flex-col items-center text-center gap-6 py-4">
       {!hideHeading && (
-        <p className="text-xs font-semibold text-zinc-500 uppercase tracking-[0.2em]">PixelTEC</p>
+        <p className="text-xs font-semibold text-muted-foreground dark:text-zinc-500 uppercase tracking-[0.2em]">PixelTEC</p>
       )}
       <div>
         {!hideHeading && (
-          <h2 className="text-2xl md:text-3xl font-bold text-white mb-3">
+          <h2 className="text-2xl md:text-3xl font-bold text-foreground dark:text-white mb-3">
             Comencemos con un{' '}
-            <span className="bg-gradient-to-r from-blue-400 to-cyan-400 text-transparent bg-clip-text">
+            <span className="bg-gradient-to-r from-brand to-cyan-700 dark:from-blue-400 dark:to-cyan-400 text-transparent bg-clip-text">
               diagnóstico
             </span>{' '}
             de tu empresa.
           </h2>
         )}
-        <p className="text-zinc-400 text-sm md:text-base leading-relaxed max-w-md mx-auto">
+        <p className="text-muted-foreground dark:text-zinc-400 text-sm md:text-base leading-relaxed max-w-md mx-auto">
           En menos de 3 minutos analizaremos tu situación actual y prepararemos una sesión mucho más productiva.
         </p>
       </div>

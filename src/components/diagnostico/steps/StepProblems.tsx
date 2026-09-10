@@ -14,8 +14,8 @@ export function StepProblems({ answers, update, onNext }: StepProps) {
 
   return (
     <div>
-      <h2 className="text-xl md:text-2xl font-bold text-white mb-1">¿Cuál es tu principal problema?</h2>
-      <p className="text-zinc-500 text-sm mb-6">Selecciona todos los que apliquen.</p>
+      <h2 className="text-xl md:text-2xl font-bold text-foreground dark:text-white mb-1">¿Cuál es tu principal problema?</h2>
+      <p className="text-muted-foreground dark:text-zinc-500 text-sm mb-6">Selecciona todos los que apliquen.</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
         {PROBLEMS.map((problem) => {
           const selected = answers.problems.includes(problem.value);
@@ -27,14 +27,16 @@ export function StepProblems({ answers, update, onNext }: StepProps) {
               className={cn(
                 'flex items-center gap-3 rounded-xl border px-4 py-3.5 text-left text-sm font-medium transition-colors duration-200',
                 selected
-                  ? 'border-cyan-500/60 bg-cyan-500/10 text-cyan-300'
-                  : 'border-white/5 bg-[#0A0A0A] text-zinc-300 hover:border-white/15'
+                  ? 'border-primary/60 bg-primary/10 text-brand dark:border-cyan-500/60 dark:bg-cyan-500/10 dark:text-cyan-300'
+                  : 'border-border bg-card text-foreground/85 hover:border-primary/40 dark:border-white/5 dark:bg-[#0A0A0A] dark:text-zinc-300 dark:hover:border-white/15'
               )}
             >
               <span
                 className={cn(
                   'flex h-5 w-5 shrink-0 items-center justify-center rounded-md border',
-                  selected ? 'border-cyan-400 bg-cyan-500/80' : 'border-zinc-600'
+                  selected
+                    ? 'border-primary bg-primary dark:border-cyan-400 dark:bg-cyan-500/80'
+                    : 'border-border dark:border-zinc-600'
                 )}
               >
                 {selected && <Check className="h-3.5 w-3.5 text-white" />}

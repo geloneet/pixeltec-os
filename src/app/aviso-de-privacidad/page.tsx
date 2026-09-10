@@ -49,7 +49,7 @@ export default function AvisoDePrivacidadPage() {
 
 
   return (
-    <div className="bg-[#030303] text-white">
+    <div className="bg-background dark:bg-[#030303] text-foreground dark:text-white">
       <Header />
       <motion.main 
         initial={{ opacity: 0, y: 10 }}
@@ -58,11 +58,11 @@ export default function AvisoDePrivacidadPage() {
         className="container mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-16 sm:pt-40 sm:pb-24"
       >
         {/* Hero */}
-        <div className="max-w-5xl mx-auto mb-12 md:mb-16 pb-8 border-b border-white/10">
-          <h1 className="text-4xl font-extrabold tracking-tight text-white sm:text-5xl">
+        <div className="max-w-5xl mx-auto mb-12 md:mb-16 pb-8 border-b border-border dark:border-white/10">
+          <h1 className="text-4xl font-extrabold tracking-tight text-foreground dark:text-white sm:text-5xl">
             Aviso de Privacidad
           </h1>
-          <p className="mt-4 text-lg text-zinc-400">
+          <p className="mt-4 text-lg text-muted-foreground dark:text-zinc-400">
             Última actualización: 7 de mayo de 2026
           </p>
         </div>
@@ -79,8 +79,8 @@ export default function AvisoDePrivacidadPage() {
                       className={cn(
                         'block text-sm font-medium transition-colors',
                         activeSection === section.id
-                          ? 'text-cyan-400'
-                          : 'text-zinc-500 hover:text-white'
+                          ? 'text-brand'
+                          : 'text-muted-foreground dark:text-zinc-500 hover:text-foreground dark:hover:text-white'
                       )}
                     >
                       {section.title}
@@ -92,25 +92,25 @@ export default function AvisoDePrivacidadPage() {
           </aside>
 
           {/* Right Column (Content) */}
-          <article className="prose prose-invert prose-lg max-w-3xl w-full text-zinc-400 leading-relaxed text-base">
+          <article className="prose dark:prose-invert prose-lg max-w-3xl w-full text-muted-foreground dark:text-zinc-400 leading-relaxed text-base">
             <section id="responsable" className="space-y-4 scroll-mt-32">
-              <h2 className="text-2xl font-bold text-white">1. Identidad y Domicilio del Responsable</h2>
+              <h2 className="text-2xl font-bold text-foreground dark:text-white">1. Identidad y Domicilio del Responsable</h2>
               <p>De conformidad con la Ley Federal de Protección de Datos Personales en Posesión de los Particulares (&quot;LFPDPPP&quot;), PixelTEC (&quot;El Responsable&quot;), con domicilio en Puerto Vallarta, Jalisco, México, es responsable del tratamiento de sus datos personales.</p>
             </section>
 
             <section id="datos" className="space-y-4 mt-12 scroll-mt-32">
-              <h2 className="text-2xl font-bold text-white">2. Datos Personales que Recabamos</h2>
+              <h2 className="text-2xl font-bold text-foreground dark:text-white">2. Datos Personales que Recabamos</h2>
               <p>Para la prestación de nuestros servicios de consultoría, desarrollo de software y automatización, podemos recabar los siguientes datos personales:</p>
               <ul className="list-disc pl-5">
-                <li><strong className="text-white/80">Datos de Identificación:</strong> Nombre, correo electrónico, número de teléfono.</li>
-                <li><strong className="text-white/80">Datos Laborales:</strong> Empresa para la que trabaja, puesto.</li>
-                <li><strong className="text-white/80">Datos de Facturación:</strong> Razón social, Registro Federal de Contribuyentes (RFC), domicilio fiscal.</li>
-                <li><strong className="text-white/80">Datos Técnicos:</strong> Para el desarrollo de proyectos, podemos tener acceso a información de sistemas, credenciales de APIs o bases de datos, siempre bajo estrictos acuerdos de confidencialidad.</li>
+                <li><strong className="text-foreground/85 dark:text-white/80">Datos de Identificación:</strong> Nombre, correo electrónico, número de teléfono.</li>
+                <li><strong className="text-foreground/85 dark:text-white/80">Datos Laborales:</strong> Empresa para la que trabaja, puesto.</li>
+                <li><strong className="text-foreground/85 dark:text-white/80">Datos de Facturación:</strong> Razón social, Registro Federal de Contribuyentes (RFC), domicilio fiscal.</li>
+                <li><strong className="text-foreground/85 dark:text-white/80">Datos Técnicos:</strong> Para el desarrollo de proyectos, podemos tener acceso a información de sistemas, credenciales de APIs o bases de datos, siempre bajo estrictos acuerdos de confidencialidad.</li>
               </ul>
             </section>
             
             <section id="finalidades" className="space-y-4 mt-12 scroll-mt-32">
-                <h2 className="text-2xl font-bold text-white">3. Finalidades del Tratamiento de Datos</h2>
+                <h2 className="text-2xl font-bold text-foreground dark:text-white">3. Finalidades del Tratamiento de Datos</h2>
                 <p>Sus datos personales serán utilizados para las siguientes finalidades primarias, necesarias para el servicio solicitado:</p>
                  <ul className="list-disc pl-5">
                     <li>Proveer los servicios de consultoría, desarrollo de software y automatización.</li>
@@ -122,29 +122,29 @@ export default function AvisoDePrivacidadPage() {
             </section>
             
             <section id="transferencia" className="space-y-4 mt-12 scroll-mt-32">
-                <h2 className="text-2xl font-bold text-white">4. Transferencia de Datos Personales</h2>
+                <h2 className="text-2xl font-bold text-foreground dark:text-white">4. Transferencia de Datos Personales</h2>
                 <p>PixelTEC no vende, cede ni transfiere sus datos personales a terceros con fines de lucro. Sus datos podrán ser compartidos con los siguientes proveedores de servicios tecnológicos, únicamente cuando sea estrictamente necesario para la operación y mantenimiento de los servicios, con base legal en el artículo 37 de la LFPDPPP:</p>
                 <ul className="list-disc pl-5">
-                  <li><strong className="text-white/80">OVH SAS</strong> (Francia) — hospedaje e infraestructura del servidor</li>
-                  <li><strong className="text-white/80">Google LLC / Firebase</strong> (Estados Unidos) — almacenamiento de datos y base de datos</li>
-                  <li><strong className="text-white/80">Resend, Inc.</strong> (Estados Unidos) — envío de correos electrónicos transaccionales</li>
+                  <li><strong className="text-foreground/85 dark:text-white/80">OVH SAS</strong> (Francia) — hospedaje e infraestructura del servidor</li>
+                  <li><strong className="text-foreground/85 dark:text-white/80">Google LLC / Firebase</strong> (Estados Unidos) — almacenamiento de datos y base de datos</li>
+                  <li><strong className="text-foreground/85 dark:text-white/80">Resend, Inc.</strong> (Estados Unidos) — envío de correos electrónicos transaccionales</li>
                   {/* BORRADOR WO-2026-00214 — PENDIENTE DE REVISIÓN LEGAL.
                       Meta ya recibe datos de navegación de este sitio (el Pixel
                       lleva en producción desde antes de este WO) y no figuraba
                       en esta lista. La omisión existe hoy; este WO la señala,
                       no la introduce. */}
-                  <li><strong className="text-white/80">Meta Platforms, Inc.</strong> (Estados Unidos) — medición de audiencia y publicidad mediante el píxel de Meta (Facebook Pixel) instalado en las páginas públicas de este sitio. Recibe datos de navegación (páginas vistas, dirección IP y el identificador de cookie que Meta asigna a su navegador), no los datos que usted escribe en nuestros formularios.</li>
+                  <li><strong className="text-foreground/85 dark:text-white/80">Meta Platforms, Inc.</strong> (Estados Unidos) — medición de audiencia y publicidad mediante el píxel de Meta (Facebook Pixel) instalado en las páginas públicas de este sitio. Recibe datos de navegación (páginas vistas, dirección IP y el identificador de cookie que Meta asigna a su navegador), no los datos que usted escribe en nuestros formularios.</li>
                 </ul>
             </section>
 
             <section id="derechos-arco" className="space-y-4 mt-12 scroll-mt-32">
-              <h2 className="text-2xl font-bold text-white">5. Derechos ARCO</h2>
+              <h2 className="text-2xl font-bold text-foreground dark:text-white">5. Derechos ARCO</h2>
               <p>Usted tiene derecho a conocer qué datos personales tenemos de usted, para qué los utilizamos y las condiciones del uso que les damos (Acceso). Asimismo, es su derecho solicitar la corrección de su información personal en caso de que esté desactualizada, sea inexacta o incompleta (Rectificación); que la eliminemos de nuestros registros cuando considere que no está siendo utilizada adecuadamente (Cancelación); así como oponerse al uso de sus datos para fines específicos (Oposición). Estos derechos se conocen como derechos ARCO.</p>
-              <p>Para el ejercicio de cualquiera de los derechos ARCO, usted deberá presentar la solicitud respectiva a través de un correo electrónico a <ObfuscatedMailto email="contacto@pixeltec.mx" className="text-cyan-400 hover:underline" />.</p>
+              <p>Para el ejercicio de cualquiera de los derechos ARCO, usted deberá presentar la solicitud respectiva a través de un correo electrónico a <ObfuscatedMailto email="contacto@pixeltec.mx" className="text-brand hover:underline" />.</p>
             </section>
             
             <section id="cookies" className="space-y-4 mt-12 scroll-mt-32">
-              <h2 className="text-2xl font-bold text-white">6. Uso de Cookies y Tecnologías de Rastreo</h2>
+              <h2 className="text-2xl font-bold text-foreground dark:text-white">6. Uso de Cookies y Tecnologías de Rastreo</h2>
               <p>Nuestro sitio web utiliza cookies y otras tecnologías de rastreo con el fin de mejorar la experiencia del usuario y analizar el tráfico del sitio. Utilizamos cookies técnicas, funcionales y analíticas. Usted puede gestionar sus preferencias de cookies a través de la configuración de su navegador.</p>
               {/* BORRADOR WO-2026-00214 — PENDIENTE DE REVISIÓN LEGAL.
                   Describe la cookie `pt_attr` y la medición first-party de
@@ -152,20 +152,20 @@ export default function AvisoDePrivacidadPage() {
               <p>En particular, utilizamos las siguientes tecnologías propias (no de terceros):</p>
               <ul className="list-disc pl-5">
                 <li>
-                  <strong className="text-white/80">Cookie <code>pt_attr</code> (atribución).</strong> Cookie propia con
+                  <strong className="text-foreground/85 dark:text-white/80">Cookie <code>pt_attr</code> (atribución).</strong> Cookie propia con
                   una vigencia de 90 días. Guarda de qué página de nuestro sitio llegó usted la
                   primera vez, el dominio del sitio que lo refirió (por ejemplo,{' '}
                   <em>www.google.com</em>) y, si existen, los parámetros de campaña de la dirección
                   (<em>utm_source</em>, <em>utm_medium</em>, <em>utm_campaign</em>). Su finalidad es
-                  saber qué contenido nuestro resulta útil. <strong className="text-white/80">No contiene datos
+                  saber qué contenido nuestro resulta útil. <strong className="text-foreground/85 dark:text-white/80">No contiene datos
                   personales</strong>: no guarda su nombre, correo, teléfono, dirección IP ni el
                   contenido de los formularios que envía.
                 </li>
                 <li>
-                  <strong className="text-white/80">Medición propia de lectura.</strong> Registramos en nuestros
+                  <strong className="text-foreground/85 dark:text-white/80">Medición propia de lectura.</strong> Registramos en nuestros
                   propios servidores qué páginas de contenido se visitan, hasta qué punto se
                   desplazan y qué botones de llamada a la acción se pulsan. Cada visita se agrupa
-                  bajo un identificador aleatorio que <strong className="text-white/80">se borra al cerrar la
+                  bajo un identificador aleatorio que <strong className="text-foreground/85 dark:text-white/80">se borra al cerrar la
                   pestaña</strong> del navegador y que no permite identificarlo a usted. No se emplean
                   cookies de terceros para esta medición y no se guarda su dirección IP: únicamente
                   una versión cifrada e irreversible de ella, y solo para prevenir abusos.
@@ -174,15 +174,15 @@ export default function AvisoDePrivacidadPage() {
             </section>
             
             <section id="cambios" className="space-y-4 mt-12 scroll-mt-32">
-                <h2 className="text-2xl font-bold text-white">7. Modificaciones al Aviso de Privacidad</h2>
+                <h2 className="text-2xl font-bold text-foreground dark:text-white">7. Modificaciones al Aviso de Privacidad</h2>
                 <p>El presente aviso de privacidad puede sufrir modificaciones, cambios o actualizaciones derivadas de nuevos requerimientos legales o de nuestras propias necesidades. Nos comprometemos a mantenerlo informado sobre los cambios que pueda sufrir el presente aviso de privacidad, a través de nuestro sitio web.</p>
-                <p>Para contactar a PixelTEC en relación con este aviso, por favor diríjase a <Link href="/contact" className="text-cyan-400 hover:underline">nuestra página de contacto</Link>.</p>
+                <p>Para contactar a PixelTEC en relación con este aviso, por favor diríjase a <Link href="/contact" className="text-brand hover:underline">nuestra página de contacto</Link>.</p>
             </section>
             <div className="mt-12 rounded-lg border border-amber-500/30 bg-amber-500/5 p-6 space-y-2">
-              <p className="text-sm font-semibold text-amber-400">Aviso en actualización</p>
-              <p className="text-sm text-zinc-400">
+              <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">Aviso en actualización</p>
+              <p className="text-sm text-muted-foreground dark:text-zinc-400">
                 Este aviso de privacidad se encuentra en proceso de actualización integral. Si requieres información específica sobre el tratamiento de tus datos, escribe a{' '}
-                <ObfuscatedMailto email="contacto@pixeltec.mx" className="text-cyan-400 hover:underline" />.
+                <ObfuscatedMailto email="contacto@pixeltec.mx" className="text-brand hover:underline" />.
               </p>
             </div>
           </article>

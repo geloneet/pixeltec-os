@@ -45,7 +45,7 @@ export function PixelbotConversationDemo() {
   return (
     <div aria-label="Demostración de una conversación atendida por WhatsAgent, con datos de ejemplo" className="relative w-full max-w-xl mx-auto lg:mx-0">
       {/* Hilo de conversación */}
-      <div className="rounded-2xl border border-border bg-card/90 dark:bg-[#0A0A0A]/90 backdrop-blur-sm p-4 sm:p-5 shadow-sm dark:shadow-[0_0_50px_rgba(33,150,243,0.07)]">
+      <div className="rounded-2xl border border-border bg-card/90 dark:bg-[#0A0A0A]/90 backdrop-blur-sm p-4 sm:p-5 shadow-[0_12px_40px_-16px_rgba(33,150,243,0.18)] dark:shadow-[0_0_50px_rgba(33,150,243,0.07)]">
         <div className="flex items-center justify-between border-b border-border pb-3 mb-4">
           <div className="flex items-center gap-2">
             <span className="relative flex h-2.5 w-2.5">
@@ -54,7 +54,7 @@ export function PixelbotConversationDemo() {
             </span>
             <p className="text-sm font-semibold text-foreground">WhatsApp del negocio</p>
           </div>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary dark:border-cyan-500/30 dark:bg-cyan-500/10 dark:text-cyan-400">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-xs font-medium text-brand dark:border-cyan-500/30 dark:bg-cyan-500/10">
             <Bot className="h-3.5 w-3.5" aria-hidden="true" />
             Bot respondiendo
           </span>
@@ -77,7 +77,7 @@ export function PixelbotConversationDemo() {
                   }
                 >
                   {bubble.from === 'bot' && (
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-primary dark:text-cyan-400 mb-0.5">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-brand mb-0.5">
                       WhatsAgent
                     </p>
                   )}
@@ -103,7 +103,7 @@ export function PixelbotConversationDemo() {
               key={item.label}
               className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/50 dark:bg-white/5 px-3 py-1"
             >
-              <Check className="h-3 w-3 text-primary dark:text-cyan-400" aria-hidden="true" />
+              <Check className="h-3 w-3 text-brand" aria-hidden="true" />
               <dt className="text-xs text-muted-foreground">{item.label}:</dt>
               <dd className="text-xs font-medium text-foreground">{item.value}</dd>
             </div>

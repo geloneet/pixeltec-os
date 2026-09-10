@@ -168,9 +168,9 @@ export default function KeywordLandingPage({ landing }: { landing: KeywordLandin
           animate="visible"
           custom={1}
           variants={sectionVariants}
-          className="mb-16 rounded-2xl border border-border bg-card p-8 md:p-12 shadow-sm dark:shadow-[0_0_40px_rgba(0,240,255,0.05)]"
+          className="mb-16 rounded-2xl border border-border bg-card p-8 md:p-12 shadow-[0_12px_40px_-16px_rgba(33,150,243,0.18)] dark:shadow-[0_0_40px_rgba(0,240,255,0.05)]"
         >
-          <p className="mb-3 text-sm font-semibold uppercase tracking-wide text-primary dark:text-cyan-400">
+          <p className="mb-3 text-sm font-semibold uppercase tracking-wide text-brand">
             {landing.city ? `${landing.city.name}, ${landing.city.region}` : hub.label}
           </p>
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-foreground">
@@ -221,7 +221,7 @@ export default function KeywordLandingPage({ landing }: { landing: KeywordLandin
                 </p>
                 <Link
                   href="/pixelbot"
-                  className="mt-4 sm:mt-0 inline-flex flex-shrink-0 items-center font-semibold text-primary dark:text-cyan-400 hover:underline"
+                  className="mt-4 sm:mt-0 inline-flex flex-shrink-0 items-center font-semibold text-brand hover:underline"
                 >
                   Conocer WhatsAgent →
                 </Link>
@@ -256,7 +256,7 @@ export default function KeywordLandingPage({ landing }: { landing: KeywordLandin
                   href={source.href}
                   target="_blank"
                   rel="noopener"
-                  className="inline-flex items-center font-medium text-primary dark:text-cyan-400 hover:underline"
+                  className="inline-flex items-center font-medium text-brand hover:underline"
                 >
                   Fuente: {source.label} →
                 </a>
@@ -284,7 +284,7 @@ export default function KeywordLandingPage({ landing }: { landing: KeywordLandin
                   key={useCase.title}
                   className="flex gap-4 sm:gap-6 rounded-xl border border-border/60 bg-card p-6 transition-all duration-300 hover:border-primary/20 dark:hover:border-cyan-500/20 hover:-translate-y-1"
                 >
-                  <div className="mt-1 text-primary dark:text-cyan-400 flex-shrink-0">
+                  <div className="mt-1 text-brand flex-shrink-0">
                     <Icon className="h-7 w-7 md:h-8 md:w-8" />
                   </div>
                   <div>
@@ -359,7 +359,7 @@ export default function KeywordLandingPage({ landing }: { landing: KeywordLandin
                 href={source.href}
                 target="_blank"
                 rel="noopener"
-                className="inline-flex items-center font-medium text-primary dark:text-cyan-400 hover:underline"
+                className="inline-flex items-center font-medium text-brand hover:underline"
               >
                 Fuente: {source.label} →
               </a>
@@ -373,7 +373,7 @@ export default function KeywordLandingPage({ landing }: { landing: KeywordLandin
           whileInView="visible"
           viewport={{ once: true, amount: 0.5 }}
           variants={sectionVariants}
-          className="mt-8 mb-8 md:mb-16 rounded-2xl bg-gradient-to-tr from-primary/5 via-card to-card border border-border py-12 md:py-16 px-6 text-center shadow-sm dark:from-cyan-950/50 dark:via-[#0A0A0A] dark:to-[#0A0A0A] dark:shadow-[0_0_40px_rgba(0,240,255,0.05)]"
+          className="mt-8 mb-8 md:mb-16 rounded-2xl bg-gradient-to-tr from-primary/5 via-card to-card border border-border py-12 md:py-16 px-6 text-center shadow-[0_12px_40px_-16px_rgba(33,150,243,0.18)] dark:from-cyan-950/50 dark:via-[#0A0A0A] dark:to-[#0A0A0A] dark:shadow-[0_0_40px_rgba(0,240,255,0.05)]"
         >
           <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-foreground">
             ¿Listo para {landing.ctaVerb}
@@ -412,7 +412,7 @@ export default function KeywordLandingPage({ landing }: { landing: KeywordLandin
                   href={`/${item.slug}`}
                   data-cta="related"
                   data-cta-pos="landing_related"
-                  className="rounded-full border border-primary/25 dark:border-cyan-500/25 bg-primary/5 dark:bg-cyan-500/5 px-4 py-2 text-sm font-medium text-primary dark:text-cyan-400 hover:bg-primary/10 dark:hover:bg-cyan-500/10 transition-colors"
+                  className="rounded-full border border-primary/25 dark:border-cyan-500/25 bg-primary/5 dark:bg-cyan-500/5 px-4 py-2 text-sm font-medium text-brand hover:bg-primary/10 dark:hover:bg-cyan-500/10 transition-colors"
                 >
                   {item.keyword}
                   {item.city ? ` en ${item.city.name}` : ''}

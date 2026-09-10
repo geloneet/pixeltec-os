@@ -36,15 +36,15 @@ export default function MermaidDiagram({ content }: { content: string }) {
 
   if (state === 'error') {
     return (
-      <div className="my-6 overflow-x-auto rounded-lg border border-red-500/20 bg-white/5 p-4">
-        <p className="mb-2 text-xs text-zinc-500">Diagrama no disponible</p>
-        <pre className="text-sm text-zinc-400">{content}</pre>
+      <div className="my-6 overflow-x-auto rounded-lg border border-red-500/20 bg-secondary/60 dark:bg-white/5 p-4">
+        <p className="mb-2 text-xs text-muted-foreground dark:text-zinc-500">Diagrama no disponible</p>
+        <pre className="text-sm text-muted-foreground dark:text-zinc-400">{content}</pre>
       </div>
     );
   }
 
   return (
-    <div className="my-6 overflow-x-auto rounded-lg border border-white/10 bg-white/5 p-4">
+    <div className="my-6 overflow-x-auto rounded-lg border border-border dark:border-white/10 bg-secondary/60 dark:bg-white/5 p-4">
       {state === 'loading' ? (
         <div className="flex items-center justify-center py-8">
           <Spinner size="md" className="text-blue-500" />

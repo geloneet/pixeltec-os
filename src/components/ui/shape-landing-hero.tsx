@@ -14,7 +14,7 @@ function ElegantShape({
     width = 400,
     height = 100,
     rotate = 0,
-    gradient = "dark:from-white/[0.08]",
+    gradient = "from-primary/[0.10] dark:from-white/[0.08]",
 }: {
     className?: string;
     delay?: number;
@@ -66,12 +66,14 @@ function ElegantShape({
                     className={cn(
                         "absolute inset-0 rounded-full",
                         "bg-gradient-to-r to-transparent",
-                        "from-primary/[0.06]",
+                        // El `from-*` va SOLO en `gradient` (claro + oscuro en la
+                        // misma prop): dos utilidades `from-*` con la misma
+                        // especificidad se pisaban de forma impredecible.
                         gradient,
-                        "backdrop-blur-[2px] border-2 border-primary/[0.08] dark:border-white/[0.15]",
-                        "shadow-[0_8px_24px_0_rgba(33,150,243,0.08)] dark:shadow-[0_8px_32px_0_rgba(255,255,255,0.1)]",
+                        "backdrop-blur-[2px] border-2 border-primary/[0.18] dark:border-white/[0.15]",
+                        "shadow-[0_12px_40px_-16px_rgba(33,150,243,0.18)] dark:shadow-[0_8px_32px_0_rgba(255,255,255,0.1)]",
                         "after:absolute after:inset-0 after:rounded-full",
-                        "after:bg-[radial-gradient(circle_at_50%_50%,rgba(33,150,243,0.10),transparent_70%)] dark:after:bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.2),transparent_70%)]"
+                        "after:bg-[radial-gradient(circle_at_50%_50%,rgba(33,150,243,0.14),transparent_70%)] dark:after:bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.2),transparent_70%)]"
                     )}
                 />
             </motion.div>
@@ -111,7 +113,7 @@ function HeroGeometric({
                     width={600}
                     height={140}
                     rotate={12}
-                    gradient="dark:from-cyan-500/[0.15]"
+                    gradient="from-cyan-600/[0.14] dark:from-cyan-500/[0.15]"
                     className="left-[-10%] md:left-[-5%] top-[15%] md:top-[20%]"
                 />
 
@@ -120,7 +122,7 @@ function HeroGeometric({
                     width={500}
                     height={120}
                     rotate={-15}
-                    gradient="dark:from-blue-500/[0.15]"
+                    gradient="from-blue-600/[0.13] dark:from-blue-500/[0.15]"
                     className="right-[-5%] md:right-[0%] top-[70%] md:top-[75%]"
                 />
 
@@ -129,7 +131,7 @@ function HeroGeometric({
                     width={300}
                     height={80}
                     rotate={-8}
-                    gradient="dark:from-sky-500/[0.15]"
+                    gradient="from-sky-600/[0.13] dark:from-sky-500/[0.15]"
                     className="left-[5%] md:left-[10%] bottom-[5%] md:bottom-[10%]"
                 />
 
@@ -138,7 +140,7 @@ function HeroGeometric({
                     width={200}
                     height={60}
                     rotate={20}
-                    gradient="dark:from-teal-500/[0.15]"
+                    gradient="from-teal-600/[0.14] dark:from-teal-500/[0.15]"
                     className="right-[15%] md:right-[20%] top-[10%] md:top-[15%]"
                 />
 
@@ -147,7 +149,7 @@ function HeroGeometric({
                     width={150}
                     height={40}
                     rotate={-25}
-                    gradient="dark:from-indigo-500/[0.15]"
+                    gradient="from-indigo-600/[0.13] dark:from-indigo-500/[0.15]"
                     className="left-[20%] md:left-[25%] top-[5%] md:top-[10%]"
                 />
             </div>
@@ -161,7 +163,7 @@ function HeroGeometric({
                         animate="visible"
                         className="inline-flex items-center gap-3 mb-8 md:mb-12"
                     >
-                        <Circle className="h-2 w-2 text-cyan-400 fill-cyan-400 animate-pulse motion-reduce:animate-none" />
+                        <Circle className="h-2 w-2 text-primary fill-primary dark:text-cyan-400 dark:fill-cyan-400 animate-pulse motion-reduce:animate-none" />
                         <span className="text-xs text-muted-foreground tracking-[0.2em]">
                             {badge}
                         </span>
@@ -180,7 +182,7 @@ function HeroGeometric({
                             <br />
                             <span
                                 className={cn(
-                                    "bg-clip-text text-transparent bg-gradient-to-r from-primary via-foreground to-primary",
+                                    "bg-clip-text text-transparent bg-gradient-to-r from-brand via-foreground to-brand",
                                     "dark:from-cyan-300 dark:via-white/90 dark:to-blue-300"
                                 )}
                             >
@@ -216,7 +218,7 @@ function HeroGeometric({
                                 el CTA humano lleva a la página /contact. */}
                             <Link
                                href="/contact"
-                               className="rounded-full px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-cyan-400"
+                               className="rounded-full px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-focus"
                             >
                                Hablar con un especialista
                             </Link>

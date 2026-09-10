@@ -53,17 +53,17 @@ export function StepResult({
 
   return (
     <div>
-      <p className="text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-2">Resultado del diagnóstico</p>
-      <h2 className="text-xl md:text-2xl font-bold text-white mb-6">Nivel de madurez digital</h2>
+      <p className="text-xs font-semibold text-brand dark:text-cyan-400 uppercase tracking-wider mb-2">Resultado del diagnóstico</p>
+      <h2 className="text-xl md:text-2xl font-bold text-foreground dark:text-white mb-6">Nivel de madurez digital</h2>
 
       <div className="mb-8">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-sm text-zinc-400">Madurez</span>
-          <span className="text-lg font-bold text-cyan-400">{result.score}%</span>
+          <span className="text-sm text-muted-foreground dark:text-zinc-400">Madurez</span>
+          <span className="text-lg font-bold text-brand dark:text-cyan-400">{result.score}%</span>
         </div>
-        <div className="h-2.5 w-full rounded-full bg-zinc-800 overflow-hidden">
+        <div className="h-2.5 w-full rounded-full bg-muted dark:bg-zinc-800 overflow-hidden">
           <div
-            className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 transition-all duration-700"
+            className="h-full rounded-full bg-gradient-to-r from-brand to-cyan-700 dark:from-cyan-500 dark:to-blue-500 transition-all duration-700"
             style={{ width: `${result.score}%` }}
           />
         </div>
@@ -71,22 +71,22 @@ export function StepResult({
 
       <div className="grid sm:grid-cols-2 gap-6 mb-8">
         <div>
-          <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3">Fortalezas</p>
+          <p className="text-xs font-semibold text-muted-foreground dark:text-zinc-500 uppercase tracking-wider mb-3">Fortalezas</p>
           <ul className="space-y-2">
             {result.strengths.map((s) => (
-              <li key={s} className="flex items-start gap-2 text-sm text-zinc-300">
-                <CheckCircle className="h-4 w-4 text-cyan-400 flex-shrink-0 mt-0.5" />
+              <li key={s} className="flex items-start gap-2 text-sm text-foreground/85 dark:text-zinc-300">
+                <CheckCircle className="h-4 w-4 text-brand dark:text-cyan-400 flex-shrink-0 mt-0.5" />
                 {s}
               </li>
             ))}
           </ul>
         </div>
         <div>
-          <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3">Áreas de oportunidad</p>
+          <p className="text-xs font-semibold text-muted-foreground dark:text-zinc-500 uppercase tracking-wider mb-3">Áreas de oportunidad</p>
           <ul className="space-y-2">
             {result.opportunities.map((o) => (
-              <li key={o} className="flex items-start gap-2 text-sm text-zinc-300">
-                <Circle className="h-2 w-2 text-zinc-600 flex-shrink-0 mt-1.5 fill-zinc-600" />
+              <li key={o} className="flex items-start gap-2 text-sm text-foreground/85 dark:text-zinc-300">
+                <Circle className="h-2 w-2 text-muted-foreground fill-current flex-shrink-0 mt-1.5 dark:text-zinc-600" />
                 {o}
               </li>
             ))}
@@ -94,33 +94,34 @@ export function StepResult({
         </div>
       </div>
 
-      <div className="rounded-2xl bg-cyan-950/20 border border-cyan-500/20 p-5 mb-8">
-        <p className="text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-3">Recomendación PixelTEC</p>
-        <p className="text-sm text-zinc-400 mb-3">Con base en tus respuestas recomendamos:</p>
+      <div className="rounded-2xl bg-primary/5 border border-primary/20 p-5 mb-8 dark:bg-cyan-950/20 dark:border-cyan-500/20">
+        <p className="text-xs font-semibold text-brand dark:text-cyan-400 uppercase tracking-wider mb-3">Recomendación PixelTEC</p>
+        <p className="text-sm text-muted-foreground dark:text-zinc-400 mb-3">Con base en tus respuestas recomendamos:</p>
         <ul className="space-y-1.5 mb-4">
           {result.recommendedServices.map((s) => (
-            <li key={s} className="flex items-center gap-2 text-sm font-medium text-zinc-200">
-              <CheckCircle className="h-4 w-4 text-cyan-400 flex-shrink-0" />
+            <li key={s} className="flex items-center gap-2 text-sm font-medium text-foreground/85 dark:text-zinc-200">
+              <CheckCircle className="h-4 w-4 text-brand dark:text-cyan-400 flex-shrink-0" />
               {s}
             </li>
           ))}
         </ul>
-        <p className="text-xs text-zinc-500">
-          Tiempo estimado de implementación: <span className="text-zinc-300 font-semibold">{result.timeline}</span>
+        <p className="text-xs text-muted-foreground dark:text-zinc-500">
+          Tiempo estimado de implementación:{' '}
+          <span className="text-foreground/85 dark:text-zinc-300 font-semibold">{result.timeline}</span>
         </p>
       </div>
 
       <div className="mb-8">
         {contactState === 'sent' ? (
-          <div className="flex items-center justify-center gap-2 rounded-xl border border-cyan-500/30 bg-cyan-500/10 text-cyan-300 text-sm font-semibold py-3.5">
+          <div className="flex items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/10 text-brand text-sm font-semibold py-3.5 dark:border-cyan-500/30 dark:bg-cyan-500/10 dark:text-cyan-300">
             <Check className="h-4 w-4" /> ¡Listo! Un asesor de PixelTEC te va a contactar.
           </div>
         ) : contactState === 'error' ? (
           <div className="space-y-2">
-            <div className="flex items-center justify-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-300 text-sm font-semibold py-3.5">
+            <div className="flex items-center justify-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 text-amber-700 text-sm font-semibold py-3.5 dark:border-amber-500/30 dark:text-amber-300">
               <AlertTriangle className="h-4 w-4" /> No pudimos confirmar tu solicitud automáticamente.
             </div>
-            <p className="text-xs text-zinc-500 text-center">
+            <p className="text-xs text-muted-foreground dark:text-zinc-500 text-center">
               Usa WhatsApp, llamada o email abajo — es directo con el equipo.
             </p>
           </div>
@@ -138,26 +139,26 @@ export function StepResult({
       </div>
 
       <div>
-        <h3 className="text-lg font-bold text-white mb-1">Agendar Diagnóstico Estratégico</h3>
-        <p className="text-sm text-zinc-500 mb-4">O elige cómo prefieres continuar la conversación.</p>
+        <h3 className="text-lg font-bold text-foreground dark:text-white mb-1">Agendar Diagnóstico Estratégico</h3>
+        <p className="text-sm text-muted-foreground dark:text-zinc-500 mb-4">O elige cómo prefieres continuar la conversación.</p>
         <div className="grid sm:grid-cols-3 gap-2.5">
           <a
             href={whatsappHref}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-sm font-semibold py-3 transition-colors hover:bg-emerald-500/20"
+            className="flex items-center justify-center gap-2 rounded-xl border border-emerald-600/30 bg-emerald-500/10 text-emerald-700 text-sm font-semibold py-3 transition-colors hover:bg-emerald-500/20 dark:border-emerald-500/30 dark:text-emerald-400"
           >
             <MessageCircle className="h-4 w-4" /> WhatsApp
           </a>
           <a
             href={TEL_HREF}
-            className="flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 text-zinc-200 text-sm font-semibold py-3 transition-colors hover:bg-white/10"
+            className="flex items-center justify-center gap-2 rounded-xl border border-border bg-secondary/60 text-foreground/85 text-sm font-semibold py-3 transition-colors hover:bg-secondary dark:border-white/10 dark:bg-white/5 dark:text-zinc-200 dark:hover:bg-white/10"
           >
             <Phone className="h-4 w-4" /> Llamar a PixelTEC
           </a>
           <a
             href={mailtoHref}
-            className="flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 text-zinc-200 text-sm font-semibold py-3 transition-colors hover:bg-white/10"
+            className="flex items-center justify-center gap-2 rounded-xl border border-border bg-secondary/60 text-foreground/85 text-sm font-semibold py-3 transition-colors hover:bg-secondary dark:border-white/10 dark:bg-white/5 dark:text-zinc-200 dark:hover:bg-white/10"
           >
             <Mail className="h-4 w-4" /> Email
           </a>
@@ -167,7 +168,7 @@ export function StepResult({
             href={SCHEDULING_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-2.5 flex items-center justify-center gap-2 rounded-xl border border-cyan-500/30 bg-cyan-500/10 text-cyan-400 text-sm font-semibold py-3 transition-colors hover:bg-cyan-500/20"
+            className="mt-2.5 flex items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/10 text-brand text-sm font-semibold py-3 transition-colors hover:bg-primary/20 dark:border-cyan-500/30 dark:bg-cyan-500/10 dark:text-cyan-400 dark:hover:bg-cyan-500/20"
           >
             <Calendar className="h-4 w-4" /> Agendar en calendario
           </a>

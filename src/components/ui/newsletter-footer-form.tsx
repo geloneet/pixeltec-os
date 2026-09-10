@@ -87,7 +87,7 @@ export function NewsletterFooterForm() {
           type="submit"
           disabled={isPending}
           aria-busy={isPending}
-          className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-md border border-border px-3 sm:h-9 text-sm font-medium text-foreground transition-colors hover:border-cyan-500/50 hover:text-cyan-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:text-cyan-300"
+          className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-md border border-border px-3 sm:h-9 text-sm font-medium text-foreground transition-colors hover:border-primary/50 hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-50 dark:hover:text-cyan-300"
         >
           {isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />}
           {isPending ? 'Enviando…' : 'Suscribirme'}

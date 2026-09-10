@@ -178,7 +178,8 @@ const GlowCard: React.FC<GlowCardProps> = ({
           relative
           grid
           grid-rows-[1fr_auto]
-          shadow-[0_1rem_2rem_-1rem_black]
+          shadow-[0_1rem_2rem_-1rem_rgba(12,17,29,0.35)]
+          dark:shadow-[0_1rem_2rem_-1rem_black]
           p-4
           gap-4
           backdrop-blur-[5px]

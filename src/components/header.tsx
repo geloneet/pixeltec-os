@@ -11,6 +11,7 @@ import { SITE } from '@/lib/site-config';
 import { AnimatedTextLink } from './ui/animated-menu';
 import { SocialLinks } from './ui/social-links';
 import { ShinyButton } from './ui/shiny-button';
+import { ThemeToggle } from './theme-toggle';
 
 const navLinks = [
     { label: 'Inicio', href: '/' },
@@ -24,7 +25,7 @@ const navLinks = [
 const AnimatedHamburger = ({ isOpen, onClick, className }: { isOpen: boolean; onClick: () => void, className?: string }) => (
     <button 
       onClick={onClick}
-      className={cn("relative block flex-shrink-0 cursor-pointer w-[50px] h-[40px] z-[60] rounded-md focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-cyan-400 lg:hidden", className)}
+      className={cn("relative block flex-shrink-0 cursor-pointer w-[50px] h-[40px] z-[60] rounded-md focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-focus lg:hidden", className)}
       aria-label="Abrir menú"
     >
       <span
@@ -120,7 +121,7 @@ export default function Header() {
                 key={link.href}
                 href={link.href}
                 onClick={(e) => handleNavClick(e, link.href)}
-                className="text-base font-bold tracking-wide text-muted-foreground transition-colors hover:text-primary"
+                className="text-base font-bold tracking-wide text-muted-foreground transition-colors hover:text-brand"
                 >
                 <AnimatedTextLink>{link.label}</AnimatedTextLink>
                 </a>
@@ -128,12 +129,14 @@ export default function Header() {
             </nav>
 
             <div className="hidden lg:flex items-center gap-4">
+              <ThemeToggle />
               <ShinyButton
                 href="https://api.whatsapp.com/send?phone=523221378336&text=Hola,%20quiero%20informaci%C3%B3n."
                 target="_blank"
                 rel="noopener noreferrer"
                 data-cta="whatsapp"
                 data-cta-pos="header"
+                className="whatsapp-cta"
               >
                 <Phone className="h-5 w-5" />
                 WhatsApp
@@ -141,6 +144,7 @@ export default function Header() {
             </div>
 
             <div className="lg:hidden flex items-center gap-3">
+                <ThemeToggle />
                 <AnimatedHamburger isOpen={isMenuOpen} onClick={() => setIsMenuOpen(true)} />
                 <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
                     <SheetContent 
@@ -183,7 +187,7 @@ export default function Header() {
                             data-cta="whatsapp"
                             data-cta-pos="header"
                             onClick={() => setIsMenuOpen(false)}
-                            className="w-full text-sm uppercase tracking-widest"
+                            className="w-full text-sm uppercase tracking-widest whatsapp-cta"
                           >
                             <Phone className="h-5 w-5" />
                             WhatsApp
