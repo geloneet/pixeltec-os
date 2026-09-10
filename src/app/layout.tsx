@@ -9,6 +9,7 @@ import { Poppins, Roboto, League_Spartan } from 'next/font/google';
 import { OrganizationStructuredData } from '@/components/seo/structured-data';
 import { PublishedStructuredData } from '@/components/seo/published-structured-data';
 import { MetaPixel } from '@/components/analytics/meta-pixel';
+import { ConsentBanner } from '@/components/analytics/consent-banner';
 import { AttributionCapture } from '@/components/analytics/attribution-capture';
 import { headers } from 'next/headers';
 
@@ -72,7 +73,10 @@ export default async function RootLayout({
           <OrganizationStructuredData />
           {/* JSON-LD publicado desde el módulo SEO (WO-2026-00095). */}
           <PublishedStructuredData />
-          <MetaPixel nonce={nonce} />
+          {/* PRV-01/REN-04 (WO-2026-00268): MetaPixel ya no imprime script
+              inline (por eso deja de necesitar el nonce) y no carga nada
+              hasta que ConsentBanner registra un «Aceptar». */}
+          <MetaPixel />
           {/* WO-2026-00214: cookie first-party `pt_attr` (90 d, SameSite=Lax).
               Va en el layout raíz —y no solo en el blog— porque el primer
               contacto puede haber sido cualquier página pública. */}
@@ -81,6 +85,7 @@ export default async function RootLayout({
             {children}
             <Toaster />
           </SessionProvider>
+          <ConsentBanner />
         </ThemeProvider>
       </body>
     </html>

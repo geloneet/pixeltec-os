@@ -1,29 +1,42 @@
 'use client';
 
-import Script from 'next/script';
 import { usePathname } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { PROTECTED_PATHS } from '@/lib/routes/admin-routes';
+import { useConsent } from '@/hooks/use-consent';
 
 /**
- * Pixel de Meta (Facebook Pixel) — solo páginas públicas.
+ * Pixel de Meta (Facebook Pixel) — solo páginas públicas y solo con permiso.
  *
- * El snippet base de Meta emite un único PageView en la carga del documento,
- * pero en App Router la navegación cliente (soft nav) no recarga el documento:
- * sin el efecto de abajo, todo el recorrido posterior del visitante sería
- * invisible para el pixel. Las rutas de admin (PROTECTED_PATHS) quedan fuera:
- * no hay razón de negocio para reportar a Meta las URLs del panel interno.
+ * PRV-01 / REN-04 (WO-2026-00268). Antes este componente montaba el snippet
+ * inline de Meta en el primer render de cualquier ruta pública: `fbevents.js`
+ * (~70 KB, dominio de terceros) entraba en la carga inicial y disparaba
+ * `PageView` antes de que el visitante pudiera opinar. El `<noscript><img>`
+ * hacía lo mismo incluso sin JavaScript, donde ni siquiera existe la
+ * posibilidad de pedir consentimiento — por eso se retiró y no se sustituyó.
  *
- * CSP: el snippet inline lleva el nonce del middleware; `strict-dynamic`
- * cubre la carga dinámica de fbevents.js y `src/lib/security/csp.ts` declara
- * los dominios de Meta como fallback (script-src) y destino de eventos
- * (connect-src).
+ * Ahora no ocurre nada hasta que `ConsentBanner` guarda «granted»:
+ *
+ *  - El script se inyecta con `document.createElement`, desde código que ya
+ *    es de confianza para la CSP; `'strict-dynamic'` (ver
+ *    `src/lib/security/csp.ts`) propaga esa confianza, así que no hace falta
+ *    nonce ni un `<Script>` inline.
+ *  - Se carga una sola vez por sesión de página (`loadedRef`): una vez
+ *    descargado `fbevents.js`, desmontarlo no lo descarga.
+ *  - En App Router la navegación cliente no recarga el documento, así que el
+ *    `PageView` de las soft navs se emite a mano, como antes.
+ *
+ * Las rutas de admin (PROTECTED_PATHS) siguen fuera: no hay razón de negocio
+ * para reportarle a Meta las URLs del panel interno.
  */
 export const META_PIXEL_ID = '1756151715518615';
 
+const FBEVENTS_SRC = 'https://connect.facebook.net/en_US/fbevents.js';
+
 declare global {
   interface Window {
-    fbq?: (...args: unknown[]) => void;
+    fbq?: ((...args: unknown[]) => void) & { queue?: unknown[]; loaded?: boolean; version?: string; callMethod?: (...args: unknown[]) => void; push?: unknown };
+    _fbq?: unknown;
   }
 }
 
@@ -31,48 +44,58 @@ function isTrackedPath(pathname: string): boolean {
   return !PROTECTED_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
-export function MetaPixel({ nonce }: { nonce?: string }) {
+/**
+ * Equivalente al snippet oficial de Meta, en TypeScript: deja `window.fbq`
+ * listo (encolando llamadas) y descarga `fbevents.js` en paralelo, que al
+ * cargar vacía la cola.
+ */
+function installFbq(): void {
+  if (window.fbq) return;
+  const queue: unknown[] = [];
+  const fbq = function (...args: unknown[]) {
+    if (fbq.callMethod) fbq.callMethod(...args);
+    else queue.push(args);
+  } as NonNullable<Window['fbq']>;
+  fbq.queue = queue;
+  fbq.push = fbq;
+  fbq.loaded = true;
+  fbq.version = '2.0';
+  window.fbq = fbq;
+  window._fbq = fbq;
+
+  const script = document.createElement('script');
+  script.async = true;
+  script.src = FBEVENTS_SRC;
+  document.head.appendChild(script);
+}
+
+export function MetaPixel() {
   const pathname = usePathname();
+  const { status } = useConsent();
   const tracked = isTrackedPath(pathname);
+  const granted = status === 'granted';
 
-  // El snippet se monta la primera vez que el visitante pisa una ruta pública
-  // (en el caso típico, ya en el HTML del servidor) y nunca se desmonta: una
-  // vez cargado fbevents.js, descargarlo no lo "des-carga".
-  const [shouldLoad, setShouldLoad] = useState(tracked);
+  const loadedRef = useRef(false);
   useEffect(() => {
-    if (tracked) setShouldLoad(true);
-  }, [tracked]);
+    if (!granted || !tracked || loadedRef.current) return;
+    loadedRef.current = true;
+    installFbq();
+    window.fbq?.('init', META_PIXEL_ID);
+    window.fbq?.('track', 'PageView');
+  }, [granted, tracked]);
 
-  // PageView en soft navs. El primer PageView lo emite el propio snippet, por
-  // eso la primera ruta observada no se re-reporta aquí.
+  // PageView en soft navs. El primero lo emite el efecto de arriba al cargar,
+  // por eso la ruta en la que se dio el consentimiento no se re-reporta aquí.
   const prevPathname = useRef<string | null>(null);
   useEffect(() => {
     if (prevPathname.current === pathname) return;
     const isFirst = prevPathname.current === null;
     prevPathname.current = pathname;
     if (isFirst) return;
-    if (tracked && typeof window.fbq === 'function') {
+    if (granted && tracked && typeof window.fbq === 'function') {
       window.fbq('track', 'PageView');
     }
-  }, [pathname, tracked]);
+  }, [pathname, granted, tracked]);
 
-  if (!shouldLoad) return null;
-
-  return (
-    <>
-      <Script id="meta-pixel" nonce={nonce} strategy="afterInteractive">
-        {`!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init','${META_PIXEL_ID}');fbq('track','PageView');`}
-      </Script>
-      <noscript>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          height="1"
-          width="1"
-          style={{ display: 'none' }}
-          src={`https://www.facebook.com/tr?id=${META_PIXEL_ID}&ev=PageView&noscript=1`}
-          alt=""
-        />
-      </noscript>
-    </>
-  );
+  return null;
 }
