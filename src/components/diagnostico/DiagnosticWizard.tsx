@@ -29,10 +29,30 @@ interface Props {
   onClose?: () => void;
   /** Oculta el encabezado del paso de bienvenida cuando la sección ya tiene el suyo. */
   hideWelcomeHeading?: boolean;
+  /**
+   * Paso de arranque (UX-01, WO-2026-00268).
+   *
+   * En el modal, quien pulsa «Iniciar diagnóstico» ya decidió empezar: la
+   * pantalla de bienvenida le pedía un segundo clic en «Comenzar» para
+   * repetirle lo que acababa de leer, y ahí se caía gente. Con
+   * `'first-question'` el modal abre directamente en la primera pregunta y
+   * `back()` no baja de ahí (no hay bienvenida a la que volver).
+   *
+   * La ruta /diagnostico conserva la bienvenida: quien llega por buscador o
+   * por un enlace sí necesita saber qué es esto antes de empezar.
+   */
+  startAt?: 'welcome' | 'first-question';
 }
 
-export function DiagnosticWizard({ variant = 'page', initialIndustry, onClose, hideWelcomeHeading = false }: Props) {
-  const [step, setStep] = useState(STEP_WELCOME);
+export function DiagnosticWizard({
+  variant = 'page',
+  initialIndustry,
+  onClose,
+  hideWelcomeHeading = false,
+  startAt = 'welcome',
+}: Props) {
+  const firstStep = startAt === 'first-question' ? STEP_COMPANY_TYPE : STEP_WELCOME;
+  const [step, setStep] = useState(firstStep);
   const [answers, setAnswers] = useState<WizardAnswers>(() => ({
     ...DEFAULT_WIZARD_ANSWERS,
     companyType: initialIndustry ?? '',
@@ -52,7 +72,7 @@ export function DiagnosticWizard({ variant = 'page', initialIndustry, onClose, h
 
   function back() {
     setSubmitError(null);
-    setStep((s) => Math.max(s - 1, STEP_WELCOME));
+    setStep((s) => Math.max(s - 1, firstStep));
   }
 
   async function handleSubmit() {
@@ -94,7 +114,7 @@ export function DiagnosticWizard({ variant = 'page', initialIndustry, onClose, h
   }
 
   const showStepper = step >= STEP_COMPANY_TYPE && step <= STEP_CONTACT;
-  const showBack = step > STEP_WELCOME && step < STEP_RESULT;
+  const showBack = step > firstStep && step < STEP_RESULT;
 
   return (
     <div

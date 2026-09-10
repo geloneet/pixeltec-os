@@ -66,7 +66,11 @@ export function DiagnosticModalProvider({ children }: { children: React.ReactNod
           <DialogDescription className="sr-only">
             Responde unas preguntas y recibe una recomendación personalizada para tu empresa.
           </DialogDescription>
-          <DiagnosticWizard variant="modal" onClose={() => setOpen(false)} />
+          {/* UX-01 (WO-2026-00268): quien abre el modal ya pulsó «Iniciar
+              diagnóstico»; la bienvenida le pedía un segundo clic para
+              repetirle lo mismo. Empieza en la primera pregunta. La ruta
+              /diagnostico sí conserva la bienvenida. */}
+          <DiagnosticWizard variant="modal" startAt="first-question" onClose={() => setOpen(false)} />
         </DialogContent>
       </Dialog>
     </DiagnosticModalContext.Provider>
