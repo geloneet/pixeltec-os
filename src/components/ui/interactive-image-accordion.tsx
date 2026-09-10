@@ -82,8 +82,11 @@ const ServiceCard = ({ item, onClick, index = 0 }: ServiceCardProps) => {
   return (
     <motion.div
       className="h-full"
-      initial={reduceMotion ? false : { opacity: 0, y: 30 }}
-      whileInView={{ opacity: 1, y: 0 }}
+      // REN-01 (WO-2026-00268): las tres tarjetas de servicio de la home
+      // salían del servidor con opacity: 0 y sólo aparecían al hidratar.
+      // Ahora sólo se anima transform.
+      initial={reduceMotion ? false : { y: 30 }}
+      whileInView={{ y: 0 }}
       viewport={{ once: true }}
       transition={reduceMotion ? { duration: 0 } : { duration: 0.5, delay: index * 0.15 }}
     >

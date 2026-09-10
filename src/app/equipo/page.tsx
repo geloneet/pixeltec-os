@@ -9,7 +9,10 @@ import { PlaceHolderImages } from "@/lib/placeholder-images";
 
 export const metadata: Metadata = buildMetadata({
   path: '/equipo',
-  title: 'Equipo · Quién está detrás de PixelTEC',
+  // Sin "PixelTEC" en el título: el template del layout raíz ya añade
+  // "| PixelTEC" y el resultado era «… detrás de PixelTEC | PixelTEC»
+  // (el mismo defecto que BUG-04 arregló en el 404).
+  title: 'Equipo · Fundador y red de especialistas',
   description: 'Quién está detrás de PixelTEC: un arquitecto líder al frente de cada proyecto y una red de especialistas que se integra según lo que haga falta.',
 });
 
