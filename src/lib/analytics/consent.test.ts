@@ -1,11 +1,9 @@
-/**
- * @vitest-environment jsdom
- *
- * PRV-01 (WO-2026-00268). Este módulo decide si el sitio carga o no el Pixel
- * de Meta, así que su modo de fallo por defecto tiene que ser «no rastrear»:
- * cualquier duda —sin dato, dato corrupto, versión vieja, almacenamiento
- * bloqueado— debe resolverse como `unknown`, nunca como `granted`.
- */
+// @vitest-environment jsdom
+//
+// PRV-01 (WO-2026-00268). Este módulo decide si el sitio carga o no el Pixel
+// de Meta, así que su modo de fallo por defecto tiene que ser «no rastrear»:
+// cualquier duda —sin dato, dato corrupto, versión vieja, almacenamiento
+// bloqueado— debe resolverse como `unknown`, nunca como `granted`.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   CONSENT_EVENT,
@@ -15,12 +13,38 @@ import {
   writeConsent,
 } from './consent';
 
+// jsdom no expone `window.localStorage` para el origen opaco por defecto
+// ("about:blank"): queda `undefined`, no lanza. Un Storage en memoria evita
+// depender de esa configuración y deja controlar getItem/setItem por test.
+class MemoryStorage implements Storage {
+  private store = new Map<string, string>();
+  get length() {
+    return this.store.size;
+  }
+  clear() {
+    this.store.clear();
+  }
+  getItem(key: string) {
+    return this.store.has(key) ? this.store.get(key)! : null;
+  }
+  key(index: number) {
+    return Array.from(this.store.keys())[index] ?? null;
+  }
+  removeItem(key: string) {
+    this.store.delete(key);
+  }
+  setItem(key: string, value: string) {
+    this.store.set(key, String(value));
+  }
+}
+
 beforeEach(() => {
-  window.localStorage.clear();
+  vi.stubGlobal('localStorage', new MemoryStorage());
 });
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe('consentimiento de seguimiento', () => {
@@ -51,7 +75,7 @@ describe('consentimiento de seguimiento', () => {
   });
 
   it('si localStorage está bloqueado, lee unknown sin lanzar', () => {
-    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+    vi.spyOn(window.localStorage, 'getItem').mockImplementation(() => {
       throw new Error('SecurityError');
     });
     expect(() => readConsent()).not.toThrow();
@@ -59,7 +83,7 @@ describe('consentimiento de seguimiento', () => {
   });
 
   it('si no puede escribir, la decisión igual se anuncia en esta visita', () => {
-    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+    vi.spyOn(window.localStorage, 'setItem').mockImplementation(() => {
       throw new Error('QuotaExceededError');
     });
     const escuchado = vi.fn();
