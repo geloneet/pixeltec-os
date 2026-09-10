@@ -9,7 +9,7 @@ import { ShinyButton } from "@/components/ui/shiny-button";
 export const metadata: Metadata = buildMetadata({
   path: '/industrias',
   title: 'Industrias · Especialistas por sector',
-  description: 'PIXELTEC construye software a medida para logística, clínicas, retail y SaaS. Conoce los problemas específicos que resolvemos en cada vertical.',
+  description: 'PixelTEC construye software a medida para logística, clínicas, retail y SaaS. Conoce los problemas específicos que resolvemos en cada vertical.',
 });
 
 // Solo sectores con al menos un cliente real documentado. El stack refleja el
@@ -104,15 +104,20 @@ const industries = [
 
 // Mapea el slug de esta página al `value` de COMPANY_TYPES en
 // src/lib/diagnostic/logic.ts, para preseleccionar el tipo de empresa en el
-// wizard de /diagnostico. Los que no tienen equivalente cercano se omiten —
-// el wizard simplemente no preselecciona nada, no es un error.
+// wizard de /diagnostico.
+//
+// CON-05 (WO-2026-00268): antes «agua» caía en 'servicios' y «solar» en
+// 'otra', así que quien llegaba desde esas dos secciones veía el wizard
+// preseleccionado con una categoría que no era la suya. Ahora los seis
+// sectores que el sitio declara servir tienen su equivalente exacto en el
+// catálogo — ninguno cae ya en un cajón de sastre.
 const DIAGNOSTIC_INDUSTRY_MAP: Record<string, string> = {
   logistica: 'logistica',
-  agua: 'servicios',
+  agua: 'agua',
   salud: 'clinica',
   hoteleria: 'hotel',
-  moda: 'ecommerce',
-  solar: 'otra',
+  moda: 'retail',
+  solar: 'solar',
 };
 
 export default function IndustriasPage() {
