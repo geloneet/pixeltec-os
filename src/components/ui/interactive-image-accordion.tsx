@@ -1,6 +1,5 @@
 'use client';
 import React, { useState } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import {
   Dialog,
@@ -10,13 +9,25 @@ import {
 } from '@/components/ui/dialog';
 import { motion, useReducedMotion } from 'framer-motion';
 import { GlowCard } from './spotlight-card';
+import { WhatsappAiAgentBg } from '@/components/services-animations/whatsapp-ai-agent-bg';
+import { SiteAppBuildBg } from '@/components/services-animations/site-app-build-bg';
+import { ConsultingMascotBg } from '@/components/services-animations/consulting-mascot-bg';
+
+// WO-2026-00275: las fotos de stock (Unsplash) se reemplazan por escenas
+// animadas 100 % código, una por servicio. Cada escena arranca sola al entrar
+// al viewport y se pausa fuera de pantalla; en el modal se muestra en modo
+// `poster` (fotograma final) porque ahí el usuario lee y decide.
+const SCENES: Record<string, React.ComponentType<{ poster?: boolean }>> = {
+  automatizacion: WhatsappAiAgentBg,
+  'ecosistemas-web': SiteAppBuildBg,
+  consultoria: ConsultingMascotBg,
+};
 
 // --- Data for the image accordion ---
 interface AccordionItemData {
   id: number;
   title: string;
   slug: string;
-  imageUrl: string;
   preview: string;
   bullets: string[];
 }
@@ -26,8 +37,6 @@ const accordionItems: AccordionItemData[] = [
     id: 1,
     title: 'Automatización con IA',
     slug: 'automatizacion',
-    imageUrl:
-      'https://images.unsplash.com/photo-1620712943543-bcc4688e7485?q=80&w=1200&auto=format&fit=crop',
     preview:
       'Eliminamos tareas repetitivas con bots, scripts e IA aplicada a tu operación diaria. Conectamos sistemas que no se hablaban y liberamos horas-hombre.',
     bullets: [
@@ -41,8 +50,6 @@ const accordionItems: AccordionItemData[] = [
     id: 2,
     title: 'Desarrollo Web & Apps',
     slug: 'ecosistemas-web',
-    imageUrl:
-      'https://images.unsplash.com/photo-1547658719-da2b51169166?q=80&w=1200&auto=format&fit=crop',
     preview:
       'Ecosistemas web robustos, CRMs hechos a la medida y portales corporativos ultra rápidos. Next.js, React y Firebase como fundamento.',
     bullets: [
@@ -56,8 +63,6 @@ const accordionItems: AccordionItemData[] = [
     id: 3,
     title: 'Consultoría & Soporte TI',
     slug: 'consultoria',
-    imageUrl:
-      'https://images.unsplash.com/photo-1600880292203-757bb62b4baf?q=80&w=1200&auto=format&fit=crop',
     preview:
       'Diagnóstico estratégico, transformación digital y rediseño UI/UX para modernizar procesos. Acompañamos a tu equipo de adentro hacia afuera.',
     bullets: [
@@ -78,6 +83,7 @@ interface ServiceCardProps {
 
 const ServiceCard = ({ item, onClick, index = 0 }: ServiceCardProps) => {
   const reduceMotion = useReducedMotion();
+  const Scene = SCENES[item.slug];
 
   return (
     <motion.div
@@ -94,23 +100,12 @@ const ServiceCard = ({ item, onClick, index = 0 }: ServiceCardProps) => {
           GlowCard: la imagen ocupa el 100 % de la tarjeta. El halo del glow se
           dibuja fuera del borde, así que se conserva. */}
       <GlowCard customSize glowColor="cyan" className="group h-full w-full !p-0 !gap-0 !border-0">
-        {/* La imagen es el fondo de toda la tarjeta; el texto va encima. */}
+        {/* La escena animada es el fondo de toda la tarjeta; el texto va encima. */}
         <div className="relative flex h-full min-h-[26rem] w-full flex-col justify-end overflow-hidden rounded-2xl">
-          <Image
-            src={item.imageUrl}
-            alt={item.title}
-            fill
-            // REN-03 (WO-2026-00268): la tarjeta mide ~400 px en escritorio,
-            // no 33vw de la ventana. Con `33vw` el navegador pedía la variante
-            // de 1920 px para pintarla a 400: ~1.4 MB de más en la home.
-            sizes="(max-width: 1023px) calc(100vw - 2rem), (max-width: 1279px) 30vw, 400px"
-            className="object-cover transition-transform duration-500 group-hover:scale-105"
-            loading="lazy"
-          />
-          {/* Dark overlay for better text readability */}
-          <div className="absolute inset-0 bg-black bg-opacity-50 transition-opacity duration-300 group-hover:bg-opacity-40"></div>
-          {/* Refuerzo de contraste tras el texto, que va abajo */}
-          <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/80 to-transparent"></div>
+          <Scene />
+          {/* Refuerzo de contraste tras el texto, que va abajo. Mismo negro
+              frío de la escena (#06080d) para que el fundido sea invisible. */}
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[58%] bg-gradient-to-t from-[#06080d] via-[#06080d]/85 to-transparent"></div>
 
           <div className="relative flex flex-col gap-2 p-6">
             <h3 className="text-xl font-semibold leading-tight text-white">
@@ -179,15 +174,14 @@ export function LandingAccordionItem() {
         >
           {openItem && (
             <div className="grid md:grid-cols-[0.8fr_1fr]">
-              {/* Imagen lateral, a sangre */}
-              <div className="relative h-44 md:h-auto">
-                <Image
-                  src={openItem.imageUrl}
-                  alt={openItem.title}
-                  fill
-                  sizes="(max-width: 768px) 100vw, 340px"
-                  className="object-cover"
-                />
+              {/* Escena lateral en modo poster (fotograma final, sin timers):
+                  aquí el usuario lee bullets y decide — lo que se lee no se
+                  mueve. */}
+              <div className="relative h-44 overflow-hidden md:h-auto md:min-h-[26rem]">
+                {(() => {
+                  const ModalScene = SCENES[openItem.slug];
+                  return <ModalScene poster />;
+                })()}
                 {/* Fundido hacia el panel: vertical en móvil, horizontal en escritorio */}
                 <div className="absolute inset-0 bg-gradient-to-t from-card via-card/30 to-transparent md:bg-gradient-to-r md:from-transparent md:via-card/10 md:to-card dark:from-zinc-950 dark:via-zinc-950/30 dark:md:via-zinc-950/10 dark:md:to-zinc-950" />
               </div>
