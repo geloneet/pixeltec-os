@@ -48,8 +48,8 @@ export default function DataDeletionPage() {
     <div className="bg-background dark:bg-[#030303] text-foreground dark:text-white">
       <Header />
       <motion.main
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
+        initial={{ y: 10 }}
+        animate={{ y: 0 }}
         transition={{ duration: 0.8, ease: 'easeOut' }}
         className="container mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-16 sm:pt-40 sm:pb-24"
       >

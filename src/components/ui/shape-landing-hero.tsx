@@ -91,18 +91,25 @@ function HeroGeometric({
     title2?: string;
 }) {
     const diagnostic = useDiagnosticModal();
+    const reduceMotion = useReducedMotion();
+    // REN-01 (WO-2026-00268): el hero es la primera pantalla y su contenido no
+    // puede salir del servidor con opacity: 0. Antes, el badge, el párrafo y el
+    // CTA quedaban invisibles hasta que hidrataba framer-motion y terminaba una
+    // animación de 1 s con hasta 1.1 s de delay: sin JS no aparecían nunca, y
+    // con JS lento el LCP medía el hueco. Ahora sólo se anima `transform`
+    // (siempre legible, sin CLS) y los tiempos bajan a la mitad.
     const fadeUpVariants = {
-        hidden: { opacity: 0, y: 30 },
+        hidden: { y: 16 },
         visible: (i: number) => ({
-            opacity: 1,
             y: 0,
             transition: {
-                duration: 1,
-                delay: 0.5 + i * 0.2,
+                duration: 0.5,
+                delay: 0.1 + i * 0.08,
                 ease: [0.25, 0.4, 0.25, 1],
             },
         }),
     };
+    const fadeUpInitial = reduceMotion ? false : ('hidden' as const);
 
     return (
         <div id="home" className="relative min-h-screen w-full flex items-center justify-center overflow-hidden bg-background dark:bg-black py-24 sm:py-32">
@@ -159,7 +166,7 @@ function HeroGeometric({
                     <motion.div
                         custom={0}
                         variants={fadeUpVariants}
-                        initial="hidden"
+                        initial={fadeUpInitial}
                         animate="visible"
                         className="inline-flex items-center gap-3 mb-8 md:mb-12"
                     >
@@ -194,7 +201,7 @@ function HeroGeometric({
                     <motion.div
                         custom={2}
                         variants={fadeUpVariants}
-                        initial="hidden"
+                        initial={fadeUpInitial}
                         animate="visible"
                     >
                         <p className="text-base sm:text-lg md:text-xl text-muted-foreground dark:text-white/40 mb-8 leading-relaxed font-light tracking-wide max-w-xl mx-auto px-4">
@@ -206,7 +213,7 @@ function HeroGeometric({
                     <motion.div
                         custom={3}
                         variants={fadeUpVariants}
-                        initial="hidden"
+                        initial={fadeUpInitial}
                         animate="visible"
                         className="mt-8"
                     >
@@ -216,9 +223,14 @@ function HeroGeometric({
                             </ShinyButton>
                             {/* El formulario de contacto ya no vive en la home:
                                 el CTA humano lleva a la página /contact. */}
+                            {/* UX-03 (WO-2026-00268): era un enlace de texto en
+                                `text-muted-foreground`, sin borde ni fondo —
+                                junto al ShinyButton no se leía como acción y
+                                casi nadie lo veía. Mismo lenguaje de botón
+                                secundario que usa el 404. */}
                             <Link
                                href="/contact"
-                               className="rounded-full px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-focus"
+                               className="inline-flex h-12 items-center rounded-full border border-border bg-background/60 px-6 text-sm font-semibold tracking-wide text-foreground transition-colors hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-focus dark:border-white/15 dark:bg-white/5 dark:hover:bg-white/10"
                             >
                                Hablar con un especialista
                             </Link>

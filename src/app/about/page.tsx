@@ -11,10 +11,13 @@ import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { cn } from '@/lib/utils';
 
 // Animation variants for sections
+// REN-01 (WO-2026-00268): el scroll-reveal anima SOLO transform. Con
+// `opacity: 0` en el estado inicial, todo este contenido salía invisible del
+// servidor y no aparecía nunca si framer-motion no hidrataba (JS lento o
+// bloqueado); los rastreadores que no ejecutan JS veían la página en blanco.
 const sectionVariants = {
-  hidden: { opacity: 0, y: 50 },
+  hidden: { y: 50 },
   visible: { 
-    opacity: 1, 
     y: 0,
     transition: { duration: 0.8, ease: 'easeOut' }
   },
@@ -77,7 +80,7 @@ export default function AboutPage() {
                   PixelTEC, liderada por <span className="font-semibold text-foreground dark:text-white">Miguel Robles</span>, nació para cerrar la brecha entre la estrategia de negocio y la ejecución tecnológica. Entendemos que el código es una herramienta poderosa, pero su verdadero valor se desbloquea cuando se alinea con objetivos comerciales claros.
                 </p>
                 <p className="mt-4 text-lg leading-relaxed text-muted-foreground dark:text-white/60">
-                  Somos un equipo híbrido de consultores y desarrolladores que no solo construye software, sino que diseña ecosistemas digitales que impulsan el crecimiento y la eficiencia.
+                  Cada proyecto lo dirige un arquitecto líder y se apoya en una red de especialistas —diseño, QA, infraestructura, branding— que se integra según lo que ese proyecto exige. No solo construimos software: diseñamos ecosistemas digitales que impulsan el crecimiento y la eficiencia.
                 </p>
               </div>
             </div>

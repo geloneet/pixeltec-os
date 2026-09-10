@@ -39,10 +39,13 @@ const processSteps = [
   },
 ];
 
+// REN-01 (WO-2026-00268): el scroll-reveal anima SOLO transform. Con
+// `opacity: 0` en el estado inicial, todo este contenido salía invisible del
+// servidor y no aparecía nunca si framer-motion no hidrataba (JS lento o
+// bloqueado); los rastreadores que no ejecutan JS veían la página en blanco.
 const cardVariants = {
-  hidden: { opacity: 0, y: 50 },
+  hidden: { y: 50 },
   visible: {
-    opacity: 1,
     y: 0,
     transition: {
       duration: 0.6,
@@ -57,8 +60,8 @@ export default function MetodologiaPage() {
       <Header />
       <main className="overflow-hidden">
         <motion.section
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={{ y: -20 }}
+          animate={{ y: 0 }}
           transition={{ duration: 1, ease: 'easeOut' }}
           className="container mx-auto px-4 sm:px-6 lg:px-8 text-center pt-32 pb-12 sm:pt-40 sm:pb-16"
         >

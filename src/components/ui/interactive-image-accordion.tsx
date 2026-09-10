@@ -27,7 +27,7 @@ const accordionItems: AccordionItemData[] = [
     title: 'Automatización con IA',
     slug: 'automatizacion',
     imageUrl:
-      'https://images.unsplash.com/photo-1620712943543-bcc4688e7485?q=80&w=2070&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1620712943543-bcc4688e7485?q=80&w=1200&auto=format&fit=crop',
     preview:
       'Eliminamos tareas repetitivas con bots, scripts e IA aplicada a tu operación diaria. Conectamos sistemas que no se hablaban y liberamos horas-hombre.',
     bullets: [
@@ -42,7 +42,7 @@ const accordionItems: AccordionItemData[] = [
     title: 'Desarrollo Web & Apps',
     slug: 'ecosistemas-web',
     imageUrl:
-      'https://images.unsplash.com/photo-1547658719-da2b51169166?q=80&w=2070&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1547658719-da2b51169166?q=80&w=1200&auto=format&fit=crop',
     preview:
       'Ecosistemas web robustos, CRMs hechos a la medida y portales corporativos ultra rápidos. Next.js, React y Firebase como fundamento.',
     bullets: [
@@ -57,7 +57,7 @@ const accordionItems: AccordionItemData[] = [
     title: 'Consultoría & Soporte TI',
     slug: 'consultoria',
     imageUrl:
-      'https://images.unsplash.com/photo-1600880292203-757bb62b4baf?q=80&w=2070&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1600880292203-757bb62b4baf?q=80&w=1200&auto=format&fit=crop',
     preview:
       'Diagnóstico estratégico, transformación digital y rediseño UI/UX para modernizar procesos. Acompañamos a tu equipo de adentro hacia afuera.',
     bullets: [
@@ -82,8 +82,11 @@ const ServiceCard = ({ item, onClick, index = 0 }: ServiceCardProps) => {
   return (
     <motion.div
       className="h-full"
-      initial={reduceMotion ? false : { opacity: 0, y: 30 }}
-      whileInView={{ opacity: 1, y: 0 }}
+      // REN-01 (WO-2026-00268): las tres tarjetas de servicio de la home
+      // salían del servidor con opacity: 0 y sólo aparecían al hidratar.
+      // Ahora sólo se anima transform.
+      initial={reduceMotion ? false : { y: 30 }}
+      whileInView={{ y: 0 }}
       viewport={{ once: true }}
       transition={reduceMotion ? { duration: 0 } : { duration: 0.5, delay: index * 0.15 }}
     >
@@ -97,7 +100,10 @@ const ServiceCard = ({ item, onClick, index = 0 }: ServiceCardProps) => {
             src={item.imageUrl}
             alt={item.title}
             fill
-            sizes="(max-width: 1024px) 100vw, 33vw"
+            // REN-03 (WO-2026-00268): la tarjeta mide ~400 px en escritorio,
+            // no 33vw de la ventana. Con `33vw` el navegador pedía la variante
+            // de 1920 px para pintarla a 400: ~1.4 MB de más en la home.
+            sizes="(max-width: 1023px) calc(100vw - 2rem), (max-width: 1279px) 30vw, 400px"
             className="object-cover transition-transform duration-500 group-hover:scale-105"
             loading="lazy"
           />

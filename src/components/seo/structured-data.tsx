@@ -8,10 +8,14 @@ import { SITE, absoluteUrl } from '@/lib/site-config';
  * que son la misma entidad.
  */
 
-const ORG_ID = `${SITE.url}/#organization`;
+export const ORG_ID = `${SITE.url}/#organization`;
+export const WEBSITE_ID = `${SITE.url}/#website`;
+
+/** `@id` que este módulo publica siempre — el módulo SEO los usa para no
+ *  duplicar las mismas entidades desde la base de datos (SEO-03). */
+export const CODE_EMITTED_IDS = [ORG_ID, WEBSITE_ID] as const;
 
 const organizationSchema = {
-  "@context": "https://schema.org",
   "@type": "Organization",
   "@id": ORG_ID,
   name: SITE.name,
@@ -41,26 +45,31 @@ const organizationSchema = {
 };
 
 const webSiteSchema = {
-  "@context": "https://schema.org",
   "@type": "WebSite",
+  "@id": WEBSITE_ID,
   name: SITE.name,
   url: SITE.url,
   inLanguage: SITE.locale,
   publisher: { "@id": ORG_ID },
 };
 
+/**
+ * SEO-03 (WO-2026-00268): un solo `<script>` con `@graph` en lugar de dos
+ * bloques sueltos. Con `@graph`, Organization y WebSite quedan explícitamente
+ * declaradas como parte del mismo grafo del sitio; sueltas, Google tenía que
+ * inferir la relación por `@id` y a veces las trataba como entidades ajenas.
+ */
+const siteGraph = {
+  "@context": "https://schema.org",
+  "@graph": [organizationSchema, webSiteSchema],
+};
+
 export function OrganizationStructuredData() {
   return (
-    <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(webSiteSchema) }}
-      />
-    </>
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(siteGraph) }}
+    />
   );
 }
 

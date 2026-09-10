@@ -36,8 +36,8 @@ export function BlogGrid({ posts }: { posts: BlogCardData[] }) {
       {posts.map((post, index) => (
         <motion.article
           key={post.id}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={{ y: 20 }}
+          animate={{ y: 0 }}
           transition={{ duration: 0.4, delay: index * 0.1 }}
           className="group relative bg-card dark:bg-[#0A0A0A] border border-border dark:border-white/5 rounded-2xl md:rounded-3xl overflow-hidden hover:border-primary/50 hover:-translate-y-1 transition-all duration-300 flex flex-col shadow-[0_12px_40px_-20px_rgba(12,17,29,0.25)] dark:shadow-[0_0_30px_rgba(0,0,0,0.5)]"
         >

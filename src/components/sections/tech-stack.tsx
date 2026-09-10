@@ -3,10 +3,13 @@
 import { motion } from 'framer-motion';
 import { TechStackMarquee } from '@/components/ui/tech-stack-marquee';
 
+// REN-01 (WO-2026-00268): el scroll-reveal anima SOLO transform. Con
+// `opacity: 0` en el estado inicial, todo este contenido salía invisible del
+// servidor y no aparecía nunca si framer-motion no hidrataba (JS lento o
+// bloqueado); los rastreadores que no ejecutan JS veían la página en blanco.
 const sectionVariants = {
-  hidden: { opacity: 0, y: 50 },
+  hidden: { y: 50 },
   visible: { 
-    opacity: 1, 
     y: 0,
     transition: { duration: 0.8, ease: 'easeOut' }
   },

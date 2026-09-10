@@ -69,7 +69,9 @@ export function SocialLinks({ className }: SocialLinksProps) {
                   rel="noopener noreferrer"
                   aria-label={link.title}
                   className={cn(
-                    'flex h-10 w-10 items-center justify-center rounded-full',
+                    // A11Y-03 (WO-2026-00268): 40 px quedaba por debajo del
+                    // objetivo táctil de 44 px; en móvil se fallaba el toque.
+                    'flex h-11 w-11 items-center justify-center rounded-full',
                     'border border-border bg-card text-muted-foreground',
                     'cursor-pointer transition-all duration-300 ease-out',
                     'hover:scale-105 hover:bg-accent hover:text-foreground hover:shadow-sm',

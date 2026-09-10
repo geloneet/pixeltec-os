@@ -18,6 +18,9 @@ import {
   Hotel,
   Stethoscope,
   ShoppingCart,
+  ShoppingBag,
+  Droplets,
+  Sun,
   Truck,
   UtensilsCrossed,
   Briefcase,
@@ -37,12 +40,24 @@ export interface CompanyTypeOption extends Option {
   icon: LucideIcon;
 }
 
+/**
+ * CON-05 (WO-2026-00268): el catálogo eran nueve genéricos que no coincidían
+ * con los seis sectores que el sitio declara servir de verdad
+ * (`components/sections/industries-strip.tsx` y `/industrias`), así que quien
+ * llegaba desde una de esas páginas tenía que elegir «Servicios» u «Otra» para
+ * describir su distribuidora de agua o su empresa de paneles solares. Se
+ * añaden `agua`, `solar` y `retail`; los valores existentes NO cambian, para
+ * no invalidar los leads ya guardados con el valor anterior.
+ */
 export const COMPANY_TYPES: CompanyTypeOption[] = [
   { value: 'constructora', label: 'Constructora', icon: HardHat },
   { value: 'hotel', label: 'Hotel', icon: Hotel },
-  { value: 'clinica', label: 'Clínica', icon: Stethoscope },
+  { value: 'clinica', label: 'Clínica o consultorio', icon: Stethoscope },
   { value: 'ecommerce', label: 'Ecommerce', icon: ShoppingCart },
+  { value: 'retail', label: 'Moda y retail', icon: ShoppingBag },
   { value: 'logistica', label: 'Logística', icon: Truck },
+  { value: 'agua', label: 'Distribución de agua', icon: Droplets },
+  { value: 'solar', label: 'Energía solar', icon: Sun },
   { value: 'restaurante', label: 'Restaurante', icon: UtensilsCrossed },
   { value: 'servicios', label: 'Servicios', icon: Briefcase },
   { value: 'industria', label: 'Industria', icon: Factory },
@@ -177,7 +192,11 @@ export function computeDiagnostic(answers: DiagnosticAnswers): DiagnosticResult 
     services.add('automation_ia');
   }
   if (problems.includes('excel') || problems.includes('no_sistema')) services.add('dashboard');
-  if (answers.companyType === 'ecommerce') services.add('ecommerce');
+  // `retail` entra aquí con `ecommerce` (CON-05): una tienda de moda o comercio
+  // especializado necesita vender en línea igual que un ecommerce puro. El
+  // resto del scoring no distingue por tipo de empresa, así que los demás
+  // valores nuevos (`agua`, `solar`) no alteran ningún resultado existente.
+  if (answers.companyType === 'ecommerce' || answers.companyType === 'retail') services.add('ecommerce');
   if (problems.includes('pagina_no_vende')) services.add('web');
   if (problems.includes('app') || answers.priority === 'crear_software') services.add('app');
   if (services.size === 0) {

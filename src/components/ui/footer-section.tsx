@@ -2,10 +2,11 @@
 import React from 'react';
 import type { ComponentProps, ReactNode } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { FacebookIcon, InstagramIcon, Phone } from 'lucide-react';
+import { FacebookIcon, InstagramIcon, Mail, MapPin, Phone } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { NewsletterFooterForm } from '@/components/ui/newsletter-footer-form';
+import { ObfuscatedMailto } from '@/components/ui/obfuscated-mailto';
 import { SITE } from '@/lib/site-config';
 
 interface FooterLink {
@@ -73,6 +74,38 @@ export function Footer() {
                     <p className="text-muted-foreground mt-4 text-sm leading-relaxed max-w-xs font-light">
                         Arquitectura digital y automatización inteligente para empresas que escalan al ritmo de la innovación.
                     </p>
+
+					{/* SEO-06 (WO-2026-00268): el footer no traía NAP (nombre,
+					    dirección, teléfono) en ninguna de las ~40 páginas del
+					    sitio. Es la señal de negocio local que Google espera en
+					    todas las páginas, y de paso el visitante tiene el
+					    teléfono a un toque sin volver a /contact. Los datos
+					    salen de site-config, la misma fuente que el JSON-LD. */}
+					<address className="mt-6 space-y-2 text-sm font-light not-italic text-muted-foreground">
+						<p className="flex items-center gap-2">
+							<MapPin className="size-4 shrink-0" aria-hidden="true" />
+							{SITE.address.locality}, {SITE.address.region}, México
+						</p>
+						<p>
+							<a
+								href={`tel:${SITE.phone.e164}`}
+								className="hover:text-brand inline-flex min-h-11 items-center gap-2 transition-colors duration-300"
+							>
+								<Phone className="size-4 shrink-0" aria-hidden="true" />
+								{SITE.phone.display}
+							</a>
+						</p>
+						<p>
+							<ObfuscatedMailto
+								email={SITE.email}
+								className="hover:text-brand inline-flex min-h-11 items-center gap-2 transition-colors duration-300"
+							>
+								<Mail className="size-4 shrink-0" aria-hidden="true" />
+								{SITE.email}
+							</ObfuscatedMailto>
+						</p>
+					</address>
+
 					<div className="mt-8">
 						<NewsletterFooterForm />
 					</div>
@@ -86,14 +119,19 @@ export function Footer() {
 						<AnimatedContainer key={section.label} delay={0.1 + index * 0.1}>
 							<div className="mb-10 md:mb-0">
 								<h3 className="text-xs uppercase tracking-wider text-foreground font-semibold">{section.label}</h3>
-								<ul className="text-muted-foreground mt-4 space-y-3 text-sm font-light">
+								{/* A11Y-03 (WO-2026-00268): los enlaces medían ~20 px de alto,
+								    la mitad del objetivo táctil recomendado (44 px), y los de
+								    icono de «Redes Sociales» eran los peores. `min-h-11` los
+								    lleva a 44 px; el hueco de la lista baja para compensar y
+								    que el footer no crezca de más en móvil. */}
+								<ul className="text-muted-foreground mt-4 space-y-1 text-sm font-light">
 									{section.links.map((link) => (
 										<li key={link.title}>
 											<Link
 												href={link.href}
 												data-cta={link.cta}
 												data-cta-pos={link.cta ? 'footer' : undefined}
-												className="hover:text-brand inline-flex items-center transition-colors duration-300"
+												className="hover:text-brand inline-flex min-h-11 items-center transition-colors duration-300"
 											>
 												{link.icon && <link.icon className="me-2 size-4" />}
 												{link.title}
@@ -123,10 +161,14 @@ function AnimatedContainer({ className, delay = 0.1, children }: ViewAnimationPr
 		return <div className={className}>{children}</div>;
 	}
 
+	// REN-01 (WO-2026-00268): antes el footer entero salía del servidor con
+	// `opacity: 0` y `filter: blur(4px)`. El blur, además, fuerza una capa de
+	// composición para todo el subárbol en cada scroll. Sólo se anima
+	// `translateY`: legible sin JS, sin CLS y sin repintados caros.
 	return (
 		<motion.div
-			initial={{ filter: 'blur(4px)', translateY: -8, opacity: 0 }}
-			whileInView={{ filter: 'blur(0px)', translateY: 0, opacity: 1 }}
+			initial={{ translateY: -8 }}
+			whileInView={{ translateY: 0 }}
 			viewport={{ once: true }}
 			transition={{ delay, duration: 0.8 }}
 			className={className}
