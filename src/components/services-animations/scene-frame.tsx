@@ -60,14 +60,39 @@ export const DEVICE: CSSProperties = {
   border: '1px solid rgba(255,255,255,0.08)',
 };
 
+/**
+ * WO-2026-00341 — dónde vive la escena decide cómo se coloca la composición
+ * (460 × 248 px de diseño):
+ *  - `card` (home): anclada arriba; el tercio inferior queda libre para el
+ *    título y el preview de la tarjeta, que van encima con su gradiente.
+ *  - `stage` (modal, hero de /services/[slug], tarjetas de /services): la
+ *    composición es la protagonista, centrada en su caja y escalable con
+ *    `zoom` desde `stageClassName` (p. ej. `md:[zoom:1.25]`). `zoom` escala
+ *    también el layout —no solo el pintado— así que el escenario crece sin
+ *    reescribir los píxeles afinados de cada escena. Si la caja es más
+ *    angosta que 460 × zoom, la composición se comprime igual que en móvil.
+ */
+export type SceneLayout = 'card' | 'stage';
+
+/** Props comunes de las tres escenas (`WhatsappAiAgentBg`, `SiteAppBuildBg`, `ConsultingMascotBg`). */
+export interface SceneProps {
+  /** Fotograma final, sin timers (también se fuerza bajo prefers-reduced-motion). */
+  poster?: boolean;
+  layout?: SceneLayout;
+  /** Clases para la caja de la composición en modo `stage` (zoom responsivo). */
+  stageClassName?: string;
+}
+
 interface SceneFrameProps {
   /** Texto alternativo de la escena para lectores de pantalla (declara la simulación). */
   label: string;
   children: ReactNode;
   className?: string;
+  layout?: SceneLayout;
+  stageClassName?: string;
 }
 
-export function SceneFrame({ label, children, className }: SceneFrameProps) {
+export function SceneFrame({ label, children, className, layout = 'card', stageClassName }: SceneFrameProps) {
   return (
     <div
       role="img"
@@ -79,11 +104,18 @@ export function SceneFrame({ label, children, className }: SceneFrameProps) {
           'radial-gradient(120% 70% at 50% -12%, rgba(34,211,238,0.16) 0%, rgba(59,130,246,0.07) 42%, transparent 72%)',
       }}
     >
-      {/* Zona de acción: arriba, para dejar el tercio inferior al texto de la
-          tarjeta (título + preview, con su gradiente de contraste). */}
-      <div aria-hidden="true" className="relative mx-auto w-full max-w-[460px] px-4 pt-4">
-        {children}
-      </div>
+      {layout === 'stage' ? (
+        // Escenario: la composición centrada en su caja, con aire alrededor.
+        <div aria-hidden="true" className="absolute inset-0 flex items-center justify-center">
+          <div className={cn('w-full max-w-[460px] px-4 pt-4', stageClassName)}>{children}</div>
+        </div>
+      ) : (
+        // Zona de acción: arriba, para dejar el tercio inferior al texto de la
+        // tarjeta (título + preview, con su gradiente de contraste).
+        <div aria-hidden="true" className="relative mx-auto w-full max-w-[460px] px-4 pt-4">
+          {children}
+        </div>
+      )}
     </div>
   );
 }

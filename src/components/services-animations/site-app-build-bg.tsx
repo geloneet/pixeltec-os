@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { motion } from 'framer-motion';
-import { DEVICE, EASE_OUT, SCENE, SPRING, SPRING_SETTLE, SceneFrame } from './scene-frame';
+import { DEVICE, EASE_OUT, SCENE, SPRING, SPRING_SETTLE, SceneFrame, type SceneProps } from './scene-frame';
 import { at, useSceneActive, useSceneTimeline, type TimelineStep } from './use-scene-timeline';
 
 /**
@@ -390,7 +390,7 @@ function buildSteps(product: Product, set: Setter): TimelineStep[] {
   return steps;
 }
 
-export function SiteAppBuildBg({ poster = false }: { poster?: boolean }) {
+export function SiteAppBuildBg({ poster = false, layout, stageClassName }: SceneProps) {
   const ref = useRef<HTMLDivElement>(null);
   const { active, still } = useSceneActive(ref, poster);
 
@@ -425,7 +425,7 @@ export function SiteAppBuildBg({ poster = false }: { poster?: boolean }) {
 
   return (
     <div ref={ref} className="absolute inset-0">
-      <SceneFrame label="Simulación con datos ficticios de un sitio web y su app móvil terminados —hotel boutique, tienda de café, panel de ventas— que se ensamblan pieza a pieza en un navegador y en un teléfono.">
+      <SceneFrame layout={layout} stageClassName={stageClassName} label="Simulación con datos ficticios de un sitio web y su app móvil terminados —hotel boutique, tienda de café, panel de ventas— que se ensamblan pieza a pieza en un navegador y en un teléfono.">
         <motion.div
           className="relative flex h-[232px] gap-3"
           animate={{ opacity: fading ? 0 : 1 }}

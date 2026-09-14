@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { DEVICE, EASE_OUT, ENTER, PANEL, SCENE, SPRING, SceneFrame } from './scene-frame';
+import { DEVICE, EASE_OUT, ENTER, PANEL, SCENE, SPRING, SceneFrame, type SceneProps } from './scene-frame';
 import { at, useSceneActive, useSceneTimeline, type TimelineStep } from './use-scene-timeline';
 
 /**
@@ -189,7 +189,7 @@ function posterState(): State {
   return s;
 }
 
-export function WhatsappAiAgentBg({ poster = false }: { poster?: boolean }) {
+export function WhatsappAiAgentBg({ poster = false, layout, stageClassName }: SceneProps) {
   const ref = useRef<HTMLDivElement>(null);
   const { active, still } = useSceneActive(ref, poster);
 
@@ -227,7 +227,7 @@ export function WhatsappAiAgentBg({ poster = false }: { poster?: boolean }) {
 
   return (
     <div ref={ref} className="absolute inset-0">
-      <SceneFrame label="Simulación con datos ficticios de un agente de WhatsApp con IA atendiendo un negocio: identifica al cliente, consulta la agenda y confirma una cita sin intervención humana.">
+      <SceneFrame layout={layout} stageClassName={stageClassName} label="Simulación con datos ficticios de un agente de WhatsApp con IA atendiendo un negocio: identifica al cliente, consulta la agenda y confirma una cita sin intervención humana.">
         <motion.div
           className="grid h-[232px] grid-cols-[1.25fr_1fr] gap-3"
           animate={{ opacity: fading ? 0 : 1 }}

@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { EASE_OUT, ENTER, PANEL, SCENE, SPRING, SPRING_SETTLE, SceneFrame } from './scene-frame';
+import { EASE_OUT, ENTER, PANEL, SCENE, SPRING, SPRING_SETTLE, SceneFrame, type SceneProps } from './scene-frame';
 import { at, useSceneActive, useSceneTimeline, type TimelineStep } from './use-scene-timeline';
 
 /**
@@ -121,7 +121,7 @@ const GAZE: Record<Look, { x: number; y: number }> = {
   plan: { x: 3.5, y: 3 },
 };
 
-export function ConsultingMascotBg({ poster = false }: { poster?: boolean }) {
+export function ConsultingMascotBg({ poster = false, layout, stageClassName }: SceneProps) {
   const ref = useRef<HTMLDivElement>(null);
   const { active, still } = useSceneActive(ref, poster);
 
@@ -158,7 +158,7 @@ export function ConsultingMascotBg({ poster = false }: { poster?: boolean }) {
 
   return (
     <div ref={ref} className="absolute inset-0">
-      <SceneFrame label="Simulación con datos ficticios de una consultoría: PIX, la presencia de PixelTEC, presenta un diagnóstico donde el área débil de un negocio se fortalece, con una métrica que mejora y un plan de 90 días que se va cumpliendo.">
+      <SceneFrame layout={layout} stageClassName={stageClassName} label="Simulación con datos ficticios de una consultoría: PIX, la presencia de PixelTEC, presenta un diagnóstico donde el área débil de un negocio se fortalece, con una métrica que mejora y un plan de 90 días que se va cumpliendo.">
         <motion.div
           className="grid h-[232px] grid-cols-[118px_1fr] gap-3"
           animate={{ opacity: fading ? 0 : 1 }}
