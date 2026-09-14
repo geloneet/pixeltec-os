@@ -1,10 +1,9 @@
 'use client';
 import { motion } from 'framer-motion';
-import { Code, Cpu, Briefcase } from 'lucide-react';
 import Image from 'next/image';
-import Link from 'next/link';
 
 import Header from '@/components/header';
+import { ServiceSceneCard } from '@/components/services-animations/service-scene-card';
 import { Footer } from '@/components/ui/footer-section';
 import { ShinyButton } from '@/components/ui/shiny-button';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
@@ -22,6 +21,41 @@ const sectionVariants = {
     transition: { duration: 0.8, ease: 'easeOut' }
   },
 };
+
+// Entrada escalonada de las tarjetas de Pilares (solo transform, REN-01):
+// mismo stagger que las tarjetas de /services.
+const cardVariants = {
+  hidden: { y: 20 },
+  visible: (i: number) => ({
+    y: 0,
+    transition: {
+      delay: i * 0.15,
+      duration: 0.5,
+      ease: 'easeOut',
+    },
+  }),
+};
+
+// WO-2026-00342: cada pilar es un servicio y muestra su escena animada (mapeo
+// slug → escena de services-animations/registry.tsx) con la misma tarjeta de
+// /services, en lugar del icono lucide. Título y descripción se conservan.
+const pillars = [
+  {
+    slug: 'ecosistemas-web',
+    title: 'Desarrollo a la Medida',
+    description: 'Creamos aplicaciones web y móviles robustas y escalables con tecnologías de vanguardia como Next.js y React. Arquitecturas pensadas para el futuro.',
+  },
+  {
+    slug: 'automatizacion',
+    title: 'Automatización e IA',
+    description: 'Desde scripts en Python que optimizan tareas repetitivas hasta la integración de bots inteligentes, automatizamos tus procesos para que te enfoques en crecer.',
+  },
+  {
+    slug: 'consultoria',
+    title: 'Consultoría Empresarial',
+    description: 'Analizamos tus operaciones y datos para identificar oportunidades de modernización. Te guiamos en cada paso de tu transformación digital.',
+  },
+] as const;
 
 const getImageUrl = (id: string) => {
     return PlaceHolderImages.find(img => img.id === id)?.imageUrl || 'https://placehold.co/600x600/png';
@@ -102,28 +136,12 @@ export default function AboutPage() {
                     Así es como convertimos tus desafíos en ventajas competitivas.
                 </p>
             </div>
-            <div className="mt-12 md:mt-16 grid grid-cols-1 gap-6 md:gap-8 md:grid-cols-3">
-              <Link href="/services/ecosistemas-web" className="block h-full group">
-                <PillarCard
-                  icon={<Code className="h-8 w-8 text-brand" />}
-                  title="Desarrollo a la Medida"
-                  description="Creamos aplicaciones web y móviles robustas y escalables con tecnologías de vanguardia como Next.js y React. Arquitecturas pensadas para el futuro."
-                />
-              </Link>
-              <Link href="/services/automatizacion" className="block h-full group">
-                <PillarCard
-                  icon={<Cpu className="h-8 w-8 text-brand" />}
-                  title="Automatización e IA"
-                  description="Desde scripts en Python que optimizan tareas repetitivas hasta la integración de bots inteligentes, automatizamos tus procesos para que te enfoques en crecer."
-                />
-              </Link>
-              <Link href="/services/consultoria" className="block h-full group">
-                <PillarCard
-                  icon={<Briefcase className="h-8 w-8 text-brand" />}
-                  title="Consultoría Empresarial"
-                  description="Analizamos tus operaciones y datos para identificar oportunidades de modernización. Te guiamos en cada paso de tu transformación digital."
-                />
-              </Link>
+            <div className="mt-12 md:mt-16 grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
+              {pillars.map((pillar, i) => (
+                <motion.div key={pillar.slug} custom={i} variants={cardVariants}>
+                  <ServiceSceneCard slug={pillar.slug} title={pillar.title} description={pillar.description} />
+                </motion.div>
+              ))}
             </div>
           </div>
         </motion.section>
@@ -157,13 +175,3 @@ export default function AboutPage() {
     </div>
   );
 }
-
-const PillarCard = ({ icon, title, description }: { icon: React.ReactNode, title: string, description: string }) => {
-  return (
-    <div className="relative h-full rounded-2xl border border-border dark:border-white/10 bg-card dark:bg-[#0A0A0A] p-8 overflow-hidden transition-all duration-300 group-hover:border-primary/50 group-hover:bg-primary/5 group-hover:shadow-[0_12px_32px_-16px_rgba(33,150,243,0.35)] dark:group-hover:border-brand-blue/50 dark:group-hover:bg-blue-950/20 dark:group-hover:shadow-none group-hover:-translate-y-1">
-      <div className="mb-4">{icon}</div>
-      <h3 className="text-xl font-bold text-foreground dark:text-white">{title}</h3>
-      <p className="mt-2 text-muted-foreground dark:text-white/60">{description}</p>
-    </div>
-  );
-};
