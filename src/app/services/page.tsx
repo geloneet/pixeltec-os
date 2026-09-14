@@ -1,7 +1,7 @@
 'use client';
 import { motion } from 'framer-motion';
-import { Globe, Bot, Briefcase } from 'lucide-react';
 import Header from '@/components/header';
+import { ServiceScene } from '@/components/services-animations/registry';
 import { Footer } from '@/components/ui/footer-section';
 import { ShinyButton } from '@/components/ui/shiny-button';
 import { TechStackMarquee } from '@/components/ui/tech-stack-marquee';
@@ -33,22 +33,22 @@ const cardVariants = {
     }),
 };
 
+// WO-2026-00341: cada tarjeta muestra la escena animada de su servicio (el
+// mismo mapeo slug → escena del home, services-animations/registry.tsx) en
+// lugar del icono lucide.
 const services = [
     {
         slug: 'ecosistemas-web',
-        icon: <Globe className="h-8 w-8 text-brand" />,
         title: 'Ecosistemas Web Avanzados',
         description: 'Creación de aplicaciones web robustas, CRMs personalizados y sitios corporativos ultra rápidos utilizando Next.js, React y Firebase.',
     },
     {
         slug: 'automatizacion',
-        icon: <Bot className="h-8 w-8 text-brand" />,
         title: 'Automatización de Procesos',
         description: 'Desarrollo de scripts en Python, herramientas de validación de datos y bots de Telegram interactivos para optimizar la operación diaria y reducir tareas manuales.',
     },
     {
         slug: 'consultoria',
-        icon: <Briefcase className="h-8 w-8 text-brand" />,
         title: 'Consultoría Tecnológica',
         description: 'Auditoría y digitalización de negocios. Desde la transición de procesos administrativos (como la gestión de flotillas o clínicas) hasta el rediseño UI/UX de tus sistemas actuales.',
     },
@@ -89,9 +89,12 @@ export default function ServicesPage() {
             <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
               {services.map((service, i) => (
                 <motion.div key={service.title} custom={i} variants={cardVariants}>
-                   <Link href={`/services/${service.slug}`} className="block h-full group">
+                   <Link
+                     href={`/services/${service.slug}`}
+                     className="group block h-full rounded-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-focus"
+                   >
                         <ServiceCard
-                            icon={service.icon}
+                            slug={service.slug}
                             title={service.title}
                             description={service.description}
                         />
@@ -148,12 +151,25 @@ export default function ServicesPage() {
   );
 }
 
-const ServiceCard = ({ icon, title, description }: { icon: React.ReactNode, title: string, description: string }) => {
+// Tarjeta "escena arriba, lectura abajo" (patrón de listado tipo Airbnb): la
+// escena corre sola al entrar al viewport y se pausa fuera de él; bajo
+// prefers-reduced-motion se queda en su fotograma final. Va aria-hidden porque
+// el enlace ya se nombra por el título: el `role="img"` de la escena no debe
+// alargar el nombre accesible del link.
+const ServiceCard = ({ slug, title, description }: { slug: string; title: string; description: string }) => {
   return (
-    <div className="relative h-full rounded-2xl border border-border bg-card p-8 backdrop-blur-md transition-all duration-300 group-hover:border-primary/40 group-hover:bg-primary/5 dark:group-hover:border-cyan-500/50 dark:group-hover:bg-cyan-950/20 group-hover:-translate-y-2 overflow-hidden">
-      <div className="mb-4 text-brand transition-colors duration-300 group-hover:text-primary dark:group-hover:text-cyan-300">{icon}</div>
-      <h3 className="text-xl font-bold text-foreground">{title}</h3>
-      <p className="mt-2 text-muted-foreground leading-relaxed">{description}</p>
-    </div>
+    <article className="relative flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card transition-[transform,border-color,box-shadow] duration-300 group-hover:-translate-y-2 group-hover:border-primary/40 group-hover:shadow-[0_24px_48px_-24px_rgba(33,150,243,0.35)] dark:group-hover:border-cyan-500/50 dark:group-hover:shadow-[0_24px_48px_-24px_rgba(34,211,238,0.35)]">
+      <div aria-hidden="true" className="relative h-[252px] shrink-0 overflow-hidden bg-[#06080d]">
+        <ServiceScene slug={slug} layout="stage" />
+      </div>
+      <div className="flex flex-1 flex-col p-7">
+        <h3 className="text-xl font-bold tracking-tight text-foreground">{title}</h3>
+        <p className="mt-2 leading-relaxed text-muted-foreground">{description}</p>
+        <span className="mt-auto inline-flex items-center gap-2 pt-6 text-sm font-semibold text-brand">
+          Conocer más
+          <span aria-hidden="true" className="transition-transform duration-300 group-hover:translate-x-1">→</span>
+        </span>
+      </div>
+    </article>
   );
 };

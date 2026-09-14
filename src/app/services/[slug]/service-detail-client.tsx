@@ -6,9 +6,6 @@ import { motion } from 'framer-motion';
 import {
   ArrowLeft,
   CheckCircle,
-  Globe,
-  Bot,
-  Briefcase,
   DatabaseZap,
   ShoppingCart,
   Laptop,
@@ -25,6 +22,7 @@ import {
 import Header from '@/components/header';
 import { Footer } from '@/components/ui/footer-section';
 import { ShinyButton } from '@/components/ui/shiny-button';
+import { ServiceScene } from '@/components/services-animations/registry';
 import { LOCAL_AUTOMATION_CITIES } from '@/lib/content/automatizacion-local';
 import { DESARROLLO_WEB_CITIES, CONSULTORIA_CITIES } from '@/lib/content/local-services';
 import { KEYWORD_LANDINGS_BY_HUB } from '@/lib/content/keyword-landings';
@@ -67,7 +65,6 @@ const RELATED_SERVICES: Record<string, { slug: string; title: string }[]> = {
 const servicesData = [
     {
         slug: 'ecosistemas-web',
-        icon: <Globe className="h-10 w-10 md:h-12 md:w-12 text-brand" />,
         title: 'Ecosistemas Web Avanzados',
         description: 'Creación de aplicaciones web robustas, CRMs personalizados y sitios corporativos ultra rápidos. Construimos con tecnologías de vanguardia como Next.js, React y Firebase, diseñando arquitecturas escalables preparadas para el futuro de tu negocio.',
         features: [
@@ -110,7 +107,6 @@ const servicesData = [
     },
     {
         slug: 'automatizacion',
-        icon: <Bot className="h-10 w-10 md:h-12 md:w-12 text-brand" />,
         title: 'Automatización de Procesos con IA',
         description: 'Desarrollamos scripts en Python, herramientas de validación de datos y bots de Telegram o WhatsApp interactivos para optimizar la operación diaria, reducir tareas manuales y permitir que tu equipo se enfoque en el crecimiento.',
         features: [
@@ -153,7 +149,6 @@ const servicesData = [
     },
     {
         slug: 'consultoria',
-        icon: <Briefcase className="h-10 w-10 md:h-12 md:w-12 text-brand" />,
         title: 'Consultoría Tecnológica Estratégica',
         description: 'Realizamos una auditoría y digitalización de tu negocio. Desde la transición de procesos administrativos (como la gestión de flotillas o clínicas) hasta el rediseño UI/UX de tus sistemas actuales para mejorar la eficiencia y la experiencia de usuario.',
         features: [
@@ -245,22 +240,36 @@ export default function ServiceDetailClient({ slug }: { slug: string }) {
           </Link>
         </motion.div>
 
+        {/* Hero (WO-2026-00341): el icono lucide en un card gris se reemplaza por
+            la escena animada del servicio —la misma del home— a sangre en la
+            mitad derecha del card (arriba en móvil), y el texto a la izquierda
+            con aire. Pausa fuera de viewport y fotograma final bajo
+            prefers-reduced-motion (useSceneActive). */}
         <motion.section
           initial="hidden"
           animate="visible"
           custom={1}
           variants={sectionVariants}
-          className="mb-16 rounded-2xl border border-border bg-card p-8 md:p-12 shadow-[0_12px_40px_-16px_rgba(33,150,243,0.18)] dark:shadow-[0_0_40px_rgba(0,240,255,0.05)]"
+          className="mb-16 overflow-hidden rounded-2xl border border-border bg-card shadow-[0_12px_40px_-16px_rgba(33,150,243,0.18)] dark:shadow-[0_0_40px_rgba(0,240,255,0.05)]"
         >
-          <div className="flex flex-col sm:flex-row items-center text-center sm:text-left gap-6 md:gap-8">
-            <div className="mb-4 sm:mb-0">{service.icon}</div>
-            <div className="flex-1">
-                <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-foreground">
+          <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+            <div className="order-2 flex flex-col justify-center p-7 sm:p-10 lg:order-1 lg:py-12 lg:pl-12 lg:pr-8">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-brand">
+                Servicio
+              </p>
+              <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl lg:text-[2.6rem] lg:leading-[1.1]">
                 {service.title}
-                </h1>
-                <p className="mt-4 max-w-3xl text-base md:text-lg text-muted-foreground leading-relaxed">
+              </h1>
+              <p className="mt-4 max-w-prose text-base leading-relaxed text-muted-foreground md:text-lg">
                 {service.description}
-                </p>
+              </p>
+            </div>
+            <div className="relative order-1 min-h-[264px] bg-[#06080d] sm:min-h-[332px] lg:order-2 lg:min-h-[420px]">
+              <ServiceScene
+                slug={service.slug}
+                layout="stage"
+                stageClassName="sm:[zoom:1.2] lg:[zoom:1.06] xl:[zoom:1.1]"
+              />
             </div>
           </div>
         </motion.section>
