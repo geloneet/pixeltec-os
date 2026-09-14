@@ -1,445 +1,470 @@
 'use client';
 
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { motion } from 'framer-motion';
-import { SCENE, SceneFrame } from './scene-frame';
-import {
-  at,
-  typeChars,
-  useSceneActive,
-  useSceneClock,
-  useSceneTimeline,
-  type TimelineStep,
-} from './use-scene-timeline';
+import { DEVICE, EASE_OUT, SCENE, SPRING, SPRING_SETTLE, SceneFrame } from './scene-frame';
+import { at, useSceneActive, useSceneTimeline, type TimelineStep } from './use-scene-timeline';
 
 /**
- * WO-2026-00275 · Servicio "Desarrollo Web & Apps".
+ * WO-2026-00275 · Servicio "Desarrollo Web & Apps" · ronda 2.
  *
- * Dirección: "el plano se vuelve producto". Un editor de una sola línea
- * escribe un componente y, al terminar de escribirlo, ese componente se
- * materializa A LA VEZ en una ventana de navegador y en un teléfono: primero
- * el trazo (wireframe que se dibuja con pathLength), luego el relleno. Al
- * final se mide (score) y se despliega. Tres productos rotan — landing,
- * tienda, CRM — para que la construcción nunca se repita igual.
+ * Antes (ronda 1): un editor de una línea tipeaba `<Hero title cta />` y unos
+ * rectángulos-wireframe se dibujaban y rellenaban en un navegador y un
+ * teléfono; cerraba con score Lighthouse y `✓ deploy`.
+ * Ahora: el protagonista es el PRODUCTO TERMINADO. Un sitio y su app —con
+ * texto, color, botones y datos reales— se ensamblan pieza a pieza con
+ * springs escalonados (la "construcción" queda como un gesto de 1.4 s, al
+ * estilo de un reveal de keynote), descansan terminados y reciben un barrido
+ * de luz; después se disuelven y entra el siguiente producto. Sin código
+ * expuesto, sin chrome de terminal, sin métricas técnicas: lo que ve el
+ * cliente es lo que recibiría.
  *
- * Todo es SVG + Framer Motion: nada de imágenes. Solo se animan
- * opacity / pathLength / stroke / fill-opacity.
+ * Tres productos rotan: hotel boutique (landing + app de huésped), tienda de
+ * café (e-commerce + app) y CRM (panel de ventas + app).
  */
 
-type RectBlock = {
-  kind: 'rect';
-  id: string;
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  r?: number;
-  tone: 'frame' | 'surface' | 'text' | 'accent' | 'structure';
-};
-type LineBlock = { kind: 'line'; id: string; x1: number; y1: number; x2: number; y2: number; sw: number };
-type Block = RectBlock | LineBlock;
+type Ctx = { rev: number; still: boolean };
+type Product = { name: string; domain: string; appTitle: string; pieces: number; web: (c: Ctx) => ReactNode; app: (c: Ctx) => ReactNode };
 
-type BuildStep = { code: string; ids: string[] };
-type Finale = { cx: number; cy: number; text: (p: number) => string };
-type Layout = { name: string; url: string; blocks: Block[]; steps: BuildStep[]; finale: Finale; deploy: string };
+type State = { rev: number; sweep: boolean };
+const EMPTY: State = { rev: 0, sweep: false };
 
-type BlockState = 'drawing' | 'filled' | 'ghost';
-
-type State = {
-  code: string;
-  codeTyping: boolean;
-  codeOk: boolean;
-  blocks: Record<string, BlockState>;
-  finaleOn: boolean;
-  finaleP: number; // 0..1
-};
-
-const EMPTY: State = { code: '', codeTyping: false, codeOk: false, blocks: {}, finaleOn: false, finaleP: 0 };
-
-// --- Chrome común: navegador (izquierda) y teléfono (derecha) ---------------
-const CHROME: Block[] = [
-  { kind: 'rect', id: 'web-frame', x: 6, y: 4, w: 268, h: 192, r: 8, tone: 'frame' },
-  { kind: 'line', id: 'web-bar', x1: 6, y1: 20, x2: 274, y2: 20, sw: 1 },
-  { kind: 'rect', id: 'web-dot1', x: 13, y: 10, w: 4, h: 4, r: 2, tone: 'text' },
-  { kind: 'rect', id: 'web-dot2', x: 21, y: 10, w: 4, h: 4, r: 2, tone: 'text' },
-  { kind: 'rect', id: 'web-dot3', x: 29, y: 10, w: 4, h: 4, r: 2, tone: 'text' },
-  { kind: 'rect', id: 'web-url', x: 44, y: 8, w: 120, h: 8, r: 4, tone: 'surface' },
-  { kind: 'rect', id: 'app-frame', x: 296, y: 2, w: 110, h: 196, r: 14, tone: 'frame' },
-  { kind: 'rect', id: 'app-notch', x: 334, y: 8, w: 34, h: 4, r: 2, tone: 'text' },
+// --- Paletas de contenido (imágenes hechas con gradientes; sin morados: ADR-0014) ---
+const OCEAN = 'linear-gradient(135deg, #0c4a6e 0%, #0e7490 48%, #22d3ee 100%)';
+const COFFEE = 'linear-gradient(135deg, #3f1d0b 0%, #92400e 60%, #d97706 100%)';
+const THUMBS = [
+  'linear-gradient(145deg, #7c2d12, #ea580c)',
+  'linear-gradient(145deg, #14532d, #22c55e)',
+  'linear-gradient(145deg, #1e3a8a, #3b82f6)',
+  'linear-gradient(145deg, #0f766e, #2dd4bf)',
 ];
-const CHROME_IDS = CHROME.map((b) => b.id);
+const BAR = 'linear-gradient(180deg, #67e8f9 0%, #22d3ee 40%, #2563eb 100%)';
 
-const R = (id: string, x: number, y: number, w: number, h: number, tone: RectBlock['tone'], r = 3): RectBlock => ({
-  kind: 'rect',
-  id,
-  x,
-  y,
-  w,
-  h,
-  r,
-  tone,
-});
-const L = (id: string, x1: number, y1: number, x2: number, y2: number, sw: number): LineBlock => ({
-  kind: 'line',
-  id,
-  x1,
-  y1,
-  x2,
-  y2,
-  sw,
-});
+const surface: CSSProperties = { background: 'rgba(255,255,255,0.06)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)' };
 
-const LAYOUTS: Layout[] = [
+/** Pieza del producto: aparece cuando su índice ya fue "construido". */
+function Piece({ i, ctx, className, style, children }: { i: number; ctx: Ctx; className?: string; style?: CSSProperties; children?: ReactNode }) {
+  const on = ctx.still || i < ctx.rev;
+  return (
+    <motion.div
+      className={className}
+      style={style}
+      initial={ctx.still ? false : { opacity: 0, y: 10, scale: 0.97 }}
+      animate={on ? { opacity: 1, y: 0, scale: 1 } : { opacity: 0, y: 10, scale: 0.97 }}
+      transition={SPRING_SETTLE}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+const Brand = ({ name }: { name: string }) => (
+  <span className="flex items-center gap-1">
+    <span className="h-[6px] w-[6px] rounded-[2px]" style={{ background: 'linear-gradient(135deg,#67e8f9,#2563eb)' }} />
+    <span className="text-[6.5px] font-semibold" style={{ color: SCENE.text }}>
+      {name}
+    </span>
+  </span>
+);
+
+const Row = ({ label, sub, tone }: { label: string; sub: string; tone: string }) => (
+  <div className="flex items-center gap-1.5 rounded-[7px] px-1.5 py-1" style={surface}>
+    <span className="h-[10px] w-[10px] shrink-0 rounded-full" style={{ background: tone }} />
+    <span className="min-w-0 leading-none">
+      <span className="block truncate text-[6px] font-medium" style={{ color: SCENE.text }}>
+        {label}
+      </span>
+      <span className="mt-[2px] block truncate text-[5px]" style={{ color: SCENE.muted }}>
+        {sub}
+      </span>
+    </span>
+  </div>
+);
+
+const TabBar = ({ i, ctx }: { i: number; ctx: Ctx }) => (
+  <Piece i={i} ctx={ctx} className="mt-auto flex items-center justify-around rounded-[8px] px-2 py-[5px]" style={surface}>
+    {[0, 1, 2, 3].map((k) => (
+      <span key={k} className="h-[5px] w-[5px] rounded-full" style={{ background: k === 0 ? SCENE.brand : 'rgba(255,255,255,0.28)' }} />
+    ))}
+  </Piece>
+);
+
+const Kpi = ({ label, value, delta, big }: { label: string; value: string; delta: string; big?: boolean }) => (
+  <div className="min-w-0 flex-1 rounded-[7px] px-1.5 py-1.5" style={surface}>
+    <p className="truncate text-[5px]" style={{ color: SCENE.muted }}>
+      {label}
+    </p>
+    <p className={`${big ? 'text-[9px]' : 'text-[7.5px]'} mt-[2px] font-semibold leading-none tabular-nums`} style={{ color: SCENE.text }}>
+      {value}
+    </p>
+    <p className="mt-[2px] text-[5px] font-medium leading-none" style={{ color: SCENE.ok }}>
+      {delta}
+    </p>
+  </div>
+);
+
+const Bars = ({ values, ctx, on, h }: { values: number[]; ctx: Ctx; on: boolean; h: number }) => (
+  <div className="flex items-end gap-[3px]" style={{ height: h }}>
+    {values.map((v, k) => (
+      <motion.span
+        key={k}
+        className="flex-1 rounded-[2px]"
+        style={{ height: `${v}%`, background: BAR, opacity: k === values.length - 1 ? 1 : 0.55, transformOrigin: 'bottom' }}
+        initial={ctx.still ? false : { scaleY: 0 }}
+        animate={{ scaleY: on ? 1 : 0 }}
+        transition={{ ...SPRING, delay: on ? k * 0.05 : 0 }}
+      />
+    ))}
+  </div>
+);
+
+const PRODUCTS: Product[] = [
   {
-    name: 'landing',
-    url: 'pixeltec.mx',
-    blocks: [
-      ...CHROME,
-      R('nav', 14, 28, 252, 12, 'surface'),
-      R('nav-logo', 18, 31, 20, 6, 'accent', 2),
-      R('nav-links', 200, 31, 62, 6, 'text', 2),
-      R('hero-title', 14, 50, 132, 12, 'text'),
-      R('hero-sub', 14, 66, 104, 8, 'text', 2),
-      R('hero-cta', 14, 82, 46, 12, 'accent', 6),
-      R('hero-visual', 160, 48, 106, 52, 'surface', 6),
-      R('card1', 14, 112, 78, 44, 'surface', 6),
-      R('card2', 101, 112, 78, 44, 'surface', 6),
-      R('card3', 188, 112, 78, 44, 'surface', 6),
-      R('cta-band', 14, 166, 252, 18, 'structure', 6),
-      R('status', 304, 14, 94, 4, 'text', 2),
-      R('app-header', 304, 24, 94, 14, 'surface', 4),
-      R('app-hero', 304, 44, 94, 46, 'structure', 6),
-      R('row1', 304, 96, 94, 16, 'surface', 4),
-      R('row2', 304, 116, 94, 16, 'surface', 4),
-      R('row3', 304, 136, 94, 16, 'surface', 4),
-      R('tabbar', 304, 174, 94, 16, 'surface', 5),
-      R('tab1', 314, 180, 5, 5, 'accent', 2.5),
-      R('tab2', 336, 180, 5, 5, 'text', 2.5),
-      R('tab3', 358, 180, 5, 5, 'text', 2.5),
-      R('tab4', 380, 180, 5, 5, 'text', 2.5),
-    ],
-    steps: [
-      { code: 'scaffold  web/page.tsx · app/Home.tsx', ids: CHROME_IDS },
-      { code: '<Nav logo links={3} />  ·  <StatusBar />', ids: ['nav', 'nav-logo', 'nav-links', 'status'] },
-      { code: '<Hero title cta />  ·  <AppHeader />', ids: ['hero-title', 'hero-sub', 'hero-cta', 'app-header'] },
-      { code: '<Media aspect="16/9" />  ·  <HeroCard />', ids: ['hero-visual', 'app-hero'] },
-      { code: '<Grid cols={3} />  ·  <List rows={3} />', ids: ['card1', 'card2', 'card3', 'row1', 'row2', 'row3'] },
-      { code: '<CTA band />  ·  <TabBar items={4} />', ids: ['cta-band', 'tabbar', 'tab1', 'tab2', 'tab3', 'tab4'] },
-    ],
-    finale: { cx: 213, cy: 74, text: (p) => `${Math.round(p * 100)}` },
-    deploy: '✓ deploy · pixeltec.mx · lighthouse 100 · 1.2 s',
+    name: 'Casa Mar',
+    domain: 'casamar.mx',
+    appTitle: 'Mi estancia',
+    pieces: 12,
+    web: (c) => (
+      <div className="flex h-full flex-col gap-1.5">
+        <Piece i={0} ctx={c} className="flex items-center justify-between px-0.5">
+          <Brand name="Casa Mar" />
+          <span className="flex gap-2 text-[5px]" style={{ color: SCENE.text2 }}>
+            <span>Suites</span>
+            <span>Restaurante</span>
+            <span>Reservar</span>
+          </span>
+        </Piece>
+        <Piece i={2} ctx={c} className="relative h-[66px] overflow-hidden rounded-[10px] p-2.5" style={{ background: OCEAN, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.25)' }}>
+          <p className="text-[4.5px] font-semibold uppercase tracking-[0.18em]" style={{ color: 'rgba(255,255,255,0.75)' }}>
+            Puerto Vallarta
+          </p>
+          <p className="mt-1 max-w-[62%] text-[10px] font-semibold leading-[1.05] tracking-[-0.01em] text-white">Despierta frente al mar</p>
+          <span className="mt-2 inline-block rounded-full bg-white px-2 py-[3px] text-[5.5px] font-semibold text-[#0c4a6e]">Reservar</span>
+          <span className="absolute -right-4 -top-6 h-16 w-16 rounded-full" style={{ background: 'rgba(255,255,255,0.14)', filter: 'blur(8px)' }} />
+        </Piece>
+        <div className="grid grid-cols-3 gap-1.5">
+          {[
+            ['Suites', 'Vista al mar', 4],
+            ['Restaurante', 'Cocina local', 5],
+            ['Spa', 'Rituales', 6],
+          ].map(([t, s, i]) => (
+            <Piece key={t as string} i={i as number} ctx={c} className="rounded-[8px] px-1.5 py-1.5" style={surface}>
+              <span className="block h-[7px] w-[7px] rounded-[2px]" style={{ background: OCEAN }} />
+              <p className="mt-1 text-[6px] font-medium leading-none" style={{ color: SCENE.text }}>
+                {t}
+              </p>
+              <p className="mt-[2px] text-[5px] leading-none" style={{ color: SCENE.muted }}>
+                {s}
+              </p>
+            </Piece>
+          ))}
+        </div>
+        <Piece i={10} ctx={c} className="mt-auto flex items-center justify-between rounded-[7px] px-2 py-[5px]" style={surface}>
+          <span className="text-[5.5px]" style={{ color: SCENE.text2 }}>
+            Reserva directa · mejor precio garantizado
+          </span>
+          <span className="text-[5.5px] font-semibold" style={{ color: SCENE.brand }}>
+            Ver fechas
+          </span>
+        </Piece>
+      </div>
+    ),
+    app: (c) => (
+      <div className="flex h-full flex-col gap-1.5">
+        <Piece i={1} ctx={c} className="px-0.5">
+          <p className="text-[7px] font-semibold leading-none" style={{ color: SCENE.text }}>
+            Mi estancia
+          </p>
+          <p className="mt-[3px] text-[5px] leading-none" style={{ color: SCENE.muted }}>
+            12 – 15 octubre
+          </p>
+        </Piece>
+        <Piece i={3} ctx={c} className="relative h-[56px] overflow-hidden rounded-[10px] p-2" style={{ background: OCEAN, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.25)' }}>
+          <p className="text-[6.5px] font-semibold leading-tight text-white">Suite Vista Mar</p>
+          <p className="mt-[2px] text-[5px]" style={{ color: 'rgba(255,255,255,0.8)' }}>
+            Piso 3 · 2 huéspedes
+          </p>
+          <span className="absolute bottom-2 left-2 rounded-full bg-white/90 px-1.5 py-[2px] text-[4.5px] font-semibold text-[#0c4a6e]">Llave digital</span>
+        </Piece>
+        <Piece i={7} ctx={c}>
+          <Row label="Check-in" sub="Hoy · 15:00" tone={OCEAN} />
+        </Piece>
+        <Piece i={8} ctx={c}>
+          <Row label="Desayuno" sub="7:00 – 11:00" tone="linear-gradient(135deg,#fde68a,#f59e0b)" />
+        </Piece>
+        <Piece i={9} ctx={c}>
+          <Row label="Spa" sub="Reservar masaje" tone="linear-gradient(135deg,#a7f3d0,#34d399)" />
+        </Piece>
+        <TabBar i={11} ctx={c} />
+      </div>
+    ),
   },
   {
-    name: 'tienda',
-    url: 'tienda.mx',
-    blocks: [
-      ...CHROME,
-      R('nav', 14, 28, 252, 12, 'surface'),
-      R('search', 100, 30, 80, 8, 'text', 4),
-      R('banner', 14, 48, 252, 36, 'structure', 6),
-      R('p1', 14, 92, 57, 40, 'surface', 5),
-      R('p2', 79, 92, 57, 40, 'surface', 5),
-      R('p3', 144, 92, 57, 40, 'surface', 5),
-      R('p4', 209, 92, 57, 40, 'surface', 5),
-      R('p5', 14, 140, 57, 40, 'surface', 5),
-      R('p6', 79, 140, 57, 40, 'surface', 5),
-      R('p7', 144, 140, 57, 40, 'surface', 5),
-      R('p8', 209, 140, 57, 40, 'surface', 5),
-      R('status', 304, 14, 94, 4, 'text', 2),
-      R('app-search', 304, 24, 94, 12, 'surface', 6),
-      R('chips', 304, 42, 94, 10, 'text', 5),
-      R('a1', 304, 58, 44, 44, 'surface', 5),
-      R('a2', 354, 58, 44, 44, 'surface', 5),
-      R('a3', 304, 108, 44, 44, 'surface', 5),
-      R('a4', 354, 108, 44, 44, 'surface', 5),
-      R('fab', 380, 156, 14, 14, 'accent', 7),
-      R('tabbar', 304, 174, 94, 16, 'surface', 5),
-    ],
-    steps: [
-      { code: 'scaffold  web/tienda.tsx · app/Shop.tsx', ids: CHROME_IDS },
-      { code: '<Nav search />  ·  <SearchBar />', ids: ['nav', 'search', 'status', 'app-search'] },
-      { code: '<Banner promo />  ·  <Chips categorias />', ids: ['banner', 'chips'] },
-      { code: '<Products cols={4} />  ·  <Products cols={2} />', ids: ['p1', 'p2', 'p3', 'p4', 'a1', 'a2'] },
-      { code: '<Products row={2} />  ·  <CartFab />', ids: ['p5', 'p6', 'p7', 'p8', 'a3', 'a4', 'fab'] },
-      { code: '<Checkout stripe />  ·  <TabBar />', ids: ['tabbar'] },
-    ],
-    finale: { cx: 140, cy: 66, text: (p) => (p >= 1 ? '✓' : `${Math.round(p * 42)} ms`) },
-    deploy: '✓ deploy · stripe webhook ok · 42 ms',
+    name: 'Altura',
+    domain: 'altura.cafe',
+    appTitle: 'Altura',
+    pieces: 12,
+    web: (c) => (
+      <div className="flex h-full flex-col gap-1.5">
+        <Piece i={0} ctx={c} className="flex items-center gap-2 px-0.5">
+          <Brand name="Altura" />
+          <span className="flex-1 rounded-full px-2 py-[3px] text-[5px]" style={{ ...surface, color: SCENE.muted }}>
+            Buscar café…
+          </span>
+          <span className="h-[7px] w-[7px] rounded-full" style={{ background: 'rgba(255,255,255,0.25)' }} />
+        </Piece>
+        <Piece i={2} ctx={c} className="flex items-center justify-between rounded-[8px] px-2 py-[5px]" style={{ background: COFFEE, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.18)' }}>
+          <span className="text-[6px] font-semibold text-white">Cosecha 2026 · tueste fresco</span>
+          <span className="text-[5px] font-medium" style={{ color: 'rgba(255,255,255,0.8)' }}>
+            Envío gratis desde $499
+          </span>
+        </Piece>
+        <div className="grid grid-cols-4 gap-1.5">
+          {[
+            ['Chiapas', '$249', 4],
+            ['Veracruz', '$229', 5],
+            ['Nayarit', '$269', 6],
+            ['Oaxaca', '$289', 7],
+          ].map(([t, p, i], k) => (
+            <Piece key={t as string} i={i as number} ctx={c} className="rounded-[8px] p-1" style={surface}>
+              <span className="block h-[30px] rounded-[6px]" style={{ background: THUMBS[k], boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.2)' }} />
+              <p className="mt-1 truncate text-[5.5px] font-medium leading-none" style={{ color: SCENE.text }}>
+                {t}
+              </p>
+              <p className="mt-[2px] text-[6px] font-semibold leading-none tabular-nums" style={{ color: SCENE.text }}>
+                {p}
+              </p>
+            </Piece>
+          ))}
+        </div>
+        <Piece i={10} ctx={c} className="mt-auto flex items-center justify-between rounded-[7px] px-2 py-[5px]" style={surface}>
+          <span className="text-[5.5px]" style={{ color: SCENE.text2 }}>
+            Suscripción mensual · 15 % de descuento
+          </span>
+          <span className="rounded-full px-1.5 py-[2px] text-[5px] font-semibold text-[#06080d]" style={{ background: SCENE.brand }}>
+            Empezar
+          </span>
+        </Piece>
+      </div>
+    ),
+    app: (c) => (
+      <div className="relative flex h-full flex-col gap-1.5">
+        <Piece i={1} ctx={c} className="rounded-full px-2 py-[4px] text-[5px]" style={{ ...surface, color: SCENE.muted }}>
+          Buscar café…
+        </Piece>
+        <Piece i={3} ctx={c} className="flex gap-1">
+          {['Espresso', 'Filtro', 'Molido'].map((ch, k) => (
+            <span key={ch} className="rounded-full px-1.5 py-[2px] text-[4.5px] font-medium" style={k === 0 ? { background: SCENE.brand, color: '#06080d' } : { ...surface, color: SCENE.text2 }}>
+              {ch}
+            </span>
+          ))}
+        </Piece>
+        <div className="grid grid-cols-2 gap-1.5">
+          {[
+            ['Chiapas', '$249', 6],
+            ['Veracruz', '$229', 7],
+            ['Nayarit', '$269', 8],
+            ['Oaxaca', '$289', 9],
+          ].map(([t, p, i], k) => (
+            <Piece key={t as string} i={i as number} ctx={c} className="rounded-[8px] p-1" style={surface}>
+              <span className="block h-[22px] rounded-[6px]" style={{ background: THUMBS[k] }} />
+              <p className="mt-1 truncate text-[5px] font-medium leading-none" style={{ color: SCENE.text }}>
+                {t}
+              </p>
+              <p className="mt-[2px] text-[5.5px] font-semibold leading-none tabular-nums" style={{ color: SCENE.text }}>
+                {p}
+              </p>
+            </Piece>
+          ))}
+        </div>
+        <Piece i={10} ctx={c} className="absolute bottom-6 right-1 flex h-[16px] w-[16px] items-center justify-center rounded-full" style={{ background: 'linear-gradient(145deg,#67e8f9,#2563eb)', boxShadow: '0 4px 10px rgba(34,211,238,0.35)' }}>
+          <svg viewBox="0 0 12 12" className="h-[8px] w-[8px]" aria-hidden="true">
+            <path d="M3 4.5h6l-.6 5H3.6z M4.5 4.5V3.5a1.5 1.5 0 0 1 3 0v1" fill="none" stroke="#06080d" strokeWidth={1} strokeLinejoin="round" />
+          </svg>
+        </Piece>
+        <TabBar i={11} ctx={c} />
+      </div>
+    ),
   },
   {
-    name: 'crm',
-    url: 'app.crm.mx',
-    blocks: [
-      ...CHROME,
-      R('sidebar', 14, 28, 44, 156, 'surface', 6),
-      R('topbar', 66, 28, 200, 12, 'surface'),
-      R('kpi1', 66, 48, 62, 26, 'surface', 5),
-      R('kpi2', 135, 48, 62, 26, 'surface', 5),
-      R('kpi3', 204, 48, 62, 26, 'surface', 5),
-      R('chart', 66, 82, 130, 72, 'surface', 6),
-      L('b1', 80, 146, 80, 122, 8),
-      L('b2', 100, 146, 100, 108, 8),
-      L('b3', 120, 146, 120, 128, 8),
-      L('b4', 140, 146, 140, 100, 8),
-      L('b5', 160, 146, 160, 112, 8),
-      L('b6', 180, 146, 180, 92, 8),
-      R('table', 204, 82, 62, 72, 'surface', 6),
-      R('status', 304, 14, 94, 4, 'text', 2),
-      R('app-header', 304, 24, 94, 14, 'surface', 4),
-      R('akpi1', 304, 44, 44, 28, 'surface', 5),
-      R('akpi2', 354, 44, 44, 28, 'surface', 5),
-      R('achart', 304, 78, 94, 50, 'surface', 6),
-      L('ab1', 316, 120, 316, 104, 6),
-      L('ab2', 332, 120, 332, 94, 6),
-      L('ab3', 348, 120, 348, 110, 6),
-      L('ab4', 364, 120, 364, 88, 6),
-      L('ab5', 380, 120, 380, 98, 6),
-      R('row1', 304, 134, 94, 14, 'surface', 4),
-      R('row2', 304, 152, 94, 14, 'surface', 4),
-      R('tabbar', 304, 174, 94, 16, 'surface', 5),
-    ],
-    steps: [
-      { code: 'scaffold  web/dashboard.tsx · app/Today.tsx', ids: CHROME_IDS },
-      { code: '<Sidebar />  ·  <StatusBar />', ids: ['sidebar', 'status'] },
-      { code: '<Topbar user />  ·  <AppHeader />', ids: ['topbar', 'app-header'] },
-      { code: '<KPI x3 />  ·  <KPI x2 />', ids: ['kpi1', 'kpi2', 'kpi3', 'akpi1', 'akpi2'] },
-      { code: '<Chart series="ventas" />  ·  <Chart />', ids: ['chart', 'achart', 'b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'ab1', 'ab2', 'ab3', 'ab4', 'ab5'] },
-      { code: '<Table rows={4} />  ·  <List /> <TabBar />', ids: ['table', 'row1', 'row2', 'tabbar'] },
-    ],
-    finale: { cx: 235, cy: 118, text: (p) => `${Math.round(p * 12)} ms` },
-    deploy: '✓ deploy · postgres + drizzle · 12 ms',
+    name: 'Panel de ventas',
+    domain: 'app.ventas.mx',
+    appTitle: 'Hoy',
+    pieces: 12,
+    web: (c) => (
+      <div className="flex h-full gap-1.5">
+        <Piece i={0} ctx={c} className="flex w-[26px] shrink-0 flex-col items-center gap-2 rounded-[8px] py-2" style={surface}>
+          <span className="h-[7px] w-[7px] rounded-[2px]" style={{ background: 'linear-gradient(135deg,#67e8f9,#2563eb)' }} />
+          {[0, 1, 2, 3].map((k) => (
+            <span key={k} className="h-[4px] w-[10px] rounded-full" style={{ background: k === 0 ? SCENE.brand : 'rgba(255,255,255,0.22)' }} />
+          ))}
+        </Piece>
+        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+          <Piece i={2} ctx={c} className="flex items-center justify-between px-0.5">
+            <span className="text-[6.5px] font-semibold" style={{ color: SCENE.text }}>
+              Ventas · Septiembre
+            </span>
+            <span className="h-[8px] w-[8px] rounded-full" style={{ background: 'linear-gradient(135deg,#fde68a,#f59e0b)' }} />
+          </Piece>
+          <div className="flex gap-1.5">
+            <Piece i={4} ctx={c} className="flex min-w-0 flex-1">
+              <Kpi label="Ingresos" value="$1.24M" delta="+18 %" />
+            </Piece>
+            <Piece i={5} ctx={c} className="flex min-w-0 flex-1">
+              <Kpi label="Leads" value="312" delta="+9 %" />
+            </Piece>
+            <Piece i={6} ctx={c} className="flex min-w-0 flex-1">
+              <Kpi label="Cierre" value="27 %" delta="+4 pts" />
+            </Piece>
+          </div>
+          <div className="flex flex-1 gap-1.5">
+            <Piece i={7} ctx={c} className="flex flex-[1.5] flex-col rounded-[8px] px-2 pb-1.5 pt-1.5" style={surface}>
+              <p className="text-[5px]" style={{ color: SCENE.muted }}>
+                Ingresos por semana
+              </p>
+              <div className="mt-auto">
+                <Bars values={[38, 52, 46, 68, 60, 82, 96]} ctx={c} on={c.still || 7 < c.rev} h={46} />
+              </div>
+            </Piece>
+            <Piece i={8} ctx={c} className="flex flex-1 flex-col gap-1 rounded-[8px] p-1.5" style={surface}>
+              {[
+                ['Marina R.', '$48k'],
+                ['Grupo Norte', '$32k'],
+                ['Hotel Sol', '$27k'],
+              ].map(([n, v], k) => (
+                <div key={n} className="flex items-center gap-1">
+                  <span className="h-[6px] w-[6px] rounded-full" style={{ background: THUMBS[k] }} />
+                  <span className="min-w-0 flex-1 truncate text-[5px]" style={{ color: SCENE.text2 }}>
+                    {n}
+                  </span>
+                  <span className="text-[5px] font-semibold tabular-nums" style={{ color: SCENE.text }}>
+                    {v}
+                  </span>
+                </div>
+              ))}
+            </Piece>
+          </div>
+        </div>
+      </div>
+    ),
+    app: (c) => (
+      <div className="flex h-full flex-col gap-1.5">
+        <Piece i={1} ctx={c} className="px-0.5">
+          <p className="text-[7px] font-semibold leading-none" style={{ color: SCENE.text }}>
+            Hoy
+          </p>
+          <p className="mt-[3px] text-[5px] leading-none" style={{ color: SCENE.muted }}>
+            Miércoles 10 · Sep
+          </p>
+        </Piece>
+        <Piece i={3} ctx={c} className="flex gap-1.5">
+          <Kpi label="Ventas" value="$41k" delta="+12 %" big />
+          <Kpi label="Leads" value="18" delta="+3" big />
+        </Piece>
+        <Piece i={9} ctx={c} className="rounded-[8px] px-1.5 pb-1.5 pt-1.5" style={surface}>
+          <p className="text-[5px]" style={{ color: SCENE.muted }}>
+            Semana
+          </p>
+          <div className="mt-1">
+            <Bars values={[45, 62, 55, 78, 92]} ctx={c} on={c.still || 9 < c.rev} h={26} />
+          </div>
+        </Piece>
+        <Piece i={10} ctx={c}>
+          <Row label="Marina R." sub="Propuesta enviada" tone={THUMBS[0]} />
+        </Piece>
+        <TabBar i={11} ctx={c} />
+      </div>
+    ),
   },
 ];
 
 type Setter = (update: (prev: State) => State) => void;
 
-function buildSteps(layout: Layout, set: Setter): TimelineStep[] {
+function buildSteps(product: Product, set: Setter): TimelineStep[] {
   const steps: TimelineStep[] = [];
-  const setBlocks = (ids: string[], st: BlockState) =>
-    set((s) => {
-      const blocks = { ...s.blocks };
-      ids.forEach((id) => (blocks[id] = st));
-      return { ...s, blocks };
-    });
-
-  layout.steps.forEach((bs, i) => {
-    steps.push(at(i === 0 ? 300 : 420, () => set((s) => ({ ...s, code: '', codeTyping: true, codeOk: false }))));
-    steps.push(
-      ...typeChars(bs.code, 20, (partial, done) => set((s) => ({ ...s, code: partial, codeTyping: !done })), 80),
-    );
-    steps.push(at(160, () => setBlocks(bs.ids, 'drawing')));
-    steps.push(at(440, () => setBlocks(bs.ids, 'filled')));
-  });
-
-  // Medición: anillo + contador.
-  steps.push(at(420, () => set((s) => ({ ...s, code: '', codeTyping: true }))));
-  steps.push(...typeChars('measure  lighthouse · vitals · api', 20, (partial, done) => set((s) => ({ ...s, code: partial, codeTyping: !done })), 60));
-  steps.push(at(120, () => set((s) => ({ ...s, finaleOn: true }))));
-  for (let k = 1; k <= 10; k++) {
-    steps.push(at(70, () => set((s) => ({ ...s, finaleP: k / 10 }))));
+  for (let k = 1; k <= product.pieces; k++) {
+    steps.push(at(k === 1 ? 350 : 115, () => set((s) => ({ ...s, rev: k }))));
   }
-  steps.push(at(360, () => set((s) => ({ ...s, code: layout.deploy, codeTyping: false, codeOk: true }))));
+  // Producto terminado: barrido de luz (una vez) y contemplación.
+  steps.push(at(650, () => set((s) => ({ ...s, sweep: true }))));
   return steps;
 }
-
-function posterState(): State {
-  let s: State = EMPTY;
-  const set: Setter = (u) => {
-    s = u(s);
-  };
-  buildSteps(LAYOUTS[0], set).forEach((step) => step.run());
-  return s;
-}
-
-const EASE_OUT = [0.23, 1, 0.32, 1] as const;
-
-const FILL: Record<RectBlock['tone'], string> = {
-  frame: 'transparent',
-  surface: 'rgba(255,255,255,0.07)',
-  text: 'rgba(255,255,255,0.26)',
-  accent: 'rgba(34,211,238,0.55)',
-  structure: 'rgba(59,130,246,0.32)',
-};
 
 export function SiteAppBuildBg({ poster = false }: { poster?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
   const { active, still } = useSceneActive(ref, poster);
-  const clock = useSceneClock(active, still);
 
-  const [layoutIndex, setLayoutIndex] = useState(0);
+  const [productIndex, setProductIndex] = useState(0);
   const [runKey, setRunKey] = useState(0);
   const [state, setState] = useState<State>(EMPTY);
-  const [phaseOut, setPhaseOut] = useState(false);
+  const [fading, setFading] = useState(false);
 
-  const layout = LAYOUTS[layoutIndex];
+  const product = PRODUCTS[productIndex];
   const steps = useMemo(() => {
     if (still) return null;
-    const list = buildSteps(layout, setState);
-    // Se contempla el resultado; luego el producto vuelve a plano (ghost) y se limpia.
-    list.push(
-      at(2800, () => {
-        setPhaseOut(true);
-        setState((s) => {
-          const blocks = { ...s.blocks };
-          Object.keys(blocks).forEach((id) => (blocks[id] = 'ghost'));
-          return { ...s, blocks, finaleOn: false, code: '', codeOk: false };
-        });
-      }),
-    );
+    const list = buildSteps(product, setState);
+    list.push(at(4600, () => setFading(true)));
     return list;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layout, still, runKey]);
+  }, [product, still, runKey]);
 
   const onEnd = useCallback(() => {
     window.setTimeout(() => {
       setState(EMPTY);
-      setPhaseOut(false);
-      setLayoutIndex((i) => (i + 1) % LAYOUTS.length);
+      setFading(false);
+      setProductIndex((i) => (i + 1) % PRODUCTS.length);
       setRunKey((k) => k + 1);
-    }, 700);
+    }, 560);
   }, []);
 
   useSceneTimeline(steps, active, runKey, onEnd);
 
-  const poster0 = useMemo(() => (still ? posterState() : null), [still]);
-  const view = poster0 ?? state;
-  const shown = still ? LAYOUTS[0] : layout;
+  const shown = still ? PRODUCTS[0] : product;
+  const ctx: Ctx = { rev: still ? shown.pieces : state.rev, still };
+  const sweep = !still && state.sweep;
 
   return (
     <div ref={ref} className="absolute inset-0">
-      <SceneFrame
-        system="PixelTEC Build"
-        clock={clock}
-        still={still}
-        label="Simulación de la construcción en tiempo real de un sitio web y una app móvil: cada componente que se escribe en el editor se dibuja como wireframe y se materializa a la vez en un navegador y en un teléfono; al final se mide y se despliega."
-      >
-        <div className="flex h-[224px] flex-col gap-1.5">
-          {/* Editor de una línea */}
-          <div
-            className="flex h-[18px] items-center gap-1.5 rounded-md border px-2 font-mono text-[8.5px]"
-            style={{ borderColor: SCENE.line, backgroundColor: 'rgba(0,0,0,0.42)' }}
-          >
-            <span style={{ color: view.codeOk ? SCENE.ok : SCENE.live }}>{view.codeOk ? '' : '›'}</span>
-            <span className="truncate" style={{ color: view.codeOk ? SCENE.ok : 'rgba(255,255,255,0.85)' }}>
-              {view.code}
-            </span>
-            {view.codeTyping && (
-              <motion.span
-                className="inline-block h-[10px] w-[2px] rounded-sm"
-                style={{ backgroundColor: SCENE.live }}
-                animate={{ opacity: [1, 0, 1] }}
-                transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }}
-              />
-            )}
-            <span className="ml-auto shrink-0 uppercase tracking-[0.14em]" style={{ color: SCENE.muted }}>
-              {shown.name} · {still ? 1 : layoutIndex + 1}/{LAYOUTS.length}
-            </span>
+      <SceneFrame label="Simulación con datos ficticios de un sitio web y su app móvil terminados —hotel boutique, tienda de café, panel de ventas— que se ensamblan pieza a pieza en un navegador y en un teléfono.">
+        <motion.div
+          className="relative flex h-[232px] gap-3"
+          animate={{ opacity: fading ? 0 : 1 }}
+          transition={{ duration: 0.55, ease: EASE_OUT }}
+        >
+          {/* Navegador */}
+          <div className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-[14px]" style={DEVICE}>
+            <div className="flex items-center gap-1.5 px-2.5 pb-1.5 pt-2">
+              {[0, 1, 2].map((k) => (
+                <span key={k} className="h-[5px] w-[5px] rounded-full" style={{ background: 'rgba(255,255,255,0.18)' }} />
+              ))}
+              <span className="ml-2 flex-1 truncate rounded-full px-2 py-[3px] text-center text-[6px]" style={{ background: 'rgba(255,255,255,0.05)', color: SCENE.muted }}>
+                {shown.domain}
+              </span>
+            </div>
+            <div className="min-h-0 flex-1 px-2.5 pb-2.5 pt-1">{shown.web(ctx)}</div>
           </div>
 
-          {/* Navegador + teléfono */}
-          <motion.svg
-            viewBox="0 0 460 200"
-            className="w-full flex-1"
-            preserveAspectRatio="xMidYMin meet"
-            animate={{ opacity: phaseOut ? 0.55 : 1 }}
-            transition={{ duration: 0.6, ease: EASE_OUT }}
-          >
-            {shown.blocks.map((b) => (
-              <BlockShape key={b.id} block={b} state={view.blocks[b.id]} still={still} />
-            ))}
+          {/* Teléfono */}
+          <div className="relative w-[108px] shrink-0 overflow-hidden rounded-[22px] p-[3px]" style={{ background: 'linear-gradient(180deg,#232a35,#141922)', boxShadow: '0 28px 56px -28px rgba(0,0,0,0.9), inset 0 1px 0 rgba(255,255,255,0.14)' }}>
+            <div className="relative flex h-full flex-col overflow-hidden rounded-[19px] px-2 pb-2 pt-[18px]" style={{ background: 'linear-gradient(180deg, #0f151d 0%, #0a0f15 100%)' }}>
+              <span className="absolute left-1/2 top-[6px] h-[6px] w-[26px] -translate-x-1/2 rounded-full bg-black" />
+              <span className="absolute right-3 top-[7px] text-[4.5px] font-semibold tabular-nums" style={{ color: SCENE.text2 }}>
+                9:41
+              </span>
+              {shown.app(ctx)}
+            </div>
+          </div>
 
-            {/* URL del navegador */}
-            {view.blocks['web-url'] === 'filled' && (
-              <text x={52} y={14.5} fontSize={6} fontFamily="ui-monospace, monospace" fill={SCENE.muted}>
-                https://{shown.url}
-              </text>
-            )}
-
-            {/* Medición: anillo que se dibuja + valor */}
-            {view.finaleOn && (
-              <g>
-                <motion.circle
-                  cx={shown.finale.cx}
-                  cy={shown.finale.cy}
-                  r={15}
-                  fill="rgba(6,8,13,0.85)"
-                  stroke={SCENE.ok}
-                  strokeWidth={2.5}
-                  strokeLinecap="round"
-                  transform={`rotate(-90 ${shown.finale.cx} ${shown.finale.cy})`}
-                  initial={still ? false : { pathLength: 0, opacity: 0 }}
-                  animate={{ pathLength: view.finaleP, opacity: 1 }}
-                  transition={{ duration: 0.12, ease: 'linear' }}
-                />
-                <text
-                  x={shown.finale.cx}
-                  y={shown.finale.cy + 3.2}
-                  textAnchor="middle"
-                  fontSize={8.5}
-                  fontWeight={700}
-                  fill="#fff"
-                >
-                  {shown.finale.text(view.finaleP)}
-                </text>
-              </g>
-            )}
-          </motion.svg>
-        </div>
+          {/* Barrido de luz sobre el producto terminado (una vez por producto). */}
+          <motion.div
+            className="pointer-events-none absolute inset-y-0 w-[45%]"
+            style={{ background: 'linear-gradient(100deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.075) 50%, rgba(255,255,255,0) 100%)' }}
+            initial={{ x: '-140%', opacity: 0 }}
+            animate={sweep ? { x: '260%', opacity: 1 } : { x: '-140%', opacity: 0 }}
+            transition={sweep ? { x: { duration: 1.4, ease: [0.4, 0, 0.2, 1] }, opacity: { duration: 0.2 } } : { duration: 0 }}
+          />
+        </motion.div>
       </SceneFrame>
     </div>
-  );
-}
-
-function BlockShape({ block, state, still }: { block: Block; state: BlockState | undefined; still: boolean }) {
-  // Sin estado = todavía no existe. Se mantiene en el DOM con opacity 0 para
-  // que la transición hidden→drawing sea continua (sin remontar).
-  const variants = {
-    hidden: { opacity: 0, pathLength: 0, fillOpacity: 0, stroke: SCENE.live },
-    drawing: { opacity: 1, pathLength: 1, fillOpacity: 0, stroke: SCENE.live },
-    filled: {
-      opacity: 1,
-      pathLength: 1,
-      fillOpacity: 1,
-      stroke: block.kind === 'line' ? SCENE.live : block.tone === 'frame' ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.10)',
-    },
-    ghost: { opacity: 0.45, pathLength: 1, fillOpacity: 0, stroke: 'rgba(255,255,255,0.16)' },
-  };
-  const key = state ?? 'hidden';
-  const common = {
-    variants,
-    initial: still ? false : ('hidden' as const),
-    animate: key,
-    transition:
-      key === 'drawing'
-        ? { pathLength: { duration: 0.38, ease: EASE_OUT }, opacity: { duration: 0.12 } }
-        : { duration: 0.26, ease: EASE_OUT },
-  };
-
-  if (block.kind === 'line') {
-    return (
-      <motion.line
-        {...common}
-        x1={block.x1}
-        y1={block.y1}
-        x2={block.x2}
-        y2={block.y2}
-        strokeWidth={block.sw}
-        strokeLinecap="round"
-        style={{ stroke: SCENE.live }}
-      />
-    );
-  }
-
-  return (
-    <motion.rect
-      {...common}
-      x={block.x}
-      y={block.y}
-      width={block.w}
-      height={block.h}
-      rx={block.r ?? 3}
-      strokeWidth={block.tone === 'frame' ? 1.25 : 1}
-      fill={FILL[block.tone]}
-    />
   );
 }

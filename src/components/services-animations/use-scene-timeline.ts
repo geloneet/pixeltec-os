@@ -60,33 +60,9 @@ export function useSceneTimeline(
   }, [active, runKey]);
 }
 
-/** Tipeo carácter a carácter: N pasos de `msPerChar`, el primero espera `firstWait`. */
-export function typeChars(
-  text: string,
-  msPerChar: number,
-  apply: (partial: string, done: boolean) => void,
-  firstWait = 0,
-): TimelineStep[] {
-  const chars = Array.from(text);
-  return chars.map((_, i) => ({
-    wait: i === 0 ? firstWait : msPerChar,
-    run: () => apply(chars.slice(0, i + 1).join(''), i === chars.length - 1),
-  }));
-}
-
-/** Tipeo por palabras (lo que hace un agente al "redactar"): más natural que por letra. */
-export function typeWords(
-  text: string,
-  msPerWord: number,
-  apply: (partial: string, done: boolean) => void,
-  firstWait = 0,
-): TimelineStep[] {
-  const words = text.split(' ');
-  return words.map((_, i) => ({
-    wait: i === 0 ? firstWait : msPerWord,
-    run: () => apply(words.slice(0, i + 1).join(' '), i === words.length - 1),
-  }));
-}
+// Ronda 2: se retiran `typeChars` / `typeWords` (tipeo tipo terminal) y el
+// reloj `useSceneClock`. La dirección Spotify/Airbnb/Apple sustituye el
+// typewriter por elementos que llegan completos con spring.
 
 /** Un solo paso. */
 export function at(wait: number, run: () => void): TimelineStep {
@@ -125,18 +101,4 @@ export function useSceneActive(ref: RefObject<Element>, poster: boolean) {
 
   const still = poster || reduceMotion;
   return { active: !still && inView && pageVisible, still };
-}
-
-/** Reloj "hh:mm:ss" que avanza solo mientras la escena está activa. */
-export function useSceneClock(active: boolean, still: boolean) {
-  const [now, setNow] = useState<string | null>(null);
-  useEffect(() => {
-    const fmt = () =>
-      new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
-    setNow(fmt());
-    if (!active || still) return;
-    const id = setInterval(() => setNow(fmt()), 1000);
-    return () => clearInterval(id);
-  }, [active, still]);
-  return now;
 }
