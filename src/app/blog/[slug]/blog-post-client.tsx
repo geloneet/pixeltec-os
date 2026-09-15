@@ -10,6 +10,7 @@ import type { HeadingEntry } from '@/lib/blog/heading-utils';
 import { ViewBeacon } from '@/components/blog/view-beacon';
 import { BlogSidebar } from '@/components/blog/blog-sidebar';
 import { relatedResourcesFor } from '@/lib/blog/cluster-map';
+import { GoogleBusinessCard } from '@/components/site/google-business-card';
 
 const MarkdownRenderer = dynamic(() => import('@/components/blog/markdown-renderer'));
 
@@ -283,6 +284,10 @@ export default function BlogPostClient({
               </div>
             </section>
           )}
+
+          {/* L6 (WO-2026-00346): ficha de Google al cierre del artículo (como el
+              GmbCard del sidebar de Encino); iframe lazy, lejos del LCP. */}
+          <GoogleBusinessCard className="mt-12 max-w-md" />
         </footer>
         </div>
 

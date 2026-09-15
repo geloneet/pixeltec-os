@@ -87,6 +87,13 @@ describe('OrganizationStructuredData — Organization + ProfessionalService (SSR
     expect(SITE.description).toContain('Puerto Vallarta');
   });
 
+  it('hasMap apunta a la ficha de Google Business Profile y no hay coordenadas (L6, WO-2026-00346)', () => {
+    expect(org.hasMap).toBe('https://maps.app.goo.gl/fAiYRnLg53tx6VRF7');
+    expect(org.hasMap).toBe(SITE.googleBusinessProfile.url);
+    expect(org).not.toHaveProperty('geo');
+    expect(org).not.toHaveProperty('aggregateRating');
+  });
+
   it('el WebSite sigue intacto y apunta a la organización como publisher', () => {
     expect(site['@type']).toBe('WebSite');
     expect(site.url).toBe(SITE.url);

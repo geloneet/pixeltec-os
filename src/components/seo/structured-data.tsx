@@ -61,6 +61,9 @@ const organizationSchema = {
     url: absoluteUrl(SITE.founderPath),
   },
   sameAs: SITE.socialProfiles,
+  // L6 (WO-2026-00346): enlace a la ficha de Google Business Profile. Sin `geo`:
+  // el pin de la ficha no es la sede (ver site-config).
+  hasMap: SITE.googleBusinessProfile.url,
 };
 
 const webSiteSchema = {

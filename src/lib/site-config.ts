@@ -47,6 +47,19 @@ export const SITE = {
     'https://www.facebook.com/profile.php?id=61556300117500',
     'https://instagram.com/pixeltecmx',
   ],
+  /**
+   * Ficha de Google Business Profile (WO-2026-00346, L6). `url` es el enlace
+   * público de la ficha (`hasMap` en el JSON-LD y «Ver ficha en Google»);
+   * `embedUrl` resuelve EXACTAMENTE esa ficha por su CID — un
+   * `maps?q=<nombre, dirección>` no la resuelve (probado 2026-09-14). Sin
+   * coordenadas: el pin de la ficha es el centroide del área de servicio, no
+   * la sede. Sin calificación/reseñas: no hay datos verificados.
+   */
+  googleBusinessProfile: {
+    name: 'PixelTEC',
+    url: 'https://maps.app.goo.gl/fAiYRnLg53tx6VRF7',
+    embedUrl: 'https://www.google.com/maps/embed?origin=mfe&pb=!1m3!3m2!1m1!4s13326669911837798484',
+  },
 } as const;
 
 /** URL absoluta canónica para un path del sitio. */
