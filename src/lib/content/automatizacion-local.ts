@@ -107,7 +107,7 @@ export const LOCAL_AUTOMATION_CITIES: LocalCity[] = [
       title: 'Automatización real en Guadalajara',
       body: [
         'En Smile More, clínica dental con sedes en Guadalajara y Guamúchil, automatizamos la comunicación con el paciente: correo de confirmación al agendar, recordatorio automático 24 horas antes de la cita y recordatorio de revisión a los seis meses, disparados desde la plataforma sin que recepción tenga que acordarse.',
-        'La integración con WhatsApp quedó en pausa por decisión del proyecto; el mismo flujo puede operar por WhatsApp cuando la clínica lo active.',
+        'El mismo flujo puede operar por WhatsApp cuando la clínica lo active: la integración está disponible como siguiente paso.',
       ],
       links: [{ href: '/industrias/clinicas-dentales', label: 'Ver el caso: software para clínicas dentales' }],
     },

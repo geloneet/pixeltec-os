@@ -24,6 +24,8 @@ describe('src/app/industrias — cableado (WO-2026-00345 L2)', () => {
     expect(hub).toContain('<BreadcrumbStructuredData');
     expect(hub).toContain('<IndustryHubStructuredData />');
     expect(hub).not.toMatch(/SaaS/);
+    // Voz comercial: la intro se formula en positivo, sin tono defensivo.
+    expect(hub).not.toMatch(/no un catálogo|Solo aparecen sectores/);
   });
 
   it('la hoja es SSG cerrada: generateStaticParams + dynamicParams = false + notFound', () => {

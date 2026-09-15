@@ -73,6 +73,8 @@ describe('registros de landings ciudad×servicio', () => {
       for (const client of NOT_IN_PV) {
         expect(text, `${c.slug}: «${client} … en Puerto Vallarta»`).not.toMatch(new RegExp(`${client}[^.]*\\ben Puerto Vallarta\\b`));
       }
+      // Voz comercial: sin estado interno ni decisiones del cliente en lo público.
+      expect(text, `${c.slug}: estado interno del cliente`).not.toMatch(/en pausa|por decisión del (proyecto|cliente)|en diseño|monitoreo y estabilización/i);
     }
   });
 

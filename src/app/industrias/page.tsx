@@ -44,9 +44,9 @@ export default function IndustriasPage() {
               </span>
             </h1>
             <p className="text-lg md:text-xl text-muted-foreground dark:text-zinc-400 leading-relaxed">
-              Solo aparecen sectores donde ya construimos para un cliente real: lo que ves es lo que está en
-              producción, no un catálogo. Trabajamos con empresas de todo México, con presencia local en Puerto
-              Vallarta, Bahía de Banderas, Guadalajara y Zapopan.
+              Construimos software para sectores donde ya trabajamos con clientes reales: cada bloque describe
+              lo que está en producción hoy. Trabajamos con empresas de todo México, con presencia local en
+              Puerto Vallarta, Bahía de Banderas, Guadalajara y Zapopan.
             </p>
           </header>
 

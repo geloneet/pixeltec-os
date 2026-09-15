@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   DIAGNOSTIC_INDUSTRY_MAP,
@@ -36,6 +38,19 @@ const FORBIDDEN_CLAIMS = [
   /reportes de ocupación/i,
   /\bSaaS\b/,
   /apps? móvil(es)? para conductores/i,
+  // Voz comercial (Supervisor, 2026-09-14): nada de estado interno ni decisiones
+  // del cliente en lo público, aunque sean hechos documentados.
+  /en pausa/i,
+  /por decisión del (proyecto|cliente)/i,
+  /monitoreo y estabilización/i,
+  /fase de seguimiento/i,
+  /en diseño/i,
+  /Meta Pixel|Google Ads|\bGA4\b/,
+  /Decisiones técnicas empaquetadas/i,
+  /técnicamente más profundo/i,
+  /no un catálogo/i,
+  /versión 2\.0/i,
+  /checkout (dormido|se activa)|listo para activar/i,
 ];
 
 describe('registro INDUSTRIES (hub)', () => {
@@ -132,5 +147,15 @@ describe('páginas de industria', () => {
   it('Smile More se ubica en Guadalajara (y Guamúchil)', () => {
     const clinicas = getIndustryPage('clinicas-dentales')!.page;
     expect(clinicas.caseStudy.location).toMatch(/Guadalajara/);
+  });
+
+  it('los testimonios citados usan exactamente el nombre y el texto ya públicos en el home', () => {
+    const home = readFileSync(resolve(__dirname, '..', '..', 'components', 'sections', 'testimonials.tsx'), 'utf8');
+    for (const industry of industriesWithPage()) {
+      const t = industry.page.caseStudy.testimonial;
+      if (!t) continue;
+      expect(home, `${t.author} no aparece igual en testimonials.tsx`).toContain(`name: "${t.author}"`);
+      expect(home, `cita de ${t.author} distinta a la del home`).toContain(t.quote);
+    }
   });
 });

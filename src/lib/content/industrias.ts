@@ -98,12 +98,12 @@ export const INDUSTRIES: readonly Industry[] = [
     shortLabel: 'Logística y transporte',
     icon: 'Truck',
     summary:
-      'Digitalizamos la operación de una empresa de transporte: la primera versión de su sistema propio está en producción y en fase de seguimiento, con consultoría operativa además de la tecnología.',
+      'Digitalizamos la operación de empresas de transporte con un sistema propio: consultoría operativa y tecnología en el mismo proyecto, con hosting y soporte después de la entrega.',
     problems: [
       'Operación diaria digitalizada en un sistema propio',
-      'Primera versión en producción, en monitoreo y estabilización',
       'Consultoría operativa junto con la tecnología',
       'Hosting y soporte continuo tras la entrega',
+      'Mejoras por fases, según lo que la operación pide',
     ],
     stack: ['Next.js', 'PostgreSQL', 'Docker en VPS propio'],
     diagnosticType: 'logistica',
@@ -114,14 +114,14 @@ export const INDUSTRIES: readonly Industry[] = [
     shortLabel: 'Distribución de agua',
     icon: 'Droplets',
     summary:
-      'Presencia digital y consultoría tecnológica y operativa para una distribuidora de agua en pipas; su sistema de pedidos está en diseño.',
+      'Presencia digital y consultoría tecnológica y operativa para distribuidoras de agua en pipas: un brazo tecnológico que acompaña la operación, no solo un proveedor de software.',
     problems: [
-      'Landing page en producción con medición (Meta Pixel, Google Ads y GA4)',
+      'Sitio web y presencia digital de la distribuidora',
       'Consultoría tecnológica y operativa continua',
-      'Sistema de gestión de pedidos: en diseño',
-      'Decisiones técnicas empaquetadas con recomendaciones operativas',
+      'Medición de campañas y de los contactos que llegan desde el sitio',
+      'Sistemas de gestión de pedidos a la medida',
     ],
-    stack: ['Next.js', 'PostgreSQL', 'Meta Pixel / GA4'],
+    stack: ['Next.js', 'PostgreSQL', 'Analítica de campañas'],
     diagnosticType: 'agua',
   },
   {
@@ -201,14 +201,16 @@ export const INDUSTRIES: readonly Industry[] = [
         location: 'Guadalajara y Guamúchil',
         summary: [
           'Smile More es una clínica dental con sedes en Guadalajara, Jalisco, y Guamúchil, Sinaloa. PixelTEC construyó y opera su plataforma de gestión y su sitio público (smilemore.mx).',
-          'En producción: agenda y reprogramación de citas, expediente y archivos clínicos por rol, comprobantes PDF y cobro en caja, confirmaciones y recordatorios por correo, y páginas por sede para búsquedas locales. La integración con WhatsApp quedó en pausa por decisión del proyecto; la comunicación automática hoy es por correo.',
-          'Es el proyecto técnicamente más profundo de PixelTEC en activo, y sigue evolucionando con las mejoras que la propia clínica prioriza.',
+          'En producción: agenda y reprogramación de citas, expediente y archivos clínicos por rol, comprobantes PDF y cobro en caja, confirmaciones y recordatorios automáticos por correo, y páginas por sede para búsquedas locales. La integración con WhatsApp está disponible como siguiente paso.',
+          'La plataforma sigue evolucionando con las mejoras que la propia clínica prioriza, fase por fase.',
         ],
         source: '03_CLIENTES/Smile More.md',
+        // Grafía del nombre igual a la del home (`sections/testimonials.tsx`), para
+        // no tener dos versiones públicas; la ficha del vault escribe «Polett».
         testimonial: {
           quote:
             'El sistema de gestión integral para la clínica y el rediseño del sitio web superaron todas nuestras expectativas. Hemos mejorado nuestra captación de pacientes notablemente.',
-          author: 'Polett Niebla',
+          author: 'Pollet Niebla',
           role: 'Fundadora, Smile More',
         },
       },
@@ -223,7 +225,7 @@ export const INDUSTRIES: readonly Industry[] = [
         },
         {
           q: '¿Incluye recordatorios por WhatsApp?',
-          a: 'Hoy las confirmaciones y recordatorios automáticos van por correo. La integración con WhatsApp existe como opción y se activa cuando la clínica lo decide; en el caso de Smile More quedó en pausa por decisión del proyecto.',
+          a: 'Las confirmaciones y recordatorios automáticos van por correo desde el primer día. La integración con WhatsApp está disponible y se activa cuando la clínica lo decide.',
         },
       ],
       relatedServices: [
@@ -313,7 +315,7 @@ export const INDUSTRIES: readonly Industry[] = [
         summary: [
           'Villa Nogal es un hotel boutique en San Sebastián del Oeste, Pueblo Mágico en la sierra de Jalisco. PixelTEC construyó su CRM hotelero a la medida (versión 1 en producción) y el motor de reservas propio de villanogal.com.',
           'El sitio es bilingüe (español e inglés), con habitaciones y disponibilidad administradas desde el panel del hotel, guía del destino y páginas de atractivos para posicionarse en búsquedas locales, y datos estructurados alineados con el perfil real del negocio.',
-          'La siguiente etapa es la versión 2.0 del CRM, que se define junto con el hotel a partir de lo que la operación ya mostró.',
+          'El sistema sigue creciendo con las mejoras que el hotel prioriza en cada versión, a partir de lo que su operación muestra.',
         ],
         source: '03_CLIENTES/Villa Nogal.md',
         testimonial: {
@@ -352,11 +354,11 @@ export const INDUSTRIES: readonly Industry[] = [
     shortLabel: 'Moda y comercio especializado',
     icon: 'ShoppingBag',
     summary:
-      'Tiendas en línea y catálogos con identidad propia para marcas de moda y comercio especializado: imágenes en Cloudflare R2, correos transaccionales y venta por Instagram o WhatsApp mientras el checkout se activa.',
+      'Tiendas en línea y catálogos con identidad propia para marcas de moda y comercio especializado: imágenes en Cloudflare R2, correos transaccionales y venta por Instagram, WhatsApp o carrito propio, según la etapa de la marca.',
     problems: [
       'Tienda en línea que respeta el manual de marca del cliente',
       'Catálogo con imágenes servidas desde Cloudflare R2',
-      'Venta por Instagram y WhatsApp con carrito listo para activar',
+      'Venta por Instagram y WhatsApp o carrito propio, según la etapa de la marca',
       'Correos transaccionales con dominio propio',
     ],
     stack: ['Next.js', 'PostgreSQL + Drizzle', 'Cloudflare R2', 'Resend'],
