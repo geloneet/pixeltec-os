@@ -78,8 +78,11 @@ export default function AboutPage() {
             <div className="absolute -bottom-1/4 -right-1/4 h-1/2 w-1/2 rounded-full bg-blue-500/15 dark:bg-blue-500/40 blur-[150px]" />
           </div>
           <div className="container relative z-10 mx-auto px-4 sm:px-6 lg:px-8">
+            {/* WO-2026-00352: H1 con intención (quiénes + qué + dónde); misma
+                estructura visual que antes — el acento de color va en la
+                segunda mitad. */}
             <h1 className="text-4xl font-extrabold tracking-tight sm:text-6xl md:text-7xl">
-              Arquitectos de la <span className="text-brand">Innovación Tecnológica.</span>
+              Quiénes somos: <span className="text-brand">arquitectos de software en Puerto Vallarta</span>
             </h1>
             <p className="mx-auto mt-6 max-w-3xl text-lg text-muted-foreground dark:text-white/60 md:text-xl leading-relaxed">
               Combinamos consultoría empresarial con desarrollo de software de alto nivel para escalar tu ecosistema digital.

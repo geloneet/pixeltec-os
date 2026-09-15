@@ -4,17 +4,24 @@ import { buildMetadata } from '@/lib/seo';
 import { BreadcrumbStructuredData, ServiceStructuredData } from '@/components/seo/structured-data';
 import ServiceDetailClient from './service-detail-client';
 
-const SERVICE_META: Record<string, { title: string; description: string }> = {
+// `title` es el nombre del servicio tal como se muestra (breadcrumb y schema
+// `name` del JSON-LD); `metaTitle` (WO-2026-00352) es solo el <title> con
+// intención de búsqueda, ≤ 49 chars para que con ` | PixelTEC` quede ≤ 60.
+// No se mezclan: cambiar el <title> no debe renombrar el servicio.
+const SERVICE_META: Record<string, { title: string; metaTitle: string; description: string }> = {
   'ecosistemas-web': {
     title: 'Ecosistemas Web Avanzados',
+    metaTitle: 'Desarrollo Web y Apps a la Medida',
     description: 'Creación de aplicaciones web robustas, CRMs personalizados y sitios corporativos ultra rápidos con Next.js, React y Firebase.',
   },
   'automatizacion': {
     title: 'Automatización de Procesos con IA',
+    metaTitle: 'Automatización de Procesos con IA y WhatsApp',
     description: 'Scripts Python, bots de Telegram/WhatsApp y herramientas de IA para eliminar tareas repetitivas y optimizar la operación diaria.',
   },
   'consultoria': {
     title: 'Consultoría Tecnológica Estratégica',
+    metaTitle: 'Consultoría Tecnológica para PyMEs',
     description: 'Diagnóstico, transformación digital y rediseño UI/UX para modernizar tus procesos y elevar la eficiencia de tu empresa.',
   },
 };
@@ -27,7 +34,7 @@ export async function generateMetadata(
   if (!meta) return { title: 'Servicio no encontrado' };
   return buildMetadata({
     path: `/services/${slug}`,
-    title: meta.title,
+    title: meta.metaTitle,
     description: meta.description,
   });
 }
