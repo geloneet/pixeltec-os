@@ -42,6 +42,26 @@ Temas se derivan de: servicios reales, preguntas de clientes en el funnel,
 decisiones técnicas del repo/vault, y (cuando exista) Search Console. Nunca de
 tendencias ajenas al negocio.
 
+## Clusters de los artículos publicados → servicio o landing objetivo (auditoría 2026-09-14, WO-2026-00345)
+
+Fuente: HTML vivo de los 5 posts publicados (enlaces internos del cuerpo y del bloque
+«Recursos de PixelTEC mencionados»). Lo que es DATO (cuerpo, `internalLinks`,
+`metaTitle`) lo corrige Miguel en `/blog-cms`; lo que es código (fallback por
+categoría en `src/lib/blog/cluster-map.ts`) ya está en producción desde L3.
+
+| Post | Cluster (query objetivo) | Debe enlazar a | Estado del dato |
+|---|---|---|---|
+| agente-de-ia-en-whatsapp-para-mi-negocio | «agente de IA en WhatsApp» | /pixelbot · /automatizar-whatsapp-business · /automatizacion-puerto-vallarta | falta la landing de WhatsApp |
+| como-automatizar-procesos-manuales-en-mi-negocio-guia-real | «cómo automatizar procesos» | /automatiza-tu-negocio · /services/automatizacion | falta la landing automatiza-tu-negocio |
+| ia-para-pymes-en-mexico-guia-honesta… | «IA para pymes» | /services/automatizacion · /automatiza-tu-negocio · /diagnostico | sin ningún enlace interno: cubierto por el fallback hasta que se cargue `internalLinks` |
+| que-datos-nunca-deberias-compartir-con-chatgpt… | «privacidad IA empresa» | /services/consultoria · /pixelbot | `metaTitle` truncado en la DB + enlace 404 `/blog/como-tomar-un-curso-de-ia-gratis` (CMS) |
+| sistema-administrativo-para-eficientar-tu-pyme | «sistema administrativo pyme» | /software-a-medida-para-empresas · /sistemas-a-medida · /services/ecosistemas-web | hoy apunta a automatización (cluster equivocado) |
+
+Regla de código: `relatedResourcesFor(categoría, etiquetas, internalLinks)` devuelve ≤ 3
+destinos existentes (servicio + landing + herramienta) y no repite lo que el post ya
+trae; las etiquetas con «WhatsApp» empujan /pixelbot al frente. El test comprueba
+cada href contra los registros reales.
+
 ## Reglas
 
 - Un brief sin fuentes NI experiencia propia declarada no se genera.

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { SEO_TOOLS, getSeoTool, isSeoToolKey, validateToolContent, allSeoSettingKeys } from './tools';
 import {
+  CODE_OWNED_PAGE_TYPES,
   SITE_PAGES,
   getSitePage,
   normalizeSchemaPath,
@@ -24,7 +25,7 @@ import {
 } from './social';
 import { buildHealthChecks, summarizeHealth, type SeoSnapshot } from './health';
 import { BASE_DISALLOW, derivedRobots, reconcileRobots } from './robots';
-import { mergePublishedGraph } from './structured-graph';
+import { CODE_EMITTED_TYPES, mergePublishedGraph } from './structured-graph';
 import { PROTECTED_PATHS, isNoindexPath } from '@/lib/routes/admin-routes';
 
 /** WO-2026-00095 — módulo SEO portado de Muebles Encino, solo pixeltec.mx. */
@@ -40,6 +41,10 @@ describe('catálogo de herramientas', () => {
     expect(isSeoToolKey('robots')).toBe(true);
     expect(isSeoToolKey('inventada')).toBe(false);
     expect(getSeoTool('inventada')).toBeNull();
+  });
+
+  it('«Negocio local» explica que la entidad local ya sale del código', () => {
+    expect(SEO_TOOLS['local-business'].description).toMatch(/site-config/);
   });
 
   it('valida JSON solo en las herramientas de formato JSON', () => {
@@ -186,16 +191,59 @@ describe('sugerencia de schema con IA', () => {
   });
 
   it('emite un nodo mínimo por tipo de la ruta pedida', () => {
-    const map = { '/contact': ['LocalBusiness'] };
-    expect(schemaNodesForPath(map, '/contact/', { title: 'Contacto', url: 'https://pixeltec.mx/contact' })).toEqual([
+    const map = { '/diagnostico': ['WebPage'] };
+    expect(schemaNodesForPath(map, '/diagnostico/', { title: 'Diagnóstico', url: 'https://pixeltec.mx/diagnostico' })).toEqual([
       {
         '@context': 'https://schema.org',
-        '@type': 'LocalBusiness',
-        name: 'Contacto',
-        url: 'https://pixeltec.mx/contact',
+        '@type': 'WebPage',
+        name: 'Diagnóstico',
+        url: 'https://pixeltec.mx/diagnostico',
       },
     ]);
     expect(schemaNodesForPath(map, '/otra', { title: 'x', url: 'y' })).toEqual([]);
+  });
+});
+
+/**
+ * L1 (WO-2026-00345): los esqueletos `{@type, name: label, url}` del panel no
+ * pueden crear una segunda entidad local («LocalBusiness Contacto») ni repetir
+ * tipos que el código ya emite con datos reales en esa misma ruta.
+ */
+describe('esqueletos por página vs. tipos que el código ya posee', () => {
+  const page = { title: 'x', url: 'https://pixeltec.mx/x' };
+
+  it('nunca emite una entidad local desde el mapa (la única es #organization)', () => {
+    expect(schemaNodesForPath({ '/contact': ['LocalBusiness', 'BreadcrumbList'] }, '/contact', page)).toEqual([]);
+    expect(schemaNodesForPath({ '/diagnostico': ['ProfessionalService', 'Organization', 'WebSite'] }, '/diagnostico', page)).toEqual([]);
+  });
+
+  it('omite en cada ruta los tipos que su page.tsx ya emite', () => {
+    expect(schemaNodesForPath({ '/industrias': ['ItemList'] }, '/industrias', page)).toEqual([]);
+    expect(schemaNodesForPath({ '/blog': ['ItemList', 'CollectionPage'] }, '/blog', page)).toEqual([]);
+    expect(schemaNodesForPath({ '/': ['WebPage', 'ItemList', 'Service'] }, '/', page).map((n) => n['@type'])).toEqual(['WebPage']);
+  });
+
+  it('deja pasar lo que el código no cubre en esa ruta', () => {
+    expect(schemaNodesForPath({ '/diagnostico': ['WebPage'] }, '/diagnostico', page)).toHaveLength(1);
+    expect(schemaNodesForPath({ '/contact': ['WebPage'] }, '/contact', page).map((n) => n['@type'])).toEqual(['WebPage']);
+  });
+
+  it('el catálogo declara qué posee el código por ruta y el comodín global', () => {
+    expect(CODE_OWNED_PAGE_TYPES['*']).toEqual(expect.arrayContaining(['Organization', 'WebSite', 'LocalBusiness', 'ProfessionalService']));
+    expect(CODE_OWNED_PAGE_TYPES['/industrias']).toEqual(expect.arrayContaining(['ItemList', 'BreadcrumbList']));
+    expect(CODE_OWNED_PAGE_TYPES['/blog']).toEqual(expect.arrayContaining(['CollectionPage', 'BreadcrumbList']));
+    expect(CODE_OWNED_PAGE_TYPES['/contact']).toEqual(expect.arrayContaining(['BreadcrumbList']));
+  });
+
+  it('serializar NO filtra (Miguel sigue viendo lo que guardó); el filtro es solo de emisión', () => {
+    const out = JSON.parse(serializePageSchemaMap({ '/contact': ['LocalBusiness'] }));
+    expect(out).toEqual({ '/contact': ['LocalBusiness'] });
+  });
+
+  it('las páginas de industria están en el catálogo y /industrias ya no cita SaaS', () => {
+    expect(getSitePage('/industrias/clinicas-dentales')).toBeDefined();
+    expect(getSitePage('/industrias/hoteles')).toBeDefined();
+    expect(getSitePage('/industrias')?.description).not.toMatch(/SaaS/);
   });
 });
 
@@ -321,14 +369,36 @@ describe('grafo JSON-LD publicado', () => {
       '@graph': [
         { '@type': 'Organization', '@id': 'https://pixeltec.mx/#organization', name: 'PIXELTEC' },
         { '@type': 'WebSite', url: 'https://pixeltec.mx' },
-        { '@type': 'LocalBusiness', name: 'PixelTEC', telephone: '+52-322-137-8336' },
+        { '@type': 'FAQPage', name: 'Preguntas', mainEntity: [] },
       ],
     });
     const out = JSON.parse(mergePublishedGraph(IDS, raw)!);
-    expect(out['@graph']).toEqual([
-      { '@type': 'LocalBusiness', name: 'PixelTEC', telephone: '+52-322-137-8336' },
-    ]);
+    expect(out['@graph']).toEqual([{ '@type': 'FAQPage', name: 'Preguntas', mainEntity: [] }]);
     expect(out['@context']).toBe('https://schema.org');
+  });
+
+  /**
+   * L1 (WO-2026-00345): la entidad local sale del código (`#organization` es
+   * también ProfessionalService). Un bloque «Negocio local» publicado desde la
+   * DB con LocalBusiness/ProfessionalService se descarta entero: dos entidades
+   * locales con datos distintos es peor que ninguna.
+   */
+  it('descarta entero un bloque «Negocio local» con LocalBusiness o ProfessionalService', () => {
+    expect(CODE_EMITTED_TYPES).toEqual(['Organization', 'WebSite', 'ProfessionalService', 'LocalBusiness']);
+    const local = JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'LocalBusiness',
+      name: 'PixelTEC',
+      telephone: '+52-322-137-8336',
+      openingHours: 'Mo-Fr 09:00-18:00',
+    });
+    expect(mergePublishedGraph(IDS, local)).toBeNull();
+    expect(mergePublishedGraph(IDS, '{"@type":"ProfessionalService","name":"PixelTEC"}')).toBeNull();
+    expect(mergePublishedGraph(IDS, '{"@graph":[{"@type":"LocalBusiness"},{"@type":"Organization"}]}')).toBeNull();
+    // Lo que el código no emite sigue pasando.
+    expect(mergePublishedGraph(IDS, '{"@graph":[{"@type":"LocalBusiness"},{"@type":"FAQPage"}]}')).toBe(
+      '{"@graph":[{"@type":"FAQPage"}]}',
+    );
   });
 
   it('devuelve null si no queda ningún nodo propio', () => {
@@ -337,7 +407,7 @@ describe('grafo JSON-LD publicado', () => {
   });
 
   it('acepta un nodo suelto y un array en la raíz', () => {
-    expect(mergePublishedGraph(IDS, '{"@type":"LocalBusiness","name":"x"}')).toBe('{"@type":"LocalBusiness","name":"x"}');
+    expect(mergePublishedGraph(IDS, '{"@type":"FAQPage","name":"x"}')).toBe('{"@type":"FAQPage","name":"x"}');
     expect(mergePublishedGraph(IDS, '{"@type":"Organization","name":"x"}')).toBeNull();
     expect(mergePublishedGraph(IDS, '[{"@type":"Organization"},{"@type":"FAQPage"}]')).toBe('[{"@type":"FAQPage"}]');
   });

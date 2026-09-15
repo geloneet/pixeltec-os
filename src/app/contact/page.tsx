@@ -18,6 +18,7 @@ import { SocialLinks } from '@/components/ui/social-links';
 import { ShinyButton } from '@/components/ui/shiny-button';
 import { ObfuscatedMailto } from '@/components/ui/obfuscated-mailto';
 import { SessionIdField } from '@/components/analytics/session-id-field';
+import { GoogleBusinessCard } from '@/components/site/google-business-card';
 import { SITE } from '@/lib/site-config';
 
 // UX-02 (WO-2026-00268): la tarjeta «Teléfono» mostraba el número pero
@@ -164,6 +165,8 @@ export default function ContactPage() {
                             </a>
                         );
                     })}
+                    {/* L6 (WO-2026-00346): ficha de Google junto a los datos de contacto. */}
+                    <GoogleBusinessCard />
                 </div>
                 <div className="mt-12 md:mt-24 lg:mt-32">
                   <SocialLinks />

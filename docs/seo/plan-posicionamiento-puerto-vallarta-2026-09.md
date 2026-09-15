@@ -48,6 +48,27 @@ Un H1; intro inmediata; H2 por sección; H3 solo dentro de H2; nada de UI en el 
 
 Search Console: enviar sitemap, pedir indexación de las 26, leer impresiones/CTR a 14 y 30 días con fecha; ajustar titles con CTR bajo. Perfil de Negocio de Google apuntando a las PV. Enlaces desde el blog (artículos del clúster B) y desde `/industrias`. Si dos páginas del mismo clúster compiten por la misma consulta en GSC, consolidar con 301 (decisión de Miguel con datos).
 
+## 6b. Refuerzo de las landings ciudad×servicio (WO-2026-00345 L4, 2026-09-14)
+
+Auditoría del 2026-09-14: las 12 landings de ciudad no son doorway pages en texto
+(Jaccard de 5-shingles 0,07–0,15 entre ciudades, sin nombres de ciudad), pero eran delgadas
+(340–414 palabras) y sin prueba local verificable. Medida aplicada:
+
+- Campo opcional `localProof { title, body[], links[] }` + `relatedIndustrySlugs[]` en
+  `LocalServiceCity` y `LocalCity`; sección «Trabajo real …» entre «Casos de uso» y «Cómo
+  trabajamos» (`src/components/site/local-proof-section.tsx`), chips con las clases de
+  `local-landings.tsx`.
+- Datos SOLO con ubicación documentada en `03_CLIENTES`: `desarrollo-web-guadalajara` y
+  `automatizacion-guadalajara` → Smile More (Guadalajara y Guamúchil);
+  `desarrollo-web-puerto-vallarta` y `desarrollo-web-bahia-de-banderas` → Villa Nogal (San
+  Sebastián del Oeste, Jalisco — nunca «en Puerto Vallarta»). Pipas Tondoroque, Transportes
+  Sánchez JR, Velank, Barrostock y DALK quedan fuera hasta que Miguel documente su ubicación.
+- Guardarraíl en `src/lib/content/local-services.test.ts`: límites de title/description,
+  vecinos y enlaces existentes, chips solo a páginas de industria reales, y «cliente … en
+  Puerto Vallarta» prohibido para los clientes cuya ficha no lo dice.
+- Portada del blog: `sizes="(max-width: 1024px) 100vw, 768px"` (antes `100vw`), `priority`
+  intacto. El `fetchpriority` del preload lo decide Next a partir de `priority`.
+
 ## 7. Riesgos
 
 - **Canibalización interna** en clústeres B y C (keywords casi sinónimas): mitigada con ángulos distintos y enlazado jerárquico; se vigila en GSC.

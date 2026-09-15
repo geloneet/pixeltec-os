@@ -12,14 +12,22 @@
  * —lo normal, porque su prompt pide justo esas entidades— la página termina
  * con dos nodos del mismo `@id` y datos distintos; Google se queda con uno
  * arbitrario. Este módulo filtra del bloque publicado lo que el código ya
- * emite y deja pasar lo demás (LocalBusiness, por ejemplo), que es la parte
- * que de verdad aporta.
+ * emite y deja pasar lo demás (FAQPage, por ejemplo), que es la parte que de
+ * verdad aporta.
+ *
+ * L1 (WO-2026-00345): la entidad local también sale del código —
+ * `#organization` es `["Organization","ProfessionalService"]` con NAP y
+ * `areaServed` desde `site-config`/`services-catalog`. Un nodo LocalBusiness
+ * o ProfessionalService publicado desde `/seo/local-business` crearía una
+ * segunda entidad local con datos distintos, así que también se descarta.
+ * Si Miguel tiene calle/horario en ese bloque, el sitio correcto es
+ * `site-config`, no la DB (ver docs/seo/SEO-ARCHITECTURE.md).
  *
  * Módulo puro (sin `db`, sin `next`) para poder testearlo.
  */
 
 /** Tipos que el código emite siempre desde `site-config`. */
-export const CODE_EMITTED_TYPES = ['Organization', 'WebSite'] as const;
+export const CODE_EMITTED_TYPES = ['Organization', 'WebSite', 'ProfessionalService', 'LocalBusiness'] as const;
 
 type JsonNode = Record<string, unknown>;
 

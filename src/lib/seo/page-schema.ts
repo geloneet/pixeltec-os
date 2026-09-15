@@ -55,13 +55,25 @@ export const SITE_PAGES: SitePage[] = [
     path: '/blog',
     label: 'Blog (índice)',
     description:
-      'Índice del blog: listado de guías, comparativas, calculadoras y casos reales sobre automatización con IA, software a medida y desarrollo de aplicaciones en México.',
+      'Índice del blog para pymes: guías, comparativas, calculadoras y casos reales sobre IA, automatización, software a medida y desarrollo de aplicaciones en México.',
   },
   {
     path: '/industrias',
     label: 'Industrias',
     description:
-      'Listado de los sectores que atiende PixelTEC (logística, clínicas, retail, hotelería, SaaS) con los problemas concretos que resuelve en cada vertical.',
+      'Hub de los sectores con clientes reales de PixelTEC (clínicas dentales, hoteles, logística, distribución de agua, comercio y energía solar): qué se construyó en cada uno y enlaces a las páginas de industria con caso propio.',
+  },
+  {
+    path: '/industrias/clinicas-dentales',
+    label: 'Software para clínicas dentales',
+    description:
+      'Página de industria: plataforma a la medida para clínicas dentales (agenda de citas, expediente clínico, comprobantes, recordatorios, roles) con el caso real de Smile More en Guadalajara.',
+  },
+  {
+    path: '/industrias/hoteles',
+    label: 'Sistema de reservas y CRM para hoteles',
+    description:
+      'Página de industria: motor de reservas propio y CRM hotelero a la medida, sitio bilingüe y SEO local del hotel, con el caso real de Villa Nogal en San Sebastián del Oeste, Jalisco.',
   },
   {
     path: '/diagnostico',
@@ -73,7 +85,7 @@ export const SITE_PAGES: SitePage[] = [
     path: '/about',
     label: 'Nosotros',
     description:
-      'Página institucional sobre quiénes somos: el equipo de PixelTEC, su metodología y los tres pilares de trabajo (desarrollo, automatización e IA, consultoría).',
+      'Quiénes somos: estudio de desarrollo de software en Puerto Vallarta con un arquitecto líder por proyecto y una red de especialistas; metodología y los tres pilares (desarrollo, automatización e IA, consultoría).',
   },
   {
     path: '/equipo',
@@ -147,16 +159,51 @@ export function serializePageSchemaMap(map: PageSchemaMap): string {
   return JSON.stringify(out);
 }
 
-/** Nodos JSON-LD mínimos para una ruta, listos para renderizar en el servidor. */
+/**
+ * Tipos schema.org que el CÓDIGO ya emite con datos reales, por ruta
+ * (L1, WO-2026-00345). El esqueleto del panel para esos tipos sería un nodo
+ * vacío `{@type, name: label, url}` compitiendo con el real — p. ej. un
+ * `LocalBusiness` llamado «Contacto» en /contact frente a `#organization`, o
+ * un `ItemList` «Industrias» vacío junto al ItemList real del hub.
+ *
+ * `*` aplica a todas las rutas: son las entidades del layout raíz
+ * (`OrganizationStructuredData`) y la entidad local, que solo existe una.
+ * Se filtra en la EMISIÓN (`schemaNodesForPath`); `serializePageSchemaMap`
+ * no cambia, así Miguel sigue viendo en `/seo/schema` lo que guardó.
+ */
+export const CODE_OWNED_PAGE_TYPES: Record<string, readonly string[]> = {
+  '*': ['Organization', 'WebSite', 'LocalBusiness', 'ProfessionalService'],
+  '/': ['ItemList', 'Service'],
+  '/industrias': ['ItemList', 'BreadcrumbList', 'Service'],
+  '/industrias/clinicas-dentales': ['BreadcrumbList', 'Service', 'FAQPage'],
+  '/industrias/hoteles': ['BreadcrumbList', 'Service', 'FAQPage'],
+  '/blog': ['CollectionPage', 'BreadcrumbList', 'ItemList'],
+  '/about': ['BreadcrumbList'],
+  '/contact': ['BreadcrumbList'],
+  '/equipo': ['BreadcrumbList', 'ProfilePage', 'ItemList'],
+  '/pixelbot': ['BreadcrumbList', 'Service', 'FAQPage'],
+};
+
+/** ¿Este tipo ya lo emite el código en esta ruta (o en todas)? */
+export function isCodeOwnedType(pathname: string, type: string): boolean {
+  const path = normalizeSchemaPath(pathname);
+  return CODE_OWNED_PAGE_TYPES['*'].includes(type) || (CODE_OWNED_PAGE_TYPES[path] ?? []).includes(type);
+}
+
+/** Nodos JSON-LD mínimos para una ruta, listos para renderizar en el servidor.
+ *  Omite los tipos que el código ya posee en esa ruta (`CODE_OWNED_PAGE_TYPES`). */
 export function schemaNodesForPath(
   map: PageSchemaMap,
   pathname: string,
   page: { title: string; url: string },
 ): { '@context': string; '@type': string; name: string; url: string }[] {
-  return (map[normalizeSchemaPath(pathname)] ?? []).map((type) => ({
-    '@context': 'https://schema.org',
-    '@type': type,
-    name: page.title,
-    url: page.url,
-  }));
+  const path = normalizeSchemaPath(pathname);
+  return (map[path] ?? [])
+    .filter((type) => !isCodeOwnedType(path, type))
+    .map((type) => ({
+      '@context': 'https://schema.org',
+      '@type': type,
+      name: page.title,
+      url: page.url,
+    }));
 }

@@ -9,6 +9,8 @@ import type { PublicBlogPost } from '@/lib/blog/public-post';
 import type { HeadingEntry } from '@/lib/blog/heading-utils';
 import { ViewBeacon } from '@/components/blog/view-beacon';
 import { BlogSidebar } from '@/components/blog/blog-sidebar';
+import { relatedResourcesFor } from '@/lib/blog/cluster-map';
+import { GoogleBusinessCard } from '@/components/site/google-business-card';
 
 const MarkdownRenderer = dynamic(() => import('@/components/blog/markdown-renderer'));
 
@@ -50,6 +52,14 @@ export default function BlogPostClient({
   const readTime = `${post.readingTimeMin} min de lectura`;
   // El DTO público ya trae SOLO fuentes verificadas (frontera P1-A).
   const verifiedSources = post.sources;
+  // L3 (WO-2026-00345): si el editor no cargó `internalLinks`, el bloque de
+  // recursos se rellena por cluster (categoría + etiquetas) para que todo
+  // artículo enlace a un servicio y a una landing. Mismo `data-cta` para que
+  // /seo/contenido lo mida igual.
+  const resourceLinks =
+    post.internalLinks.length > 0
+      ? post.internalLinks
+      : relatedResourcesFor(post.category, post.tags, post.internalLinks).map((r) => ({ targetUrl: r.href, anchor: r.anchor }));
 
   return (
     <main className="min-h-screen bg-background dark:bg-[#030303] text-foreground dark:text-white pt-32 sm:pt-40 pb-16 sm:pb-24">
@@ -68,7 +78,10 @@ export default function BlogPostClient({
         <div className="lg:grid lg:grid-cols-[1fr_280px] lg:items-start lg:gap-12">
         <div className="min-w-0">
         <header className="relative mb-12 h-64 sm:h-80 md:h-96 w-full overflow-hidden rounded-2xl md:rounded-3xl shadow-[0_12px_40px_-20px_rgba(12,17,29,0.25)] dark:shadow-[0_0_30px_rgba(0,240,255,0.05)]">
-          <Image src={coverImage} alt={coverAlt} fill className="object-cover" priority />
+          {/* L4 (WO-2026-00345): la columna del artículo no supera ~768 px en
+              desktop; `sizes=100vw` pedía una imagen del ancho de la pantalla.
+              `priority` se mantiene (es el LCP del artículo). */}
+          <Image src={coverImage} alt={coverAlt} fill className="object-cover" sizes="(max-width: 1024px) 100vw, 768px" priority />
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
           <div className="absolute bottom-0 left-0 w-full p-6 md:p-8 lg:p-12">
             <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -226,13 +239,13 @@ export default function BlogPostClient({
             </div>
           </div>
 
-          {post.internalLinks.length > 0 && (
+          {resourceLinks.length > 0 && (
             <section aria-labelledby="internal-links-heading" className="mt-12">
               <h2 id="internal-links-heading" className="mb-4 text-xl font-bold text-foreground dark:text-white">
                 Recursos de PixelTEC mencionados
               </h2>
               <ul className="space-y-2.5">
-                {post.internalLinks.map((l) => (
+                {resourceLinks.map((l) => (
                   <li key={`${l.targetUrl}|${l.anchor}`}>
                     <Link
                       href={l.targetUrl}
@@ -271,6 +284,10 @@ export default function BlogPostClient({
               </div>
             </section>
           )}
+
+          {/* L6 (WO-2026-00346): ficha de Google al cierre del artículo (como el
+              GmbCard del sidebar de Encino); iframe lazy, lejos del LCP. */}
+          <GoogleBusinessCard className="mt-12 max-w-md" />
         </footer>
         </div>
 
