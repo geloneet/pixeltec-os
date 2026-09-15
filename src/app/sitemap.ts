@@ -38,17 +38,20 @@ async function getBlogRoutes(): Promise<MetadataRoute.Sitemap> {
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  // WO-2026-00348: 2026-09-14 = SEO de portada (escenas de servicios + schema),
+  // hub y páginas de servicios, title de /blog, /about (title + Pilares) y
+  // /contact (description + ficha de Google). El resto conserva su fecha real.
   const staticRoutes: MetadataRoute.Sitemap = [
-    { url: BASE_URL,                                lastModified: new Date('2026-06-16'), changeFrequency: "weekly",  priority: 1.0 },
-    { url: `${BASE_URL}/services`,                  lastModified: new Date('2026-06-16'), changeFrequency: "monthly", priority: 0.9 },
+    { url: BASE_URL,                                lastModified: new Date('2026-09-14'), changeFrequency: "weekly",  priority: 1.0 },
+    { url: `${BASE_URL}/services`,                  lastModified: new Date('2026-09-14'), changeFrequency: "monthly", priority: 0.9 },
     { url: `${BASE_URL}/pixelbot`,                  lastModified: new Date('2026-08-04'), changeFrequency: "monthly", priority: 0.9 },
-    { url: `${BASE_URL}/blog`,                      lastModified: new Date('2026-06-16'), changeFrequency: "weekly",  priority: 0.8 },
+    { url: `${BASE_URL}/blog`,                      lastModified: new Date('2026-09-14'), changeFrequency: "weekly",  priority: 0.8 },
     // L2 (WO-2026-00345): el hub sube a 0.8 al ganar páginas propias y schema.
     { url: `${BASE_URL}/industrias`,                lastModified: new Date('2026-09-14'), changeFrequency: "monthly", priority: 0.8 },
     { url: `${BASE_URL}/diagnostico`,               lastModified: new Date('2026-07-09'), changeFrequency: "monthly", priority: 0.8 },
-    { url: `${BASE_URL}/about`,                     lastModified: new Date('2026-06-16'), changeFrequency: "monthly", priority: 0.7 },
+    { url: `${BASE_URL}/about`,                     lastModified: new Date('2026-09-14'), changeFrequency: "monthly", priority: 0.7 },
     { url: `${BASE_URL}/equipo`,                    lastModified: new Date('2026-06-16'), changeFrequency: "monthly", priority: 0.6 },
-    { url: `${BASE_URL}/contact`,                   lastModified: new Date('2026-06-16'), changeFrequency: "monthly", priority: 0.6 },
+    { url: `${BASE_URL}/contact`,                   lastModified: new Date('2026-09-14'), changeFrequency: "monthly", priority: 0.6 },
     // SEO-05 (WO-2026-00268): /metodologia y /guias-transformacion salieron del
     // sitemap junto con su `robots: noindex` — pedirle a Google que rastree lo
     // que le decimos que no indexe es una señal contradictoria. Vuelven aquí
@@ -60,7 +63,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const serviceRoutes: MetadataRoute.Sitemap = servicesSlugs.map((slug) => ({
     url: `${BASE_URL}/services/${slug}`,
-    lastModified: new Date('2026-06-16'),
+    lastModified: new Date('2026-09-14'),
     changeFrequency: "monthly" as const,
     priority: 0.8,
   }));
@@ -71,10 +74,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const enabled = await getFlag(SETTING_SITEMAP_ENABLED, true).catch(() => true);
   if (!enabled) return [staticRoutes[0]];
 
+  // Ciudades: la fecha sale del registro, no de una lista a mano. Las que
+  // ganaron sección «Trabajo real» (`localProof`, WO-2026-00348) cambiaron el
+  // 2026-09-14; las demás siguen en su última edición real (2026-08-28).
   const localCities = [...LOCAL_AUTOMATION_CITIES, ...DESARROLLO_WEB_CITIES, ...CONSULTORIA_CITIES];
   const localServiceRoutes: MetadataRoute.Sitemap = localCities.map((city) => ({
     url: `${BASE_URL}/${city.slug}`,
-    lastModified: new Date('2026-08-28'),
+    lastModified: new Date(city.localProof ? '2026-09-14' : '2026-08-28'),
     changeFrequency: "monthly" as const,
     priority: 0.7,
   }));
