@@ -185,14 +185,20 @@ function HeroGeometric({
                         initial={false}
                         animate="visible"
                     >
-                        <h1 className="text-4xl sm:text-6xl md:text-8xl font-bold mb-6 md:mb-8 tracking-tight">
-                            <span className="bg-clip-text text-transparent bg-gradient-to-b from-foreground to-foreground/80">
+                        {/* WO-2026-00343: el titular SEO es más largo que el
+                            anterior («Desarrollo Web y Apps» / «Automatización
+                            con IA»), así que la escala baja un paso en md y
+                            cada línea se mantiene en una sola con `text-balance`
+                            + `whitespace-nowrap` desde lg, donde ya cabe. */}
+                        <h1 className="text-[2.1rem] leading-[1.08] sm:text-5xl md:text-6xl lg:text-7xl font-bold mb-6 md:mb-8 tracking-tight text-balance">
+                            <span className="bg-clip-text text-transparent bg-gradient-to-b from-foreground to-foreground/80 lg:whitespace-nowrap">
                                 {title1}
                             </span>
                             <br />
                             <span
                                 className={cn(
                                     "bg-clip-text text-transparent bg-gradient-to-r from-brand via-foreground to-brand",
+                                    "lg:whitespace-nowrap",
                                     "dark:from-cyan-300 dark:via-white/90 dark:to-blue-300"
                                 )}
                             >
