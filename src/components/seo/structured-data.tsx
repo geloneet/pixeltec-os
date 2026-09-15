@@ -1,4 +1,5 @@
 import { SITE, absoluteUrl } from '@/lib/site-config';
+import { SERVED_CITY_NAMES } from '@/lib/content/services-catalog';
 
 /**
  * JSON-LD del sitio — Server Components puros (sin "use client": los crawlers
@@ -6,6 +7,14 @@ import { SITE, absoluteUrl } from '@/lib/site-config';
  * (WS0): una sola marca ("PixelTEC"), un solo logo, un solo teléfono.
  * `@id` enlaza Organization ↔ WebSite ↔ publisher para que Google entienda
  * que son la misma entidad.
+ *
+ * L1 (WO-2026-00345): `#organization` es a la vez `Organization` y
+ * `ProfessionalService` — la ÚNICA entidad local del sitio. Lleva el teléfono
+ * a nivel raíz (Google lo lee de ahí para negocios locales), `areaServed` con
+ * las ciudades servidas (derivadas del mismo catálogo que el JSON-LD del home,
+ * sin listas paralelas) y `founder.url` → /equipo. Sin `streetAddress` ni
+ * `openingHours` mientras `site-config` no los declare: no hay domicilio ni
+ * horario público documentados, y ProfessionalService sin calle es válido.
  */
 
 export const ORG_ID = `${SITE.url}/#organization`;
@@ -15,20 +24,29 @@ export const WEBSITE_ID = `${SITE.url}/#website`;
  *  duplicar las mismas entidades desde la base de datos (SEO-03). */
 export const CODE_EMITTED_IDS = [ORG_ID, WEBSITE_ID] as const;
 
+const street = (SITE.address as { street?: string }).street;
+
 const organizationSchema = {
-  "@type": "Organization",
+  "@type": ["Organization", "ProfessionalService"],
   "@id": ORG_ID,
   name: SITE.name,
   url: SITE.url,
   logo: absoluteUrl(SITE.logoPath),
+  image: absoluteUrl(SITE.defaultOgImage),
   description: SITE.description,
+  telephone: SITE.phone.schema,
   email: SITE.email,
   address: {
     "@type": "PostalAddress",
+    ...(street ? { streetAddress: street } : {}),
     addressLocality: SITE.address.locality,
     addressRegion: SITE.address.region,
     addressCountry: SITE.address.country,
   },
+  areaServed: [
+    ...SERVED_CITY_NAMES.map((name) => ({ "@type": "City", name })),
+    { "@type": "Country", name: "Mexico" },
+  ],
   contactPoint: {
     "@type": "ContactPoint",
     telephone: SITE.phone.schema,
@@ -40,6 +58,7 @@ const organizationSchema = {
   founder: {
     "@type": "Person",
     name: SITE.founder,
+    url: absoluteUrl(SITE.founderPath),
   },
   sameAs: SITE.socialProfiles,
 };

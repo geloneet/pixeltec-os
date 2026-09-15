@@ -73,7 +73,7 @@ export const SEO_TOOLS: Record<SeoToolKey, SeoTool> = {
     key: 'local-business',
     title: 'Negocio local (LocalBusiness)',
     description:
-      'Datos del negocio para Google (schema.org LocalBusiness): dirección, teléfono, horario. Alimenta el panel de conocimiento.',
+      'La entidad local de PixelTEC (Organization + ProfessionalService: teléfono, correo, ciudad y zonas atendidas) ya sale del código, desde site-config, en todas las páginas. Este bloque solo se publica si trae tipos DISTINTOS de LocalBusiness/Organization; una calle u horario nuevos se declaran en site-config, no aquí.',
     format: 'json',
     settingKey: 'seo_local_business',
     enabledKey: 'seo_local_business_enabled',
