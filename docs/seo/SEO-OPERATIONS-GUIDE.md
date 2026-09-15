@@ -72,7 +72,8 @@ investigación → intención (URL-INTENT-MAP) → URL objetivo → copy con evi
 
 **En cada publicación**: checklist §6 + comprobar URL/sitemap/GSC.
 **Semanal (15 min)**: GSC errores críticos + indexación de lo reciente + 404
-nuevas + formularios/leads orgánicos + acciones manuales/seguridad.
+nuevas + formularios/leads orgánicos + acciones manuales/seguridad + **informe
+query×page** (procedimiento abajo, §7b).
 **Quincenal**: publicar u optimizar una pieza revisada; enlaces internos desde
 contenido viejo al nuevo.
 **Mensual**: reporte §10; ganadores/estancados; query→page map (cuando haya
@@ -84,6 +85,26 @@ un caso de estudio real.
 **Semestral**: NAP/directorios/perfiles; backlinks; decay; redirects
 históricos; privacidad/tracking.
 **Anual**: estrategia completa, pilares, herramientas, responsabilidades.
+
+### 7b. Rutina semanal de Search Console (WO-2026-00345, L5)
+
+Lunes, después del cron diario de las 06:00 (`api/cron/seo-gsc-sync`, datos ya en
+`gsc_query_daily`; credenciales y backfill de 16 meses completos desde 2026-08-31):
+
+1. Generar el informe con `scripts/seo/gsc-weekly-report.ts` (detalle en
+   `docs/seo/gsc-weekly/README.md`):
+   - **Con SSH (VPS):** `cd /home/ubuntu/pixeltec-os && docker compose exec -T app npm run seo:gsc-weekly -- --from-db --out /tmp/<YYYY-Www>.md`.
+     Si la imagen no trae `scripts/`/`tsx`, exportar `gsc_query_daily` a CSV con `psql`
+     (consulta en el README) y correr `--csv` en local.
+   - **Sin SSH (esta terminal, hard_deny):** Miguel exporta el CSV de Search Console
+     (Rendimiento → Consultas → Exportar) a `~/Downloads`; el agente corre
+     `npm run seo:gsc-weekly -- --csv ~/Downloads/Consultas.csv --out docs/seo/gsc-weekly/<YYYY-Www>.md`.
+2. Leer secciones 1 (quick wins), 2 (CTR bajo) y 6 (canibalización). Elegir 3 quick
+   wins y registrarlos como pendientes fechados en `09_SEGUIMIENTO/Pixeltec.mx.md`.
+3. Cambios de title/description/enlaces → WorkOrder normal (nunca directo a prod).
+4. Cobertura (sección 5): una landing con 0 impresiones 4 semanas seguidas pasa a
+   revisión de intención (URL-INTENT-MAP) antes de tocar contenido.
+5. Los informes generados no se versionan salvo petición de Miguel.
 
 ## 8. Actualización y consolidación
 

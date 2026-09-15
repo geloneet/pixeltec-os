@@ -1,4 +1,13 @@
-# Registro de cron — `api/cron/seo-gsc-sync` (pendiente en VPS)
+# Registro de cron — `api/cron/seo-gsc-sync`
+
+> **Estado (actualizado 2026-09-14, WO-2026-00345 L5) `[Documentado en NeuroPIXEL]`:** las
+> credenciales de Search Console YA están cargadas en producción; el backfill de 16 meses
+> terminó el 2026-08-31 (`hasMore: false`) y `/seo/contenido` mostró datos reales el
+> 2026-09-04 (`01_CONTEXT/infraestructura.md`, `09_SEGUIMIENTO/Pixeltec.mx.md`). El cron
+> diario de las 06:00 está registrado en el crontab del VPS. Las secciones «pendiente de
+> Miguel» de abajo describen la configuración inicial y se conservan como referencia para
+> un entorno nuevo; no son tareas abiertas. Lectura semanal de esos datos:
+> `scripts/seo/gsc-weekly-report.ts` (`docs/seo/gsc-weekly/README.md`).
 
 **Qué hace:** sincroniza los snapshots diarios de Google Search Console en `gsc_page_daily` y `gsc_query_daily`, y registra cada corrida en `seo_sync_runs`. Alimenta la pantalla `/seo/contenido` del módulo SEO & Contenido (WO-2026-00214). Independiente de los demás cron del repo: cada uno itera su propia fuente de datos.
 
@@ -18,7 +27,7 @@
 
 La respuesta trae `hasMore: true` mientras queden días de backfill pendientes.
 
-## Configuración previa (pendiente de Miguel)
+## Configuración previa (hecha en producción; referencia para entornos nuevos)
 
 El cron responde `{"success":true,"skipped":"gsc_not_configured"}` —200, no error— mientras falten estas variables. Un entorno donde Search Console todavía no está conectado no está roto; devolver 500 llenaría el log de falsas alarmas todos los días.
 
@@ -37,7 +46,7 @@ base64 -i ruta/a/service-account.json | tr -d '\n'
 
 La cuenta de servicio necesita permiso de **lectura** sobre la propiedad en Search Console: Configuración → Usuarios y permisos → añadir su `client_email`. Y hay que habilitar la Search Console API en el proyecto de Google Cloud.
 
-## Pendiente en el VPS (no ejecutado por este WO — deploy/infra, gate aparte)
+## Crontab del VPS (registrado; se conserva el comando como referencia)
 
 ```bash
 # crontab de `ubuntu`, mismo patrón que billing-charges / recurring-charges:
@@ -49,7 +58,7 @@ Diaria a las 06:00 (sugerido): los datos de Search Console no cambian dentro del
 
 ## Requisito de base de datos
 
-La migración `drizzle/0051_seo_contenido.sql` debe estar aplicada. **No lo está**: ver `docs/deploy/migration-0051-seo-contenido.md`. Sin ella el cron falla en la primera consulta.
+La migración `drizzle/0051_seo_contenido.sql` debe estar aplicada (lo está en producción: el backfill completo de 2026-08-31 la exige; ver `docs/deploy/migration-0051-seo-contenido.md` para el procedimiento). Sin ella el cron falla en la primera consulta.
 
 ## Verificación después del primer disparo
 

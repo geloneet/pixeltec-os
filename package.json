@@ -12,6 +12,7 @@
     "test:watch": "NODE_OPTIONS=--no-experimental-webstorage vitest",
     "seed": "tsx scripts/seed.ts",
     "validate:egress": "tsx scripts/validate-egress-config.ts",
+    "seo:gsc-weekly": "NODE_OPTIONS=--no-experimental-webstorage tsx scripts/seo/gsc-weekly-report.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
