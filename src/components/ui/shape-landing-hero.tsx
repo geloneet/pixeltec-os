@@ -85,10 +85,13 @@ function HeroGeometric({
     badge = "Agencia de Innovación Tecnológica",
     title1 = "Diseñamos el Futuro",
     title2 = "Digital de tu Empresa",
+    subtitle = "Automatizamos procesos manuales y construimos ecosistemas digitales de alto rendimiento para empresas que buscan el futuro hoy.",
 }: {
     badge?: string;
     title1?: string;
     title2?: string;
+    /** Párrafo bajo el H1. Sale del servidor (REN-01); la portada lo pasa desde HOME_HERO. */
+    subtitle?: string;
 }) {
     const diagnostic = useDiagnosticModal();
     const reduceMotion = useReducedMotion();
@@ -205,7 +208,7 @@ function HeroGeometric({
                         animate="visible"
                     >
                         <p className="text-base sm:text-lg md:text-xl text-muted-foreground dark:text-white/40 mb-8 leading-relaxed font-light tracking-wide max-w-xl mx-auto px-4">
-                            Automatizamos procesos manuales y construimos ecosistemas digitales de alto rendimiento para empresas que buscan el futuro hoy.
+                            {subtitle}
                         </p>
                     </motion.div>
                     

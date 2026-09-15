@@ -37,7 +37,7 @@ export const SITE_PAGES: SitePage[] = [
     path: '/',
     label: 'Inicio',
     description:
-      'Portada de PixelTEC: transformamos procesos complejos en ecosistemas web y automatizaciones escalables para empresas que buscan rentabilidad y control absoluto.',
+      'Portada de PixelTEC: desarrollo web y apps, software a la medida y automatización con IA y WhatsApp para pymes y empresas de Puerto Vallarta, Bahía de Banderas, Guadalajara y todo México; enlaza a las landings por ciudad y por keyword.',
   },
   {
     path: '/services',
