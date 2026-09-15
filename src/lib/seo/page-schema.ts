@@ -55,7 +55,7 @@ export const SITE_PAGES: SitePage[] = [
     path: '/blog',
     label: 'Blog (índice)',
     description:
-      'Índice del blog: listado de guías, comparativas, calculadoras y casos reales sobre automatización con IA, software a medida y desarrollo de aplicaciones en México.',
+      'Índice del blog para pymes: guías, comparativas, calculadoras y casos reales sobre IA, automatización, software a medida y desarrollo de aplicaciones en México.',
   },
   {
     path: '/industrias',
@@ -85,7 +85,7 @@ export const SITE_PAGES: SitePage[] = [
     path: '/about',
     label: 'Nosotros',
     description:
-      'Página institucional sobre quiénes somos: el equipo de PixelTEC, su metodología y los tres pilares de trabajo (desarrollo, automatización e IA, consultoría).',
+      'Quiénes somos: estudio de desarrollo de software en Puerto Vallarta con un arquitecto líder por proyecto y una red de especialistas; metodología y los tres pilares (desarrollo, automatización e IA, consultoría).',
   },
   {
     path: '/equipo',

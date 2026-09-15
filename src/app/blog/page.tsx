@@ -12,7 +12,9 @@ export const revalidate = 3600; // ISR: regenerar máximo cada hora
 // WO-2026-00213: título/H1 genéricos ("Insights & Tecnología") no explicaban
 // a Google ni al usuario qué encontrarían — propuesta de Miguel reemplaza
 // marca por intención de búsqueda real (PyMEs, IA, software, automatización).
-const BLOG_INDEX_TITLE = 'Blog de tecnología para PyMEs | IA, software y automatización';
+// L3 (WO-2026-00345): el title anterior sumaba 79 caracteres con « | PixelTEC»
+// y llevaba doble separador; misma intención en ≤ 60.
+const BLOG_INDEX_TITLE = 'Blog: IA, software y automatización para pymes';
 const BLOG_INDEX_DESCRIPTION = 'Guías, comparativas, calculadoras y casos reales sobre automatización con IA, software a medida y desarrollo de aplicaciones en México.';
 
 export const metadata: Metadata = buildMetadata({

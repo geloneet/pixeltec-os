@@ -9,6 +9,7 @@ import type { PublicBlogPost } from '@/lib/blog/public-post';
 import type { HeadingEntry } from '@/lib/blog/heading-utils';
 import { ViewBeacon } from '@/components/blog/view-beacon';
 import { BlogSidebar } from '@/components/blog/blog-sidebar';
+import { relatedResourcesFor } from '@/lib/blog/cluster-map';
 
 const MarkdownRenderer = dynamic(() => import('@/components/blog/markdown-renderer'));
 
@@ -50,6 +51,14 @@ export default function BlogPostClient({
   const readTime = `${post.readingTimeMin} min de lectura`;
   // El DTO público ya trae SOLO fuentes verificadas (frontera P1-A).
   const verifiedSources = post.sources;
+  // L3 (WO-2026-00345): si el editor no cargó `internalLinks`, el bloque de
+  // recursos se rellena por cluster (categoría + etiquetas) para que todo
+  // artículo enlace a un servicio y a una landing. Mismo `data-cta` para que
+  // /seo/contenido lo mida igual.
+  const resourceLinks =
+    post.internalLinks.length > 0
+      ? post.internalLinks
+      : relatedResourcesFor(post.category, post.tags, post.internalLinks).map((r) => ({ targetUrl: r.href, anchor: r.anchor }));
 
   return (
     <main className="min-h-screen bg-background dark:bg-[#030303] text-foreground dark:text-white pt-32 sm:pt-40 pb-16 sm:pb-24">
@@ -226,13 +235,13 @@ export default function BlogPostClient({
             </div>
           </div>
 
-          {post.internalLinks.length > 0 && (
+          {resourceLinks.length > 0 && (
             <section aria-labelledby="internal-links-heading" className="mt-12">
               <h2 id="internal-links-heading" className="mb-4 text-xl font-bold text-foreground dark:text-white">
                 Recursos de PixelTEC mencionados
               </h2>
               <ul className="space-y-2.5">
-                {post.internalLinks.map((l) => (
+                {resourceLinks.map((l) => (
                   <li key={`${l.targetUrl}|${l.anchor}`}>
                     <Link
                       href={l.targetUrl}
