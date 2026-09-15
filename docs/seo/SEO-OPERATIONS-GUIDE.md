@@ -114,3 +114,16 @@ Resumen ejecutivo (3 líneas) · KPIs: clics no-branded, impresiones,
 indexadas/indexables, leads orgánicos CRM, CWV · Cambios ejecutados ·
 Ganadores / pérdidas + hipótesis · Riesgos · Próximas acciones con responsable
 · Evidencia (capturas GSC, crawl).
+
+## Snapshot del home (antes/después de cualquier cambio en `/`)
+
+```bash
+npx tsx scripts/seo/home-seo-snapshot.ts --url https://pixeltec.mx/ --out docs/seo/home-seo-<fecha>.json
+npx tsx scripts/seo/home-seo-snapshot.ts --url https://pixeltec.mx/ --compare docs/seo/home-seo-baseline-2026-09-14.json
+```
+
+Cuenta palabras visibles, términos de `HOME_TERMS`, enlaces internos (totales / únicos / a
+landings) y tipos JSON-LD; `--compare` sale con código 1 si bajan los enlaces internos. El
+método vive en `scripts/seo/home-seo-snapshot.lib.ts`: si cambia, se regenera la línea base y
+se anota aquí. Línea base del MVP SEO: `docs/seo/home-seo-baseline-2026-09-14.json` (producción
+en `16d43aa`) y `docs/seo/home-gsc-baseline-2026-09-14.md` (Search Console, 90 días).

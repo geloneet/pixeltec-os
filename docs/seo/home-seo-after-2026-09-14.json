@@ -1,0 +1,136 @@
+{
+  "url": "https://pixeltec.mx/",
+  "fetchedAt": "2026-09-15T00:33:28.212Z",
+  "title": "Desarrollo Web, Apps y Automatización con IA en Puerto Vallarta",
+  "description": "Desarrollo web y apps, software a medida y automatización con IA y WhatsApp para pymes de Puerto Vallarta, Bahía de Banderas, Guadalajara y México.",
+  "h1": "Desarrollo Web y Apps Automatización con IA",
+  "outline": [
+    {
+      "level": 1,
+      "text": "Desarrollo Web y Apps Automatización con IA"
+    },
+    {
+      "level": 2,
+      "text": "Arquitectos de tu transformación digital desde Puerto Vallarta"
+    },
+    {
+      "level": 2,
+      "text": "Servicios Diseñados para el Futuro"
+    },
+    {
+      "level": 3,
+      "text": "Automatización con IA"
+    },
+    {
+      "level": 3,
+      "text": "Desarrollo Web & Apps"
+    },
+    {
+      "level": 3,
+      "text": "Consultoría & Soporte TI"
+    },
+    {
+      "level": 2,
+      "text": "Empresas que ya escalaron con nosotros"
+    },
+    {
+      "level": 2,
+      "text": "Cuéntanos qué está frenando tu operación"
+    },
+    {
+      "level": 2,
+      "text": "Operamos dentro de industrias reales, no de casos hipotéticos"
+    },
+    {
+      "level": 2,
+      "text": "Desarrollo web y automatización en tu ciudad"
+    },
+    {
+      "level": 3,
+      "text": "Desarrollo web"
+    },
+    {
+      "level": 3,
+      "text": "Automatización con IA"
+    },
+    {
+      "level": 3,
+      "text": "Consultoría TI"
+    },
+    {
+      "level": 3,
+      "text": "Guías para decidir"
+    },
+    {
+      "level": 3,
+      "text": "Soluciones"
+    },
+    {
+      "level": 3,
+      "text": "Empresa"
+    },
+    {
+      "level": 3,
+      "text": "Recursos"
+    },
+    {
+      "level": 3,
+      "text": "Redes Sociales"
+    }
+  ],
+  "words": 953,
+  "terms": {
+    "desarrollo web": 10,
+    "página web": 1,
+    "páginas web": 1,
+    "software a la medida": 2,
+    "software a medida": 1,
+    "automatización": 15,
+    "IA": 9,
+    "WhatsApp": 7,
+    "consultoría": 8,
+    "pymes": 3,
+    "CRM": 0,
+    "app": 2,
+    "Puerto Vallarta": 10,
+    "Bahía de Banderas": 5,
+    "Guadalajara": 6,
+    "Zapopan": 4,
+    "Jalisco": 1,
+    "México": 5
+  },
+  "links": {
+    "total": 38,
+    "unique": 31,
+    "landing": 18,
+    "landingHrefs": [
+      "/desarrollo-web-puerto-vallarta",
+      "/desarrollo-web-bahia-de-banderas",
+      "/desarrollo-web-guadalajara",
+      "/desarrollo-web-zapopan",
+      "/automatizacion-puerto-vallarta",
+      "/automatizacion-bahia-de-banderas",
+      "/automatizacion-guadalajara",
+      "/automatizacion-zapopan",
+      "/consultoria-puerto-vallarta",
+      "/consultoria-bahia-de-banderas",
+      "/consultoria-guadalajara",
+      "/consultoria-zapopan",
+      "/software-a-medida-para-empresas",
+      "/empresas-de-desarrollo-de-software",
+      "/automatizar-whatsapp-business",
+      "/automatizacion-de-mensajes-en-whatsapp",
+      "/desarrollo-de-app",
+      "/desarrollo-de-aplicaciones-moviles"
+    ]
+  },
+  "jsonLdTypes": [
+    "Organization",
+    "WebSite",
+    "WebPage",
+    "ItemList",
+    "Service",
+    "Service",
+    "Service"
+  ]
+}

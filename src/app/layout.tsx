@@ -44,7 +44,7 @@ const leagueSpartan = League_Spartan({
 export const metadata: Metadata = {
   metadataBase: new URL(SITE.url),
   title: {
-    default: `${SITE.name} | Ecosistemas Digitales y Automatización`,
+    default: `${SITE.name} | Desarrollo Web, Software y Automatización con IA`,
     template: `%s | ${SITE.name}`,
   },
   description: SITE.description,
