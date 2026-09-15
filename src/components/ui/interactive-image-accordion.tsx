@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/dialog';
 import { motion, useReducedMotion } from 'framer-motion';
 import { GlowCard } from './spotlight-card';
+import { HOME_SERVICES_INTRO } from '@/lib/content/home';
 
 // --- Data for the image accordion ---
 interface AccordionItemData {
@@ -150,7 +151,7 @@ export function LandingAccordionItem() {
             </span>
           </h2>
           <p className="mt-6 text-lg text-muted-foreground font-light tracking-wide">
-            Impulsamos tu transformación digital con soluciones de vanguardia. Desde inteligencia artificial hasta arquitecturas web de alto rendimiento y soporte empresarial.
+{HOME_SERVICES_INTRO}
           </p>
         </div>
 
