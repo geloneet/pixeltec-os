@@ -158,4 +158,15 @@ describe('páginas de industria', () => {
       expect(home, `cita de ${t.author} distinta a la del home`).toContain(t.quote);
     }
   });
+
+  it('grafía pública decidida por Miguel: «Polett Niebla» y «Smile More», nunca «Pollet» ni «Smilemore» (WO-2026-00349)', () => {
+    const home = readFileSync(resolve(__dirname, '..', '..', 'components', 'sections', 'testimonials.tsx'), 'utf8');
+    const registry = JSON.stringify(industriesWithPage());
+    for (const [label, text] of [['testimonials.tsx', home], ['industrias', registry]] as const) {
+      expect(text, label).not.toMatch(/Pollet/);
+      expect(text, label).not.toMatch(/Smilemore/);
+    }
+    expect(home).toContain('name: "Polett Niebla"');
+    expect(home).toContain('Fundadora, Smile More');
+  });
 });

@@ -24,7 +24,7 @@ const testimoniosData = [
   { id: 2, rating: 5, text: "La automatización de nuestros pedidos y la reestructuración de la gestión logística nos ha ahorrado incontables horas. Ahora atendemos a nuestros clientes de forma mucho más rápida y sin errores.", name: "Juan Antonio Sánchez", role: "Director General, Pipas Tondoroque", gender: "male" },
   { id: 3, rating: 5, text: "Digitalizar un negocio tradicional parecía un reto imposible, pero el equipo diseñó un ecosistema a la medida que nos permitió modernizarnos, escalar ventas y tener control total.", name: "Juan Sánchez", role: "Fundador, Materiales de Barro", gender: "male" },
   { id: 4, rating: 5, text: "La arquitectura web y el control de inventario que desarrollaron para nosotros nos ha dado una ventaja competitiva enorme. La plataforma es robusta, rápida y exactamente lo que necesitábamos.", name: "Francisco Arredondo", role: "CEO, Barro Stock", gender: "male" },
-  { id: 5, rating: 5, text: "El sistema de gestión integral para la clínica y el rediseño del sitio web superaron todas nuestras expectativas. Hemos mejorado nuestra captación de pacientes notablemente.", name: "Pollet Niebla", role: "Fundadora, Smilemore", gender: "female" }
+  { id: 5, rating: 5, text: "El sistema de gestión integral para la clínica y el rediseño del sitio web superaron todas nuestras expectativas. Hemos mejorado nuestra captación de pacientes notablemente.", name: "Polett Niebla", role: "Fundadora, Smile More", gender: "female" }
 ];
 
 const testimonials = testimoniosData.map(t => ({
