@@ -1,6 +1,5 @@
 'use client';
 import React, { useState } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import {
   Dialog,
@@ -11,13 +10,19 @@ import {
 import { motion, useReducedMotion } from 'framer-motion';
 import { GlowCard } from './spotlight-card';
 import { HOME_SERVICES_INTRO } from '@/lib/content/home';
+import { ServiceScene } from '@/components/services-animations/registry';
+
+// WO-2026-00275: las fotos de stock (Unsplash) se reemplazan por escenas
+// animadas 100 % código, una por servicio. Cada escena arranca sola al entrar
+// al viewport y se pausa fuera de pantalla. El mapeo slug → escena vive en
+// services-animations/registry.tsx (WO-2026-00341), compartido con el modal,
+// /services y /services/[slug].
 
 // --- Data for the image accordion ---
 interface AccordionItemData {
   id: number;
   title: string;
   slug: string;
-  imageUrl: string;
   preview: string;
   bullets: string[];
 }
@@ -27,8 +32,6 @@ const accordionItems: AccordionItemData[] = [
     id: 1,
     title: 'Automatización con IA',
     slug: 'automatizacion',
-    imageUrl:
-      'https://images.unsplash.com/photo-1620712943543-bcc4688e7485?q=80&w=1200&auto=format&fit=crop',
     preview:
       'Eliminamos tareas repetitivas con bots, scripts e IA aplicada a tu operación diaria. Conectamos sistemas que no se hablaban y liberamos horas-hombre.',
     bullets: [
@@ -42,8 +45,6 @@ const accordionItems: AccordionItemData[] = [
     id: 2,
     title: 'Desarrollo Web & Apps',
     slug: 'ecosistemas-web',
-    imageUrl:
-      'https://images.unsplash.com/photo-1547658719-da2b51169166?q=80&w=1200&auto=format&fit=crop',
     preview:
       'Ecosistemas web robustos, CRMs hechos a la medida y portales corporativos ultra rápidos. Next.js, React y Firebase como fundamento.',
     bullets: [
@@ -57,8 +58,6 @@ const accordionItems: AccordionItemData[] = [
     id: 3,
     title: 'Consultoría & Soporte TI',
     slug: 'consultoria',
-    imageUrl:
-      'https://images.unsplash.com/photo-1600880292203-757bb62b4baf?q=80&w=1200&auto=format&fit=crop',
     preview:
       'Diagnóstico estratégico, transformación digital y rediseño UI/UX para modernizar procesos. Acompañamos a tu equipo de adentro hacia afuera.',
     bullets: [
@@ -95,23 +94,12 @@ const ServiceCard = ({ item, onClick, index = 0 }: ServiceCardProps) => {
           GlowCard: la imagen ocupa el 100 % de la tarjeta. El halo del glow se
           dibuja fuera del borde, así que se conserva. */}
       <GlowCard customSize glowColor="cyan" className="group h-full w-full !p-0 !gap-0 !border-0">
-        {/* La imagen es el fondo de toda la tarjeta; el texto va encima. */}
+        {/* La escena animada es el fondo de toda la tarjeta; el texto va encima. */}
         <div className="relative flex h-full min-h-[26rem] w-full flex-col justify-end overflow-hidden rounded-2xl">
-          <Image
-            src={item.imageUrl}
-            alt={item.title}
-            fill
-            // REN-03 (WO-2026-00268): la tarjeta mide ~400 px en escritorio,
-            // no 33vw de la ventana. Con `33vw` el navegador pedía la variante
-            // de 1920 px para pintarla a 400: ~1.4 MB de más en la home.
-            sizes="(max-width: 1023px) calc(100vw - 2rem), (max-width: 1279px) 30vw, 400px"
-            className="object-cover transition-transform duration-500 group-hover:scale-105"
-            loading="lazy"
-          />
-          {/* Dark overlay for better text readability */}
-          <div className="absolute inset-0 bg-black bg-opacity-50 transition-opacity duration-300 group-hover:bg-opacity-40"></div>
-          {/* Refuerzo de contraste tras el texto, que va abajo */}
-          <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/80 to-transparent"></div>
+          <ServiceScene slug={item.slug} />
+          {/* Refuerzo de contraste tras el texto, que va abajo. Mismo negro
+              frío de la escena (#06080d) para que el fundido sea invisible. */}
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[58%] bg-gradient-to-t from-[#06080d] via-[#06080d]/85 to-transparent"></div>
 
           <div className="relative flex flex-col gap-2 p-6">
             <h3 className="text-xl font-semibold leading-tight text-white">
@@ -170,67 +158,53 @@ export function LandingAccordionItem() {
         </div>
       </section>
 
-      {/* Service preview modal */}
+      {/* Modal de servicio (WO-2026-00341). Antes: escena en modo poster,
+          encajonada en una columna de 0.8fr con fundido lateral — se veía
+          recortada y pobre. Ahora la escena es el escenario: corre viva a todo
+          el ancho, arriba, con altura generosa y escalada con zoom; el texto va
+          debajo con aire (jerarquía Apple: primero el producto, luego la
+          lectura). Bajo prefers-reduced-motion la escena se queda en su
+          fotograma final (lo resuelve useSceneActive, no hace falta `poster`). */}
       <Dialog open={!!openItem} onOpenChange={(o) => !o && setOpenItem(null)}>
         <DialogContent
-          className="max-w-3xl gap-0 overflow-hidden border-border bg-card/95 p-0 shadow-2xl shadow-black/10 backdrop-blur-2xl sm:rounded-2xl
-            dark:border-white/10 dark:bg-zinc-950/85 dark:shadow-black/60
-            [&>button]:right-5 [&>button]:top-5 [&>button]:z-20 [&>button]:flex [&>button]:h-8 [&>button]:w-8 [&>button]:items-center [&>button]:justify-center [&>button]:rounded-full [&>button]:border [&>button]:border-border [&>button]:bg-background/70 [&>button]:text-muted-foreground [&>button]:opacity-100 [&>button]:backdrop-blur-md [&>button:hover]:border-primary/40 [&>button:hover]:text-foreground
-            dark:[&>button]:border-white/15 dark:[&>button]:bg-black/40 dark:[&>button]:text-white/70 dark:[&>button:hover]:border-cyan-400/40 dark:[&>button:hover]:text-white"
+          className="w-[calc(100%-1.5rem)] max-w-[52rem] gap-0 overflow-hidden overflow-y-auto rounded-[24px] border-border bg-card p-0 shadow-2xl shadow-black/20 max-h-[calc(100dvh-1.5rem)] before:hidden sm:w-full sm:rounded-[28px]
+            dark:border-white/10 dark:bg-zinc-950 dark:shadow-black/70
+            [&>button]:right-4 [&>button]:top-4 [&>button]:z-20 [&>button]:flex [&>button]:h-9 [&>button]:w-9 [&>button]:items-center [&>button]:justify-center [&>button]:rounded-full [&>button]:border [&>button]:border-white/15 [&>button]:bg-white/10 [&>button]:text-white/80 [&>button]:opacity-100 [&>button]:transition-colors [&>button:hover]:border-white/25 [&>button:hover]:bg-white/20 [&>button:hover]:text-white [&>button]:focus-visible:ring-cyan-400/60"
         >
           {openItem && (
-            <div className="grid md:grid-cols-[0.8fr_1fr]">
-              {/* Imagen lateral, a sangre */}
-              <div className="relative h-44 md:h-auto">
-                <Image
-                  src={openItem.imageUrl}
-                  alt={openItem.title}
-                  fill
-                  sizes="(max-width: 768px) 100vw, 340px"
-                  className="object-cover"
+            <div className="flex flex-col">
+              {/* Escenario: la escena a sangre, arriba, a todo el ancho. */}
+              {/* En laptops bajas (≤ 760 px de alto útil) el escenario cede altura y
+                  zoom para que título, bullets y CTA queden a la vista sin scroll. */}
+              <div className="relative h-[256px] shrink-0 overflow-hidden bg-[#06080d] sm:h-[312px] md:h-[352px] md:[@media(max-height:760px)]:h-[248px]">
+                <ServiceScene
+                  key={openItem.slug}
+                  slug={openItem.slug}
+                  layout="stage"
+                  stageClassName="sm:[zoom:1.12] md:[zoom:1.26] md:[@media(max-height:760px)]:[zoom:1]"
                 />
-                {/* Fundido hacia el panel: vertical en móvil, horizontal en escritorio */}
-                <div className="absolute inset-0 bg-gradient-to-t from-card via-card/30 to-transparent md:bg-gradient-to-r md:from-transparent md:via-card/10 md:to-card dark:from-zinc-950 dark:via-zinc-950/30 dark:md:via-zinc-950/10 dark:md:to-zinc-950" />
               </div>
 
-              {/* Panel de contenido */}
-              <div className="relative flex flex-col gap-5 p-7 md:p-9">
-                {/* Halo tenue de marca */}
-                <div
-                  aria-hidden="true"
-                  className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-primary/10 blur-3xl dark:bg-cyan-400/10"
-                />
-
-                <div className="relative space-y-3">
+              {/* Lectura: título, descripción, bullets y decisión. */}
+              <div className="relative flex flex-col gap-6 px-6 pb-6 pt-7 sm:px-9 sm:pb-8 sm:pt-8 md:px-11 md:[@media(max-height:760px)]:gap-5 md:[@media(max-height:760px)]:pb-6 md:[@media(max-height:760px)]:pt-6">
+                <div className="space-y-3">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-brand dark:text-cyan-400">
                     Servicio
                   </p>
-                  <DialogTitle className="text-2xl font-bold tracking-tight text-foreground dark:text-white md:text-3xl">
+                  <DialogTitle className="text-2xl font-semibold tracking-tight text-foreground dark:text-white sm:text-3xl md:text-[2rem] md:leading-[1.15]">
                     {openItem.title}
                   </DialogTitle>
-                  <DialogDescription className="text-sm leading-relaxed text-muted-foreground dark:text-white/60">
+                  <DialogDescription className="max-w-[62ch] text-[15px] leading-relaxed text-muted-foreground dark:text-white/60">
                     {openItem.preview}
                   </DialogDescription>
                 </div>
 
-                <div className="h-px w-full bg-gradient-to-r from-primary/40 via-border to-transparent dark:from-cyan-400/40 dark:via-white/10" />
+                <ModalBullets key={openItem.slug} bullets={openItem.bullets} />
 
-                <ul className="relative grid gap-3">
-                  {openItem.bullets.map((b) => (
-                    <li key={b} className="flex items-start gap-3 text-sm text-foreground/85 dark:text-white/80">
-                      <span
-                        aria-hidden="true"
-                        className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-primary dark:bg-cyan-400 dark:shadow-[0_0_8px_rgba(34,211,238,0.9)]"
-                      />
-                      <span className="leading-relaxed">{b}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <div className="relative mt-auto flex flex-wrap items-center gap-3 pt-2">
+                <div className="flex flex-wrap items-center gap-3 border-t border-border/70 pt-5 dark:border-white/10">
                   <Link
                     href={`/services/${openItem.slug}`}
-                    className="group inline-flex items-center gap-2 rounded-full border border-white/15 bg-black px-5 py-2.5 text-sm font-semibold text-white transition-all hover:border-primary/50 hover:shadow-[0_8px_24px_-8px_rgba(33,150,243,0.45)] dark:hover:border-cyan-400/40 dark:hover:shadow-[0_0_28px_-6px_rgba(34,211,238,0.55)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+                    className="group inline-flex items-center gap-2 rounded-full border border-white/15 bg-black px-5 py-2.5 text-sm font-semibold text-white transition-[border-color,box-shadow,transform] duration-200 hover:border-primary/50 hover:shadow-[0_8px_24px_-8px_rgba(33,150,243,0.45)] active:scale-[0.97] dark:hover:border-cyan-400/40 dark:hover:shadow-[0_0_28px_-6px_rgba(34,211,238,0.55)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
                   >
                     Conocer más
                     <span
@@ -247,6 +221,10 @@ export function LandingAccordionItem() {
                   >
                     Cerrar
                   </button>
+                  {/* Honestidad de la simulación: la escena usa datos ficticios. */}
+                  <span className="ml-auto text-[11px] text-muted-foreground/80 dark:text-white/35">
+                    Escena simulada con datos ficticios
+                  </span>
                 </div>
               </div>
             </div>
@@ -254,5 +232,33 @@ export function LandingAccordionItem() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+/**
+ * Bullets del modal con entrada escalonada (40 ms entre cada uno, spring sin
+ * rebote): el ojo llega a la lista justo cuando el modal termina de abrir.
+ * Con prefers-reduced-motion no hay desplazamiento: la lista aparece tal cual.
+ */
+function ModalBullets({ bullets }: { bullets: string[] }) {
+  const reduceMotion = useReducedMotion();
+  return (
+    <ul className="grid gap-x-8 gap-y-3 sm:grid-cols-2">
+      {bullets.map((b, i) => (
+        <motion.li
+          key={b}
+          className="flex items-start gap-3 text-sm text-foreground/85 dark:text-white/80"
+          initial={reduceMotion ? false : { opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ type: 'spring', duration: 0.45, bounce: 0, delay: 0.12 + i * 0.04 }}
+        >
+          <span
+            aria-hidden="true"
+            className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-primary dark:bg-cyan-400 dark:shadow-[0_0_8px_rgba(34,211,238,0.9)]"
+          />
+          <span className="leading-relaxed">{b}</span>
+        </motion.li>
+      ))}
+    </ul>
   );
 }

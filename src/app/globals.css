@@ -165,6 +165,205 @@
   }
 }
 
+/* ------------------------------------------------------------------------
+   ShinyButton (.shiny-cta) — WO-2026-00275
+   Antes vivía en un <style jsx global> dentro de shiny-button.tsx. En el App
+   Router styled-jsx NO se sirve en el HTML (no hay StyleRegistry): el <a> del
+   CTA de WhatsApp pintaba como texto plano y el pill "aparecía de golpe"
+   cuando el cliente inyectaba las reglas — el "flashazo" que reportó Miguel.
+   Aquí las reglas van en el CSS del build, presentes antes de la primera
+   pintura. Fuera de @layer a propósito: Tailwind poda lo que hay en @layer
+   por uso en el HTML y estas clases se componen en runtime (cn()).
+   ------------------------------------------------------------------------ */
+
+/* Giro compuesto (transform) en vez de @property --gradient-angle */
+@keyframes shiny-rotate {
+  to { transform: rotate(360deg); }
+}
+
+/* Entrada: el pill se materializa (opacity + scale, nunca desde 0). */
+@keyframes shiny-cta-enter {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Ignición: el shine da UNA vuelta rápida con ease-out fuerte y encadena
+   con el giro lineal infinito (termina en 360° = 0°, sin salto). */
+@keyframes shiny-ignite {
+  from { opacity: 0; transform: rotate(0deg); }
+  30% { opacity: 1; }
+  to { opacity: 1; transform: rotate(360deg); }
+}
+
+/* Reduced motion: solo fundido, sin escala ni giro. */
+@keyframes shiny-cta-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.shiny-cta {
+  /* Identidad de marca intencional: pill negro/blanco en AMBOS temas
+     (no se invierte con background/foreground para no perder el CTA
+     de alto contraste que WhatsApp necesita). */
+  --shiny-cta-bg: #000000;
+  --shiny-cta-fg: #ffffff;
+  --shiny-cta-highlight: #2196f3;
+  /* Tono medio del shine cónico. En claro un blanco puro sobre el pill
+     negro leía como un destello lechoso sin marca; se sustituye por el
+     azul profundo. En oscuro sigue siendo blanco. */
+  --shiny-cta-shine-mid: #1463b8;
+  --duration: 3s;
+  --shiny-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  cursor: pointer;
+  outline-offset: 4px;
+  padding: 1rem 2rem;
+  font-size: 1rem;
+  line-height: 1.2;
+  font-weight: 700;
+  /* Light: borde definido (oscuro suave) para que el pill negro no
+     se vea "flotando" sin contorno sobre el fondo claro. */
+  border: 1px solid hsl(var(--foreground) / 0.12);
+  border-radius: 360px;
+  color: var(--shiny-cta-fg);
+  background: transparent;
+  /* `backwards` y no `both`: al terminar libera `transform`, así el
+     active:scale-95 y las transiciones de hover vuelven a mandar. */
+  animation: shiny-cta-enter 480ms var(--shiny-ease-out) backwards;
+}
+
+.dark .shiny-cta {
+  /* Dark: sin borde propio (el glow hace ese trabajo). */
+  border-color: transparent;
+  --shiny-cta-shine-mid: #ffffff;
+}
+
+/* Capa del gradiente rotante — transform:rotate() va compuesto en GPU */
+.shiny-cta::before {
+  content: '';
+  position: absolute;
+  width: 400px;
+  height: 400px;
+  top: 50%;
+  left: 50%;
+  margin-top: -200px;
+  margin-left: -200px;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0%,
+    var(--shiny-cta-highlight) 5%,
+    var(--shiny-cta-shine-mid) 10%,
+    var(--shiny-cta-highlight) 15%,
+    transparent 20%
+  );
+  z-index: -2;
+  opacity: 1;
+  /* Ignición 900 ms → giro lineal infinito con 900 ms de retardo (sin
+     fill-mode: durante el retardo no aplica y la ignición corre sola). */
+  animation:
+    shiny-ignite 900ms var(--shiny-ease-out) backwards,
+    shiny-rotate var(--duration) linear 900ms infinite;
+}
+
+/* Relleno sólido — deja el "borde" de 1px por donde asoma el shine */
+.shiny-cta::after {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  background: var(--shiny-cta-bg);
+  border-radius: 360px;
+  z-index: -1;
+  transition: background 0.3s ease;
+}
+
+/* Hover del relleno. En claro el velo translúcido de dark dejaba el
+   pill casi transparente con texto blanco encima (1.8:1): se sustituye
+   por un azul profundo sólido (blanco sobre él = 5.75:1). */
+.shiny-cta:hover::after {
+  background: #1565c0;
+}
+
+.dark .shiny-cta:hover::after {
+  background: rgb(33 150 243 / 0.08);
+}
+
+.shiny-cta > span {
+  position: relative;
+  z-index: 1;
+  letter-spacing: 0.05em;
+}
+
+/* Variante WhatsApp (Miguel 2026-09-08): mismo mecanismo de pill + shine,
+   recoloreado a los verdes oficiales de WhatsApp. #075E54 mantiene el
+   contraste de texto blanco (~7.7:1); #25D366 reemplaza el azul en el
+   shine/glow y en los estados de interacción. */
+.shiny-cta.whatsapp-cta {
+  --shiny-cta-bg: #075e54;
+  --shiny-cta-highlight: #25d366;
+  --shiny-cta-shine-mid: #128c7e;
+}
+
+.dark .shiny-cta.whatsapp-cta {
+  --shiny-cta-shine-mid: #ffffff;
+}
+
+/* Claro: verde WhatsApp medio sólido (blanco encima = 4.14:1). */
+.shiny-cta.whatsapp-cta:hover::after {
+  background: #128c7e;
+}
+
+.dark .shiny-cta.whatsapp-cta:hover::after {
+  background: rgb(37 211 102 / 0.14);
+}
+
+.dark .shiny-cta.whatsapp-cta:hover {
+  color: #25d366 !important;
+  box-shadow: 0 0 20px rgba(37, 211, 102, 0.25) !important;
+}
+
+.shiny-cta.whatsapp-cta:focus-visible {
+  outline-color: #128c7e !important;
+}
+
+.dark .shiny-cta.whatsapp-cta:focus-visible {
+  outline-color: #25d366 !important;
+}
+
+/* Reducción de movimiento: entrada = fundido corto; sin ignición ni giro.
+   El hover, el focus, el active y las transiciones de estado siguen. */
+@media (prefers-reduced-motion: reduce) {
+  .shiny-cta {
+    animation: shiny-cta-fade 200ms ease backwards;
+  }
+  .shiny-cta::before {
+    animation: none;
+  }
+}
+
+/* Escenas de Servicios (WO-2026-00275): parpadeo de la mascota PIX. CSS y no
+   Framer porque animar atributos SVG (ry) desde JS dejaba "undefined" en el
+   primer frame; scaleY con transform-box: fill-box es estable y compuesto. */
+@keyframes pix-blink {
+  0%, 90%, 100% { transform: scaleY(1); }
+  94% { transform: scaleY(0.12); }
+}
+.pix-eye {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: pix-blink 3.4s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pix-eye {
+    animation: none;
+  }
+}
+
 /* react-calendar-heatmap styles */
 .react-calendar-heatmap .color-empty {
   fill: hsl(var(--muted) / 0.5);
