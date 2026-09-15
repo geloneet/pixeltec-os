@@ -6,7 +6,7 @@ Estados: existente · optimizar · consolidar · crear · redirigir · archivar.
 
 | URL | Tipo | Intención | Keyword principal [Hipótesis] | Funnel | CTA | Estado | Notas |
 |---|---|---|---|---|---|---|---|
-| / | home | navegacional + comercial | desarrollo de software a medida méxico | awareness | diagnóstico | optimizar | H1 y primer viewport deben decir qué/para quién/resultado |
+| / | home | navegacional + comercial | desarrollo web / software a la medida + Puerto Vallarta [hipótesis hasta GSC] | awareness | diagnóstico | optimizada 2026-09-14 (WO-2026-00343) | H1 = dos servicios («Desarrollo Web y Apps / Automatización con IA»), geo en badge/subtítulo/description; enlaza 12 landings ciudad×servicio + 6 por keyword; JSON-LD ItemList + Service ×3. Línea base y medición: `docs/seo/home-seo-baseline-2026-09-14.json`, `docs/seo/home-gsc-baseline-2026-09-14.md` |
 | /services | hub servicios | investigación comercial | agencia desarrollo web y automatización | consideration | contacto | optimizar | página de conversión #1; hoy 'use client' completa |
 | /services/ecosistemas-web | servicio | investigación comercial | desarrollo web empresarial nextjs | consideration | contacto | optimizar | evidencia real pendiente |
 | /services/automatizacion | servicio | investigación comercial | automatización de procesos con ia | consideration | diagnóstico | optimizar | conectar con artículos del pilar |
