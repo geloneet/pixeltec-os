@@ -15,6 +15,8 @@
  * docs/seo/plan-seo-local-automatizacion.md para la evidencia.
  */
 
+import type { LocalProof } from './local-services';
+
 export interface LocalCity {
   slug: string;
   city: string;
@@ -31,6 +33,11 @@ export interface LocalCity {
    *  mismo tipo de autoridad — más señal, sin caer en link-stuffing. */
   externalSources: { label: string; href: string }[];
   neighborSlugs: string[];
+  /** Prueba local verificable (WO-2026-00345, L4) — mismas reglas que en
+   *  `local-services.ts`: solo clientes públicos con ubicación documentada. */
+  localProof?: LocalProof;
+  /** Slugs de páginas de industria (`industriesWithPage()`) → chips. */
+  relatedIndustrySlugs?: string[];
 }
 
 export const LOCAL_AUTOMATION_CITIES: LocalCity[] = [
@@ -94,6 +101,17 @@ export const LOCAL_AUTOMATION_CITIES: LocalCity[] = [
       { label: 'CANIETI (nacional)', href: 'https://canieti.org/' },
     ],
     neighborSlugs: ['automatizacion-zapopan'],
+    // Fuente: 03_CLIENTES/Smile More.md (comunicaciones automáticas por correo
+    // en producción; integración WhatsApp pausada por decisión del proyecto).
+    localProof: {
+      title: 'Automatización real en Guadalajara',
+      body: [
+        'En Smile More, clínica dental con sedes en Guadalajara y Guamúchil, automatizamos la comunicación con el paciente: correo de confirmación al agendar, recordatorio automático 24 horas antes de la cita y recordatorio de revisión a los seis meses, disparados desde la plataforma sin que recepción tenga que acordarse.',
+        'La integración con WhatsApp quedó en pausa por decisión del proyecto; el mismo flujo puede operar por WhatsApp cuando la clínica lo active.',
+      ],
+      links: [{ href: '/industrias/clinicas-dentales', label: 'Ver el caso: software para clínicas dentales' }],
+    },
+    relatedIndustrySlugs: ['clinicas-dentales'],
   },
   {
     slug: 'automatizacion-zapopan',

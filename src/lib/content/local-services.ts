@@ -11,6 +11,19 @@
  * automatizacion-<ciudad> con el título cambiado).
  */
 
+/**
+ * Prueba local verificable (WO-2026-00345, L4): trabajo real que sostiene la
+ * landing. SOLO clientes ya públicos en los testimonios del home y con
+ * ubicación documentada en `03_CLIENTES/*.md`, dicha tal cual (Villa Nogal =
+ * San Sebastián del Oeste; Smile More = Guadalajara y Guamúchil). Sin ficha
+ * con ubicación no hay `localProof`: la landing se queda como está.
+ */
+export interface LocalProof {
+  title: string;
+  body: string[];
+  links: { href: string; label: string }[];
+}
+
 export interface LocalServiceCity {
   slug: string;
   city: string;
@@ -27,6 +40,10 @@ export interface LocalServiceCity {
    *  mismo tipo de autoridad — más señal, sin caer en link-stuffing. */
   externalSources: { label: string; href: string }[];
   neighborSlugs: string[];
+  /** Sección «Trabajo real …» entre «Casos de uso» y «Cómo trabajamos». */
+  localProof?: LocalProof;
+  /** Slugs de páginas de industria (`industriesWithPage()`) → chips. */
+  relatedIndustrySlugs?: string[];
 }
 
 export interface LocalServiceDefinition {
@@ -94,6 +111,16 @@ export const DESARROLLO_WEB_CITIES: LocalServiceCity[] = [
       { label: 'CANIETI (nacional)', href: 'https://canieti.org/' },
     ],
     neighborSlugs: ['desarrollo-web-zapopan'],
+    // Fuente: 03_CLIENTES/Smile More.md (sedes Guadalajara y Guamúchil; plataforma en producción).
+    localProof: {
+      title: 'Trabajo real en Guadalajara',
+      body: [
+        'Smile More, clínica dental con sedes en Guadalajara y Guamúchil, opera con una plataforma construida por PixelTEC: agenda y reprogramación de citas, expediente y archivos clínicos con acceso por rol, comprobantes PDF y cobro en caja, y recordatorios automáticos por correo.',
+        'El sitio público de la clínica tiene páginas por sede para búsquedas locales, y la plataforma corre en infraestructura propia con proceso de liberación controlado: cada versión se prueba antes de llegar a la clínica y siempre hay una anterior lista para volver atrás.',
+      ],
+      links: [{ href: '/industrias/clinicas-dentales', label: 'Ver el caso: software para clínicas dentales' }],
+    },
+    relatedIndustrySlugs: ['clinicas-dentales'],
   },
   {
     slug: 'desarrollo-web-zapopan',
@@ -208,6 +235,18 @@ export const DESARROLLO_WEB_CITIES: LocalServiceCity[] = [
       { label: 'Secretaría de Turismo (gob.mx)', href: 'https://www.gob.mx/sectur' },
     ],
     neighborSlugs: ['desarrollo-web-bahia-de-banderas'],
+    // Fuente: 03_CLIENTES/Villa Nogal.md (hotel boutique en San Sebastián del
+    // Oeste, Jalisco; CRM v1 + motor de reservas en producción). La ubicación se
+    // dice tal cual: NO está en Puerto Vallarta.
+    localProof: {
+      title: 'Trabajo real desde Puerto Vallarta',
+      body: [
+        'Villa Nogal, hotel boutique en San Sebastián del Oeste, en la sierra de Jalisco, opera con un CRM hotelero a la medida y un motor de reservas propio construidos por PixelTEC desde Puerto Vallarta: disponibilidad por habitación, sitio bilingüe en español e inglés y panel para administrar habitaciones y reservas sin tocar código.',
+        'Ese mismo tipo de motor de reservación —con la marca del negocio y sin comisión por reserva— es el que proponemos a hoteles boutique, restaurantes y rentas vacacionales de la bahía.',
+      ],
+      links: [{ href: '/industrias/hoteles', label: 'Ver el caso: sistema de reservas y CRM para hoteles' }],
+    },
+    relatedIndustrySlugs: ['hoteles'],
   },
   {
     slug: 'desarrollo-web-bahia-de-banderas',
@@ -265,6 +304,17 @@ export const DESARROLLO_WEB_CITIES: LocalServiceCity[] = [
       { label: 'Secretaría de Turismo (gob.mx)', href: 'https://www.gob.mx/sectur' },
     ],
     neighborSlugs: ['desarrollo-web-puerto-vallarta'],
+    // Fuente: 03_CLIENTES/Villa Nogal.md. Ubicación real (San Sebastián del Oeste),
+    // sin sugerir cercanía con Bahía de Banderas.
+    localProof: {
+      title: 'Trabajo real en hospedaje',
+      body: [
+        'Villa Nogal, hotel boutique en San Sebastián del Oeste, Jalisco, opera con un motor de reservas propio y un CRM hotelero a la medida construidos por PixelTEC: disponibilidad por habitación, sitio bilingüe en español e inglés y panel de administración del hotel.',
+        'Es el mismo planteamiento que aplicamos a plataformas de renta vacacional, desarrollos y administradoras de Bahía de Banderas: un sistema propio, con la marca del negocio, que no depende solo de plataformas de terceros.',
+      ],
+      links: [{ href: '/industrias/hoteles', label: 'Ver el caso: sistema de reservas y CRM para hoteles' }],
+    },
+    relatedIndustrySlugs: ['hoteles'],
   },
 ];
 

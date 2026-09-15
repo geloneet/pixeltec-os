@@ -16,6 +16,7 @@ import { Footer } from '@/components/ui/footer-section';
 import { ShinyButton } from '@/components/ui/shiny-button';
 import type { LocalCity } from '@/lib/content/automatizacion-local';
 import { LOCAL_AUTOMATION_CITIES } from '@/lib/content/automatizacion-local';
+import { LocalProofSection } from './local-proof-section';
 
 const ICONS = {
   MessageSquareText,
@@ -144,6 +145,14 @@ export default function LocalAutomationPage({ city }: { city: LocalCity }) {
             })}
           </div>
         </motion.section>
+
+        {/* Trabajo real (WO-2026-00345 L4) — solo si el registro trae localProof */}
+        <LocalProofSection
+          slug={city.slug}
+          proof={city.localProof}
+          relatedIndustrySlugs={city.relatedIndustrySlugs}
+          variants={sectionVariants}
+        />
 
         {/* Proceso — mismo proceso real en todas las ciudades */}
         <motion.section

@@ -77,7 +77,10 @@ export default function BlogPostClient({
         <div className="lg:grid lg:grid-cols-[1fr_280px] lg:items-start lg:gap-12">
         <div className="min-w-0">
         <header className="relative mb-12 h-64 sm:h-80 md:h-96 w-full overflow-hidden rounded-2xl md:rounded-3xl shadow-[0_12px_40px_-20px_rgba(12,17,29,0.25)] dark:shadow-[0_0_30px_rgba(0,240,255,0.05)]">
-          <Image src={coverImage} alt={coverAlt} fill className="object-cover" priority />
+          {/* L4 (WO-2026-00345): la columna del artículo no supera ~768 px en
+              desktop; `sizes=100vw` pedía una imagen del ancho de la pantalla.
+              `priority` se mantiene (es el LCP del artículo). */}
+          <Image src={coverImage} alt={coverAlt} fill className="object-cover" sizes="(max-width: 1024px) 100vw, 768px" priority />
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
           <div className="absolute bottom-0 left-0 w-full p-6 md:p-8 lg:p-12">
             <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2">
