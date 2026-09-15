@@ -1,149 +1,60 @@
 import type { Metadata } from "next";
 import { buildMetadata } from "@/lib/seo";
 import Link from "next/link";
-import { Truck, Droplets, Stethoscope, Hotel, ShoppingBag, Sun, CheckCircle } from "lucide-react";
+import { Truck, Droplets, Stethoscope, Hotel, ShoppingBag, Sun, CheckCircle, type LucideIcon } from "lucide-react";
 import Header from "@/components/header";
 import { Footer } from "@/components/ui/footer-section";
 import { ShinyButton } from "@/components/ui/shiny-button";
+import { SITE } from "@/lib/site-config";
+import { BreadcrumbStructuredData } from "@/components/seo/structured-data";
+import { IndustryHubStructuredData } from "@/components/seo/industry-structured-data";
+import { INDUSTRIES, industryPagePath, type IndustryIcon } from "@/lib/content/industrias";
 
+// L2 (WO-2026-00345): title con intención de búsqueda («software para
+// <sector>») y description sin sectores que no existen en la página. El H1 ya
+// no es «Especialistas por industria»: dice qué vendemos.
 export const metadata: Metadata = buildMetadata({
   path: '/industrias',
-  title: 'Industrias · Especialistas por sector',
-  description: 'PixelTEC construye software a medida para logística, clínicas, retail y SaaS. Conoce los problemas específicos que resolvemos en cada vertical.',
+  title: 'Software para clínicas, hoteles, logística y más',
+  description:
+    'Software a la medida para clínicas dentales, hoteles, logística, distribución de agua, comercio y energía solar, con casos reales de clientes en Jalisco.',
 });
 
-// Solo sectores con al menos un cliente real documentado. El stack refleja el
-// vigente (Next.js + PostgreSQL, ADR-0001/ADR-0022); Firebase quedó como
-// legacy de proyectos anteriores, no como tecnología actual.
-const industries = [
-  {
-    icon: Truck,
-    slug: "logistica",
-    title: "Logística y Transportes",
-    description:
-      "Automatizamos rutas, despachos y facturación para empresas de transporte. Integraciones con sistemas SAT mexicanos, tracking en tiempo real, y dashboards operativos.",
-    stack: ["Next.js", "PostgreSQL", "Integraciones SAT", "Google Maps"],
-    problems: [
-      "Gestión de flotillas y mantenimiento",
-      "Facturación electrónica automatizada",
-      "Dashboards de KPIs operativos",
-      "Apps móviles para conductores",
-    ],
-  },
-  {
-    icon: Droplets,
-    slug: "agua",
-    title: "Distribución de Agua",
-    description:
-      "Digitalizamos la operación de distribuidoras: pedidos, rutas de reparto, control de clientes recurrentes y cobranza, con visibilidad diaria de la operación.",
-    stack: ["Next.js", "PostgreSQL", "WhatsApp API", "Reportes operativos"],
-    problems: [
-      "Pedidos y rutas de reparto",
-      "Control de clientes recurrentes",
-      "Cobranza y seguimiento de saldos",
-      "Reportes diarios de operación",
-    ],
-  },
-  {
-    icon: Stethoscope,
-    slug: "salud",
-    title: "Salud Dental y Clínicas",
-    description:
-      "Plataformas para clínicas dentales y consultorios: gestión de pacientes, agenda online, historiales clínicos digitales, y portal del paciente.",
-    stack: ["Next.js", "PostgreSQL", "Google Calendar", "WhatsApp API"],
-    problems: [
-      "Citas y agenda online",
-      "Historial clínico digital",
-      "Comunicación con pacientes vía WhatsApp/email",
-      "Reportes y métricas del consultorio",
-    ],
-  },
-  {
-    icon: Hotel,
-    slug: "hoteleria",
-    title: "Hotelería y Hospedaje",
-    description:
-      "Sistemas de reservas a medida para hoteles y villas: disponibilidad, gestión de huéspedes y comunicación directa, sin depender solo de plataformas de terceros.",
-    stack: ["Next.js", "PostgreSQL", "Pasarelas de pago", "WhatsApp API"],
-    problems: [
-      "Reservas directas sin comisiones de terceros",
-      "Calendario de disponibilidad y tarifas",
-      "Gestión de huéspedes y seguimiento",
-      "Reportes de ocupación",
-    ],
-  },
-  {
-    icon: ShoppingBag,
-    slug: "moda",
-    title: "Moda y Comercio Especializado",
-    description:
-      "Llevamos marcas y comercios especializados al canal digital: e-commerce, inventario conectado, CRM de clientes y automatización de ventas.",
-    stack: ["Next.js", "PostgreSQL", "Stripe / Mercado Pago", "Cloudflare R2"],
-    problems: [
-      "Tienda en línea con identidad propia",
-      "Inventario unificado físico + digital",
-      "Automatización de marketing (email, WhatsApp)",
-      "Reportes de ventas y rentabilidad",
-    ],
-  },
-  {
-    icon: Sun,
-    slug: "solar",
-    title: "Energía Solar",
-    description:
-      "Herramientas para instaladores y comercializadoras: cotizadores que calculan el dimensionamiento y el retorno, captura de prospectos y seguimiento comercial.",
-    stack: ["Next.js", "PostgreSQL", "Cotizador a medida", "WhatsApp API"],
-    problems: [
-      "Cotizador de sistemas fotovoltaicos",
-      "Cálculo de ahorro y retorno de inversión",
-      "Captura y seguimiento de prospectos",
-      "Propuestas comerciales automatizadas",
-    ],
-  },
-];
-
-// Mapea el slug de esta página al `value` de COMPANY_TYPES en
-// src/lib/diagnostic/logic.ts, para preseleccionar el tipo de empresa en el
-// wizard de /diagnostico.
-//
-// CON-05 (WO-2026-00268): antes «agua» caía en 'servicios' y «solar» en
-// 'otra', así que quien llegaba desde esas dos secciones veía el wizard
-// preseleccionado con una categoría que no era la suya. Ahora los seis
-// sectores que el sitio declara servir tienen su equivalente exacto en el
-// catálogo — ninguno cae ya en un cajón de sastre.
-const DIAGNOSTIC_INDUSTRY_MAP: Record<string, string> = {
-  logistica: 'logistica',
-  agua: 'agua',
-  salud: 'clinica',
-  hoteleria: 'hotel',
-  moda: 'retail',
-  solar: 'solar',
-};
+// Único mapa de UI: el icono. Todo lo demás (claims, stack, tipo de
+// diagnóstico, páginas propias) sale del registro `@/lib/content/industrias`.
+const ICONS: Record<IndustryIcon, LucideIcon> = { Truck, Droplets, Stethoscope, Hotel, ShoppingBag, Sun };
 
 export default function IndustriasPage() {
   return (
     <>
+      <BreadcrumbStructuredData items={[
+        { name: SITE.name, url: SITE.url },
+        { name: 'Industrias', url: `${SITE.url}/industrias` },
+      ]} />
+      <IndustryHubStructuredData />
       <Header />
       <main className="min-h-screen bg-background dark:bg-[#030303] text-foreground dark:text-white pt-32 sm:pt-40 pb-16 sm:pb-24">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
           {/* Hero */}
           <header className="mb-16 md:mb-20 text-center max-w-3xl mx-auto">
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-foreground dark:text-white mb-6 tracking-tight">
-              Especialistas por{" "}
+              Software a la medida para tu{" "}
               <span className="bg-gradient-to-r from-blue-400 to-cyan-400 text-transparent bg-clip-text">
                 industria
               </span>
             </h1>
             <p className="text-lg md:text-xl text-muted-foreground dark:text-zinc-400 leading-relaxed">
-              Resolvemos problemas específicos con tecnología adaptada al sector.
-              No vendemos templates — construimos soluciones que entienden tu operación.
+              Solo aparecen sectores donde ya construimos para un cliente real: lo que ves es lo que está en
+              producción, no un catálogo. Trabajamos con empresas de todo México, con presencia local en Puerto
+              Vallarta, Bahía de Banderas, Guadalajara y Zapopan.
             </p>
           </header>
 
           {/* Industry tiles */}
           <section className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-20">
-            {industries.map((industry) => {
-              const Icon = industry.icon;
+            {INDUSTRIES.map((industry) => {
+              const Icon = ICONS[industry.icon];
+              const pageHref = industry.page ? industryPagePath(industry.page) : null;
               return (
                 <div
                   key={industry.slug}
@@ -152,23 +63,31 @@ export default function IndustriasPage() {
                   {/* Header */}
                   <div className="flex items-start gap-4">
                     <div className="p-3 rounded-xl bg-primary/5 dark:bg-cyan-950/40 border border-primary/20 dark:border-cyan-500/20 flex-shrink-0">
-                      <Icon className="h-7 w-7 text-brand" />
+                      <Icon className="h-7 w-7 text-brand" aria-hidden="true" />
                     </div>
                     <div>
-                      <h2 className="text-xl font-bold text-foreground dark:text-white mb-2">{industry.title}</h2>
-                      <p className="text-muted-foreground dark:text-zinc-400 text-sm leading-relaxed">{industry.description}</p>
+                      <h2 className="text-xl font-bold text-foreground dark:text-white mb-2">
+                        {pageHref ? (
+                          <Link href={pageHref} className="hover:text-brand transition-colors underline-offset-4 hover:underline">
+                            {industry.title}
+                          </Link>
+                        ) : (
+                          industry.title
+                        )}
+                      </h2>
+                      <p className="text-muted-foreground dark:text-zinc-400 text-sm leading-relaxed">{industry.summary}</p>
                     </div>
                   </div>
 
-                  {/* Problems solved */}
+                  {/* Lo que resolvemos — solo lo sostenido por la ficha del cliente */}
                   <div>
                     <p className="text-xs font-semibold text-muted-foreground dark:text-zinc-500 uppercase tracking-wider mb-3">
-                      Problemas que resolvemos
+                      Lo que resolvemos
                     </p>
                     <ul className="space-y-2">
                       {industry.problems.map((problem) => (
                         <li key={problem} className="flex items-start gap-2 text-sm text-foreground/85 dark:text-zinc-300">
-                          <CheckCircle className="h-4 w-4 text-brand flex-shrink-0 mt-0.5" />
+                          <CheckCircle className="h-4 w-4 text-brand flex-shrink-0 mt-0.5" aria-hidden="true" />
                           {problem}
                         </li>
                       ))}
@@ -194,12 +113,21 @@ export default function IndustriasPage() {
 
                   {/* CTA */}
                   <div className="mt-auto pt-2">
-                    <Link
-                      href={`/diagnostico?industry=${DIAGNOSTIC_INDUSTRY_MAP[industry.slug] ?? ''}`}
-                      className="inline-flex items-center text-sm font-semibold text-brand hover:text-brand/80 dark:hover:text-cyan-300 transition-colors group-hover:underline underline-offset-4"
-                    >
-                      Conversar sobre este vertical →
-                    </Link>
+                    {pageHref ? (
+                      <Link
+                        href={pageHref}
+                        className="inline-flex items-center text-sm font-semibold text-brand hover:text-brand/80 dark:hover:text-cyan-300 transition-colors group-hover:underline underline-offset-4"
+                      >
+                        Ver caso y solución →
+                      </Link>
+                    ) : (
+                      <Link
+                        href={`/diagnostico?industry=${industry.diagnosticType}`}
+                        className="inline-flex items-center text-sm font-semibold text-brand hover:text-brand/80 dark:hover:text-cyan-300 transition-colors group-hover:underline underline-offset-4"
+                      >
+                        Conversar sobre este sector →
+                      </Link>
+                    )}
                   </div>
                 </div>
               );
