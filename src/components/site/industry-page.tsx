@@ -156,9 +156,7 @@ export function IndustryPage({ industry }: { industry: IndustryWithPage }) {
 
         {/* CTA */}
         <section className="mt-4 mb-8 md:mb-16 rounded-2xl bg-gradient-to-tr from-primary/5 via-card to-card border border-border py-12 md:py-16 px-6 text-center shadow-[0_12px_40px_-16px_rgba(33,150,243,0.18)] dark:from-cyan-950/50 dark:via-[#0A0A0A] dark:to-[#0A0A0A] dark:shadow-[0_0_40px_rgba(0,240,255,0.05)]">
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-foreground">
-            ¿Hablamos de tu {page.audienceType.toLowerCase().replace(/s$/, '')}?
-          </h2>
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-foreground">{page.ctaHeading}</h2>
           <p className="mx-auto mt-4 max-w-xl text-base sm:text-lg text-muted-foreground leading-relaxed">
             Empieza con un diagnóstico gratuito: revisamos cómo operas hoy y te decimos qué construir primero.
           </p>

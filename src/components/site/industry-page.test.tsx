@@ -34,6 +34,7 @@ describe('IndustryPage — RSC con el patrón de las landings', () => {
       for (const s of page.sections) expect(h2).toContain(s.title);
       expect(h2).toContain(page.caseStudy.title);
       expect(h2).toContain('Preguntas frecuentes');
+      expect(h2).toContain(page.ctaHeading);
       expect(h2.length).toBeGreaterThanOrEqual(4);
 
       const caso = screen.getByRole('region', { name: page.caseStudy.title });

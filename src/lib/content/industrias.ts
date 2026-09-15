@@ -69,6 +69,8 @@ export interface IndustryPageContent {
   relatedServices: { href: '/services/ecosistemas-web' | '/services/automatizacion' | '/services/consultoria'; label: string }[];
   /** Slugs de landings existentes (ciudad×servicio o keyword). */
   relatedLandings: string[];
+  /** H2 del CTA final, en singular y con el sector («¿Hablamos de tu hotel?»). */
+  ctaHeading: string;
   ctaHref: `/diagnostico?industry=${DiagnosticIndustry}`;
 }
 
@@ -229,6 +231,7 @@ export const INDUSTRIES: readonly Industry[] = [
         { href: '/services/automatizacion', label: 'Automatización con IA' },
       ],
       relatedLandings: ['desarrollo-web-guadalajara', 'automatizacion-guadalajara'],
+      ctaHeading: '¿Hablamos de tu clínica dental?',
       ctaHref: '/diagnostico?industry=clinica',
     },
   },
@@ -339,6 +342,7 @@ export const INDUSTRIES: readonly Industry[] = [
         { href: '/services/automatizacion', label: 'Automatización con IA' },
       ],
       relatedLandings: ['desarrollo-web-puerto-vallarta', 'desarrollo-web-bahia-de-banderas'],
+      ctaHeading: '¿Hablamos de tu hotel?',
       ctaHref: '/diagnostico?industry=hotel',
     },
   },

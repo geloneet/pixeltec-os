@@ -116,6 +116,9 @@ describe('páginas de industria', () => {
           expect(s.body.length).toBeGreaterThanOrEqual(1);
         }
         expect(page.ctaHref).toBe(`/diagnostico?industry=${industry.diagnosticType}`);
+        // Singular explícito: nada de derivarlo con un replace (salía «tu hotele»).
+        expect(page.ctaHeading).toMatch(/^¿Hablamos de tu [a-záéíóú ]+\?$/);
+        expect(page.ctaHeading).not.toMatch(/hotele|dentale|clínicas/);
       });
     });
   }
