@@ -205,12 +205,12 @@ export const INDUSTRIES: readonly Industry[] = [
           'La plataforma sigue evolucionando con las mejoras que la propia clínica prioriza, fase por fase.',
         ],
         source: '03_CLIENTES/Smile More.md',
-        // Grafía del nombre igual a la del home (`sections/testimonials.tsx`), para
-        // no tener dos versiones públicas; la ficha del vault escribe «Polett».
+        // Grafía decidida por Miguel (2026-09-14, WO-2026-00349): «Polett Niebla» y
+        // «Smile More», igual que la ficha del vault y que `sections/testimonials.tsx`.
         testimonial: {
           quote:
             'El sistema de gestión integral para la clínica y el rediseño del sitio web superaron todas nuestras expectativas. Hemos mejorado nuestra captación de pacientes notablemente.',
-          author: 'Pollet Niebla',
+          author: 'Polett Niebla',
           role: 'Fundadora, Smile More',
         },
       },
