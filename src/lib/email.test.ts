@@ -1,4 +1,4 @@
-import { describe, expect, test, vi, beforeEach } from "vitest";
+import { describe, expect, test, vi, beforeEach, afterEach } from "vitest";
 
 /**
  * Saneamiento EN ORIGEN de `EmailResult.error` (E0f-3b).
@@ -54,7 +54,7 @@ vi.mock("@/emails/NewsletterWelcomeEmail", () => ({ renderNewsletterWelcomeEmail
 vi.mock("@/emails/ProposalEmail", () => ({ renderProposalEmail: () => "<html/>" }));
 vi.mock("@/emails/ProposalDecisionEmail", () => ({ renderProposalDecisionEmail: () => "<html/>" }));
 
-import { sendEmail, sendPasswordResetEmail } from "./email";
+import { sendEmail, sendPasswordResetEmail, sendContactNotification } from "./email";
 
 const RESEND_RAW_BODY = '{"statusCode":403,"name":"validation_error","message":"The pixeltec.mx domain is not verified"}';
 const TOKEN_PRIVADO = "re_tokenprivadoderesend";
@@ -138,6 +138,81 @@ describe("sendEmail — el contrato solo lleva códigos estables", () => {
     for (const marcador of MARCADORES) {
       expect(registrado).not.toContain(marcador);
     }
+  });
+});
+
+describe("getTeamEmail — regresión WO-2026-00395 (equipo@pixeltec.mx suprimido, hard bounce desde 2026-05-12)", () => {
+  const ORIGINAL_NODE_ENV = process.env.NODE_ENV;
+  const ORIGINAL_TEAM_EMAIL = process.env.PIXELTEC_TEAM_EMAIL;
+
+  afterEach(() => {
+    vi.stubEnv("NODE_ENV", ORIGINAL_NODE_ENV ?? "test");
+    if (ORIGINAL_TEAM_EMAIL === undefined) delete process.env.PIXELTEC_TEAM_EMAIL;
+    else process.env.PIXELTEC_TEAM_EMAIL = ORIGINAL_TEAM_EMAIL;
+  });
+
+  test("fuera de producción, sin PIXELTEC_TEAM_EMAIL, usa contacto@pixeltec.mx — nunca equipo@pixeltec.mx", async () => {
+    vi.stubEnv("NODE_ENV", "test");
+    delete process.env.PIXELTEC_TEAM_EMAIL;
+    sendMock.mockResolvedValueOnce({ data: { id: "em_1" }, error: null });
+
+    await sendContactNotification({
+      name: "Visitante",
+      email: "visitante@ejemplo.mx",
+      message: "hola",
+      submittedAt: new Date().toISOString(),
+    });
+
+    expect(sendMock).toHaveBeenCalledWith(
+      expect.objectContaining({ to: ["contacto@pixeltec.mx"] })
+    );
+  });
+
+  test("en producción, sin PIXELTEC_TEAM_EMAIL, NO envía y falla explícito — nunca cae a equipo@pixeltec.mx", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    delete process.env.PIXELTEC_TEAM_EMAIL;
+
+    await expect(
+      sendContactNotification({
+        name: "Visitante",
+        email: "visitante@ejemplo.mx",
+        message: "hola",
+        submittedAt: new Date().toISOString(),
+      })
+    ).rejects.toThrow(/PIXELTEC_TEAM_EMAIL/);
+    expect(sendMock).not.toHaveBeenCalled();
+  });
+
+  test("en producción, con PIXELTEC_TEAM_EMAIL con formato inválido, falla explícito y no envía", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    process.env.PIXELTEC_TEAM_EMAIL = "no-es-un-correo";
+
+    await expect(
+      sendContactNotification({
+        name: "Visitante",
+        email: "visitante@ejemplo.mx",
+        message: "hola",
+        submittedAt: new Date().toISOString(),
+      })
+    ).rejects.toThrow(/PIXELTEC_TEAM_EMAIL/);
+    expect(sendMock).not.toHaveBeenCalled();
+  });
+
+  test("en producción, con PIXELTEC_TEAM_EMAIL válida, envía a ese destinatario real", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    process.env.PIXELTEC_TEAM_EMAIL = "contacto@pixeltec.mx";
+    sendMock.mockResolvedValueOnce({ data: { id: "em_2" }, error: null });
+
+    await sendContactNotification({
+      name: "Visitante",
+      email: "visitante@ejemplo.mx",
+      message: "hola",
+      submittedAt: new Date().toISOString(),
+    });
+
+    expect(sendMock).toHaveBeenCalledWith(
+      expect.objectContaining({ to: ["contacto@pixeltec.mx"] })
+    );
   });
 });
 
