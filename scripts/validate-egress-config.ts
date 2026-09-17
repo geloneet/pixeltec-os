@@ -229,6 +229,29 @@ export function validateEgressConfig(
     add("cron", "CRON_SECRET", "missing", "secreto operativo requerido (no es variable de política)");
   }
 
+  // ── PIXELTEC_TEAM_EMAIL (WO-2026-00395) ──────────────────────────────────
+  // Destinatario de los avisos internos (contacto, diagnóstico, decisión de
+  // propuesta, factura pagada, tarea, ticket de soporte). El código YA no cae
+  // a un literal si falta (src/lib/email.ts, getTeamEmail()); este gate lo
+  // detiene ANTES del deploy, no solo cuando alguien intenta enviar.
+  if (profile === "predeploy") {
+    const teamEmail = env.PIXELTEC_TEAM_EMAIL?.trim();
+    if (!teamEmail) {
+      add("email", "PIXELTEC_TEAM_EMAIL", "missing", "destinatario de avisos internos requerido en producción");
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(teamEmail)) {
+      add("email", "PIXELTEC_TEAM_EMAIL", "invalid", "formato de correo inválido");
+    } else if (teamEmail.toLowerCase() === "equipo@pixeltec.mx") {
+      add(
+        "email",
+        "PIXELTEC_TEAM_EMAIL",
+        "forbidden",
+        "equipo@pixeltec.mx no existe — hard bounce de Gmail y suprimido en Resend desde 2026-05-12 (WO-2026-00395)"
+      );
+    } else {
+      add("email", "PIXELTEC_TEAM_EMAIL", "present");
+    }
+  }
+
   const ok = findings.every((f) => f.status === "present");
   return { profile, findings, ok };
 }

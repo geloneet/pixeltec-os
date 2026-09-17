@@ -40,7 +40,40 @@ function getResend(): Resend {
 }
 
 const FROM = process.env.RESEND_FROM_EMAIL ?? 'PixelTEC <onboarding@resend.dev>';
-const TEAM_EMAIL = process.env.PIXELTEC_TEAM_EMAIL ?? 'equipo@pixeltec.mx';
+
+const EMAIL_FORMAT = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+/** Fallback SOLO fuera de producción (dev/test/scripts) — nunca el destinatario roto de prod. */
+const TEAM_EMAIL_DEV_FALLBACK = 'contacto@pixeltec.mx';
+
+/**
+ * Perezoso como getResend() (ver comentario arriba): una importación transitiva
+ * sin PIXELTEC_TEAM_EMAIL en el entorno (tests, scripts) no debe tumbar el
+ * módulo. Solo se resuelve al enviar de verdad, y en producción exige un valor
+ * válido — sin fallback silencioso.
+ *
+ * WO-2026-00395: el literal hardcodeado `equipo@pixeltec.mx` quedó suprimido
+ * en Resend por hard bounce de Gmail ("The email account that you tried to
+ * reach does not exist") desde 2026-05-12, y ningún aviso interno (contacto,
+ * diagnóstico, decisión de propuesta, factura pagada, tarea, ticket de
+ * soporte) llegó al equipo desde entonces sin que nada lo señalara.
+ */
+function getTeamEmail(): string {
+  const raw = process.env.PIXELTEC_TEAM_EMAIL?.trim();
+  const isProduction = process.env.NODE_ENV === 'production';
+
+  if (isProduction) {
+    if (!raw || !EMAIL_FORMAT.test(raw)) {
+      throw new Error(
+        'PIXELTEC_TEAM_EMAIL ausente o con formato inválido en producción: los avisos internos ' +
+          'no tienen destinatario confiable. Ver WO-2026-00395 — production nunca cae a un literal ' +
+          'hardcodeado.'
+      );
+    }
+    return raw;
+  }
+
+  return raw && EMAIL_FORMAT.test(raw) ? raw : TEAM_EMAIL_DEV_FALLBACK;
+}
 
 // ── Result type ────────────────────────────────────────────────────────────────
 
@@ -207,7 +240,7 @@ export async function sendInvoiceToClientEmail(props: {
 export async function sendInvoiceEmail(props: InvoiceEmailProps): Promise<EmailResult> {
   const html = renderInvoiceEmail(props);
   return sendEmail(
-    TEAM_EMAIL,
+    getTeamEmail(),
     `💰 Pago recibido · ${props.clientName} — ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: props.currency ?? 'MXN' }).format(props.amount)}`,
     html
   );
@@ -216,7 +249,7 @@ export async function sendInvoiceEmail(props: InvoiceEmailProps): Promise<EmailR
 /** Sent to the internal team when a new task is created. */
 export async function sendTaskNotification(props: TaskAssignedEmailProps): Promise<EmailResult> {
   const html = renderTaskAssignedEmail(props);
-  return sendEmail(TEAM_EMAIL, `📋 Nueva tarea: ${props.taskTitle}`, html);
+  return sendEmail(getTeamEmail(), `📋 Nueva tarea: ${props.taskTitle}`, html);
 }
 
 /** Sent to the client when a proposal's public link is shared with them. */
@@ -231,7 +264,7 @@ export async function sendSupportTicketNotification(props: SupportTicketEmailPro
   const html = renderSupportTicketEmail(props);
   const urgencyPrefix = props.prioridad === 'Alta' ? '🔴' : props.prioridad === 'Media' ? '🟡' : '🔵';
   return sendEmail(
-    TEAM_EMAIL,
+    getTeamEmail(),
     `${urgencyPrefix} Ticket ${props.ticketId} · ${props.cliente} — ${props.prioridad}`,
     html
   );
@@ -280,7 +313,7 @@ export async function sendContactNotification(
 ): Promise<EmailResult> {
   const html = renderContactNotificationEmail(props);
   const subject = `✦ Nuevo contacto web — ${props.name}${props.empresa ? ` (${props.empresa})` : ''}`;
-  return sendEmail(TEAM_EMAIL, subject, html);
+  return sendEmail(getTeamEmail(), subject, html);
 }
 
 /** Sent to the internal team when a visitor completes the Diagnóstico Inteligente wizard. */
@@ -289,7 +322,7 @@ export async function sendDiagnosticNotification(
 ): Promise<EmailResult> {
   const html = renderDiagnosticNotificationEmail(props);
   const subject = `🧭 Nuevo Diagnóstico — ${props.name}${props.empresa ? ` (${props.empresa})` : ''} — ${props.score}%`;
-  return sendEmail(TEAM_EMAIL, subject, html);
+  return sendEmail(getTeamEmail(), subject, html);
 }
 
 /** Aviso interno cuando un cliente decide una propuesta en /p/[token]. */
@@ -298,7 +331,7 @@ export async function sendProposalDecisionEmail(
 ): Promise<EmailResult> {
   const { subject, ...templateProps } = props;
   const html = renderProposalDecisionEmail(templateProps);
-  return sendEmail(TEAM_EMAIL, subject, html);
+  return sendEmail(getTeamEmail(), subject, html);
 }
 
 /** Sent to a staff member who requests a password reset on /login. */
